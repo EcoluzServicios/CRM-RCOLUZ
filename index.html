@@ -274,7 +274,7 @@
     let clients = [], quotes = [], ots = [], visitas = [];
     
     let pendingOTToLink = null; 
-    let isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
+    let isAutoMode = localStorage.getItem('ecoluz_automode') === 'false';
 
     window.LOGO_FILE = "logo ecoluz.png";
 
@@ -757,9 +757,15 @@
       let clientOptions = '<option value="">Selecciona cliente existente</option>';
       clients.forEach(c => { clientOptions += `<option value="${c.id}" data-rut="${c.rut}">${c.name} (${c.rut})</option>`; });
 
-      // CORRECCIÓN AQUÍ: Una sola vez y bien definido
-      const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
-      const qNumHTML = `<input id="qNum" value="${displayNum}" placeholder="N° Cotización (Ej: 1045) *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>`;
+     // CORRECCIÓN AQUÍ: Definimos el número y el comportamiento del cuadro
+const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
+
+// IMPORTANTE: Si NO es modo automático, quitamos el 'readonly' para que te deje escribir
+const qNumHTML = `<input id="qNum" 
+  value="${displayNum}" 
+  placeholder="N° Cotización (Ej: 1045) *" 
+  class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" 
+  ${isAutoMode ? 'readonly' : ''}>`;
 
       const html = `
         <div class="p-8">
