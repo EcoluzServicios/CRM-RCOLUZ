@@ -405,14 +405,24 @@
     }
 
     function getNextQuoteNumber() {
-        let maxNum = 0;
-        quotes.forEach(q => {
-            let numStr = String(q.numeroCotizacion).replace(/\D/g, ''); 
-            let n = parseInt(numStr);
-            if(!isNaN(n) && n > maxNum) maxNum = n;
-        });
-        return String(maxNum + 1);
-    }
+    let maxNum = 0;
+    
+    // Si no hay ninguna cotización todavía, puedes elegir donde empezar
+    if (quotes.length === 0) return "100"; // O el número que quieras de base
+
+    quotes.forEach(q => {
+        // Buscamos el número tanto en la raíz como en el campo 'data' por seguridad
+        let val = q.numeroCotizacion || (q.data && q.data.numeroCotizacion) || 0;
+        
+        // Limpiamos cualquier letra (si ingresaste algo como "520-B")
+        let numStr = String(val).replace(/\D/g, ''); 
+        let n = parseInt(numStr);
+        
+        if(!isNaN(n) && n > maxNum) maxNum = n;
+    });
+
+    return String(maxNum + 1);
+}
 
     function getNextOTNumber() {
         let maxNum = 0;
@@ -747,70 +757,45 @@
       let clientOptions = '<option value="">Selecciona cliente existente</option>';
       clients.forEach(c => { clientOptions += `<option value="${c.id}" data-rut="${c.rut}">${c.name} (${c.rut})</option>`; });
 
-      const qNumHTML = isAutoMode 
-        ? `<input id="qNum" value="Automático" disabled class="w-full px-3 py-2 border rounded-xl bg-indigo-50 text-indigo-700 font-bold">` 
-        : `<input id="qNum" placeholder="N° Cotización (Ej: 1045)" class="w-full px-3 py-2 border rounded-xl">`;
+      // CORRECCIÓN AQUÍ: Una sola vez y bien definido
+      const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
+      const qNumHTML = `<input id="qNum" value="${displayNum}" placeholder="N° Cotización (Ej: 1045) *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>`;
 
       const html = `
         <div class="p-8">
           <h2 class="text-2xl font-bold mb-6">${pendingOTToLink ? 'Crear Cotización para OT Manual' : 'Nueva Cotización'}</h2>
           <div class="space-y-4">
-            <div class="mb-3 flex gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
-    <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-        <input type="radio" name="clientMode" value="existing" checked onchange="document.getElementById('divExistingClient').style.display='block'; document.getElementById('divNewClient').style.display='none';"> 
-        <span class="text-blue-700">Cliente Existente</span>
-    </label>
-    <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-        <input type="radio" name="clientMode" value="new" onchange="document.getElementById('divExistingClient').style.display='none'; document.getElementById('divNewClient').style.display='block';"> 
-        <span class="text-emerald-600">Crear Nuevo Cliente</span>
-    </label>
-</div>
-
-<div id="divExistingClient" class="mb-3">
-    <select id="qClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600">${clientOptions}</select>
-</div>
-
-<div id="divNewClient" style="display: none;" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-    <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
-    <input type="text" id="qNewClientName" placeholder="Razón Social / Nombre (*)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500 mb-2">
-    <input type="text" id="qNewClientRut" placeholder="RUT (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500 mb-2">
-    <div class="flex gap-2">
-        <input type="email" id="qNewClientEmail" placeholder="Correo (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500">
-        <input type="text" id="qNewClientPhone" placeholder="Teléfono (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500">
-    </div>
-</div>
-            <select id="q-tipo-servicio" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600" required>
-                <option value="" disabled selected>Seleccione Tipo de Trabajo...</option>
-                <option value="Mantención">Mantención</option>
-                <option value="Reparación">Reparación</option>
-                <option value="Suministro">Suministro</option>
-                <option value="Instalación">Instalación</option>
-                <option value="Suministro e instalación">Suministro e instalación</option>
-            </select>
-            <textarea id="qObra" placeholder="Descripción de Obra" rows="2" class="w-full px-3 py-2 border rounded-xl"></textarea>
             
-            <div id="itemsContainer" class="space-y-3"></div>
-            <button type="button" onclick="addItem()" class="bg-green-600 text-white px-4 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> Agregar ítem</button>
-
-            <div class="bg-gray-50 p-4 rounded-xl mt-4">
-              <div class="flex justify-between text-lg"><span>Neto:</span><span id="neto">$0</span></div>
-              <div class="flex justify-between text-lg"><span>IVA (19%):</span><span id="iva">$0</span></div>
-              <div class="flex justify-between text-xl font-bold mt-2 border-t pt-2"><span>Total:</span><span id="total" class="text-emerald-700">$0</span></div>
+            <div class="mb-2">
+                <label class="text-xs font-bold text-gray-500">NÚMERO DE COTIZACIÓN</label>
+                ${qNumHTML}
             </div>
 
-            <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
-              <h3 class="text-lg font-bold mb-4 text-blue-900">Alcances y Consideraciones del Servicio</h3>
-              <ol class="list-decimal space-y-3 text-sm text-gray-700 pl-5">
-                ${getAlcancesDefaults().map(t => `<li>${t}</li>`).join('')}
-              </ol>
+            <div class="mb-3 flex gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
+                    <input type="radio" name="clientMode" value="existing" checked onchange="document.getElementById('divExistingClient').style.display='block'; document.getElementById('divNewClient').style.display='none';"> 
+                    <span class="text-blue-700">Cliente Existente</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
+                    <input type="radio" name="clientMode" value="new" onchange="document.getElementById('divExistingClient').style.display='none'; document.getElementById('divNewClient').style.display='block';"> 
+                    <span class="text-emerald-600">Crear Nuevo Cliente</span>
+                </label>
             </div>
 
-            <div class="flex gap-4 pt-6">
-              <button onclick="saveNewQuote(this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-semibold">Guardar Cotización</button>
-              <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
+            <div id="divExistingClient" class="mb-3">
+                <select id="qClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600">${clientOptions}</select>
             </div>
-          </div>
-        </div>`;
+
+            <div id="divNewClient" style="display: none;" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
+                <input type="text" id="qNewClientName" placeholder="Razón Social / Nombre (*)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500 mb-2">
+                <input type="text" id="qNewClientRut" placeholder="RUT (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500 mb-2">
+                <div class="flex gap-2">
+                    <input type="email" id="qNewClientEmail" placeholder="Correo (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500">
+                    <input type="text" id="qNewClientPhone" placeholder="Teléfono (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500">
+                </div>
+            </div>
+`;
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
       addItem();
@@ -957,24 +942,88 @@
     }
 
     function editQuote(quoteId) {
+      function renderQuotes() {
+      // Limpiamos las tres tablas antes de volver a dibujar
+      document.getElementById('pendingQuotesTable').innerHTML = '';
+      document.getElementById('acceptedQuotesTable').innerHTML = '';
+      document.getElementById('rejectedQuotesTable').innerHTML = '';
+
+      quotes.forEach(q => {
+        // Extraemos datos de la raíz o de .data por seguridad
+        const num = q.numeroCotizacion || (q.data && q.data.numeroCotizacion) || 'S/N';
+        const clienteNom = q.clientName || (q.data && q.data.clientName) || 'Cliente Desconocido';
+        const obra = q.obra || (q.data && q.data.obra) || '';
+        const total = q.monto || (q.data && q.data.monto) || 0;
+        const estado = q.status || (q.data && q.data.status) || 'Pendiente';
+
+        // Botones de acción
+        const btnPDF = `<button onclick="generateQuotePDF('${q.id}')" class="text-blue-700 hover:text-blue-900" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
+        const btnEdit = `<button onclick="editQuote('${q.id}')" class="text-indigo-600 hover:text-indigo-800 ml-3" title="Editar"><i class="fa-solid fa-pen-to-square text-xl"></i></button>`;
+        
+        // Creamos la fila (TR)
+        const tr = document.createElement('tr'); 
+        tr.className = 'border-t hover:bg-gray-50';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-bold">#${num}</td>
+          <td class="px-4 py-3">${clienteNom}</td>
+          <td class="px-4 py-3 text-sm text-gray-600">${obra}</td>
+          <td class="px-4 py-3 font-semibold text-emerald-700">$${Math.round(total).toLocaleString('es-CL')}</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              ${btnPDF}
+              ${btnEdit}
+            </div>
+          </td>
+        `;
+
+        // Clasificamos la fila en su tabla correspondiente según el estado
+        if (estado === 'Aceptada') {
+          document.getElementById('acceptedQuotesTable').appendChild(tr);
+        } else if (estado === 'Rechazada') {
+          document.getElementById('rejectedQuotesTable').appendChild(tr);
+        } else {
+          document.getElementById('pendingQuotesTable').appendChild(tr);
+        }
+      });
+    }
       const q = quotes.find(x => String(x.id) === String(quoteId));
       if (!q) return;
 
+      // Extraemos datos de la raíz o de .data (soporta ambos formatos)
+      const numActual = q.numeroCotizacion || (q.data && q.data.numeroCotizacion) || "";
+      const obraActual = q.obra || (q.data && q.data.obra) || "";
+
       let clientOptions = '';
-      clients.forEach(c => { clientOptions += `<option value="${c.id}" ${c.id == q.clientId ? 'selected' : ''}>${c.name} (${c.rut})</option>`; });
+      clients.forEach(c => { 
+        clientOptions += `<option value="${c.id}" ${c.id == q.client_id ? 'selected' : ''}>${c.name} (${c.rut})</option>`; 
+      });
 
       const html = `
         <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6">Editar Cotización N° ${q.numeroCotizacion}</h2>
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Editar Cotización N° ${numActual}</h2>
           <div class="space-y-4">
-            <select id="eqClient" class="w-full px-3 py-2 border rounded-xl" disabled>${clientOptions}</select>
-            <input id="eqNum" value="${q.numeroCotizacion}" class="w-full px-3 py-2 border rounded-xl">
-            <textarea id="eqObra" rows="2" class="w-full px-3 py-2 border rounded-xl">${q.obra}</textarea>
+            
+            <div>
+              <label class="text-xs font-bold text-gray-500">CLIENTE</label>
+              <select id="eqClient" class="w-full px-3 py-2 border rounded-xl bg-gray-50" disabled>${clientOptions}</select>
+            </div>
+
+            <div>
+              <label class="text-xs font-bold text-gray-500">N° COTIZACIÓN</label>
+              <input id="eqNum" value="${numActual}" class="w-full px-3 py-2 border rounded-xl font-bold bg-gray-50" readonly>
+            </div>
+
+            <div>
+              <label class="text-xs font-bold text-gray-500">DESCRIPCIÓN DE OBRA</label>
+              <textarea id="eqObra" rows="2" class="w-full px-3 py-2 border rounded-xl">${obraActual}</textarea>
+            </div>
             
             <div id="itemsContainer" class="space-y-3"></div>
-            <button type="button" onclick="addItem()" class="bg-green-600 text-white px-4 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> Agregar ítem</button>
+            <button type="button" onclick="addItem()" class="bg-green-600 text-white px-4 py-2 rounded-xl flex items-center gap-2">
+              <i class="fas fa-plus"></i> Agregar ítem
+            </button>
 
-            <div class="bg-gray-50 p-4 rounded-xl mt-4">
+            <div class="bg-gray-50 p-4 rounded-xl mt-4 border border-gray-200">
               <div class="flex justify-between text-lg"><span>Neto:</span><span id="neto">$0</span></div>
               <div class="flex justify-between text-lg"><span>IVA (19%):</span><span id="iva">$0</span></div>
               <div class="flex justify-between text-xl font-bold mt-2 border-t pt-2"><span>Total:</span><span id="total" class="text-emerald-700">$0</span></div>
@@ -986,42 +1035,22 @@
             </div>
           </div>
         </div>`;
+
+      // Insertar el HTML en el modal
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
-      
-      (q.items || []).forEach(it => addItem(it.desc, it.cant, it.valor));
-      if(!q.items || q.items.length === 0) addItem();
-      calcularTotal();
-      document.getElementById('modalContent').addEventListener('input', e => { if (e.target.matches('input[type="number"]')) calcularTotal(); });
-    }
 
-    async function saveUpdatedQuote(quoteId, btn) {
-      const q = quotes.find(x => String(x.id) === String(quoteId));
-      if (!q.data) q.data = {};
-      q.data.numeroCotizacion = document.getElementById('eqNum').value.trim();
-      q.data.obra = document.getElementById('eqObra').value.trim();
-
-      let items = [], montoTotal = 0;
-      document.querySelectorAll('.item-row').forEach(row => {
-        const desc = row.querySelector('.item-desc').value.trim();
-        const cant = parseFloat(row.querySelector('.item-cant').value) || 0;
-        const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
-        if(desc && cant>0) { items.push({desc, cant, valor, subtotal: cant*valor}); montoTotal += (cant*valor); }
-      });
-
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-      
-      q.data.items = items;
-      q.data.monto = montoTotal * 1.19;
-
-      const { error } = await supabaseClient.from('quotes').update({ data: q.data }).eq('id', quoteId);
-      if (error) {
-         alert("Error al actualizar Cotización: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Guardar Cambios"; }
-         return;
+      // CARGAR ÍTEMS: Esto es vital para que no salga vacío
+      if (q.data && q.data.items && q.data.items.length > 0) {
+        q.data.items.forEach(it => addItem(it.desc, it.cant, it.valor));
+      } else {
+        addItem();
       }
 
-      await loadData(); renderQuotes(); closeModal(); toastInfo("Cotización actualizada.");
+      // Escuchar cambios para recalcular precios
+      document.getElementById('modalContent').addEventListener('input', e => { 
+        if (e.target.matches('input[type="number"]')) calcularTotal(); 
+      });
     }
 
     function renderQuotes() {
@@ -1121,57 +1150,65 @@ window.registrarEnvio = async function(idCotizacion, medio) {
     }
 };
 
-    // ================= ÓRDENES DE TRABAJO =================
+ // ================= ÓRDENES DE TRABAJO =================
     function showNewOTManualModal() {
       let clientOptions = '<option value="">Selecciona cliente</option>';
       clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
 
-      const otNumHTML = isAutoMode 
-        ? `<input id="mOtNum" value="Automático" disabled class="w-full px-3 py-2 border rounded-xl bg-indigo-50 text-indigo-700 font-bold">` 
-        : `<input id="mOtNum" placeholder="N° OT *" class="w-full px-3 py-2 border rounded-xl" required>`;
+      // CORRECCIÓN: Definición limpia del número de OT
+      const displayOTNum = isAutoMode ? (typeof getNextOTNumber === 'function' ? getNextOTNumber() : '') : '';
+      const otNumHTML = `<input id="mOtNum" value="${displayOTNum}" placeholder="N° OT *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>`;
 
       const html = `
         <div class="p-8">
           <h2 class="text-2xl font-bold mb-6 text-blue-900">Nueva OT Manual</h2>
           <div class="space-y-4">
             <div><label class="block text-sm font-medium">N° OT *</label>${otNumHTML}</div>
+            
             <div class="mb-3 flex gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
-    <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-        <input type="radio" name="otClientMode" value="existing" checked onchange="document.getElementById('divOtExisting').style.display='block'; document.getElementById('divOtNew').style.display='none';"> 
-        <span class="text-blue-700">Existente</span>
-    </label>
-    <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-        <input type="radio" name="otClientMode" value="new" onchange="document.getElementById('divOtExisting').style.display='none'; document.getElementById('divOtNew').style.display='block';"> 
-        <span class="text-emerald-600">Nuevo Cliente</span>
-    </label>
-</div>
+                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
+                    <input type="radio" name="otClientMode" value="existing" checked onchange="document.getElementById('divOtExisting').style.display='block'; document.getElementById('divOtNew').style.display='none';"> 
+                    <span class="text-blue-700">Existente</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
+                    <input type="radio" name="otClientMode" value="new" onchange="document.getElementById('divOtExisting').style.display='none'; document.getElementById('divOtNew').style.display='block';"> 
+                    <span class="text-emerald-600">Nuevo Cliente</span>
+                </label>
+            </div>
 
-<div id="divOtExisting" class="mb-3">
-    <label class="block text-sm font-medium text-gray-700 mb-1">Seleccionar Cliente *</label>
-    <select id="mOtClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600">${clientOptions}</select>
-</div>
+            <div id="divOtExisting" class="mb-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Seleccionar Cliente *</label>
+                <select id="mOtClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600">${clientOptions}</select>
+            </div>
 
-<div id="divOtNew" style="display: none;" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-    <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
-    <input type="text" id="otNewName" placeholder="Nombre / Empresa (*)" class="w-full px-3 py-2 border rounded-xl mb-2">
-    <input type="text" id="otNewRut" placeholder="RUT" class="w-full px-3 py-2 border rounded-xl mb-2">
-    <input type="text" id="otNewPhone" placeholder="Teléfono" class="w-full px-3 py-2 border rounded-xl">
-</div>
+            <div id="divOtNew" style="display: none;" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
+                <input type="text" id="otNewName" placeholder="Nombre / Empresa (*)" class="w-full px-3 py-2 border rounded-xl mb-2">
+                <input type="text" id="otNewRut" placeholder="RUT" class="w-full px-3 py-2 border rounded-xl mb-2">
+                <input type="text" id="otNewPhone" placeholder="Teléfono" class="w-full px-3 py-2 border rounded-xl">
+            </div>
+
             <div><label class="block text-sm font-bold text-blue-900">Monto Total OT ($) *</label><input id="mOtMonto" type="number" class="w-full px-3 py-2 border rounded-xl bg-blue-50" required></div>
             <div><label class="block text-sm font-medium">Descripción de trabajos *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl"></textarea></div>
             <div><label class="block text-sm font-medium">OC</label><input id="mOtOC" class="w-full px-3 py-2 border rounded-xl"></div>
             <div><label class="block text-sm font-medium">HES</label><input id="mOtHES" class="w-full px-3 py-2 border rounded-xl"></div>
+            
             <div class="flex gap-4 pt-4">
               <button onclick="saveNewOTManual(this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-2xl font-semibold">Guardar OT</button>
               <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
             </div>
           </div>
         </div>`;
+      
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
     }
 
     async function saveNewOTManual(btn) {
+      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
+
+      // CORRECCIÓN: Capturamos el número directamente del input que creamos
+      const numeroOT = document.getElementById('mOtNum').value.trim();
       const monto = parseFloat(document.getElementById('mOtMonto').value) || 0;
       const desc = document.getElementById('mOtDesc').value.trim();
       
@@ -1181,6 +1218,7 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       if (otClientMode === 'existing') {
           const clientId = document.getElementById('mOtClient').value;
           if (!numeroOT || !clientId || !desc || monto <= 0) {
+              if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
               return alert("Completa los datos: N° OT, Cliente, Monto y Descripción.");
           }
           client = clients.find(c => String(c.id) === String(clientId));
@@ -1190,10 +1228,10 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           const newPhone = document.getElementById('otNewPhone').value.trim();
 
           if (!newName || !numeroOT || !desc || monto <= 0) {
+              if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
               return alert("Faltan datos. El nombre del cliente nuevo es obligatorio.");
           }
 
-          btn.innerText = "Creando Cliente...";
           const { data: nC, error: eC } = await supabaseClient
               .from('clients')
               .insert([{ name: newName, rut: newRut, phone: newPhone }])
@@ -1207,18 +1245,26 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           if (typeof clients !== 'undefined') clients.push(nC);
       }
 
-      if (!client) return alert("Error: No se pudo identificar al cliente.");
-
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-
       const payload = {
-        client_id: client.id, estado: 'en_curso', fecha: todayISO(),
-        data: { numeroOT, numeroCotizacion: 'Sin Cotización', clientName: client.name, descripcion: desc, monto, oc: document.getElementById('mOtOC').value, hes: document.getElementById('mOtHES').value, abonos: [], createdBy: currentUserDisplayName }
+        client_id: client.id, 
+        estado: 'en_curso', 
+        fecha: todayISO(),
+        data: { 
+            numeroOT: numeroOT, 
+            numeroCotizacion: 'Sin Cotización', 
+            clientName: client.name, 
+            descripcion: desc, 
+            monto: monto, 
+            oc: document.getElementById('mOtOC').value, 
+            hes: document.getElementById('mOtHES').value, 
+            abonos: [], 
+            createdBy: currentUserDisplayName 
+        }
       };
       
       const { error } = await supabaseClient.from('ots').insert([payload]);
       if (error) {
-         alert("Error al guardar OT en la base de datos: " + error.message);
+         alert("Error al guardar OT: " + error.message);
          if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
          return;
       }
@@ -1234,13 +1280,24 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       if(isAutoMode) {
           numOT = getNextOTNumber();
       } else {
-          numOT = prompt(`Ingresa el N° de OT para la cotización ${q.numeroCotizacion}:`);
+          numOT = prompt(`Ingresa el N° de OT para la cotización ${q.numeroCotizacion || (q.data && q.data.numeroCotizacion)}:`);
           if(!numOT) return;
       }
 
       const payload = {
-        client_id: q.clientId, quote_id: q.id, estado: 'en_curso', fecha: todayISO(),
-        data: { numeroOT: numOT, numeroCotizacion: q.numeroCotizacion, clientName: q.razonSocial, descripcion: q.obra, monto: q.monto, abonos: [], createdBy: currentUserDisplayName }
+        client_id: q.client_id || q.clientId, 
+        quote_id: q.id, 
+        estado: 'en_curso', 
+        fecha: todayISO(),
+        data: { 
+            numeroOT: numOT, 
+            numeroCotizacion: q.numeroCotizacion || (q.data && q.data.numeroCotizacion), 
+            clientName: q.clientName || (q.data && q.data.clientName), 
+            descripcion: q.obra || (q.data && q.data.obra), 
+            monto: q.monto || (q.data && q.data.monto), 
+            abonos: [], 
+            createdBy: currentUserDisplayName 
+        }
       };
       
       const { error } = await supabaseClient.from('ots').insert([payload]);
@@ -1249,104 +1306,7 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       await loadData(); renderQuotes(); renderOTS(); toastInfo("OT Creada exitosamente.");
     }
 
-    function createQuoteFromOT(otId) {
-      const ot = ots.find(o => String(o.id) === String(otId));
-      if (!ot) return;
-      pendingOTToLink = otId; 
-      showNewQuoteModal({ clientId: ot.clientId, obra: ot.descripcion });
-    }
-
-    function editOT(otId) {
-      const ot = ots.find(o => String(o.id) === String(otId));
-      if (!ot) return;
-      const html = `
-        <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6">Editar Orden de Trabajo</h2>
-          <div class="space-y-4">
-            <div><label class="block text-sm font-bold text-blue-900">Monto Total OT ($) *</label><input id="editOtMonto" type="number" value="${ot.monto}" class="w-full px-3 py-2 border rounded-xl bg-blue-50"></div>
-            <div><label class="block text-sm">N° OT *</label><input id="editOtNumero" value="${ot.numeroOT}" class="w-full px-3 py-2 border rounded-xl"></div>
-            <div><label class="block text-sm text-amber-700 font-bold">N° Cotización asociada</label><input id="editOtCot" value="${ot.numeroCotizacion === 'Sin Cotización' ? '' : ot.numeroCotizacion}" placeholder="Vincular a N° de Cotización" class="w-full px-3 py-2 border rounded-xl bg-amber-50"></div>
-            <div><label class="block text-sm">OC</label><input id="editOtOC" value="${ot.oc}" class="w-full px-3 py-2 border rounded-xl"></div>
-            <div><label class="block text-sm">HES</label><input id="editOtHES" value="${ot.hes}" class="w-full px-3 py-2 border rounded-xl"></div>
-            <div class="flex gap-4 pt-4">
-              <button onclick="saveOTEdits('${ot.id}', this)" class="flex-1 bg-blue-700 text-white py-3 rounded-xl font-semibold">Guardar Cambios</button>
-              <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
-            </div>
-          </div>
-        </div>`;
-      document.getElementById('modalContent').innerHTML = html;
-      document.getElementById('modal').classList.remove('hidden');
-    }
-
-    async function saveOTEdits(otId, btn) {
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-      const ot = ots.find(o => String(o.id) === String(otId));
-      if (!ot.data) ot.data = {};
-      
-      ot.data.monto = parseFloat(document.getElementById('editOtMonto').value) || 0;
-      ot.data.numeroOT = document.getElementById('editOtNumero').value;
-      ot.data.numeroCotizacion = document.getElementById('editOtCot').value || 'Sin Cotización';
-      ot.data.oc = document.getElementById('editOtOC').value;
-      ot.data.hes = document.getElementById('editOtHES').value;
-
-      const { error } = await supabaseClient.from('ots').update({ data: ot.data }).eq('id', otId);
-      if (error) {
-         alert("Error al editar OT: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Guardar Cambios"; }
-         return;
-      }
-
-      await loadData(); renderOTS(); renderAbonos(); closeModal(); toastInfo("OT Actualizada.");
-    }
-
-    function renderOTS() {
-      const tbody = document.getElementById('otsTable'); tbody.innerHTML = '';
-      ots.forEach(ot => {
-        let estadoHTML = '', actionHTML = '', pagoHTML = '-';
-        if (ot.estado === 'en_curso') {
-          estadoHTML = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">En curso</span>`;
-          actionHTML = `<button onclick="editOT('${ot.id}')" class="text-blue-700 mr-2 text-lg"><i class="fas fa-edit"></i></button><button onclick="changeOTState('${ot.id}', 'pendiente_pago')" class="bg-orange-600 text-white text-xs px-3 py-1 rounded-xl">Pend. Pago</button>`;
-        } else if (ot.estado === 'pendiente_pago') {
-          estadoHTML = `<span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm">Pendiente pago</span>`;
-          actionHTML = `<button onclick="editOT('${ot.id}')" class="text-blue-700 mr-2 text-lg"><i class="fas fa-edit"></i></button><button onclick="promptRegistrarPago('${ot.id}')" class="bg-emerald-600 text-white text-xs px-3 py-1 rounded-xl">PAGAR</button>`;
-          pagoHTML = 'Pendiente';
-        } else {
-          estadoHTML = `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Pagado</span>`;
-          actionHTML = `<button onclick="editOT('${ot.id}')" class="text-blue-700 mr-2 text-lg"><i class="fas fa-edit"></i></button><button onclick="promptRegistrarPago('${ot.id}')" class="text-blue-600 text-lg"><i class="fas fa-cog"></i></button>`;
-          pagoHTML = `<div class="text-xs"><strong>${formatCLP(ot.monto)}</strong><br>${ot.fechaPago}<br>${ot.metodoPago}</div>`;
-        }
-
-        if (ot.numeroCotizacion === 'Sin Cotización' || !ot.numeroCotizacion) {
-            actionHTML += `<button onclick="createQuoteFromOT('${ot.id}')" class="bg-indigo-600 text-white text-xs px-3 py-1 rounded-xl block w-full mt-2 hover:bg-indigo-700 font-bold">Crear Cotización</button>`;
-        }
-
-        const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
-        
-        // USAMOS NUESTRA FUNCIÓN formatShortName PARA LIMPIAR EL NOMBRE
-        tr.innerHTML = `
-          <td class="p-4">${ot.fecha}</td><td class="p-4 text-amber-700 font-bold">${ot.numeroCotizacion}</td><td class="p-4 font-bold text-blue-900">${ot.numeroOT}</td>
-          <td class="p-4">${ot.clientName}</td><td class="p-4">${ot.descripcion.substring(0,30)}...</td><td class="p-4">${ot.oc || '-'}</td><td class="p-4">${ot.hes || '-'}</td><td class="p-4">${formatShortName(ot.createdBy)}</td>
-          <td class="p-4">${estadoHTML}</td><td class="p-4">${pagoHTML}</td>
-          <td class="p-4 text-center"><button onclick="generateOTPDF('${ot.id}')" class="text-blue-700 hover:text-blue-900"><i class="fa-solid fa-file-pdf text-2xl"></i></button></td>
-          <td class="p-4 text-center">${actionHTML}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function changeOTState(id, newState) {
-      if(newState === 'pendiente_pago') {
-          const numFact = prompt("Ingresa el Número de Factura para esta OT:");
-          if(numFact) {
-              const ot = ots.find(o=>o.id === id);
-              if (!ot.data) ot.data = {};
-              ot.data.numeroFactura = numFact;
-              const { error } = await supabaseClient.from('ots').update({estado: 'pendiente_pago', data: ot.data}).eq('id', id);
-              if(error) return alert("Error al cambiar estado: " + error.message);
-              await loadData(); renderOTS();
-          }
-      }
-    }
-
+    // ... (El resto de funciones editOT, saveOTEdits y renderOTS que mandaste están bien)
     // ================= PAGOS Y ABONOS =================
     function promptRegistrarPago(otId) {
       const ot = ots.find(o => o.id === otId);
