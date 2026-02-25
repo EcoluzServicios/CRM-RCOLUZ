@@ -853,37 +853,38 @@
       return neto * 1.19;
     }
 
-    async function saveNewQuote(btn) {
-      const num = document.getElementById('qNum').value;
+    // 1. Capturamos los campos básicos
+      // 1. Captura de datos mejorada
+      const numInput = document.getElementById('qNum');
+      const num = numInput ? numInput.value : "";
       const obra = document.getElementById('qObra').value.trim();
-      const tipoServicio = document.getElementById('q-tipo-servicio').value;
+      const tipoServicioInput = document.getElementById('q-tipo-servicio');
+      const tipoServicio = tipoServicioInput ? tipoServicioInput.value : "";
       
       let client = null;
-      const clientMode = document.querySelector('input[name="clientMode"]:checked').value;
+      const clientModeElement = document.querySelector('input[name="clientMode"]:checked');
+      const clientMode = clientModeElement ? clientModeElement.value : 'existing';
 
       if (clientMode === 'existing') {
-          // Si eligió cliente existente
           const clientId = document.getElementById('qClient').value;
           if (!clientId || !num || !obra || !tipoServicio) {
-              btn.disabled = false; btn.innerText = "Guardar";
-              return alert("Faltan datos de la cotización o seleccionar cliente.");
+              if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
+              return alert("Faltan datos: Asegúrate de tener Cliente, N° Cotización, Tipo de Trabajo y Obra.");
           }
           client = clients.find(c => String(c.id) === String(clientId));
       } else {
-          // Si eligió CREAR nuevo cliente
           const cName = document.getElementById('qNewClientName').value.trim();
           const cRut = document.getElementById('qNewClientRut').value.trim();
           const cEmail = document.getElementById('qNewClientEmail').value.trim();
           const cPhone = document.getElementById('qNewClientPhone').value.trim();
 
           if (!cName || !num || !obra || !tipoServicio) {
-              btn.disabled = false; btn.innerText = "Guardar";
-              return alert("Faltan datos. Recuerda poner la Razón Social, N° Cotización, Tipo de Trabajo y Obra.");
+              if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
+              return alert("Faltan datos. Para cliente nuevo rellena: Razón Social, N° Cotización, Tipo y Obra.");
           }
 
-          btn.innerText = "Creando Cliente...";
+          if(btn) { btn.disabled = true; btn.innerText = "Creando Cliente..."; }
           
-          // Guardamos el cliente en la base de datos
           const { data: newClientData, error: clientErr } = await supabaseClient
               .from('clients')
               .insert([{ name: cName, rut: cRut, email: cEmail, phone: cPhone }])
@@ -891,22 +892,20 @@
               .single();
 
           if (clientErr) {
-              btn.disabled = false; btn.innerText = "Guardar";
-              return alert("Error al crear el cliente en la base de datos: " + clientErr.message);
+              if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
+              return alert("Error de base de datos (Cliente): " + clientErr.message);
           }
 
           client = newClientData;
-          // Actualizamos la lista de clientes en memoria para que no tengas que recargar la página
           if (typeof clients !== 'undefined') clients.push(newClientData);
-          if (typeof renderClients === 'function') renderClients(); 
       }
 
       if (!client) {
-          btn.disabled = false; btn.innerText = "Guardar";
-          return alert("Hubo un problema al identificar al cliente.");
+          if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
+          return alert("Error: No se pudo asignar un cliente a la cotización.");
       }
       
-      btn.innerText = "Guardando Cotización...";
+      if(btn) { btn.disabled = true; btn.innerText = "Guardando Cotización..."; }
 
       let items = [], montoTotal = 0;
       document.querySelectorAll('.item-row').forEach(row => {
@@ -952,7 +951,7 @@
       }
 
       await loadData(); renderQuotes(); renderOTS(); closeModal(); toastInfo("Cotización guardada exitosamente.");
-    }
+    
 
     function editQuote(quoteId) {
       const q = quotes.find(x => String(x.id) === String(quoteId));
