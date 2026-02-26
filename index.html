@@ -41,7 +41,42 @@
     .celebrate-sub { margin-top: 10px; font-size: clamp(14px, 2.2vw, 18px); color: #334155; }
     .celebrate-meta { margin-top: 14px; font-size: 14px; color: #475569; }
     .celebrate-kicker { margin-top: 16px; font-size: 12px; color: #64748b; }
-  </style>
+  
+/* Collapsible sidebar (desktop hover) */
+.sidebar{
+  transition: width .18s ease, transform .18s ease;
+  overflow: hidden;
+}
+.sidebar .sidebar-label{
+  display: inline-block;
+  max-width: 240px;
+  opacity: 1;
+  transition: opacity .12s ease, max-width .18s ease;
+  white-space: nowrap;
+}
+.sidebar.collapsed{
+  width: 72px !important; /* overrides w-64 */
+}
+.sidebar.collapsed .sidebar-label{
+  opacity: 0;
+  max-width: 0;
+}
+.sidebar.collapsed .nav-btn{
+  justify-content: center !important;
+}
+.sidebar.collapsed .nav-btn i{
+  margin-right: 0 !important;
+}
+.sidebar.collapsed .nav-btn{
+  gap: 0 !important;
+}
+
+.sidebar.collapsed #currentUser{ display:none; }
+.sidebar.collapsed img.brand-logo-sm{ display:none; }
+.sidebar.collapsed .p-6{ padding: 16px !important; }
+.sidebar.collapsed .p-6 .flex{ justify-content:center; }
+
+</style>
 </head>
 
 <body class="bg-gray-100">
@@ -69,30 +104,34 @@
   </div>
 
   <div id="app" class="hidden min-h-screen flex">
-    <div class="w-64 bg-white shadow-xl flex flex-col">
+    <div id="sidebar" class="sidebar w-64 bg-white shadow-xl flex flex-col">
       <div class="p-6 border-b">
         <div class="flex items-center gap-3"><img src="logo ecoluz.png" alt="ECOLUZ Servicios" class="brand-logo-sm"></div>
-        <p id="currentUser" class="text-sm text-gray-500 mt-1"></p>
+        <p id="currentUser" class="sidebar-label text-sm text-gray-500 mt-1"></p>
       </div>
 
       <nav class="flex-1 p-4 space-y-1">
-        <button onclick="showView('dashboard')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 nav-active" id="btn-dashboard"><i class="fas fa-home"></i> Dashboard</button>
-        <button onclick="showView('clients')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-clients"><i class="fas fa-users"></i> Clientes</button>
-        <button onclick="showView('quotes')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-quotes"><i class="fas fa-file-invoice"></i> Cotizaciones</button>
-        <button onclick="showView('ots')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-ots"><i class="fas fa-tools"></i> Órdenes de Trabajo</button>
-        <button onclick="showView('abonos')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-abonos"><i class="fas fa-hand-holding-dollar"></i> Abonos / Pagos</button>
-        <button onclick="showView('visitas')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-visitas"><i class="fas fa-helmet-safety"></i> Visitas Técnicas</button>
+        <button onclick="showView('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 nav-active" id="btn-dashboard"><i class="fas fa-home"></i> <span class="sidebar-label">Dashboard</span></button>
+        <button onclick="showView('clients')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-clients"><i class="fas fa-users"></i> <span class="sidebar-label">Clientes</span></button>
+        <button onclick="showView('quotes')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-quotes"><i class="fas fa-file-invoice"></i> <span class="sidebar-label">Cotizaciones</span></button>
+        <button onclick="showView('ots')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-ots"><i class="fas fa-tools"></i> <span class="sidebar-label">Órdenes de Trabajo</span></button>
+        <button onclick="showView('abonos')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-abonos"><i class="fas fa-hand-holding-dollar"></i> <span class="sidebar-label">Abonos / Pagos</span></button>
+        <button onclick="showView('visitas')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-visitas"><i class="fas fa-helmet-safety"></i> <span class="sidebar-label">Visitas Técnicas</span></button>
+        <button onclick="showView('reqs')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-reqs"><i class="fas fa-clipboard-list"></i> <span class="sidebar-label">Requerimientos</span></button>
       </nav>
 
       <div class="p-4 border-t">
-        <button onclick="toggleAutoMode()" id="btn-auto-mode" class="w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-2 text-sm transition-colors border">
-           <i class="fas fa-lock text-gray-400"></i> <span class="text-gray-500">Activar Automático</span>
+        <button onclick="toggleAutoMode()" id="btn-auto-mode" class="nav-btn w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-2 text-sm transition-colors border">
+           <i class="fas fa-lock text-gray-400"></i> <span class="sidebar-label text-gray-500">Activar Automático</span>
         </button>
         <button onclick="showChangePasswordModal()" class="w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-4 text-sm transition-colors border">
-           <i class="fas fa-key text-blue-600"></i> <span class="text-gray-600 font-medium">Cambiar Contraseña</span>
+           <i class="fas fa-key text-blue-600"></i> <span class="sidebar-label text-gray-600 font-medium">Cambiar Contraseña</span>
         </button>
-        <button onclick="logout()" class="w-full text-red-600 hover:bg-red-50 py-3 rounded-xl flex items-center gap-2 justify-center"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</button>
-        <button onclick="exportData()" class="w-full text-xs text-gray-500 mt-4">Exportar datos (JSON)</button>
+        <button onclick="logout()" class="w-full text-red-600 hover:bg-red-50 py-3 rounded-xl flex items-center gap-2 justify-center"><i class="fas fa-sign-out-alt"></i> <span class="sidebar-label">Cerrar sesión</span></button>        <button onclick="generatePendientesPDF()" class="w-full mt-3 bg-white/70 hover:bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm flex items-center justify-center gap-2" title="PDF Pendientes">
+          <i class="fa-solid fa-file-pdf text-red-600"></i> <span class="sidebar-label">Pendientes (PDF)</span>
+        </button>
+
+        <button onclick="exportData()" class="w-full text-xs text-gray-500 mt-4"><span class="sidebar-label">Exportar datos (JSON)</span></button>
       </div>
     </div>
 
@@ -138,8 +177,8 @@
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h1 class="text-3xl font-bold">Clientes</h1>
           <div class="flex flex-wrap gap-3">
-            <button onclick="showNewClientModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> Nuevo Cliente</button>
-            <button onclick="deleteSelectedClients(this)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-trash"></i> Borrar seleccionados</button>
+            <button onclick="showNewClientModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo Cliente</span></button>
+            <button onclick="deleteSelectedClients(this)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-trash"></i> <span class="sidebar-label">Borrar seleccionados</span></button>
           </div>
         </div>
         <div class="mb-4"><input id="clientSearch" oninput="renderClients()" placeholder="Buscar por nombre, RUT, teléfono o correo..." class="w-full px-4 py-3 border rounded-2xl"></div>
@@ -157,7 +196,7 @@
       <div id="view-quotes" class="hidden">
         <div class="flex justify-between mb-6">
           <h1 class="text-3xl font-bold">Cotizaciones</h1>
-          <button onclick="showNewQuoteModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> Nueva Cotización</button>
+          <button onclick="showNewQuoteModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nueva Cotización</span></button>
         </div>
         <div class="mb-10">
   <h2 class="text-2xl font-bold mb-4 text-amber-700">Cotizaciones Pendientes</h2>
@@ -222,9 +261,8 @@
       <div id="view-ots" class="hidden">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h1 class="text-3xl font-bold">Órdenes de Trabajo</h1>
-          <button onclick="showNewOTManualModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2">
-            <i class="fas fa-plus"></i> Nueva OT Manual
-          </button>
+          <button id="btnNewOTManual" onclick="showNewOTManualModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2">
+            <i class="fas fa-plus"></i> <span class="sidebar-label">Nueva OT Manual</span></button>
         </div>
         <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
           <thead class="bg-gray-100">
@@ -247,7 +285,7 @@
       <div id="view-visitas" class="hidden">
         <div class="flex justify-between mb-6">
           <h1 class="text-3xl font-bold">Visitas Técnicas</h1>
-          <button onclick="showNewVisitaModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> Nueva Visita</button>
+          <button onclick="showNewVisitaModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nueva Visita</span></button>
         </div>
         <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
           <thead class="bg-gray-100">
@@ -256,7 +294,31 @@
           <tbody id="visitasTable"></tbody>
         </table>
       </div>
-    </div>
+    
+
+      <div id="view-reqs" class="hidden">
+        <div class="flex justify-between mb-6">
+          <h1 class="text-3xl font-bold">Requerimientos</h1>
+          <button onclick="showNewReqModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo Requerimiento</span></button>
+        </div>
+        <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-4 text-left">Fecha</th>
+              <th class="p-4 text-left">Cliente</th>
+              <th class="p-4 text-left">RUT</th>
+              <th class="p-4 text-left">Detalle</th>
+              <th class="p-4 text-left">Estado</th>
+              <th class="p-4 text-left">Creado por</th>
+              <th class="p-4 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="reqsTable"></tbody>
+        </table>
+        <p class="text-xs text-gray-500 mt-3">Tip: usa “Realizado” cuando el requerimiento ya quedó solucionado.</p>
+      </div>
+
+</div>
   </div>
 
   <div id="modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -264,17 +326,21 @@
   </div>
 
   <script>
+
     // ================= CONFIGURACIÓN SUPABASE =================
-    const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_2SwhwjkZgs64HCalGisj_w_khx1_oEm";
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bHVldmRkZnVscXBzemtkb3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NDkxODUsImV4cCI6MjA4NzEyNTE4NX0.1dD4TWlCY-KGJABFFPSy6MBJu__6J85xvEf1FXA84eU";
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
     let currentUserDisplayName = null;
-    let clients = [], quotes = [], ots = [], visitas = [];
+    let clients = [], quotes = [], ots = [], visitas = [], requerimientos = [];
+    let clientsById = new Map();
     
     let pendingOTToLink = null; 
-    let isAutoMode = localStorage.getItem('ecoluz_automode') === 'false';
+    let isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
 
     window.LOGO_FILE = "logo ecoluz.png";
 
@@ -298,7 +364,19 @@
     function normalizeText(s) { return (s || '').toString().trim().toLowerCase(); }
     function normalizeRut(rut) { return (rut || '').toString().replace(/\./g, '').replace(/\s+/g, '').replace(/[‐-‒–—−]/g, '-').trim().toUpperCase(); }
     function formatCLP(n) { return '$' + Number(n || 0).toLocaleString('es-CL'); }
-    function todayISO() { return new Date().toISOString().split('T')[0]; }
+    
+  function safeText(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (!t) return '';
+      if (t.toLowerCase() === 'undefined' || t.toLowerCase() === 'null') return '';
+      return t;
+    }
+    return String(v);
+  }
+
+function todayISO() { return new Date().toISOString().split('T')[0]; }
     function toCLDateFromISO(iso) { try { return new Date(iso).toLocaleDateString('es-CL'); } catch { return new Date().toLocaleDateString('es-CL'); } }
 
     const Fn = {
@@ -348,8 +426,8 @@
           </div>
         </div>`;
         document.getElementById('modalContent').innerHTML = html;
-        document.getElementById('modal').classList.remove('hidden');
-    }
+      document.getElementById('modal').classList.remove('hidden');
+}
 
     async function saveNewPassword(btn) {
         const pwd = document.getElementById('newPwd').value;
@@ -399,7 +477,7 @@
             btn.innerHTML = '<i class="fas fa-lock-open text-emerald-600"></i> <span class="text-emerald-600 font-bold">Num. Automática: ON</span>';
             btn.classList.add('bg-emerald-50', 'border-emerald-200');
         } else {
-            btn.innerHTML = '<i class="fas fa-lock text-gray-400"></i> <span class="text-gray-500">Activar Automático</span>';
+            btn.innerHTML = '<i class="fas fa-lock text-gray-400"></i> <span class="sidebar-label text-gray-500">Activar Automático</span>';
             btn.classList.remove('bg-emerald-50', 'border-emerald-200');
         }
     }
@@ -435,9 +513,10 @@
     }
 
     // ================= EFECTOS (CHAYA Y SONIDO) =================
-    function celebrarPago({ ot = null, monto = null, metodo = null, fecha = null } = {}) {
+    function celebrarPago({ ot = null, monto = null, metodo = null, fecha = null, factura = null } = {}) {
       const metaParts = [];
       if (ot) metaParts.push(`<strong>OT:</strong> ${ot}`);
+      if (factura) metaParts.push(`<strong>Factura:</strong> ${factura}`);
       if (monto) metaParts.push(`<strong>Monto:</strong> ${monto}`);
       if (metodo) metaParts.push(`<strong>Método:</strong> ${metodo}`);
       if (fecha) metaParts.push(`<strong>Fecha:</strong> ${fecha}`);
@@ -476,87 +555,268 @@
     }
 
     // ================= CARGA DE DATOS SUPABASE =================
-    async function loadData() {
-      const { data: cData } = await supabaseClient.from('clients').select('*').order('created_at', { ascending: false });
-      clients = (cData || []).map(r => ({
-        id: r.id, rut: r.rut || '', name: r.nombre || r.name || '', tipo: r.tipo || '',
-        direccion: r.direccion || '', telefono: r.telefono || '', email: r.email || '',
-        createdByName: r.created_by_name || ''
-      }));
+    // --- 1. CARGA DE DATOS (loadData) ---
 
-      const { data: qData } = await supabaseClient.from('quotes').select('*').order('created_at', { ascending: false });
-      quotes = (qData || []).map(r => {
-        const d = r.data || {};
-        return {
-          id: r.id, clientId: r.client_id || d.clientId || null,
-          numeroCotizacion: d.numeroCotizacion || r.numero_cotizacion || r.folio || '', 
-          monto: d.monto || r.monto || 0, obra: d.obra || r.obra || '', items: d.items || [],
-          razonSocial: d.razonSocial || r.razonSocial || '', rut: d.rut || r.rut || '',
-          fecha: toCLDateFromISO(r.fecha || r.created_at), estado: r.estado || 'pendiente',
-          createdByName: r.created_by_name || d.createdBy || '', data: d
-        };
-      });
+async function loadData() {
+  try {
+    // ================= CLIENTES =================
+    const { data: cData, error: cErr } = await supabaseClient
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-      const { data: oData } = await supabaseClient.from('ots').select('*').order('created_at', { ascending: false });
-      ots = (oData || []).map(r => {
-        const d = r.data || {};
-        return {
-          id: r.id, quoteId: r.quote_id || d.quoteId || null,
-          clientId: r.client_id || d.clientId || null,
-          numeroOT: d.numeroOT || r.numero_ot || '',
-          numeroCotizacion: d.numeroCotizacion || r.numero_cotizacion || 'Sin Cotización',
-          clientName: d.clientName || r.client_name || '', descripcion: d.descripcion || r.descripcion || '',
-          monto: d.monto || r.monto || 0, oc: d.oc || r.oc || '', hes: d.hes || r.hes || '',
-          estado: r.estado || d.estado || 'en_curso', numeroFactura: d.numeroFactura || r.numeroFactura || '',
-          fechaPago: d.fechaPago || r.fechaPago || '', metodoPago: d.metodoPago || r.metodoPago || '',
-          abonos: d.abonos || r.abonos || [], createdBy: d.createdBy || r.created_by_name || '',
-          fecha: d.fecha || r.fecha || toCLDateFromISO(r.created_at), data: d
-        };
-      });
+    if (cErr) throw cErr;
 
-      const { data: vData } = await supabaseClient.from('visitas').select('*').order('created_at', { ascending: false });
-      visitas = (vData || []).map(r => {
-          return {
-              id: r.id, 
-              clientId: r.client_id || null, 
-              fecha: r.fecha || '',
-              nombre: r.nombre || '',
-              rut: r.rut || '',
-              direccion: r.direccion || '',
-              telefono: r.telefono || '',
-              email: r.email || '',
-              descripcion: r.descripcion || '',
-              estado: r.estado || 'pendiente'
-          };
-      });
+    clients = (cData || []).map(r => ({
+      id: r.id,
+      rut: r.rut || '',
+      tipo: r.tipo || '',
+      direccion: r.direccion || r.doreccion || '',
+      telefono: r.telefono || '',
+      email: r.email || '',
+      name: r.name || 'Sin Nombre',
+      created_by: r.created_by || null,
+      createdByEmail: r.created_by_email || '',
+      createdByName: r.created_by_name || '',
+      created_at: r.created_at || null
+    }));
+
+    clientsById = new Map(clients.map(c => [String(c.id), c]));
+
+    // ================= COTIZACIONES =================
+    // Intento 1: traer relación clients (requiere FK quotes.client_id -> clients.id y permisos RLS)
+    let qData = null;
+    let qErr = null;
+
+    ({ data: qData, error: qErr } = await supabaseClient
+      .from('quotes')
+      .select('*, clients(id, name, rut)')
+      .order('created_at', { ascending: false }));
+
+    // Fallback: si falla el JOIN (sin FK / RLS / cache), traemos quotes sin relación
+    if (qErr) {
+      ({ data: qData, error: qErr } = await supabaseClient
+        .from('quotes')
+        .select('*')
+        .order('created_at', { ascending: false }));
     }
+
+    if (qErr) throw qErr;
+
+    quotes = (qData || []).map(r => {
+      const c = clientsById.get(String(r.client_id));
+      const clientName = (() => {
+        const a = safeText(r.clients && r.clients.name);
+        const b = safeText(c?.name);
+        const c1 = safeText(r.nombre);
+        const d = safeText(r.name);
+        const e = safeText(r.razonSocial);
+        return a || b || c1 || d || e || 'Cliente no encontrado';
+      })();
+
+      const clientRut =
+        (r.clients && r.clients.rut) ||
+        c?.rut ||
+        '';
+
+      const numeroCot = r.numero || r.cotizacion || 'S/N';
+
+      return {
+        id: r.id,
+        clientId: r.client_id,
+        clientName,
+        // Compatibilidad con renderizadores antiguos
+        razonSocial: clientName,
+        rut: clientRut,
+        clientRut,
+        numeroCotizacion: numeroCot,
+        monto: Number(r.monto || 0),
+        descripcion: r.descripcion || '',
+        obra: r.obra || r.descripcion || 'Sin descripción',
+        items: Array.isArray(r.items) ? r.items : [],
+        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0, 10) : todayISO()),
+        estado: (r.estado || 'pendiente').toLowerCase(),
+        tipo_servicio: r.tipo_servicio || '',
+        enviado_por_correo: !!r.enviado_por_correo,
+        enviado_por_wsp: !!r.enviado_por_wsp,
+        fecha_envio: r.fecha_envio || null,
+        ejecutor_envio: r.ejecutor_envio || '',
+        // Nombres usados por distintas partes del UI
+        creadoPor: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+        createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+        createdByEmail: r.created_by_email || '',
+        createdBy: r.created_by_email || '',
+        created_by: r.created_by || null,
+        created_at: r.created_at || null,
+        data: r.data || {}
+      };
+    });
+
+// ================= OTs (TABLA: OT) =================
+    const { data: oData, error: oErr } = await supabaseClient
+      .from('ots')
+.select('*')
+      .order('created_at', { ascending: false });
+
+    if (oErr) throw oErr;
+
+    ots = (oData || []).map(r => {
+      const data = r.data || {};
+      return {
+        id: r.id,
+        clientId: r.client_id,
+        quoteId: r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || null,
+        quote_id: r.quote_id || null,
+        clientName: r.clients?.name || data.clientName || clients.find(c => String(c.id) === String(r.client_id))?.name || '—',
+        clientRut: r.clients?.rut || data.rut || clients.find(c => String(c.id) === String(r.client_id))?.rut || '',
+        numeroCotizacion: (quotes.find(q => String(q.id) === String(r.quote_id))?.numeroCotizacion) || data.numeroCotizacion || '',
+        numeroOT: r.numero_ot || data.numeroOT || 'S/N',
+        descripcion: r.descripcion || data.descripcion || '',
+        oc: r.oc || data.oc || '',
+        hes: r.hes || data.hes || '',
+        estado: (r.estado || data.estado || 'en_curso').toLowerCase(),
+        pago_estado: (r.pago_estado || '').toLowerCase(),
+        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+        monto: Number((data.monto ?? r.monto) || 0),
+        abonos: Array.isArray(data.abonos) ? data.abonos : [],
+        fechaPago: data.fechaPago || null,
+        metodoPago: data.metodoPago || null,
+        facturaNumero: data.facturaNumero || data.factura || data.nroFactura || null,
+        createdByName: r.created_by_name || data.createdBy || formatShortName(r.created_by_email || '') || '—',
+        createdByEmail: r.created_by_email || '',
+        created_by: r.created_by || null,
+        created_at: r.created_at || null,
+        data
+      };
+    });
+
+    
+    // ================= REQUERIMIENTOS =================
+    const { data: rData, error: rErr } = await supabaseClient
+      .from('requerimientos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (rErr) throw rErr;
+
+    requerimientos = (rData || []).map(r => {
+      const c = clientsById.get(String(r.client_id));
+      const nombre = r.nombre || r.client_name || c?.name || 'Cliente no encontrado';
+      const rut = r.rut || r.client_rut || c?.rut || '';
+      return {
+        id: r.id,
+        clientId: r.client_id || null,
+        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+        detalle: r.detalle || r.descripcion || '',
+        estado: (r.estado || 'pendiente').toLowerCase(),
+        nombre,
+        rut,
+        createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+        data: r.data || {}
+      };
+    });
+
+// ================= VISITAS =================
+    const { data: vData, error: vErr } = await supabaseClient
+      .from('visitas')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (vErr) throw vErr;
+
+    visitas = (vData || []).map(r => ({
+      id: r.id,
+      clientId: r.client_id || null,
+      fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+      descripcion: r.descripcion || '',
+      estado: (r.estado || 'pendiente').toLowerCase(),
+      nombre: r.nombre || r.name || '',
+      rut: r.rut || '',
+      direccion: r.direccion || '',
+      telefono: r.telefono || '',
+      email: r.email || '',
+      createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      data: r.data || {}
+    }));
+
+    // Render
+    renderAll();
+    renderDashboard();
+  } catch (err) {
+    console.error("Error en loadData:", err);
+    alert("Error cargando datos desde Supabase: " + (err.message || err));
+  }
+}
+
+
+// --- 2. DIBUJAR TABLA (renderQuotes) ---
+function renderQuotes() {
+    const tbody = document.getElementById('quotesTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    quotes.forEach(q => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b hover:bg-gray-50";
+        tr.innerHTML = `
+            <td class="p-3">${q.numeroCotizacion}</td>
+            <td class="p-3 font-bold text-gray-800">${safeText(q.clientName) || 'Cliente no encontrado'}</td>
+            <td class="p-3 text-sm">${q.obra}</td>
+            <td class="p-3 font-bold text-blue-600">$${Number(q.monto).toLocaleString('es-CL')}</td>
+            <td class="p-3">
+                <span class="px-2 py-1 rounded text-xs font-semibold ${(q.estado==='aceptada' || q.estado==='aprobada') ? 'bg-green-100 text-green-700' : (q.estado==='rechazada' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')}">
+                    ${q.estado.toUpperCase()}
+                </span>
+            </td>
+            <td class="p-3 text-xs text-gray-500">${q.createdByName}</td>
+            <td class="p-3">
+                <div class="flex space-x-2">
+                    <button onclick="viewQuoteDetails('${q.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-eye"></i></button>
+                    <button onclick="deleteQuote('${q.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
     // ================= LOGIN Y TIEMPO REAL =================
     document.addEventListener('DOMContentLoaded', () => { document.getElementById('loginButton').addEventListener('click', login); });
 
-    async function login() {
-      const email = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-      if (!email || !password) return alert("Ingresa correo y contraseña");
+    
+async function login() {
+  const email = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  if (!email || !password) return alert("Ingresa correo y contraseña");
 
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) return document.getElementById('loginError').classList.remove('hidden');
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    document.getElementById('loginError').classList.remove('hidden');
+    console.error("Login error:", error);
+    return;
+  }
 
-      currentUser = data.user.email;
-      currentUserDisplayName = formatShortName(currentUser); // Usamos nuestra función inteligente aquí también
+  // Guardamos el usuario real (objeto) y el display name
+  currentUser = data.user;
+  currentUserDisplayName =
+    (currentUser?.user_metadata && (currentUser.user_metadata.name || currentUser.user_metadata.full_name)) ||
+    formatShortName(currentUser?.email || email);
 
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-      document.getElementById('currentUser').textContent = `Conectado como: ${currentUserDisplayName}`;
-      document.getElementById('topbarUser').textContent = `Hola, ${currentUserDisplayName}`;
-      document.getElementById('welcomeName').textContent = currentUserDisplayName;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('currentUser').textContent = `Conectado como: ${currentUserDisplayName}`;
+  document.getElementById('topbarUser').textContent = `Hola, ${currentUserDisplayName}`;
+  document.getElementById('welcomeName').textContent = currentUserDisplayName;
 
-      await loadData();
-      renderAll();
-      showView('dashboard');
-      updateAutoModeUI();
-      suscribirseACambios();
-    }
+  await loadData();
+  renderAll();
+  showView('dashboard');
+  updateAutoModeUI();
+  suscribirseACambios();
+}
+
+function logout() { location.reload(); }
+
 
     function logout() { location.reload(); }
 
@@ -567,26 +827,42 @@
     }
 
     // ================= NAVEGACIÓN =================
-    function showView(view) {
-      document.querySelectorAll('#mainContent > div').forEach(div => div.classList.add('hidden'));
-      document.getElementById(`view-${view}`).classList.remove('hidden');
-      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('nav-active'));
-      document.getElementById(`btn-${view}`).classList.add('nav-active');
-
-      if (view === 'dashboard') {
-        document.getElementById('count-clients').textContent = clients.length;
-        document.getElementById('count-pending').textContent = quotes.filter(q => q.estado === 'pendiente').length;
-        document.getElementById('count-ots').textContent = ots.filter(o => o.estado === 'en_curso' || o.estado === 'pendiente_pago').length;
-        document.getElementById('count-ready').textContent = ots.filter(o => o.estado === 'pendiente_pago').length;
-      }
-    }
     
-    function renderAll() {
-      renderClients(); renderQuotes(); renderOTS(); renderAbonos(); renderVisitas();
-    }
+function showView(view) {
+  document.querySelectorAll('#mainContent > div').forEach(div => div.classList.add('hidden'));
+  document.getElementById(`view-${view}`).classList.remove('hidden');
+  document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('nav-active'));
+  document.getElementById(`btn-${view}`).classList.add('nav-active');
+
+  if (view === 'dashboard') renderDashboard();
+}
+
+
+    function renderAll() { renderClients(); renderQuotes(); renderOTs(); renderAbonos(); renderVisitas(); renderReqs(); }
 
     // ================= CLIENTES =================
-    function renderClients() {
+    
+    function formatClientTipo(v){
+      const s = String(v||'').toLowerCase().trim();
+      if(!s) return '—';
+      if(s === 'natural' || s === 'persona natural' || s === 'personanatural') return 'Natural';
+      if(s === 'empresa') return 'Empresa';
+      if(s === 'cliente') return 'Natural';
+      // Si en tu BD quedó guardado como "cliente" o cualquier otra cosa, lo mostramos tal cual capitalizado
+      return (v || '').toString().trim() || '—';
+    }
+
+    function escapeHtml(str){
+      return String(str ?? '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#39;");
+    }
+
+
+function renderClients() {
       const tbody = document.getElementById('clientsTable'); tbody.innerHTML = '';
       const q = normalizeText(document.getElementById('clientSearch')?.value);
       const filtered = !q ? clients : clients.filter(c => [c.name, c.rut, c.telefono, c.email].map(normalizeText).join(' ').includes(q));
@@ -595,7 +871,7 @@
         const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
         tr.innerHTML = `
           <td class="p-4 text-center w-12"><input type="checkbox" class="client-select h-5 w-5 cursor-pointer" data-id="${client.id}"></td>
-          <td class="p-4">${client.rut}</td><td class="p-4 font-medium">${client.name || '—'}</td><td class="p-4">${client.tipo}</td>
+          <td class="p-4">${client.rut}</td><td class="p-4 font-medium">${client.name || '—'}</td><td class="p-4">${formatClientTipo(client.tipo)}</td>
           <td class="p-4">${client.telefono || '-'}</td><td class="p-4">${client.email || '-'}</td>
           <td class="p-4 text-center space-x-3">
             <button onclick="viewClient('${client.id}')" class="text-blue-600 hover:underline font-medium">Ver historial</button>
@@ -613,7 +889,7 @@
           <div class="space-y-4">
             <input id="newRut" placeholder="RUT (ej: 76.295.478-8)" class="w-full px-4 py-3 border rounded-2xl">
             <input id="newNombre" placeholder="Nombre o Razón Social" class="w-full px-4 py-3 border rounded-2xl">
-            <select id="newTipo" class="w-full px-4 py-3 border rounded-2xl"><option value="natural">Persona Natural</option><option value="empresa">Empresa</option></select>
+            <select id="newTipo" class="w-full px-4 py-3 border rounded-2xl"><option value="natural">Natural</option><option value="empresa">Empresa</option></select>
             <input id="newDireccion" placeholder="Dirección completa" class="w-full px-4 py-3 border rounded-2xl">
             <input id="newTelefono" placeholder="Teléfono" class="w-full px-4 py-3 border rounded-2xl">
             <input id="newEmail" placeholder="Correo electrónico" class="w-full px-4 py-3 border rounded-2xl">
@@ -628,32 +904,82 @@
     }
 
     async function saveNewClient(btn) {
-      const rutInput = document.getElementById('newRut').value.trim();
-      const rut = normalizeRut(rutInput);
-      if (!Fn.validaRut(rut)) return alert("RUT no válido");
-      if (clients.some(c => normalizeRut(c.rut) === rut)) return alert("Ese RUT ya está registrado.");
-      const nombre = document.getElementById('newNombre').value.trim();
-      if (!nombre) return alert("Ingresa el nombre o razón social.");
+    if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
+    
+    try {
+        // --- FUNCIÓN INTERNA PARA BUSCAR VALORES REALES ---
+        const buscarValor = (ids) => {
+            for (let id of ids) {
+                const el = document.getElementById(id);
+                if (el && el.value.trim() !== "") return el.value.trim();
+            }
+            // Si no hay por ID, buscar por cualquier input que tenga "RUT" o "Nombre" en su placeholder
+            const todosLosInputs = document.querySelectorAll('input');
+            for (let input of todosLosInputs) {
+                const placeholder = (input.placeholder || "").toLowerCase();
+                if (ids[0].toLowerCase().includes('rut') && placeholder.includes('rut') && input.value.trim() !== "") return input.value.trim();
+                if (ids[0].toLowerCase().includes('name') && (placeholder.includes('nombre') || placeholder.includes('empresa')) && input.value.trim() !== "") return input.value.trim();
+            }
+            return "";
+        };
 
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
+        // Buscamos el RUT y el Nombre en todas las variantes posibles de tu archivo
+        const rutVal = buscarValor(['otNewRut', 'clientRut', 'cRut', 'rut']);
+        const nameVal = buscarValor(['otNewName', 'clientNombre', 'cName', 'nombre']);
+        const phoneVal = buscarValor(['otNewPhone', 'clientTelefono', 'cTelefono']);
 
-      const nuevo = {
-        rut: rut, nombre: nombre, tipo: document.getElementById('newTipo').value,
-        direccion: document.getElementById('newDireccion').value.trim(),
-        telefono: document.getElementById('newTelefono').value.trim(),
-        email: document.getElementById('newEmail').value.trim(), created_by_name: currentUserDisplayName
-      };
+        console.log("Datos capturados:", { rut: rutVal, nombre: nameVal });
 
-      const { error } = await supabaseClient.from('clients').insert([nuevo]);
-      if (error) {
-         alert("Error de base de datos al guardar Cliente: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Guardar Cliente"; }
-         return;
-      }
+        if (!rutVal || !nameVal) {
+            alert("Error: El sistema detecta los campos vacíos. Por favor, asegúrate de escribir en los campos del modal actual.");
+            if(btn) btn.disabled = false;
+            return;
+        }
 
-      await loadData(); renderClients(); closeModal(); toastInfo("Cliente guardado ✅");
+        // --- ENVÍO A SUPABASE ---
+        const { error } = await supabaseClient
+            .from('clients')
+            .insert([{
+                rut: rutVal,
+                name: nameVal,
+                telefono: phoneVal,
+                // CAMBIO AQUÍ: Si el campo no existe, le ponemos 'Empresa' o 'Particular' por defecto
+                tipo: document.getElementById('clientTipo')?.value || 
+                      document.getElementById('otNewType')?.value || 
+                      'Empresa', 
+                created_by: currentUser?.id || null,
+                created_by_email: currentUser?.email || '',
+                created_by_name: currentUserDisplayName || 'Admin'
+            }]);
+
+        // ... (vienes del código de arriba donde se hace el insert)
+
+        if (error) throw error; // Si hay error, salta al catch
+
+        alert("¡Cliente guardado con éxito!");
+        
+        // Cerramos el modal (ajusta el ID si el tuyo se llama distinto)
+        if (typeof closeModal === 'function') {
+            closeModal('clientModal');
+            closeModal('modalNuevoCliente');
+        }
+
+        // --- ESTA ES LA PARTE CLAVE DEL PASO 2 ---
+        // Al ejecutar loadData(), el sistema descarga la lista nueva de Supabase
+        // y automáticamente llama a renderQuotes y actualizarDashboardInteligente
+        await loadData(); 
+
+    } catch (err) {
+        console.error("Error completo:", err);
+        alert("Error de base de datos: " + err.message);
+    } finally {
+        // Devolvemos el botón a su estado normal
+        if(btn) { 
+            btn.disabled = false; 
+            btn.innerText = "Guardar Cliente"; 
+        }
     }
-
+} // <--- Aquí termina la función
     // ================== HISTORIAL DEL CLIENTE ==================
     function viewClient(clientId) {
       const client = clients.find(c => String(c.id) === String(clientId));
@@ -702,17 +1028,102 @@
       document.getElementById('modal').classList.remove('hidden');
     }
 
-    async function editClient(id) { 
-        const c = clients.find(x => x.id === id);
-        if(!c) return;
-        const nombre = prompt("Actualizar Nombre o Razón Social:", c.name);
-        if(nombre) {
-            const { error } = await supabaseClient.from('clients').update({ nombre: nombre }).eq('id', id);
-            if (error) return alert("Error al editar cliente: " + error.message);
-            await loadData(); renderClients();
-        }
+    async function editClient(id) {
+      const c = clients.find(x => x.id === id);
+      if(!c) return;
+
+      const html = `
+        <div class="p-8">
+          <h2 class="text-2xl font-bold mb-6">Editar Cliente</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-gray-600">RUT</label>
+              <input id="editRut" value="${escapeHtml(c.rut || '')}" class="w-full px-4 py-3 border rounded-2xl">
+            </div>
+            <div>
+              <label class="text-sm text-gray-600">Nombre / Razón Social</label>
+              <input id="editNombre" value="${escapeHtml(c.name || '')}" class="w-full px-4 py-3 border rounded-2xl">
+            </div>
+
+            <div>
+              <label class="text-sm text-gray-600">Tipo</label>
+              <select id="editTipo" class="w-full px-4 py-3 border rounded-2xl">
+                <option value="natural" ${String(c.tipo).toLowerCase()==='natural' ? 'selected' : ''}>Natural</option>
+                <option value="empresa" ${String(c.tipo).toLowerCase()==='empresa' ? 'selected' : ''}>Empresa</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-sm text-gray-600">Teléfono</label>
+              <input id="editTelefono" value="${escapeHtml(c.telefono || '')}" class="w-full px-4 py-3 border rounded-2xl">
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="text-sm text-gray-600">Dirección</label>
+              <input id="editDireccion" value="${escapeHtml(c.direccion || '')}" class="w-full px-4 py-3 border rounded-2xl">
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="text-sm text-gray-600">Email</label>
+              <input id="editEmail" value="${escapeHtml(c.email || '')}" class="w-full px-4 py-3 border rounded-2xl">
+            </div>
+          </div>
+
+          <div class="mt-8 flex justify-end gap-3">
+            <button onclick="closeModal()" class="bg-gray-600 text-white px-8 py-3 rounded-xl">Cancelar</button>
+            <button onclick="updateClient('${c.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl">Guardar cambios</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modalContent').innerHTML = html;
+      document.getElementById('modal').classList.remove('hidden');
     }
-    
+
+    async function updateClient(id){
+      try{
+        const rut = document.getElementById('editRut').value.trim();
+        const name = document.getElementById('editNombre').value.trim();
+        const tipo = document.getElementById('editTipo').value;
+        const telefono = document.getElementById('editTelefono').value.trim();
+        const direccionInput = document.getElementById('editDireccion').value.trim();
+        const email = document.getElementById('editEmail').value.trim();
+
+        if(!name) return alert("El nombre no puede quedar vacío.");
+
+        // Detecta automáticamente si la columna es 'direccion' o 'doreccion' SIN romper por schema cache
+        let addressCol = 'direccion';
+        try{
+          const { data: sample, error: eSample } = await supabaseClient.from('clients').select('*').limit(1);
+          if(!eSample && Array.isArray(sample) && sample.length){
+            if(Object.prototype.hasOwnProperty.call(sample[0], 'doreccion')) addressCol = 'doreccion';
+            else if(Object.prototype.hasOwnProperty.call(sample[0], 'direccion')) addressCol = 'direccion';
+          }
+        }catch(_){ /* no-op */ }
+
+        const payload = { rut, tipo, telefono, email, name };
+        payload[addressCol] = direccionInput;
+
+        const { error } = await supabaseClient.from('clients').update(payload).eq('id', id);
+
+        if(error){
+          // Si igual falla, intenta con el otro nombre (por si el sample vino vacío)
+          const altCol = (addressCol === 'direccion') ? 'doreccion' : 'direccion';
+          const payload2 = { rut, tipo, telefono, email, name };
+          payload2[altCol] = direccionInput;
+          const { error: error2 } = await supabaseClient.from('clients').update(payload2).eq('id', id);
+          if(error2) throw error2;
+        }
+
+        closeModal();
+        await loadData();
+        renderClients();
+      }catch(err){
+        alert("Error al editar cliente: " + (err?.message || err));
+      }
+    }
+
     async function deleteClient(id) {
       if(!confirm("¿Borrar este cliente y todas sus cotizaciones/OTs asociadas?")) return;
       const { error } = await supabaseClient.from('clients').delete().eq('id', id);
@@ -752,246 +1163,413 @@
       ];
     }
 
-    function showNewQuoteModal(prefill = null) {
-      if(!prefill) pendingOTToLink = null; 
-      let clientOptions = '<option value="">Selecciona cliente existente</option>';
-      clients.forEach(c => { clientOptions += `<option value="${c.id}" data-rut="${c.rut}">${c.name} (${c.rut})</option>`; });
+    // --- BLOQUE DE COTIZACIONES CON DESGLOSE COMPLETO ---
 
-     // CORRECCIÓN AQUÍ: Definimos el número y el comportamiento del cuadro
-const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
+    // --- DISEÑO VISUAL MEJORADO Y FUNCIONAL ---
 
-// IMPORTANTE: Si NO es modo automático, quitamos el 'readonly' para que te deje escribir
-const qNumHTML = `<input id="qNum" 
-  value="${displayNum}" 
-  placeholder="N° Cotización (Ej: 1045) *" 
-  class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" 
-  ${isAutoMode ? 'readonly' : ''}>`;
+    // --- BLOQUE MAESTRO ECOLUZ: DISEÑO PROFESIONAL + AGREGAR ITEMS FUNCIONAL ---
 
-      const html = `
-        <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6">${pendingOTToLink ? 'Crear Cotización para OT Manual' : 'Nueva Cotización'}</h2>
-          <div class="space-y-4">
+// --- MODAL DE COTIZACIÓN INTEGRADO AL DISEÑO DEL SISTEMA ---
+
+// --- FUNCIONES DE APOYO (Para que los cálculos y el modo cliente funcionen) ---
+window.toggleClientMode = function(mode) {
+  const existingDiv = document.getElementById('existingClientDiv');
+  const newDiv = document.getElementById('newClientDiv');
+  if (mode === 'new') {
+    existingDiv.classList.add('hidden');
+    newDiv.classList.remove('hidden');
+  } else {
+    existingDiv.classList.remove('hidden');
+    newDiv.classList.add('hidden');
+  }
+};
+
+window.addItem = function(desc='', cant=1, valor=0) {
+  const container = document.getElementById('itemsContainer');
+  if (!container) return;
+  const row = document.createElement('div'); 
+  row.className = 'item-row grid grid-cols-12 gap-2 p-4 items-center bg-white border-b border-slate-50';
+  row.innerHTML = `
+    <div class="col-span-6"><input type="text" class="item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${desc}"></div>
+    <div class="col-span-1"><input type="number" class="item-cant w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${cant}" oninput="window.calcularTotal()"></div>
+    <div class="col-span-2"><input type="number" class="item-valor w-full bg-transparent border-none text-right font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${valor}" oninput="window.calcularTotal()"></div>
+    <div class="col-span-2 text-right"><span class="item-subtotal-text font-bold text-sm text-emerald-600">$0</span></div>
+    <div class="col-span-1 text-right"><button type="button" onclick="this.closest('.item-row').remove(); window.calcularTotal()" class="text-slate-300 hover:text-red-500 font-bold">✕</button></div>
+  `;
+  container.appendChild(row);
+  window.calcularTotal();
+};
+
+window.calcularTotal = function() {
+  let neto = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const c = parseFloat(row.querySelector('.item-cant').value) || 0;
+    const v = parseFloat(row.querySelector('.item-valor').value) || 0;
+    const sub = c * v;
+    row.querySelector('.item-subtotal-text').textContent = '$' + Math.round(sub).toLocaleString('es-CL');
+    neto += sub;
+  });
+  const iva = Math.round(neto * 0.19);
+  const total = neto + iva;
+  document.getElementById('neto_display').textContent = '$' + Math.round(neto).toLocaleString('es-CL');
+  document.getElementById('iva_display').textContent = '$' + iva.toLocaleString('es-CL');
+  document.getElementById('total').textContent = '$' + Math.round(total).toLocaleString('es-CL');
+};
+
+// --- EL MODAL (TU DISEÑO ACTUALIZADO) ---
+function showNewQuoteModal(prefill = null) {
+  if(!prefill) pendingOTToLink = null;  
+  let clientOptions = '<option value="">Seleccionar Cliente...</option>';
+  if (typeof clients !== 'undefined') {
+    clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
+  }
+
+  const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
+  
+  const html = `
+    <div class="p-6 md:p-8">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">Nueva Cotización</h2>
+          <p class="text-slate-500 text-sm">Registro de presupuesto y servicios</p>
+        </div>
+        <div class="text-right">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Folio</span>
+          <input id="qNum" value="${displayNum}" class="text-2xl font-bold text-emerald-600 bg-transparent border-none p-0 text-right focus:ring-0 w-24">
+        </div>
+      </div>
+
+      <div class="flex gap-4 mb-6 p-2 bg-slate-50 rounded-xl">
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium">
+          <input type="radio" name="cMode" checked onclick="window.toggleClientMode('existing')" class="text-emerald-600"> Cliente Existente
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-emerald-600">
+          <input type="radio" name="cMode" onclick="window.toggleClientMode('new')" class="text-emerald-600"> + Crear Nuevo Cliente
+        </label>
+      </div>
+
+      <div class="space-y-6">
+        <div id="existingClientDiv">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Cliente *</label>
+            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm">${clientOptions}</select>
+        </div>
+
+        <div id="newClientDiv" class="hidden grid grid-cols-2 gap-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+            <input id="newCName" placeholder="Nombre / Razón Social" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white">
+            <input id="newCRut" placeholder="RUT (12.345.678-9)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white">
+            <input id="newCEmail" placeholder="Email de contacto" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white col-span-2">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Tipo de Trabajo</label>
+            <select id="qTipo" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm">
+              <option value="Reparación">Reparación</option>
+              <option value="Mantención">Mantención</option>
+              <option value="Instalación">Instalación</option>
+              <option value="Suministro">Suministro</option>
+              <option value="Suministro e Instalación">Suministro e Instalación</option> 
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
+            <textarea id="qObra" rows="1" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none" placeholder="Ej: Mantenimiento preventivo..."></textarea>
+          </div>
+        </div>
+
+        <div class="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/50">
+          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-slate-100/50 text-[10px] font-bold text-slate-500 uppercase">
+            <div class="col-span-6">Descripción</div>
+            <div class="col-span-1 text-center">Cant</div>
+            <div class="col-span-2 text-right">Unitario</div>
+            <div class="col-span-2 text-right">Subtotal</div>
+            <div class="col-span-1"></div>
+          </div>
+          <div id="itemsContainer" class="divide-y divide-slate-100 bg-white"></div>
+          <div class="p-3 bg-slate-50/50 flex justify-center">
+            <button type="button" onclick="window.addItem()" class="text-emerald-600 font-bold text-xs hover:text-emerald-700 flex items-center gap-2">
+              <span class="flex items-center justify-center w-5 h-5 bg-emerald-600 text-white rounded-full text-lg">+</span> Agregar Item
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+          <div class="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 text-[10px] text-emerald-800 italic">
+            <h4 class="font-bold uppercase mb-1">Consideraciones Ecoluz</h4>
+            <ul class="space-y-0.5">
+              <li>• 1. Sujeto a disponibilidad de agenda técnica.</li>
+              <li>• 2. Garantía de 30 días en mano de obra.</li>
+              <li>• 3. Validez de presupuesto: 15 días corridos.</li>
+              <li>• 4. No incluye materiales no especificados.</li>
+              <li>• 5. Trabajos fuera de horario sujetos a recargo.</li>
+              <li>• 6. Se requiere acceso despejado al área de trabajo.</li>
+              <li>• 7. Pago contra entrega de servicio o según acuerdo.</li>
+            </ul>
+          </div>
+          <div class="space-y-2 text-right pr-2">
+            <div class="text-sm">Neto <span id="neto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+            <div class="text-sm border-b pb-2">IVA (19%) <span id="iva_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+            <div class="pt-2 text-2xl font-bold text-emerald-600">Total <span id="total" class="ml-4">$0</span></div>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-6">
+          <button type="button" onclick="saveNewQuote(this)" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg">Guardar Cotización</button>
+          <button type="button" onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+  window.addItem(); 
+}
+
+/// --- MODAL CON FOLIO VISIBLE Y CORRECCIONES ---
+function showNewQuoteModal(prefill = null) {
+  if(!prefill) pendingOTToLink = null; 
+  let clientOptions = '<option value="">Seleccionar Cliente...</option>';
+  if (typeof clients !== 'undefined') {
+    clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
+  }
+  const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
+  
+  const html = `
+    <div class="p-6 md:p-8">
+      <div class="flex justify-between items-start mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">Nueva Cotización</h2>
+          <p class="text-slate-500 text-sm font-medium">Empresa: Ecoluz</p>
+        </div>
+        <div class="bg-white p-3 rounded-xl border-2 border-emerald-500 shadow-sm ring-4 ring-emerald-50">
+          <span class="text-[10px] font-black text-emerald-600 uppercase block mb-1 text-center">N° FOLIO</span>
+          <input id="qNum" value="${displayNum}" class="text-2xl font-black text-emerald-700 bg-transparent border-none p-0 text-center focus:ring-0 w-28" placeholder="0000">
+        </div>
+      </div>
+
+      <div class="flex gap-4 mb-6 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
+        <button onclick="window.toggleClientMode('existing')" id="btnExistente" class="px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-slate-700 transition-all">Cliente Registrado</button>
+        <button onclick="window.toggleClientMode('new')" id="btnNuevo" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-emerald-600 transition-all">+ Nuevo Cliente</button>
+      </div>
+
+      <div class="space-y-6">
+        <div id="existingClientDiv">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Seleccionar de la lista *</label>
+            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none">${clientOptions}</select>
+        </div>
+
+        <div id="newClientDiv" class="hidden grid grid-cols-2 gap-3 p-4 bg-emerald-50/50 border-2 border-emerald-100 rounded-2xl">
+            <div class="col-span-2 text-[10px] font-bold text-emerald-700 uppercase mb-1">Datos del Nuevo Cliente</div>
+            <input id="newCName" placeholder="Nombre / Razón Social *" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCRut" placeholder="RUT *" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCEmail" placeholder="Email (Opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white col-span-2">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Tipo de Trabajo</label>
+            <select id="qTipo" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+              <option>Reparación</option>
+              <option>Mantención</option>
+              <option>Instalación</option>
+              <option>Suministro</option>
+              <option>Suministro e Instalación</option> 
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
+            <textarea id="qObra" rows="1" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="¿Qué se va a realizar?"></textarea>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase border-b">
+            <div class="col-span-6">Descripción</div>
+            <div class="col-span-1 text-center">Cant</div>
+            <div class="col-span-2 text-right">Valor Unit.</div>
+            <div class="col-span-2 text-right">Subtotal</div>
+            <div class="col-span-1"></div>
+          </div>
+          <div id="itemsContainer" class="divide-y divide-slate-100"></div>
+          <div class="p-3 bg-slate-50/50 flex justify-center border-t border-slate-100">
+            <button type="button" onclick="window.addItem()" class="text-emerald-600 font-bold text-xs flex items-center gap-2 hover:scale-105 transition-all">
+              <span class="flex items-center justify-center w-6 h-6 bg-emerald-600 text-white rounded-full">+</span> AGREGAR ITEM
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+          <div class="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 text-[10px] text-emerald-800 italic leading-tight">
+            <h4 class="font-bold uppercase mb-2 tracking-widest text-emerald-600">Consideraciones Ecoluz</h4>
+            <ul class="space-y-1">
+              <li>• 1. Sujeto a disponibilidad de agenda técnica.</li>
+              <li>• 2. Garantía de 30 días en mano de obra.</li>
+              <li>• 3. Validez de presupuesto: 15 días corridos.</li>
+              <li>• 4. No incluye materiales no especificados.</li>
+              <li>• 5. Trabajos fuera de horario sujetos a recargo.</li>
+              <li>• 6. Acceso despejado al área de trabajo.</li>
+              <li>• 7. Pago contra entrega de servicio o según acuerdo.</li>
+            </ul>
+          </div>
+          <div class="space-y-2 text-right pr-2 self-center">
+            <div class="text-sm text-slate-400">Neto <span id="neto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+            <div class="text-sm text-slate-400 border-b border-slate-100 pb-2">IVA (19%) <span id="iva_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+            <div class="pt-2 text-3xl font-black text-emerald-600">TOTAL <span id="total" class="ml-4">$0</span></div>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" onclick="saveNewQuote(this)" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all">GUARDAR COTIZACIÓN</button>
+          <button type="button" onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">CANCELAR</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+  window.addItem(); 
+}
+
+// --- LÓGICA DE BOTONES PARA MODO CLIENTE ---
+window.toggleClientMode = function(mode) {
+    const divExistente = document.getElementById('existingClientDiv');
+    const divNuevo = document.getElementById('newClientDiv');
+    const btnExistente = document.getElementById('btnExistente');
+    const btnNuevo = document.getElementById('btnNuevo');
+
+    if(mode === 'new') {
+        divExistente.classList.add('hidden');
+        divNuevo.classList.remove('hidden');
+        btnNuevo.className = "px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-emerald-600 transition-all";
+        btnExistente.className = "px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+    } else {
+        divExistente.classList.remove('hidden');
+        divNuevo.classList.add('hidden');
+        btnExistente.className = "px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-slate-700 transition-all";
+        btnNuevo.className = "px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+    }
+};
+
+// ========================================================
+// FUNCIÓN ÚNICA DE GUARDADO (CONFIGURADA PARA supabaseClient)
+// ========================================================
+async function saveNewQuote(btn) {
+    if(btn) { btn.disabled = true; btn.innerText = "Procesando..."; }
+
+    try {
+        const isNew = !document.getElementById('newClientDiv').classList.contains('hidden');
+        const folioRaw = document.getElementById('qNum').value.trim();
+        // Folio manual por ahora. Si viene vacío, guardamos 'S/N'.
+        const folio = folioRaw || 'S/N';
+        const obraDesc = document.getElementById('qObra').value.trim();
+        const tipoServ = document.getElementById('qTipo') ? document.getElementById('qTipo').value : "General";
+        let clientId = document.getElementById('qClient').value;
+
+        // 1. GESTIÓN DE CLIENTE (Si es nuevo)
+        if (isNew) {
+            const n = document.getElementById('newCName').value.trim();
+            const r = document.getElementById('newCRut').value.trim();
+            const e = document.getElementById('newCEmail').value.trim();
             
-            <div class="mb-2">
-                <label class="text-xs font-bold text-gray-500">NÚMERO DE COTIZACIÓN</label>
-                ${qNumHTML}
-            </div>
+            if (!n || !r) throw new Error("Nombre y RUT son obligatorios.");
 
-            <div class="mb-3 flex gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-                    <input type="radio" name="clientMode" value="existing" checked onchange="document.getElementById('divExistingClient').style.display='block'; document.getElementById('divNewClient').style.display='none';"> 
-                    <span class="text-blue-700">Cliente Existente</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-                    <input type="radio" name="clientMode" value="new" onchange="document.getElementById('divExistingClient').style.display='none'; document.getElementById('divNewClient').style.display='block';"> 
-                    <span class="text-emerald-600">Crear Nuevo Cliente</span>
-                </label>
-            </div>
+            const { data: cl, error: errC } = await supabaseClient
+                .from('clients')
+                .insert([{ name: n, rut: r, email: e }])
+                .select();
 
-            <div id="divExistingClient" class="mb-3">
-                <select id="qClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600">${clientOptions}</select>
-            </div>
+            if (errC) throw new Error("Error al crear cliente: " + errC.message);
+            clientId = cl[0].id;
+            console.log("Cliente creado con ID:", clientId);
+        }
 
-            <div id="divNewClient" style="display: none;" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-                <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
-                <input type="text" id="qNewClientName" placeholder="Razón Social / Nombre (*)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500 mb-2">
-                <input type="text" id="qNewClientRut" placeholder="RUT (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500 mb-2">
-                <div class="flex gap-2">
-                    <input type="email" id="qNewClientEmail" placeholder="Correo (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500">
-                    <input type="text" id="qNewClientPhone" placeholder="Teléfono (Opcional)" class="w-full px-3 py-2 border rounded-xl focus:border-emerald-500">
-                </div>
-            </div>
-`;
-      document.getElementById('modalContent').innerHTML = html;
-      document.getElementById('modal').classList.remove('hidden');
-      addItem();
-      document.getElementById('modalContent').addEventListener('input', e => { if (e.target.matches('input[type="number"]')) calcularTotal(); });
+        if (!clientId) throw new Error("No se pudo obtener el ID del cliente.");
 
-      if (prefill) {
-        setTimeout(() => {
-          if (prefill.clientId) document.getElementById('qClient').value = prefill.clientId;
-          if (prefill.obra) document.getElementById('qObra').value = prefill.obra;
-        }, 50);
-      }
+        // 2. RECOPILAR ÍTEMS
+        let itemsArr = [];
+        let netoTotal = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const d = row.querySelector('.item-desc').value.trim();
+            const c = parseFloat(row.querySelector('.item-cant').value) || 0;
+            const v = parseFloat(row.querySelector('.item-valor').value) || 0;
+            if(d && c > 0) {
+                itemsArr.push({ descripcion: d, cantidad: c, precio: v, subtotal: Math.round(c * v) });
+                netoTotal += (c * v);
+            }
+        });
+
+        // ... (dentro de saveNewQuote, después de calcular totales)
+        const { data: qInserted, error: errQ } = await supabaseClient
+            .from('quotes')
+            .insert([{
+                numero: folio,
+                client_id: clientId,
+                obra: obraDesc,
+                monto: (Math.round(netoTotal * 1.19)),
+                items: itemsArr,
+                estado: 'pendiente',
+                tipo_servicio: tipoServ,
+                fecha: new Date().toISOString(),
+                enviado_por_correo: document.getElementById('sendEmailCheckbox')?.checked || false,
+                enviado_por_wsp: document.getElementById('sendWspCheckbox')?.checked || false,
+                created_by: currentUser?.id || null,
+                created_by_email: currentUser?.email || '',
+                created_by_name: currentUserDisplayName || 'Admin'
+            }])
+            .select()
+            .single();
+
+        if (errQ) throw errQ;
+
+        // Si venimos desde una OT manual, la vinculamos automáticamente
+        if (typeof pendingOTToLink !== 'undefined' && pendingOTToLink) {
+            try{
+              await supabaseClient.from('ots').update({ quote_id: qInserted.id }).eq('id', pendingOTToLink);
+            }catch(e){ /* no bloquea */ }
+            pendingOTToLink = null;
+        }
+
+        alert("¡Cotización guardada con éxito!");
+        closeModal();
+        await loadData();
+        renderQuotes();
+        renderOTs();
+    } catch (err) {
+        alert("ATENCIÓN: " + err.message);
+        console.error("Error completo:", err);
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerText = "GUARDAR COTIZACIÓN"; }
     }
-
-    function addItem(desc='', cant=1, valor=0) {
-      const container = document.getElementById('itemsContainer');
-      const row = document.createElement('div'); row.className = 'item-row flex flex-wrap gap-3 items-end border-b pb-3';
-      row.innerHTML = `
-        <div class="flex-1 min-w-[200px]"><label class="text-xs">Descripción</label><input type="text" class="item-desc w-full px-3 py-2 border rounded-xl" value="${desc.replace(/"/g,'&quot;')}" required></div>
-        <div class="w-24"><label class="text-xs">Cant.</label><input type="number" class="item-cant w-full px-3 py-2 border rounded-xl" value="${cant}"></div>
-        <div class="w-32"><label class="text-xs">Valor Unit.</label><input type="number" class="item-valor w-full px-3 py-2 border rounded-xl" value="${valor}"></div>
-        <div class="w-32"><label class="text-xs">Subtotal</label><input type="text" class="item-subtotal w-full px-3 py-2 border rounded-xl bg-gray-50" readonly value="$0"></div>
-        <button type="button" class="text-red-600 px-3 py-2 font-bold" onclick="this.parentElement.remove(); calcularTotal()">X</button>
-      `;
-      container.appendChild(row);
-      calcularTotal();
-    }
-
-    function calcularTotal() {
-      let neto = 0;
-      document.querySelectorAll('.item-row').forEach(row => {
-        const cant = parseFloat(row.querySelector('.item-cant').value) || 0;
-        const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
-        const sub = cant * valor;
-        row.querySelector('.item-subtotal').value = '$' + sub.toLocaleString('es-CL');
-        neto += sub;
-      });
-      document.getElementById('neto').textContent = '$' + neto.toLocaleString('es-CL');
-      document.getElementById('iva').textContent = '$' + (neto * 0.19).toLocaleString('es-CL');
-      document.getElementById('total').textContent = '$' + (neto * 1.19).toLocaleString('es-CL');
-      return neto * 1.19;
-    }
-
-    // 1. Capturamos los campos básicos
-     async function saveNewQuote(btn) {  // <--- ESTA ES LA LÍNEA QUE DEBES AGREGAR
-      // 1. Capturamos los campos básicos
-     
-
-      const numInput = document.getElementById('qNum');
-      const num = numInput ? numInput.value : "";
-      const obra = document.getElementById('qObra').value.trim();
-      const tipoServicioInput = document.getElementById('q-tipo-servicio');
-      const tipoServicio = tipoServicioInput ? tipoServicioInput.value : "";
-      
-      let client = null;
-      const clientModeElement = document.querySelector('input[name="clientMode"]:checked');
-      const clientMode = clientModeElement ? clientModeElement.value : 'existing';
-
-      if (clientMode === 'existing') {
-          const clientId = document.getElementById('qClient').value;
-          if (!clientId || !num || !obra || !tipoServicio) {
-              if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
-              return alert("Faltan datos: Asegúrate de tener Cliente, N° Cotización, Tipo de Trabajo y Obra.");
-          }
-          client = clients.find(c => String(c.id) === String(clientId));
-      } else {
-          const cName = document.getElementById('qNewClientName').value.trim();
-          const cRut = document.getElementById('qNewClientRut').value.trim();
-          const cEmail = document.getElementById('qNewClientEmail').value.trim();
-          const cPhone = document.getElementById('qNewClientPhone').value.trim();
-
-          if (!cName || !num || !obra || !tipoServicio) {
-              if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
-              return alert("Faltan datos. Para cliente nuevo rellena: Razón Social, N° Cotización, Tipo y Obra.");
-          }
-
-          if(btn) { btn.disabled = true; btn.innerText = "Creando Cliente..."; }
-          
-          const { data: newClientData, error: clientErr } = await supabaseClient
-              .from('clients')
-              .insert([{ name: cName, rut: cRut, email: cEmail, phone: cPhone }])
-              .select('*')
-              .single();
-
-          if (clientErr) {
-              if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
-              return alert("Error de base de datos (Cliente): " + clientErr.message);
-          }
-
-          client = newClientData;
-          if (typeof clients !== 'undefined') clients.push(newClientData);
-      }
-
-      if (!client) {
-          if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
-          return alert("Error: No se pudo asignar un cliente a la cotización.");
-      }
-      
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando Cotización..."; }
-
-      let items = [], montoTotal = 0;
-      document.querySelectorAll('.item-row').forEach(row => {
-        const desc = row.querySelector('.item-desc').value.trim();
-        const cant = parseFloat(row.querySelector('.item-cant').value) || 0;
-        const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
-        if(desc && cant>0) { items.push({desc, cant, valor, subtotal: cant*valor}); montoTotal += (cant*valor); }
-      });
-      if(items.length === 0) return alert("Agrega al menos un ítem.");
-
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-
-      
-      const totalFinal = montoTotal * 1.19;
-
-      const payload = {
-        client_id: client.id, estado: 'pendiente', fecha: todayISO(),
-        data: { numeroCotizacion: num, obra, tipo_servicio: tipoServicio, items, monto: totalFinal, razonSocial: client.name, rut: client.rut, createdBy: currentUserDisplayName }
-      };
-
-      const { data: newQuotes, error } = await supabaseClient.from('quotes').insert([payload]).select();
-      if (error) {
-         alert("Error de base de datos al guardar Cotización: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Guardar Cotización"; }
-         return;
-      }
-
-      if (pendingOTToLink && newQuotes && newQuotes.length > 0) {
-          const newQuoteId = newQuotes[0].id;
-          const ot = ots.find(o => String(o.id) === String(pendingOTToLink));
-          if (ot) {
-              if (!ot.data) ot.data = {};
-              ot.data.numeroCotizacion = num;
-              ot.data.monto = totalFinal; 
-              ot.data.quoteId = newQuoteId;
-              
-              await supabaseClient.from('ots').update({
-                  quote_id: newQuoteId,
-                  data: ot.data
-              }).eq('id', pendingOTToLink);
-          }
-          pendingOTToLink = null;
-      }
-
-      await loadData(); renderQuotes(); renderOTS(); closeModal(); toastInfo("Cotización guardada exitosamente.");
-    }
-
+}
     function editQuote(quoteId) {
       function renderQuotes() {
-      // Limpiamos las tres tablas antes de volver a dibujar
-      document.getElementById('pendingQuotesTable').innerHTML = '';
-      document.getElementById('acceptedQuotesTable').innerHTML = '';
-      document.getElementById('rejectedQuotesTable').innerHTML = '';
+    const tbody = document.getElementById('quotesTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
-      quotes.forEach(q => {
-        // Extraemos datos de la raíz o de .data por seguridad
-        const num = q.numeroCotizacion || (q.data && q.data.numeroCotizacion) || 'S/N';
-        const clienteNom = q.clientName || (q.data && q.data.clientName) || 'Cliente Desconocido';
-        const obra = q.obra || (q.data && q.data.obra) || '';
-        const total = q.monto || (q.data && q.data.monto) || 0;
-        const estado = q.status || (q.data && q.data.status) || 'Pendiente';
-
-        // Botones de acción
-        const btnPDF = `<button onclick="generateQuotePDF('${q.id}')" class="text-blue-700 hover:text-blue-900" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
-        const btnEdit = `<button onclick="editQuote('${q.id}')" class="text-indigo-600 hover:text-indigo-800 ml-3" title="Editar"><i class="fa-solid fa-pen-to-square text-xl"></i></button>`;
-        
-        // Creamos la fila (TR)
-        const tr = document.createElement('tr'); 
-        tr.className = 'border-t hover:bg-gray-50';
+    quotes.forEach(q => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b hover:bg-gray-50";
         tr.innerHTML = `
-          <td class="px-4 py-3 font-bold">#${num}</td>
-          <td class="px-4 py-3">${clienteNom}</td>
-          <td class="px-4 py-3 text-sm text-gray-600">${obra}</td>
-          <td class="px-4 py-3 font-semibold text-emerald-700">$${Math.round(total).toLocaleString('es-CL')}</td>
-          <td class="px-4 py-3">
-            <div class="flex items-center gap-2">
-              ${btnPDF}
-              ${btnEdit}
-            </div>
-          </td>
+            <td class="p-3">${q.numeroCotizacion}</td>
+            <td class="p-3 font-bold">${safeText(q.clientName) || 'Cliente no encontrado'}</td>
+            <td class="p-3">${q.obra}</td>
+            <td class="p-3 text-blue-600 font-bold">$${Number(q.monto).toLocaleString()}</td>
+            <td class="p-3">
+                <span class="px-2 py-1 rounded text-xs ${(q.estado==='aceptada' || q.estado==='aprobada') ? 'bg-green-100 text-green-700' : (q.estado==='rechazada' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')}">
+                    ${q.estado.toUpperCase()}
+                </span>
+            </td>
+            <td class="p-3 text-sm text-gray-500">${q.createdByName}</td>
+            <td class="p-3">
+                <button onclick="viewQuoteDetails('${q.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-eye"></i></button>
+            </td>
         `;
-
-        // Clasificamos la fila en su tabla correspondiente según el estado
-        if (estado === 'Aceptada') {
-          document.getElementById('acceptedQuotesTable').appendChild(tr);
-        } else if (estado === 'Rechazada') {
-          document.getElementById('rejectedQuotesTable').appendChild(tr);
-        } else {
-          document.getElementById('pendingQuotesTable').appendChild(tr);
-        }
-      });
-    }
+        tbody.appendChild(tr);
+    });
+}
       const q = quotes.find(x => String(x.id) === String(quoteId));
       if (!q) return;
 
@@ -1026,8 +1604,7 @@ const qNumHTML = `<input id="qNum"
             
             <div id="itemsContainer" class="space-y-3"></div>
             <button type="button" onclick="addItem()" class="bg-green-600 text-white px-4 py-2 rounded-xl flex items-center gap-2">
-              <i class="fas fa-plus"></i> Agregar ítem
-            </button>
+              <i class="fas fa-plus"></i> <span class="sidebar-label">Agregar ítem</span></button>
 
             <div class="bg-gray-50 p-4 rounded-xl mt-4 border border-gray-200">
               <div class="flex justify-between text-lg"><span>Neto:</span><span id="neto">$0</span></div>
@@ -1081,7 +1658,7 @@ const estadoEnvioHtml = (q.data && q.data.ejecutor_envio) || q.ejecutor_envio
     : `<span class="text-xs text-gray-400 italic">Pendiente</span>`;
 
 // USAMOS NUESTRA FUNCIÓN formatShortName PARA LIMPIAR EL NOMBRE Y AGREGAMOS LAS 2 COLUMNAS NUEVAS
-tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${q.razonSocial}</td><td class="p-4 font-bold">${formatCLP(q.monto)}</td><td class="p-4">${formatShortName(q.createdByName || q.createdBy)}</td><td class="p-4">${q.fecha}</td><td class="p-4 text-center">${btnPDF}${btnEdit}</td><td class="p-4">${estadoEnvioHtml}</td><td class="p-4 text-center">${btnWsp}${btnCorreo}</td><td class="p-4">${actions}</td>`;
+tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'}</td><td class="p-4 font-bold">${formatCLP(q.monto)}</td><td class="p-4">${formatShortName(q.createdByName || q.createdBy)}</td><td class="p-4">${q.fecha}</td><td class="p-4 text-center">${btnPDF}${btnEdit}</td><td class="p-4">${estadoEnvioHtml}</td><td class="p-4 text-center">${btnWsp}${btnCorreo}</td><td class="p-4">${actions}</td>`;
         
         if(q.estado === 'pendiente') document.getElementById('pendingQuotesTable').appendChild(tr);
         if(q.estado === 'aceptada') document.getElementById('acceptedQuotesTable').appendChild(tr);
@@ -1091,16 +1668,33 @@ tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${
    actualizarDashboardInteligente();
 }
 
-async function acceptQuote(id) { 
-  const { error } = await supabaseClient.from('quotes').update({estado: 'aceptada'}).eq('id', id); 
-  if(error) return alert("Error DB: " + error.message);
-  await loadData(); renderQuotes(); 
+async function acceptQuote(id) {
+  try {
+    // 1) Marcar cotización como aceptada
+    const { error: e1 } = await supabaseClient.from('quotes').update({ estado: 'aceptada' }).eq('id', id);
+    if (e1) throw e1;
+
+    // 2) Convertir a OT (crea una OT vinculada con quote_id)
+    await convertToOT(id);
+
+    // convertToOT ya hace loadData en algunos flujos, pero por seguridad recargamos
+    await loadData();
+    renderQuotes();
+    renderOTs();
+  } catch (err) {
+    alert("Error al aceptar cotización: " + (err?.message || err));
+  }
 }
 
-async function rejectQuote(id) { 
-  const { error } = await supabaseClient.from('quotes').update({estado: 'rechazada'}).eq('id', id); 
-  if(error) return alert("Error DB: " + error.message);
-  await loadData(); renderQuotes(); 
+async function rejectQuote(id) {
+  try {
+    const { error } = await supabaseClient.from('quotes').update({ estado: 'rechazada' }).eq('id', id);
+    if (error) throw error;
+    await loadData();
+    renderQuotes();
+  } catch (err) {
+    alert("Error al rechazar cotización: " + (err?.message || err));
+  }
 }
 
 window.registrarEnvio = async function(idCotizacion, medio) {
@@ -1158,7 +1752,9 @@ window.registrarEnvio = async function(idCotizacion, medio) {
 
  // ================= ÓRDENES DE TRABAJO =================
     function showNewOTManualModal() {
-      let clientOptions = '<option value="">Selecciona cliente</option>';
+      
+  try {
+let clientOptions = '<option value="">Selecciona cliente</option>';
       clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
 
       // CORRECCIÓN: Definición limpia del número de OT
@@ -1192,9 +1788,8 @@ window.registrarEnvio = async function(idCotizacion, medio) {
                 <input type="text" id="otNewName" placeholder="Nombre / Empresa (*)" class="w-full px-3 py-2 border rounded-xl mb-2">
                 <input type="text" id="otNewRut" placeholder="RUT" class="w-full px-3 py-2 border rounded-xl mb-2">
                 <input type="text" id="otNewPhone" placeholder="Teléfono" class="w-full px-3 py-2 border rounded-xl">
+                <select id="otNewType" class="w-full px-3 py-2 border rounded-xl mt-2"><option value="Natural">Natural</option><option value="Empresa">Empresa</option></select>
             </div>
-
-            <div><label class="block text-sm font-bold text-blue-900">Monto Total OT ($) *</label><input id="mOtMonto" type="number" class="w-full px-3 py-2 border rounded-xl bg-blue-50" required></div>
             <div><label class="block text-sm font-medium">Descripción de trabajos *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl"></textarea></div>
             <div><label class="block text-sm font-medium">OC</label><input id="mOtOC" class="w-full px-3 py-2 border rounded-xl"></div>
             <div><label class="block text-sm font-medium">HES</label><input id="mOtHES" class="w-full px-3 py-2 border rounded-xl"></div>
@@ -1206,16 +1801,21 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           </div>
         </div>`;
       
-      document.getElementById('modalContent').innerHTML = html;
+            document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
-    }
+
+  } catch (error) {
+      console.error("Error en showNewOTManualModal:", error);
+      alert("Error al abrir formulario de OT.");
+  }
+}
 
     async function saveNewOTManual(btn) {
       if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
 
       // CORRECCIÓN: Capturamos el número directamente del input que creamos
       const numeroOT = document.getElementById('mOtNum').value.trim();
-      const monto = parseFloat(document.getElementById('mOtMonto').value) || 0;
+      const monto = 0; // OT manual no tiene monto hasta asociar cotización
       const desc = document.getElementById('mOtDesc').value.trim();
       
       let client = null;
@@ -1223,9 +1823,9 @@ window.registrarEnvio = async function(idCotizacion, medio) {
 
       if (otClientMode === 'existing') {
           const clientId = document.getElementById('mOtClient').value;
-          if (!numeroOT || !clientId || !desc || monto <= 0) {
+          if (!numeroOT || !clientId || !desc) {
               if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
-              return alert("Completa los datos: N° OT, Cliente, Monto y Descripción.");
+              return alert("Completa los datos: N° OT, Cliente y Descripción.");
           }
           client = clients.find(c => String(c.id) === String(clientId));
       } else {
@@ -1233,14 +1833,14 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           const newRut = document.getElementById('otNewRut').value.trim();
           const newPhone = document.getElementById('otNewPhone').value.trim();
 
-          if (!newName || !numeroOT || !desc || monto <= 0) {
+          if (!newName || !numeroOT || !desc) {
               if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
               return alert("Faltan datos. El nombre del cliente nuevo es obligatorio.");
           }
 
           const { data: nC, error: eC } = await supabaseClient
               .from('clients')
-              .insert([{ name: newName, rut: newRut, phone: newPhone }])
+              .insert([{ name: newName, rut: newRut, telefono: newPhone, tipo: (document.getElementById('otNewType')?.value || 'Empresa'), created_by: currentUser?.id || null, created_by_email: currentUser?.email || '', created_by_name: currentUserDisplayName || '' }])
               .select().single();
 
           if (eC) {
@@ -1251,31 +1851,43 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           if (typeof clients !== 'undefined') clients.push(nC);
       }
 
+      
       const payload = {
-        client_id: client.id, 
-        estado: 'en_curso', 
+        client_id: client.id,
+        numero_ot: numeroOT,
+        quote_id: null,
+        descripcion: desc,
+        oc: document.getElementById('mOtOC').value || '',
+        hes: document.getElementById('mOtHES').value || '',
+        estado: 'en_curso',
+        pago_estado: 'pendiente',
         fecha: todayISO(),
-        data: { 
-            numeroOT: numeroOT, 
-            numeroCotizacion: 'Sin Cotización', 
-            clientName: client.name, 
-            descripcion: desc, 
-            monto: monto, 
-            oc: document.getElementById('mOtOC').value, 
-            hes: document.getElementById('mOtHES').value, 
-            abonos: [], 
-            createdBy: currentUserDisplayName 
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: currentUserDisplayName || 'Admin',
+        // mantenemos data para compatibilidad con funciones antiguas
+        data: {
+          numeroOT,
+          numeroCotizacion: 'Sin Cotización',
+          clientName: client.name,
+          descripcion: desc,
+          monto,
+          oc: document.getElementById('mOtOC').value || '',
+          hes: document.getElementById('mOtHES').value || '',
+          abonos: [],
+          createdBy: currentUserDisplayName || 'Admin'
         }
       };
-      
+
       const { error } = await supabaseClient.from('ots').insert([payload]);
+
       if (error) {
          alert("Error al guardar OT: " + error.message);
          if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
          return;
       }
       
-      await loadData(); renderOTS(); closeModal(); toastInfo("OT Manual creada.");
+      await loadData(); renderOTs(); closeModal(); toastInfo("OT Manual creada.");
     }
 
     async function convertToOT(quoteId) {
@@ -1290,75 +1902,166 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           if(!numOT) return;
       }
 
+      
       const payload = {
-        client_id: q.client_id || q.clientId, 
-        quote_id: q.id, 
-        estado: 'en_curso', 
+        client_id: q.clientId || q.client_id,
+        numero_ot: numOT,
+        quote_id: quoteId,
+        descripcion: q.obra || q.descripcion || '',
+        oc: '',
+        hes: '',
+        estado: 'en_curso',
+        pago_estado: 'pendiente',
         fecha: todayISO(),
-        data: { 
-            numeroOT: numOT, 
-            numeroCotizacion: q.numeroCotizacion || (q.data && q.data.numeroCotizacion), 
-            clientName: q.clientName || (q.data && q.data.clientName), 
-            descripcion: q.obra || (q.data && q.data.obra), 
-            monto: q.monto || (q.data && q.data.monto), 
-            abonos: [], 
-            createdBy: currentUserDisplayName 
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: currentUserDisplayName || 'Admin',
+        data: {
+          quoteId: quoteId,
+          numeroOT: numOT,
+          numeroCotizacion: q.numeroCotizacion,
+          clientName: q.clientName,
+          descripcion: q.obra || q.descripcion || '',
+          monto: q.monto || 0,
+          abonos: [],
+          createdBy: currentUserDisplayName || 'Admin'
         }
       };
-      
+
       const { error } = await supabaseClient.from('ots').insert([payload]);
-      if(error) return alert("Error DB: " + error.message);
+
+      if(error){
+        const msg = error.message || String(error);
+        if(msg.includes("schema cache") && msg.toLowerCase().includes("quote_id")){
+          alert("Error DB: " + msg + "\n\n👉 Esto suele pasar cuando Supabase/PostgREST no ha recargado el esquema.\nSolución rápida: en Supabase ve a Settings → API y presiona 'Reload schema' (o espera 1-2 minutos y recarga la página).");
+        }else{
+          alert("Error DB: " + msg);
+        }
+        return;
+      }
       
-      await loadData(); renderQuotes(); renderOTS(); toastInfo("OT Creada exitosamente.");
+      await loadData(); renderQuotes(); renderOTs(); toastInfo("OT Creada exitosamente.");
     }
 
     // ... (El resto de funciones editOT, saveOTEdits y renderOTS que mandaste están bien)
     // ================= PAGOS Y ABONOS =================
-    function promptRegistrarPago(otId) {
-      const ot = ots.find(o => o.id === otId);
-      const html = `
-        <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6">Registrar Pago Final</h2>
-          <div class="space-y-4">
-            <input id="pagoFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl" required>
-            <select id="pagoMetodo" class="w-full px-3 py-2 border rounded-xl">
-              <option value="Transferencia">Transferencia</option>
-              <option value="Tarjeta Débito">Tarjeta Débito</option>
-              <option value="Tarjeta Crédito">Tarjeta Crédito</option>
-              <option value="Cheque">Cheque</option>
-              <option value="Efectivo">Efectivo</option>
-              <option value="Múltiples abonos">Múltiples abonos</option>
-            </select>
-            <div class="flex gap-4 pt-4">
-              <button onclick="savePagoFinal('${otId}', this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">Confirmar Pago</button>
-              <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
-            </div>
-          </div>
-        </div>`;
-      document.getElementById('modalContent').innerHTML = html;
-      document.getElementById('modal').classList.remove('hidden');
-    }
+    
+// ================= FACTURA Y PAGO (2 PASOS) =================
+function promptRegistrarFactura(otId){
+  const ot = ots.find(o => String(o.id) === String(otId));
+  const html = `
+    <div class="p-8">
+      <h2 class="text-2xl font-bold mb-2">Registrar Factura</h2>
+      <p class="text-sm text-gray-500 mb-6">Primero registra el N° de factura. Luego se habilita el pago.</p>
+      <div class="space-y-4">
+        <input id="facturaNumero" type="text" value="${ot?.facturaNumero || ''}" placeholder="N° Factura (obligatorio)" class="w-full px-3 py-2 border rounded-xl" required>
+        <div class="flex gap-4 pt-4">
+          <button onclick="saveFacturaOT('${otId}', this)" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Guardar Factura</button>
+          <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
 
-    async function savePagoFinal(otId, btn) {
-      if(btn) { btn.disabled = true; btn.innerText = "Procesando..."; }
-      const fecha = document.getElementById('pagoFecha').value;
-      const metodo = document.getElementById('pagoMetodo').value;
-      const ot = ots.find(o => o.id === otId);
-      if (!ot.data) ot.data = {};
-      
-      ot.data.fechaPago = toCLDateFromISO(fecha);
-      ot.data.metodoPago = metodo;
-      
-      const { error } = await supabaseClient.from('ots').update({estado: 'pagado', data: ot.data}).eq('id', otId);
-      if(error) {
-         alert("Error guardando el pago: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Confirmar Pago"; }
-         return;
-      }
-      
-      await loadData(); renderOTS(); renderAbonos(); closeModal();
-      celebrarPago({ ot: ot.numeroOT, monto: formatCLP(ot.monto), metodo: metodo, fecha: toCLDateFromISO(fecha) });
-    }
+async function saveFacturaOT(otId, btn){
+  if(btn){ btn.disabled = true; btn.innerText = "Guardando..."; }
+  const factura = (document.getElementById('facturaNumero')?.value || '').trim();
+  if(!factura){
+    alert("Debes ingresar el N° de factura.");
+    if(btn){ btn.disabled=false; btn.innerText="Guardar Factura"; }
+    return;
+  }
+  const ot = ots.find(o => String(o.id) === String(otId));
+  if(!ot) { alert("OT no encontrada"); if(btn){btn.disabled=false;btn.innerText="Guardar Factura";} return; }
+  if(!ot.data) ot.data = {};
+  ot.data.facturaNumero = factura;
+
+  const { error } = await supabaseClient.from('ots').update({ data: ot.data }).eq('id', otId);
+  if(error){
+    alert("Error guardando factura: " + error.message);
+    if(btn){ btn.disabled=false; btn.innerText="Guardar Factura"; }
+    return;
+  }
+  await loadData(); renderOTs(); closeModal();
+}
+
+function promptRegistrarPago(otId) {
+  const ot = ots.find(o => String(o.id) === String(otId));
+  if(!ot){ alert("OT no encontrada"); return; }
+  if(!ot.facturaNumero){
+    alert("Primero debes registrar el N° de factura para habilitar el pago.");
+    return;
+  }
+  const html = `
+    <div class="p-8">
+      <h2 class="text-2xl font-bold mb-2">Registrar Pago</h2>
+      <p class="text-sm text-gray-500 mb-6">Factura: <span class="font-bold text-indigo-700">${ot.facturaNumero}</span></p>
+      <div class="space-y-4">
+        <input id="pagoFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl" required>
+        <select id="pagoMetodo" class="w-full px-3 py-2 border rounded-xl">
+          <option value="Transferencia">Transferencia</option>
+          <option value="Tarjeta Débito">Tarjeta Débito</option>
+          <option value="Tarjeta Crédito">Tarjeta Crédito</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Múltiples abonos">Múltiples abonos</option>
+        </select>
+        <div class="flex gap-4 pt-4">
+          <button onclick="savePagoFinal('${otId}', this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">Confirmar Pago</button>
+          <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+async function savePagoFinal(otId, btn) {
+  if(btn) { btn.disabled = true; btn.innerText = "Procesando..."; }
+  const fecha = document.getElementById('pagoFecha').value;
+  const metodo = document.getElementById('pagoMetodo').value;
+
+  const ot = ots.find(o => String(o.id) === String(otId));
+  if(!ot){ alert("OT no encontrada"); if(btn){btn.disabled=false;btn.innerText="Confirmar Pago";} return; }
+  const factura = (ot.facturaNumero || ot.data?.facturaNumero || '').trim();
+  if(!factura){
+    alert("Primero debes registrar el N° de factura.");
+    if(btn){btn.disabled=false;btn.innerText="Confirmar Pago";}
+    return;
+  }
+
+  if (!ot.data) ot.data = {};
+  ot.data.facturaNumero = factura;
+  ot.data.fechaPago = toCLDateFromISO(fecha);
+  ot.data.metodoPago = metodo;
+
+  const { error } = await supabaseClient
+    .from('ots')
+    .update({ estado: 'pagado', pago_estado: 'pagado', data: ot.data })
+    .eq('id', otId);
+
+  if(error) {
+    alert("Error guardando el pago: " + error.message);
+    if(btn) { btn.disabled = false; btn.innerText = "Confirmar Pago"; }
+    return;
+  }
+
+  try {
+    await supabaseClient.from('payments').insert({
+      ot_id: otId,
+      monto: Number(ot.monto || 0),
+      data: { facturaNumero: factura, metodoPago: metodo, fechaPago: toCLDateFromISO(fecha) },
+      created_by: currentUser?.id || null,
+      created_by_email: currentUser?.email || currentUserEmail || '',
+      created_by_name: currentUserDisplayName || ''
+    });
+  } catch(e) { /* no bloquea */ }
+
+  await loadData(); renderOTs(); renderAbonos(); closeModal();
+  celebrarPago({ ot: ot.numeroOT, monto: formatCLP(ot.monto), metodo, fecha: toCLDateFromISO(fecha), factura: factura });
+}
 
     function renderAbonos() {
       const tbody = document.getElementById('abonosTable'); tbody.innerHTML = '';
@@ -1406,7 +2109,7 @@ window.registrarEnvio = async function(idCotizacion, medio) {
          return;
       }
 
-      await loadData(); renderAbonos(); renderOTS(); closeModal(); toastInfo("Abono registrado");
+      await loadData(); renderAbonos(); renderOTs(); closeModal(); toastInfo("Abono registrado");
       if(newEstado === 'pagado') celebrarPago();
     }
 
@@ -1474,7 +2177,10 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       }
 
       const payload = {
-        fecha: toCLDateFromISO(document.getElementById('vtFecha').value), 
+        fecha: document.getElementById('vtFecha').value,
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: currentUserDisplayName || 'Admin', 
         client_id: client?.id || null,
         nombre, rut, direccion, telefono, email,
         descripcion: `[Equipos: ${equipos}] ` + descripcion, 
@@ -1535,6 +2241,374 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       const { error } = await supabaseClient.from('visitas').update({estado: estado}).eq('id', id);
       if(error) return alert("Error al actualizar la visita: " + error.message);
       await loadData(); renderVisitas();
+    }
+
+    
+    // --- REQUERIMIENTOS ---
+    function renderReqs() {
+      const tbody = document.getElementById('reqsTable');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      (requerimientos || []).forEach(r => {
+        const estado = (r.estado || 'pendiente').toLowerCase();
+        const badge = estado === 'pendiente'
+          ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">Pendiente</span>`
+          : estado === 'realizado'
+            ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Realizado</span>`
+            : `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">Cancelado</span>`;
+
+        let acciones = `
+          <div class="flex gap-3 justify-center mb-2">
+            <button onclick="editReq('${r.id}')" class="text-blue-700 hover:text-blue-900" title="Editar"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
+          </div>
+        `;
+
+        if (estado === 'pendiente') {
+          acciones += `
+            <div class="mt-2 pt-2 border-t border-gray-200">
+              <button onclick="setReqEstado('${r.id}','realizado')" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded w-full mb-1">✔ Realizado</button>
+              <button onclick="setReqEstado('${r.id}','cancelado')" class="bg-red-600 text-white text-xs px-2 py-1 rounded w-full">✖ Cancelar</button>
+            </div>
+          `;
+        }
+
+        const detalle = (r.detalle || '').trim();
+        const resumen = detalle.length > 60 ? detalle.slice(0, 60) + '…' : detalle;
+
+        const tr = document.createElement('tr');
+        tr.className = 'border-t hover:bg-gray-50';
+        tr.innerHTML = `
+          <td class="p-4">${r.fecha || ''}</td>
+          <td class="p-4 font-medium">${r.nombre || ''}</td>
+          <td class="p-4">${r.rut || ''}</td>
+          <td class="p-4">${escapeHtml(resumen)}</td>
+          <td class="p-4">${badge}</td>
+          <td class="p-4">${escapeHtml(r.createdByName || '—')}</td>
+          <td class="p-4 text-center align-middle">${acciones}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showNewReqModal() {
+  const html = `
+    <div class="p-8">
+      <h2 class="text-2xl font-bold mb-6">Nuevo Requerimiento</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium">Cliente *</label>
+
+          <div class="relative">
+            <input id="reqClientSearch" type="text" autocomplete="off"
+              class="w-full border rounded-xl p-3"
+              placeholder="Escribe nombre o RUT para buscar..." />
+
+            <input id="reqClientId" type="hidden" value="">
+
+            <button id="reqClientClear" type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 hidden"
+              title="Limpiar selección">
+              <i class="fa-solid fa-xmark"></i> <span class="sidebar-label"></span></button>
+
+            <div id="reqClientResults"
+              class="absolute z-50 mt-2 w-full bg-white border rounded-xl shadow-lg overflow-hidden hidden">
+            </div>
+          </div>
+
+          <p class="text-xs text-gray-500 mt-1">Tip: escribe 2–3 letras y selecciona del listado.</p>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium">Detalle del requerimiento *</label>
+          <textarea id="reqDetalle" rows="5" class="w-full border rounded-xl p-3" placeholder="Ej: El equipo está con goteo / no enfría / no enciende..."></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Fecha</label>
+          <input id="reqFecha" type="date" value="${todayISO()}" class="w-full border rounded-xl p-3">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Estado</label>
+          <select id="reqEstado" class="w-full border rounded-xl p-3">
+            <option value="pendiente" selected>Pendiente</option>
+            <option value="realizado">Realizado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button onclick="closeModal()" class="px-5 py-2 rounded-xl border">Cancelar</button>
+        <button onclick="saveNewReq()" class="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold">Guardar</button>
+      </div>
+    </div>
+  `;
+  openModal(html);
+  initReqClientAutocomplete();
+}
+
+    function initReqClientAutocomplete() {
+  const input = document.getElementById('reqClientSearch');
+  const hidden = document.getElementById('reqClientId');
+  const results = document.getElementById('reqClientResults');
+  const clearBtn = document.getElementById('reqClientClear');
+  if (!input || !hidden || !results) return;
+
+  const all = Array.isArray(clients) ? clients : [];
+  let items = [];
+  let active = -1;
+
+  const labelFor = (c) => {
+    const name = c?.name || 'Sin nombre';
+    const rut = c?.rut ? ' • ' + c.rut : '';
+    const tipo = c?.tipo ? ' • ' + formatClientTipo(c.tipo) : '';
+    return `${name}${rut}${tipo}`;
+  };
+
+  const close = () => {
+    results.classList.add('hidden');
+    results.innerHTML = '';
+    active = -1;
+    items = [];
+  };
+
+  const open = () => {
+    if (!results.innerHTML.trim()) return;
+    results.classList.remove('hidden');
+  };
+
+  const setSelected = (c) => {
+    hidden.value = c?.id || '';
+    input.value = c ? labelFor(c) : '';
+    if (clearBtn) clearBtn.classList.toggle('hidden', !hidden.value);
+    close();
+  };
+
+  const highlight = () => {
+    const rows = results.querySelectorAll('[data-idx]');
+    rows.forEach(el => el.classList.remove('bg-gray-100'));
+    if (active >= 0 && rows[active]) rows[active].classList.add('bg-gray-100');
+  };
+
+  const render = (list, query) => {
+    items = list;
+    active = -1;
+
+    if (!list.length) {
+      results.innerHTML = `
+        <div class="p-3 text-sm text-gray-500">
+          Sin resultados${query ? ` para "<b>${escapeHtml(query)}</b>"` : ''}.
+        </div>`;
+      open();
+      return;
+    }
+
+    results.innerHTML = list.map((c, i) => `
+      <button type="button" data-idx="${i}"
+        class="w-full text-left px-4 py-3 hover:bg-gray-50 border-b last:border-b-0">
+        <div class="font-semibold">${escapeHtml(c?.name || 'Sin nombre')}</div>
+        <div class="text-xs text-gray-500">
+          ${escapeHtml((c?.rut || '').trim())}${c?.tipo ? ' • ' + escapeHtml(formatClientTipo(c.tipo)) : ''}
+        </div>
+      </button>
+    `).join('');
+
+    // Click selection
+    results.querySelectorAll('[data-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = Number(btn.getAttribute('data-idx'));
+        const c = items[i];
+        setSelected(c);
+      });
+    });
+
+    open();
+  };
+
+  const search = (qRaw) => {
+    const q = (qRaw || '').toLowerCase().trim();
+    const list = all
+      .filter(c => {
+        const name = (c?.name || '').toLowerCase();
+        const rut = (c?.rut || '').toLowerCase();
+        return !q || name.includes(q) || rut.includes(q);
+      })
+      .slice(0, 12);
+
+    render(list, qRaw || '');
+  };
+
+  // Prefill list on focus
+  input.addEventListener('focus', () => {
+    // show some suggestions (recent/first)
+    if (!input.value.trim() && !hidden.value) {
+      render(all.slice(0, 12), '');
+    } else {
+      search(input.value);
+    }
+  });
+
+  input.addEventListener('input', (e) => {
+    hidden.value = ''; // user changed text, selection reset
+    if (clearBtn) clearBtn.classList.add('hidden');
+    search(e.target.value);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const visible = !results.classList.contains('hidden');
+
+    if (e.key === 'ArrowDown') {
+      if (!visible) search(input.value);
+      active = Math.min(active + 1, items.length - 1);
+      highlight();
+      e.preventDefault();
+    }
+    if (e.key === 'ArrowUp') {
+      active = Math.max(active - 1, 0);
+      highlight();
+      e.preventDefault();
+    }
+    if (e.key === 'Enter') {
+      if (visible && active >= 0 && items[active]) {
+        setSelected(items[active]);
+        e.preventDefault();
+      }
+    }
+    if (e.key === 'Escape') {
+      close();
+    }
+  });
+
+  // Click outside closes
+  document.addEventListener('click', (e) => {
+    const within = e.target.closest('#reqClientResults') || e.target.closest('#reqClientSearch');
+    if (!within) close();
+  });
+
+  // Clear
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => setSelected(null));
+  }
+}
+
+async function saveNewReq() {
+      const clientId = document.getElementById('reqClientId').value;
+      const detalle = (document.getElementById('reqDetalle').value || '').trim();
+      const fecha = document.getElementById('reqFecha').value || todayISO();
+      const estado = (document.getElementById('reqEstado').value || 'pendiente').toLowerCase();
+
+      if (!clientId) return alert('Selecciona un cliente.');
+      if (!detalle) return alert('Escribe el detalle del requerimiento.');
+
+      const c = clientsById.get(String(clientId));
+      const payload = {
+        client_id: clientId,
+        nombre: c?.name || '',
+        rut: c?.rut || '',
+        detalle,
+        fecha,
+        estado,
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: currentUserDisplayName || ''
+      };
+
+      const { error } = await supabaseClient.from('requerimientos').insert(payload);
+      if (error) return alert('Error guardando requerimiento: ' + error.message);
+
+      closeModal();
+      await loadData();
+      showView('reqs');
+    }
+
+    function editReq(reqId) {
+      const r = (requerimientos || []).find(x => String(x.id) === String(reqId));
+      if (!r) return;
+
+      const options = (clients || []).map(c => {
+        const label = `${c.name || 'Sin nombre'}${c.rut ? ' • ' + c.rut : ''}${c.tipo ? ' • ' + formatClientTipo(c.tipo) : ''}`;
+        const sel = String(c.id) === String(r.clientId) ? 'selected' : '';
+        return `<option value="${c.id}" ${sel}>${escapeHtml(label)}</option>`;
+      }).join('');
+
+      const html = `
+        <div class="p-8">
+          <h2 class="text-2xl font-bold mb-6">Editar Requerimiento</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium">Cliente *</label>
+              <select id="reqEditClientId" class="w-full border rounded-xl p-3">
+                <option value="">Selecciona un cliente…</option>
+                ${options}
+              </select>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium">Detalle *</label>
+              <textarea id="reqEditDetalle" rows="5" class="w-full border rounded-xl p-3">${escapeHtml(r.detalle || '')}</textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium">Fecha</label>
+              <input id="reqEditFecha" type="date" value="${r.fecha || todayISO()}" class="w-full border rounded-xl p-3">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium">Estado</label>
+              <select id="reqEditEstado" class="w-full border rounded-xl p-3">
+                <option value="pendiente" ${r.estado==='pendiente'?'selected':''}>Pendiente</option>
+                <option value="realizado" ${r.estado==='realizado'?'selected':''}>Realizado</option>
+                <option value="cancelado" ${r.estado==='cancelado'?'selected':''}>Cancelado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeModal()" class="px-5 py-2 rounded-xl border">Cancelar</button>
+            <button onclick="saveEditReq('${r.id}')" class="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold">Guardar cambios</button>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    async function saveEditReq(reqId) {
+      const clientId = document.getElementById('reqEditClientId').value;
+      const detalle = (document.getElementById('reqEditDetalle').value || '').trim();
+      const fecha = document.getElementById('reqEditFecha').value || todayISO();
+      const estado = (document.getElementById('reqEditEstado').value || 'pendiente').toLowerCase();
+
+      if (!clientId) return alert('Selecciona un cliente.');
+      if (!detalle) return alert('Escribe el detalle del requerimiento.');
+
+      const c = clientsById.get(String(clientId));
+      const payload = {
+        client_id: clientId,
+        nombre: c?.name || '',
+        rut: c?.rut || '',
+        detalle,
+        fecha,
+        estado
+      };
+
+      const { error } = await supabaseClient.from('requerimientos').update(payload).eq('id', reqId);
+      if (error) return alert('Error actualizando requerimiento: ' + error.message);
+
+      closeModal();
+      await loadData();
+      showView('reqs');
+    }
+
+    async function setReqEstado(id, estado) {
+      if(!confirm(`¿Marcar requerimiento como ${estado}?`)) return;
+      const { error } = await supabaseClient.from('requerimientos').update({ estado }).eq('id', id);
+      if(error) return alert("Error al actualizar requerimiento: " + error.message);
+      await loadData();
+      showView('reqs');
     }
 
     function editVisita(visitaId) {
@@ -1626,20 +2700,21 @@ window.registrarEnvio = async function(idCotizacion, medio) {
 
     async function generateQuotePDF(quoteId) {
       const q = quotes.find(x => String(x.id) === String(quoteId));
-      const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const { jsPDF } = window.jspdf; 
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       
-      await addLogoToPdf(doc); addCompanyHeaderRight(doc);
+      await addLogoToPdf(doc); 
+      addCompanyHeaderRight(doc);
       
       doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
       doc.text(`COTIZACIÓN N° ${q.numeroCotizacion}`, 14, 40);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
       
-      // TAMBIÉN USAMOS LA FUNCIÓN DE LIMPIAR NOMBRE AQUÍ EN EL PDF
       doc.text(`Fecha: ${q.fecha}  |  Creado por: ${formatShortName(q.createdByName || q.createdBy || '')}`, 14, 48);
       
       let yCursor = 58;
       doc.setFont('helvetica', 'bold'); doc.text('Cliente', 14, yCursor); doc.setFont('helvetica', 'normal');
-      doc.text([`Nombre / Razón Social: ${q.razonSocial}`, `RUT: ${q.rut}`], 14, yCursor + 7);
+      doc.text([`Nombre / Razón Social: ${safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'}`, `RUT: ${q.rut}`], 14, yCursor + 7);
       
       yCursor += 25;
       doc.setFont('helvetica', 'bold'); doc.text('Descripción de Obra', 14, yCursor); doc.setFont('helvetica', 'normal');
@@ -1653,25 +2728,54 @@ window.registrarEnvio = async function(idCotizacion, medio) {
           totalNeto += netoItem;
           return [i+1, it.desc, it.cant, formatCLP(it.valor), formatCLP(netoItem)];
       });
-      doc.autoTable({ startY: y, head: [['#','Descripción','Cant.','V. Unit.','Subtotal']], body: rows, styles: { fontSize: 9 }, headStyles: { fillColor: [240,240,240], textColor: 20 }, margin: { left: 14, right: 14 } });
+
+      doc.autoTable({ 
+        startY: y, 
+        head: [['#','Descripción','Cant.','V. Unit.','Subtotal']], 
+        body: rows, 
+        styles: { fontSize: 9 }, 
+        headStyles: { fillColor: [20, 50, 100], textColor: 255 }, 
+        margin: { left: 14, right: 14 } 
+      });
       
-      y = doc.lastAutoTable.finalY + 6;
+      y = doc.lastAutoTable.finalY + 10;
       const iva = totalNeto * 0.19;
       const totalFinal = totalNeto + iva;
 
+      // Cuadro de totales a la derecha
       doc.setFont('helvetica', 'bold');
-      doc.text(`Neto: ${formatCLP(totalNeto)}`, 140, y);
-      doc.text(`IVA (19%): ${formatCLP(iva)}`, 140, y + 6);
-      doc.setFontSize(12); doc.text(`TOTAL: ${formatCLP(totalFinal)}`, 140, y + 14);
-      doc.setFontSize(10);
+      doc.text(`Neto:`, 130, y); doc.text(`${formatCLP(totalNeto)}`, 196, y, { align: 'right' });
+      doc.text(`IVA (19%):`, 130, y + 6); doc.text(`${formatCLP(iva)}`, 196, y + 6, { align: 'right' });
+      doc.setFontSize(12); 
+      doc.text(`TOTAL:`, 130, y + 14); doc.text(`${formatCLP(totalFinal)}`, 196, y + 14, { align: 'right' });
       
-      y += 24;
-      doc.setFont('helvetica', 'bold'); doc.text('Alcances y Consideraciones', 14, y); doc.setFont('helvetica', 'normal');
+      // SECCIÓN DE ALCANCES Y CONSIDERACIONES (Los 7 puntos)
+      y += 25;
+      if (y > 220) { doc.addPage(); y = 20; } // Salto de página si no hay espacio
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold'); 
+      doc.text('Alcances y Consideraciones del Servicio', 14, y); 
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8); // Texto un poco más pequeño para que quepa bien
+      
+      // Definimos tus 7 puntos exactos
+      const alcances = [
+        "1. La aceptación del presente presupuesto no implica ejecución inmediata del servicio. Los trabajos se programan de acuerdo con la disponibilidad de agenda y la correcta coordinación con el cliente.",
+        "2. Algunos servicios pueden requerir la adquisición previa de insumos o equipos específicos, lo que podría afectar los plazos de ejecución.",
+        "3. El plazo estimado de ejecución será informado una vez aceptado el presupuesto y confirmada la disponibilidad de materiales.",
+        "4. El servicio cuenta con una garantía de 30 días corridos, la cual comienza a regir desde la fecha de instalación.",
+        "5. Finalizado el período de garantía, cualquier revisión o visita técnica será evaluada y podrá tener un costo asociado.",
+        "6. No se considerarán cubiertas por garantía las fallas derivadas de mal uso, falta de mantención, modificaciones realizadas por terceros o causas externas al servicio contratado.",
+        "7. La programación del servicio se realizará una vez recibido el pago correspondiente, según lo acordado en el presente presupuesto."
+      ];
+
       let yy = y + 6;
-      getAlcancesDefaults().forEach((t, i) => {
-        const wrapped = doc.splitTextToSize(`${i+1}. ${t}`, 180);
-        doc.text(wrapped, 14, yy); yy += wrapped.length * 5 + 1;
-        if (yy > 280) { doc.addPage(); yy = 16; }
+      alcances.forEach((txt) => {
+        const wrapped = doc.splitTextToSize(txt, 180);
+        doc.text(wrapped, 14, yy);
+        yy += (wrapped.length * 4) + 2; // Espaciado entre puntos
       });
       
       doc.save(`Cotizacion_${q.numeroCotizacion}.pdf`);
@@ -1713,6 +2817,136 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       doc.save(`OT_${o.numeroOT}.pdf`);
     }
 
+    // ================= PDF PENDIENTES (OT + REQUERIMIENTOS) =================
+    async function generatePendientesPDF() {
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+        await addLogoToPdf(doc);
+        addCompanyHeaderRight(doc);
+
+        const now = new Date();
+        const fechaGen = now.toISOString().slice(0,19).replace('T',' ');
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(16);
+        doc.text('LISTA DE PENDIENTES', 14, 40);
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(10);
+        doc.text(`Generado: ${fechaGen}`, 14, 46);
+
+        // Helpers
+        const getClientByIdSafe = (id) => {
+          if (!id) return null;
+          try { return clientsById?.get(String(id)) || clients?.find(c => String(c.id)===String(id)) || null; }
+          catch(e){ return clients?.find(c => String(c.id)===String(id)) || null; }
+        };
+        const safe = (v) => (v === null || v === undefined) ? '' : String(v);
+
+        // ================= OTs Pendientes =================
+        const otPend = (ots || []).filter(o => {
+          const st = String(o.estado || '').toLowerCase();
+          if (['finalizada','finalizado','realizada','realizado','cancelada','cancelado','cerrada','cerrado'].includes(st)) return false;
+          // si ya está pagado, normalmente es cierre; si quieres incluirlos igual, elimina esta línea
+          if (String(o.pago_estado || '').toLowerCase() === 'pagado') return false;
+          return true;
+        });
+
+        let y = 56;
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(12);
+        doc.text(`Órdenes de Trabajo Pendientes (${otPend.length})`, 14, y);
+        y += 4;
+
+        const otRows = otPend.map(o => {
+          const c = getClientByIdSafe(o.clientId);
+          const rut = safe(o.clientRut || c?.rut || '');
+          const nombre = safe(o.clientName || c?.name || '');
+          const dir = safe(c?.direccion || '');
+          const desc = safe(o.descripcion || '');
+          const nOT = safe(o.numeroOT || '');
+          const estado = safe(o.estado || '');
+          return [nOT, rut, nombre, dir, desc, estado];
+        });
+
+        doc.autoTable({
+          startY: y + 2,
+          head: [[ 'OT', 'RUT', 'Cliente', 'Dirección', 'Descripción', 'Estado' ]],
+          body: otRows,
+          styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
+          headStyles: { fillColor: [240,240,240], textColor: 20 },
+          columnStyles: {
+            0: { cellWidth: 16 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 34 },
+            3: { cellWidth: 34 },
+            4: { cellWidth: 60 },
+            5: { cellWidth: 20 },
+          },
+          margin: { left: 14, right: 14 },
+          didDrawPage: async (data) => {
+            // nada
+          }
+        });
+
+        // ================= Requerimientos Pendientes =================
+        const afterOT = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 140;
+        let startReqY = afterOT;
+
+        // Si se pasa del final de página, nueva página
+        if (startReqY > 260) {
+          doc.addPage();
+          await addLogoToPdf(doc);
+          addCompanyHeaderRight(doc);
+          startReqY = 30;
+        }
+
+        const reqPend = (requerimientos || []).filter(r => {
+          const st = String(r.estado || '').toLowerCase();
+          return !['realizado','realizada','cancelado','cancelada'].includes(st);
+        });
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(12);
+        doc.text(`Requerimientos Pendientes (${reqPend.length})`, 14, startReqY);
+
+        const reqRows = reqPend.map(r => {
+          const c = getClientByIdSafe(r.clientId);
+          const rut = safe(r.rut || c?.rut || '');
+          const nombre = safe(r.nombre || c?.name || '');
+          const dir = safe(c?.direccion || '');
+          const detalle = safe(r.detalle || r.descripcion || '');
+          const fecha = safe(r.fecha || '');
+          const estado = safe(r.estado || '');
+          return [fecha, rut, nombre, dir, detalle, estado];
+        });
+
+        doc.autoTable({
+          startY: startReqY + 4,
+          head: [[ 'Fecha', 'RUT', 'Cliente', 'Dirección', 'Detalle', 'Estado' ]],
+          body: reqRows,
+          styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
+          headStyles: { fillColor: [240,240,240], textColor: 20 },
+          columnStyles: {
+            0: { cellWidth: 18 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 34 },
+            3: { cellWidth: 34 },
+            4: { cellWidth: 64 },
+            5: { cellWidth: 20 },
+          },
+          margin: { left: 14, right: 14 }
+        });
+
+        doc.save(`Pendientes_${now.toISOString().slice(0,10)}.pdf`);
+      } catch (err) {
+        console.error('Error generando PDF de pendientes:', err);
+        alert('No se pudo generar el PDF. Revisa la consola (F12).');
+      }
+    }
+
+
     // ================= EXPORT / MODAL =================
     function exportData() {
       const data = {clients, quotes, ots, visitas};
@@ -1720,65 +2954,376 @@ window.registrarEnvio = async function(idCotizacion, medio) {
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ecoluz-backup.json'; a.click();
     }
     
-    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+    
+
+// ================= DASHBOARD (FIX) =================
+function renderDashboard() {
+  // Contadores principales
+  const clientsCount = clients.length;
+  const quotesPending = quotes.filter(q => q.estado === 'pendiente').length;
+  const otsEnCurso = ots.filter(o => o.estado === 'en_curso' || o.estado === 'pendiente_pago' || o.estado === 'pendiente').length;
+  const deuda = ots.filter(o => (o.estado !== 'pagado') && (Number(o.monto) > 0)).length;
+
+  const elC = document.getElementById('dashClients');
+  const elQ = document.getElementById('dashQuotes');
+  const elO = document.getElementById('dashOTs');
+  const elD = document.getElementById('dashDeudas');
+
+  if (elC) elC.textContent = String(clientsCount);
+  if (elQ) elQ.textContent = String(quotesPending);
+  if (elO) elO.textContent = String(otsEnCurso);
+  if (elD) elD.textContent = String(deuda);
+
+  // Inteligencia (Cliente Top)
+  // Nota: antes contábamos por q.clientName, pero en algunas BD ese campo viene vacío y el panel quedaba en "—".
+  // Ahora contamos por clientId y usamos la tabla clients (tipo: Empresa/Natural) para sacar el TOP real.
+  const normalizeTipo = (v) => String(v || '').toLowerCase().trim();
+  const isEmpresa = (v) => normalizeTipo(v) === 'empresa';
+  const isNatural = (v) => {
+    const t = normalizeTipo(v);
+    return t === 'natural' || t === 'persona natural' || t === 'cliente' || t === 'personanatural';
+  };
+
+  const countsByClientId = {};
+  quotes.forEach(q => {
+    const id = String(q.clientId || q.client_id || '').trim();
+    if (!id) return;
+    countsByClientId[id] = (countsByClientId[id] || 0) + 1;
+  });
+
+  const pickTop = (predicateFn) => {
+    let bestId = null;
+    let bestCount = -1;
+    Object.entries(countsByClientId).forEach(([id, n]) => {
+      const c = clientsById?.get(String(id));
+      if (!c) return;
+      if (!predicateFn(c.tipo)) return;
+      if (n > bestCount) { bestCount = n; bestId = id; }
+    });
+    if (!bestId) return null;
+    const c = clientsById.get(String(bestId));
+    return { id: bestId, name: c?.name || '—', count: bestCount };
+  };
+
+  const topEmpresa = pickTop(isEmpresa);
+  const topNatural = pickTop(isNatural);
+
+  // Fallback: si por alguna razón no hay clientId (datos muy antiguos), usamos clientName
+  let topFallbackName = '—';
+  if (!topEmpresa && !topNatural) {
+    const byName = {};
+    quotes.forEach(q => {
+      const k = (q.clientName || q.razonSocial || q.nombreCliente || '').toString().trim() || '—';
+      byName[k] = (byName[k] || 0) + 1;
+    });
+    topFallbackName = Object.entries(byName).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
+  }
+
+  const elTop = document.getElementById('dash-empresa');
+  if (elTop) {
+    if (topEmpresa && topNatural) {
+      // Mostramos ambos en una sola tarjeta (2 líneas)
+      elTop.innerHTML = `<div class="leading-tight">
+        <div><span class="text-blue-200 text-xs font-bold uppercase">Empresa</span><div class="text-2xl font-black truncate">${escapeHtml(topEmpresa.name)}</div></div>
+        <div class="mt-2"><span class="text-blue-200 text-xs font-bold uppercase">Natural</span><div class="text-2xl font-black truncate">${escapeHtml(topNatural.name)}</div></div>
+      </div>`;
+    } else if (topEmpresa) {
+      elTop.textContent = topEmpresa.name;
+    } else if (topNatural) {
+      elTop.textContent = topNatural.name;
+    } else {
+      elTop.textContent = topFallbackName;
+    }
+  }
+
+  const byServicio = {};
+  quotes.forEach(q => {
+    const k = (q.tipo_servicio || 'General').trim() || 'General';
+    byServicio[k] = (byServicio[k] || 0) + 1;
+  });
+  const topServ = Object.entries(byServicio).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
+  const elServ = document.getElementById('dash-servicio');
+  if (elServ) elServ.textContent = topServ;
+
+  const byMonth = {};
+  quotes.forEach(q => {
+    const d = q.fecha ? new Date(q.fecha) : null;
+    if (!d || isNaN(d.getTime())) return;
+    const k = d.toLocaleString('es-CL', { month: 'long' });
+    byMonth[k] = (byMonth[k] || 0) + 1;
+  });
+  const topMonth = Object.entries(byMonth).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
+  const elMes = document.getElementById('dash-mes');
+  if (elMes) elMes.textContent = topMonth;
+}
+
+// ================= OTs (RENDER FIX MIN) =================
+function renderOTs() {
+  const tbody = document.getElementById('otsTable');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  ots.forEach(o => {
+    const btnPDF = `<button onclick="generateOTPDF('${o.id}')" class="text-blue-700 hover:text-blue-900" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
+    const tr = document.createElement('tr');
+    tr.className = 'border-t hover:bg-gray-50';
+    tr.innerHTML = `
+      <td class="p-4">${o.fecha || ''}</td>
+      <td class="p-4">${o.numeroCotizacion || '-'}</td>
+      <td class="p-4 font-bold">${o.numeroOT || '-'}</td>
+      <td class="p-4">${o.clientName || '-'}</td>
+      <td class="p-4">${(o.descripcion || '').substring(0,40)}${(o.descripcion||'').length>40?'...':''}</td>
+      <td class="p-4">${o.oc || '-'}</td>
+      <td class="p-4">${o.hes || '-'}</td>
+      <td class="p-4">${formatShortName(o.createdByName || o.createdByEmail || '')}</td>
+      <td class="p-4">${o.estado || '-'}</td>
+      <td class="p-4">${(o.pago_estado || o.estado) === 'pagado' ? 'Pagado' : 'Pendiente'}</td>
+      <td class="p-4 text-center">${btnPDF}</td>
+      <td class="p-4 text-center">
+        <div class="flex items-center justify-center gap-3">
+          <button onclick="openEditOT('${o.id}')" class="text-blue-700 hover:underline">Editar</button>
+          ${!o.quoteId ? `<button onclick=\"createQuoteFromOT('${o.id}')\" class=\"text-slate-700 hover:underline\">Crear cotización</button>` : ``}
+
+          ${(o.pago_estado || o.estado) !== 'pagado'
+            ? (
+                !o.facturaNumero
+                  ? `<button onclick="promptRegistrarFactura('${o.id}')" class="text-indigo-700 hover:underline">Registrar factura</button>`
+                  : `<button onclick="promptRegistrarPago('${o.id}')" class="text-emerald-700 hover:underline">Registrar pago</button>`
+              )
+            : `<span class="text-emerald-700 font-bold">✅</span>`}
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+
+}
+
+// Crear cotización desde una OT manual (vincula quote_id al guardar)
+function createQuoteFromOT(otId){
+  const ot = ots.find(o => String(o.id) === String(otId));
+  if(!ot){ alert('OT no encontrada'); return; }
+  pendingOTToLink = otId;
+  showView('quotes');
+  showNewQuoteModal({ fromOT: true });
+  setTimeout(() => {
+    const sel = document.getElementById('qClient');
+    if(sel && ot.clientId) sel.value = ot.clientId;
+    const obra = document.getElementById('qObra');
+    if(obra && (ot.descripcion || '')) obra.value = ot.descripcion || '';
+  }, 50);
+}
+
+function openEditOT(otId){
+  const o = ots.find(x => String(x.id) === String(otId));
+  if(!o) return;
+  const html = `
+    <div class="p-8">
+      <h2 class="text-2xl font-bold mb-6">Editar OT</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-600">N° OT</label>
+          <input id="eOtNumero" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.numeroOT || '')}">
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Fecha</label>
+          <input id="eOtFecha" type="date" class="w-full px-3 py-2 border rounded-xl" value="${(o.fecha || todayISO()).slice(0,10)}">
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-sm text-gray-600">Descripción</label>
+          <textarea id="eOtDesc" class="w-full px-3 py-2 border rounded-xl" rows="3">${escapeHtml(o.descripcion || '')}</textarea>
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">OC</label>
+          <input id="eOtOC" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.oc || '')}">
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">HES</label>
+          <input id="eOtHES" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.hes || '')}">
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Estado</label>
+          <select id="eOtEstado" class="w-full px-3 py-2 border rounded-xl">
+            ${['en_curso','pendiente','finalizada','pagado'].map(s => `<option value="${s}" ${String((o.estado||'').toLowerCase())===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Pago</label>
+          <select id="eOtPago" class="w-full px-3 py-2 border rounded-xl">
+            <option value="pendiente" ${(String((o.pago_estado||o.estado||'')).toLowerCase()!=='pagado')?'selected':''}>Pendiente</option>
+            <option value="pagado" ${(String((o.pago_estado||o.estado||'')).toLowerCase()==='pagado')?'selected':''}>Pagado</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-4 pt-6">
+        <button onclick="saveEditOT('${otId}', this)" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button>
+        <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
+      </div>
+    </div>`;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+async function saveEditOT(otId, btn){
+  try{
+    if(btn){ btn.disabled=true; btn.innerText='Guardando...'; }
+    const payload = {
+      numero_ot: (document.getElementById('eOtNumero').value || '').trim(),
+      fecha: document.getElementById('eOtFecha').value || todayISO(),
+      descripcion: (document.getElementById('eOtDesc').value || '').trim(),
+      oc: (document.getElementById('eOtOC').value || '').trim(),
+      hes: (document.getElementById('eOtHES').value || '').trim(),
+      estado: (document.getElementById('eOtEstado').value || 'en_curso').toLowerCase(),
+      pago_estado: (document.getElementById('eOtPago').value || 'pendiente').toLowerCase(),
+    };
+    // Si pago_estado es pagado, aseguramos estado pagado
+    if(payload.pago_estado === 'pagado') payload.estado = 'pagado';
+
+    const { error } = await supabaseClient.from('ots').update(payload).eq('id', otId);
+    if(error) throw error;
+
+    await loadData(); renderOTs(); closeModal();
+  } catch(err){
+    alert('Error guardando OT: ' + (err?.message || err));
+  } finally {
+    if(btn){ btn.disabled=false; btn.innerText='Guardar'; }
+  }
+}
+
+
+
+
+function openModal(html) {
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  if (!modal || !content) { console.error('Modal elements not found'); return; }
+  content.innerHTML = html || '';
+  modal.classList.remove('hidden');
+  // Reset scroll so form opens at top
+  content.scrollTop = 0;
+}
+
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
     setTimeout(() => { if(!currentUser) document.getElementById('loginScreen').classList.remove('hidden'); }, 500);
-    function actualizarDashboardInteligente() {
+   function actualizarDashboardInteligente() {
     try {
-        // 1. Tarjetas blancas superiores (Clientes, Pendientes, OTs)
-        if (document.getElementById('dashClients')) {
-            document.getElementById('dashClients').innerText = (typeof clients !== 'undefined' && clients) ? clients.length : "0";
+        // 1. Sumar los montos de las cotizaciones (sin usar .data)
+        const totalCotizado = quotes.reduce((acc, q) => acc + (Number(q.monto) || 0), 0);
+        
+        // 2. Sumar solo las aprobadas
+        const totalAprobado = quotes
+            .filter(q => q.estado === 'aprobada' || q.estado === 'aceptada' || q.estado === 'aceptado')
+            .reduce((acc, q) => acc + (Number(q.monto) || 0), 0);
+
+        // 3. Actualizar los números en los cuadros de colores
+        // El ID 'dash-total-cotizado' debe existir en tu HTML
+        if(document.getElementById('dash-total-cotizado')) {
+            document.getElementById('dash-total-cotizado').innerText = `$${totalCotizado.toLocaleString('es-CL')}`;
         }
-        if (document.getElementById('dashQuotes')) {
-            const pendientes = (typeof quotes !== 'undefined' && quotes) ? quotes.filter(q => q.estado === 'pendiente').length : 0;
-            document.getElementById('dashQuotes').innerText = pendientes;
-        }
-        if (document.getElementById('dashOTs')) {
-            const enCurso = (typeof ots !== 'undefined' && ots) ? ots.filter(o => o.estado !== 'finalizada' && o.estado !== 'terminada').length : 0;
-            document.getElementById('dashOTs').innerText = enCurso;
+        
+        if(document.getElementById('dash-total-aprobado')) {
+            document.getElementById('dash-total-aprobado').innerText = `$${totalAprobado.toLocaleString('es-CL')}`;
         }
 
-        // Si no hay cotizaciones, no calculamos lo de abajo
-        if (typeof quotes === 'undefined' || !quotes || quotes.length === 0) return;
-
-        // 2. Panel de Inteligencia (Tarjetas de colores)
-        const conteoEmpresas = {};
-        quotes.forEach(q => {
-            const nombre = (q.data && q.data.razonSocial) ? q.data.razonSocial : (q.razonSocial || "Sin Cliente");
-            conteoEmpresas[nombre] = (conteoEmpresas[nombre] || 0) + 1;
-        });
-        const clavesEmpresas = Object.keys(conteoEmpresas);
-        if (clavesEmpresas.length > 0 && document.getElementById('dash-empresa')) {
-            document.getElementById('dash-empresa').innerText = clavesEmpresas.reduce((a, b) => conteoEmpresas[a] > conteoEmpresas[b] ? a : b);
-        }
-
-        const conteoServicios = {};
-        quotes.forEach(q => {
-            if (q.data && q.data.tipo_servicio) {
-                conteoServicios[q.data.tipo_servicio] = (conteoServicios[q.data.tipo_servicio] || 0) + 1;
-            }
-        });
-        const clavesServicios = Object.keys(conteoServicios);
-        if (clavesServicios.length > 0 && document.getElementById('dash-servicio')) {
-            document.getElementById('dash-servicio').innerText = clavesServicios.reduce((a, b) => conteoServicios[a] > conteoServicios[b] ? a : b);
-        }
-
-        const conteoMeses = {};
-        quotes.forEach(q => {
-            if(q.fecha && typeof q.fecha === 'string' && q.fecha.length >= 7) {
-                const mes = q.fecha.substring(0, 7); 
-                conteoMeses[mes] = (conteoMeses[mes] || 0) + 1;
-            }
-        });
-        const clavesMeses = Object.keys(conteoMeses);
-        if (clavesMeses.length > 0 && document.getElementById('dash-mes')) {
-            document.getElementById('dash-mes').innerText = clavesMeses.reduce((a, b) => conteoMeses[a] > conteoMeses[b] ? a : b);
+        // 4. ACTUALIZAR EL CONTADOR DE CLIENTES
+        if(document.getElementById('dash-count-clients')) {
+            document.getElementById('dash-count-clients').innerText = clients.length;
         }
 
     } catch (error) {
         console.error("Error al actualizar el dashboard:", error);
     }
 }
+// --- PEGA ESTO AQUÍ (Cerca de tus otras funciones de base de datos) ---
+async function updateEnvioEstado(quoteId, tipo) {
+    const updateData = {};
+    
+    // Configuramos qué columna actualizar según el botón presionado
+    if (tipo === 'correo') {
+        updateData.enviado_por_correo = true;
+    } else if (tipo === 'wsp') {
+        updateData.enviado_por_wsp = true;
+    }
+    
+    // Actualizamos datos de control que tienes en tu tabla
+    updateData.fecha_envio = new Date().toISOString();
+    updateData.ejecutor_envio = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'Sistema';
+    updateData.estado = 'enviado'; // Cambiamos el estado de 'pendiente' a 'enviado'
+
+    try {
+        const { error } = await supabaseClient
+            .from('quotes')
+            .update(updateData)
+            .eq('id', quoteId);
+
+        if (error) throw error;
+
+        alert(`¡Registro de envío por ${tipo.toUpperCase()} exitoso!`);
+        
+        // Refrescamos los datos para que el estado cambie en la tabla automáticamente
+        await loadData(); 
+
+    } catch (err) {
+        console.error("Error al actualizar envío:", err);
+        alert("No se pudo registrar el envío: " + err.message);
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  const b = document.getElementById('btnNewOTManual');
+  if (b) {
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (typeof showNewOTManualModal === 'function') showNewOTManualModal();
+    });
+  }
+});
+
+// --- Sidebar auto-hide (desktop hover) ---
+(function setupSidebarAutoHide(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar) return;
+
+  const canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const wideEnough = window.matchMedia && window.matchMedia('(min-width: 900px)').matches;
+
+  // Only auto-hide on desktop with mouse
+  if(!(canHover && wideEnough)) return;
+
+  let collapseTimer = null;
+
+  function collapse(){
+    sidebar.classList.add('collapsed');
+  }
+  function expand(){
+    sidebar.classList.remove('collapsed');
+  }
+
+  // start collapsed
+  collapse();
+
+  sidebar.addEventListener('mouseenter', () => {
+    if (collapseTimer) clearTimeout(collapseTimer);
+    expand();
+  });
+
+  sidebar.addEventListener('mouseleave', () => {
+    if (collapseTimer) clearTimeout(collapseTimer);
+    collapseTimer = setTimeout(collapse, 180);
+  });
+
+  // Optional: expand if cursor touches left edge (nice UX)
+  document.addEventListener('mousemove', (e) => {
+    if (e.clientX <= 8) {
+      if (collapseTimer) clearTimeout(collapseTimer);
+      expand();
+    }
+  });
+})();
+
 </script>
 </body>
 </html>
