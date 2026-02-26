@@ -108,6 +108,15 @@
       <div class="p-6 border-b">
         <div class="flex items-center gap-3"><img src="logo ecoluz.png" alt="ECOLUZ Servicios" class="brand-logo-sm"></div>
         <p id="currentUser" class="sidebar-label text-sm text-gray-500 mt-1"></p>
+        <!-- Notificaciones / Cobros -->
+        <button onclick="showCobrosPendientesModal()" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-cobros" title="Cobros pendientes">
+          <div class="relative">
+            <i class="fa-solid fa-bell"></i>
+            <span id="cobrosBadge" class="notif-badge hidden">0</span>
+          </div>
+          <span class="sidebar-label">Notificaciones</span>
+        </button>
+
       </div>
 
       <nav class="flex-1 p-4 space-y-1">
@@ -1955,6 +1964,9 @@ function promptRegistrarFactura(otId){
       <p class="text-sm text-gray-500 mb-6">Primero registra el N° de factura. Luego se habilita el pago.</p>
       <div class="space-y-4">
         <input id="facturaNumero" type="text" value="${ot?.facturaNumero || ''}" placeholder="N° Factura (obligatorio)" class="w-full px-3 py-2 border rounded-xl" required>
+        <label class="text-sm font-semibold text-gray-700">Fecha envío factura</label>
+        <input id="facturaEnviadaFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl" required>
+
         <div class="flex gap-4 pt-4">
           <button onclick="saveFacturaOT('${otId}', this)" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Guardar Factura</button>
           <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
@@ -1968,6 +1980,7 @@ function promptRegistrarFactura(otId){
 async function saveFacturaOT(otId, btn){
   if(btn){ btn.disabled = true; btn.innerText = "Guardando..."; }
   const factura = (document.getElementById('facturaNumero')?.value || '').trim();
+  const fechaEnvio = (document.getElementById('facturaEnviadaFecha')?.value || '').trim() || todayISO();
   if(!factura){
     alert("Debes ingresar el N° de factura.");
     if(btn){ btn.disabled=false; btn.innerText="Guardar Factura"; }
@@ -1977,8 +1990,27 @@ async function saveFacturaOT(otId, btn){
   if(!ot) { alert("OT no encontrada"); if(btn){btn.disabled=false;btn.innerText="Guardar Factura";} return; }
   if(!ot.data) ot.data = {};
   ot.data.facturaNumero = factura;
+  ot.data.facturaEnviadaFecha = fechaEnvio;
 
-  const { error } = await supabaseClient.from('ots').update({ data: ot.data }).eq('id', otId);
+  let error = null;
+  // Intentamos guardar también en columnas (si existen) para activar notificaciones
+  const updateTry = await supabaseClient.from('ots').update({
+    data: ot.data,
+    factura_num: factura,
+    factura_enviada_fecha: fechaEnvio,
+    cobro_estado: 'pendiente'
+  }).eq('id', otId);
+
+  error = updateTry.error;
+
+  // Si la DB no tiene esas columnas todavía, guardamos solo en 'data'
+  if(error && String(error.message||'').toLowerCase().includes('column') && String(error.message||'').toLowerCase().includes('factura_')){
+    const fallback = await supabaseClient.from('ots').update({ data: ot.data }).eq('id', otId);
+    error = fallback.error;
+    if(!error){
+      alert('Guardé la factura, pero falta agregar columnas en Supabase para notificaciones (factura_enviada_fecha / cobro_estado). Si quieres, te paso el SQL.');
+    }
+  }
   if(error){
     alert("Error guardando factura: " + error.message);
     if(btn){ btn.disabled=false; btn.innerText="Guardar Factura"; }
@@ -2034,6 +2066,7 @@ async function savePagoFinal(otId, btn) {
 
   if (!ot.data) ot.data = {};
   ot.data.facturaNumero = factura;
+  ot.data.facturaEnviadaFecha = fechaEnvio;
   ot.data.fechaPago = toCLDateFromISO(fecha);
   ot.data.metodoPago = metodo;
 
@@ -3324,6 +3357,229 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 })();
 
+
+/* =========================
+   NOTIFICACIONES DE COBRO
+   ========================= */
+function daysDiffFromToday(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffMs = today - new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.floor(diffMs / (1000*60*60*24));
+}
+
+function isOtCobrablePendiente(ot){
+  const est = (ot.estado || '').toLowerCase();
+  if(est === 'cancelada' || est === 'anulada') return false;
+  const cobro = (ot.cobro_estado || '').toLowerCase();
+  if(cobro === 'pagado') return false;
+
+  // Fallbacks por si tienes otros campos
+  if(String(ot.pagado).toLowerCase() === 'true') return false;
+  if((ot.estado_pago || '').toLowerCase() === 'pagado') return false;
+
+  // Debe tener fecha de factura enviada para empezar a recordar
+  return !!(ot.factura_enviada_fecha || ot.data?.facturaEnviadaFecha || ot.data?.factura_enviada_fecha);
+}
+
+function getCobrosPendientes(){
+  const list = (ots || []).filter(isOtCobrablePendiente).map(ot => {
+    const fechaBase = ot.factura_enviada_fecha || ot.data?.facturaEnviadaFecha || ot.data?.factura_enviada_fecha;
+    const days = daysDiffFromToday(fechaBase);
+    const level = (days !== null && days >= 30) ? 'critico' : (days !== null && days >= 14) ? 'atrasado' : 'ok';
+    return { ot, days, level };
+  });
+
+  // Solo alertamos atrasado/critico en la campanita
+  const alertas = list.filter(x => x.days !== null && x.days >= 14);
+  // Orden: críticos primero, luego más antiguos
+  alertas.sort((a,b) => (b.days||0) - (a.days||0));
+  return { todos: list, alertas };
+}
+
+function updateCobrosBadge(){
+  const badge = document.getElementById('cobrosBadge');
+  if(!badge) return;
+  const { alertas } = getCobrosPendientes();
+  badge.textContent = String(alertas.length);
+  badge.classList.toggle('hidden', alertas.length === 0);
+}
+
+function toast(html){
+  const host = document.getElementById('toastHost');
+  if(!host) return;
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = html;
+  host.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(8px)'; el.style.transition='all .2s ease'; }, 6500);
+  setTimeout(()=>{ el.remove(); }, 7200);
+}
+
+async function maybeNotifyCobros(){
+  const { alertas } = getCobrosPendientes();
+  if(alertas.length === 0) return;
+
+  // Evita molestar: 1 toast por día
+  const key = 'cobros_toast_' + new Date().toISOString().slice(0,10);
+  if(localStorage.getItem(key) === '1') return;
+  localStorage.setItem(key,'1');
+
+  const criticos = alertas.filter(x => (x.days||0) >= 30).length;
+  const atrasados = alertas.length - criticos;
+
+  toast(`
+    <div class="flex items-start gap-3">
+      <div class="mt-1 text-red-600"><i class="fa-solid fa-bell"></i></div>
+      <div class="flex-1">
+        <div class="font-bold text-gray-900">Cobros pendientes</div>
+        <div class="text-sm text-gray-600 mt-1">
+          ${criticos ? `<div><b>${criticos}</b> crítico(s) (30+ días)</div>` : ``}
+          ${atrasados ? `<div><b>${atrasados}</b> atrasado(s) (14–29 días)</div>` : ``}
+        </div>
+        <button onclick="showCobrosPendientesModal()" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2 rounded-xl w-full">Ver lista</button>
+      </div>
+    </div>
+  `);
+
+  // Notificación del navegador (opcional)
+  try{
+    if('Notification' in window){
+      // solo si ya dio permiso
+      if(Notification.permission === 'granted'){
+        new Notification('ECOLUZ CRM — Cobros pendientes', { body: `${alertas.length} OT(s) con cobro atrasado.` });
+      }
+    }
+  }catch(e){}
+}
+
+function cobroBadgeText(level, days){
+  if(days === null) return `<span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">Sin fecha</span>`;
+  if(level === 'critico') return `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">CRÍTICO • ${days} días</span>`;
+  if(level === 'atrasado') return `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">ATRASADO • ${days} días</span>`;
+  return `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs">OK • ${days} días</span>`;
+}
+
+function showCobrosPendientesModal(){
+  const { todos, alertas } = getCobrosPendientes();
+
+  const rows = alertas.length ? alertas : todos; // si no hay atrasados, igual muestra los “OK” con fecha
+  const table = rows.length ? rows.map(({ot,days,level})=>{
+    const rut = ot.rut || '';
+    const nombre = ot.nombre || ot.clientName || '';
+    const dir = ot.direccion || ot.dirección || ot.address || '';
+    const desc = (ot.descripcion || ot.detalle || '').toString();
+    const nro = ot.numero || ot.nro || ot.num_ot || ot.ot_num || '';
+    const fac = ot.factura_num || ot.facturaNumero || ot.data?.facturaNumero || '';
+    return `
+      <tr class="border-t">
+        <td class="p-3">${nro || '-'}</td>
+        <td class="p-3">${nombre}</td>
+        <td class="p-3">${rut}</td>
+        <td class="p-3">${dir}</td>
+        <td class="p-3">${(desc || '').substring(0,60)}${desc && desc.length>60 ? '…' : ''}</td>
+        <td class="p-3">${fac || '-'}</td>
+        <td class="p-3">${cobroBadgeText(level,days)}</td>
+        <td class="p-3 text-right">
+          <button onclick="markOtAsPaid('${ot.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl">Marcar pagado</button>
+        </td>
+      </tr>
+    `;
+  }).join('') : `<tr><td class="p-4 text-center text-gray-500" colspan="8">No hay cobros pendientes con fecha de factura enviada.</td></tr>`;
+
+  const criticos = alertas.filter(x => (x.days||0) >= 30).length;
+  const atrasados = alertas.filter(x => (x.days||0) >= 14 && (x.days||0) < 30).length;
+
+  const permisoBtn = ('Notification' in window && Notification.permission !== 'granted')
+    ? `<button onclick="askNotifPermission()" class="border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-xl text-sm">Activar notificaciones</button>`
+    : ``;
+
+  openModal(`
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="text-2xl font-extrabold">Cobros pendientes</div>
+        <div class="text-sm text-gray-600 mt-1">
+          ${criticos ? `<span class="mr-3"><b>${criticos}</b> crítico(s)</span>` : ``}
+          ${atrasados ? `<span><b>${atrasados}</b> atrasado(s)</span>` : ``}
+          ${(!criticos && !atrasados) ? `<span>Sin atrasos (solo mostrando “OK” si corresponde)</span>` : ``}
+        </div>
+      </div>
+      <div class="flex gap-2">
+        ${permisoBtn}
+        <button onclick="closeModal()" class="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="mt-4 overflow-auto border border-gray-200 rounded-2xl">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="text-left p-3">OT</th>
+            <th class="text-left p-3">Cliente</th>
+            <th class="text-left p-3">RUT</th>
+            <th class="text-left p-3">Dirección</th>
+            <th class="text-left p-3">Descripción</th>
+            <th class="text-left p-3">Factura</th>
+            <th class="text-left p-3">Estado</th>
+            <th class="text-right p-3">Acción</th>
+          </tr>
+        </thead>
+        <tbody>${table}</tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 text-xs text-gray-500">
+      Se considera “Atrasado” desde 14 días y “Crítico” desde 30 días, contando desde <b>factura_enviada_fecha</b>.
+    </div>
+  `);
+}
+
+async function askNotifPermission(){
+  try{
+    if(!('Notification' in window)) return;
+    const p = await Notification.requestPermission();
+    if(p === 'granted') toast('<div class="text-sm"><b>Listo ✅</b> Notificaciones activadas en este navegador.</div>');
+  }catch(e){}
+}
+
+async function markOtAsPaid(otId){
+  try{
+    if(typeof supabaseClient==='undefined' || !supabaseClient) return;
+    const { error } = await supabaseClient.from('ots').update({
+      cobro_estado: 'pagado',
+      ultimo_recordatorio: new Date().toISOString()
+    }).eq('id', otId);
+
+    if(error) throw error;
+
+    // Actualiza memoria local
+    const idx = (ots||[]).findIndex(x => x.id === otId);
+    if(idx !== -1){
+      ots[idx].cobro_estado = 'pagado';
+      ots[idx].ultimo_recordatorio = new Date().toISOString();
+    }
+    updateCobrosBadge();
+    toast('<div class="text-sm"><b>Marcado como pagado ✅</b></div>');
+    // Si el modal está abierto, refrescamos su contenido
+    showCobrosPendientesModal();
+  }catch(err){
+    console.error('Error marcando pagado:', err);
+    alert('No se pudo marcar como pagado. Revisa RLS/permiso en Supabase.');
+  }
+}
+
+// Hook: cuando termines de cargar datos
+const _oldLoadData = window.loadData;
+window.loadData = async function(){
+  await _oldLoadData();
+  updateCobrosBadge();
+  maybeNotifyCobros();
+};
+
 </script>
+  <div id="toastHost"></div>
 </body>
 </html>
