@@ -140,6 +140,10 @@
           <i class="fa-solid fa-file-pdf text-red-600"></i> <span class="sidebar-label">Pendientes (PDF)</span>
         </button>
 
+        <button onclick="generateRealizadosPorMesPDF()" class="w-full mt-2 bg-white/70 hover:bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm flex items-center justify-center gap-2" title="PDF Trabajos realizados por mes">
+          <i class="fa-solid fa-calendar-check text-emerald-700"></i> <span class="sidebar-label">Realizados por mes (PDF)</span>
+        </button>
+
         <button onclick="exportData()" class="w-full text-xs text-gray-500 mt-4"><span class="sidebar-label">Exportar datos (JSON)</span></button>
       </div>
     </div>
@@ -3197,6 +3201,135 @@ function openEditOT(otId){
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
 }
+
+
+    // ====== PDF: Trabajos realizados por mes ======
+    async function generateRealizadosPorMesPDF() {
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+        await addLogoToPdf(doc);
+        addCompanyHeaderRight(doc);
+
+        const now = new Date();
+        const fechaGen = now.toISOString().slice(0,19).replace('T',' ');
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(16);
+        doc.text('TRABAJOS REALIZADOS POR MES', 14, 40);
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(10);
+        doc.text(`Generado: ${fechaGen}`, 14, 46);
+
+        const safe = (v) => (v === null || v === undefined) ? '' : String(v);
+
+        const getClientByIdSafe = (id) => {
+          if (!id) return null;
+          try { return clientsById?.get(String(id)) || clients?.find(c => String(c.id)===String(id)) || null; }
+          catch(e){ return null; }
+        };
+
+        const parseDateSafe = (s) => {
+          if (!s) return null;
+          // acepta YYYY-MM-DD o ISO
+          const d = new Date(s);
+          if (!isNaN(d.getTime())) return d;
+          // fallback si viene como dd-mm-aaaa o dd/mm/aaaa
+          const m = String(s).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+          if (m) {
+            const dd = parseInt(m[1],10), mm = parseInt(m[2],10)-1, yy = parseInt(m[3],10);
+            const d2 = new Date(yy, mm, dd);
+            if (!isNaN(d2.getTime())) return d2;
+          }
+          return null;
+        };
+
+        const monthNameES = (monthIdx) => {
+          const names = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+          return names[monthIdx] || '';
+        };
+
+        // Filtra OTs realizadas / finalizadas
+        const doneStates = new Set(['finalizada','finalizado','realizada','realizado','cerrada','cerrado']);
+        const realizados = (ots || []).filter(o => doneStates.has(String(o.estado||'').toLowerCase()));
+
+        // Normaliza fecha (usa o.fecha, si no existe usa created_at)
+        const normalized = realizados.map(o => {
+          const d = parseDateSafe(o.fecha) || parseDateSafe(o.created_at) || null;
+          return { o, d };
+        }).filter(x => x.d);
+
+        // Agrupa por YYYY-MM
+        const byMonth = new Map();
+        normalized.sort((a,b)=> a.d - b.d);
+        for (const {o,d} of normalized) {
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          if (!byMonth.has(key)) byMonth.set(key, []);
+          byMonth.get(key).push({o,d});
+        }
+
+        // Si no hay datos
+        if (byMonth.size === 0) {
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(12);
+          doc.text('No hay OTs realizadas con fecha para agrupar.', 14, 60);
+          doc.save(`Trabajos_realizados_por_mes_${now.toISOString().slice(0,10)}.pdf`);
+          return;
+        }
+
+        let y = 56;
+        for (const [key, arr] of byMonth.entries()) {
+          const [yy,mm] = key.split('-');
+          const monthLabel = `${monthNameES(parseInt(mm,10)-1)} ${yy}`;
+
+          // Salto de página si queda poco espacio
+          if (y > 250) { doc.addPage(); await addLogoToPdf(doc); addCompanyHeaderRight(doc); y = 30; }
+
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(12);
+          doc.text(`${monthLabel} (${arr.length})`, 14, y);
+          y += 4;
+
+          const rows = arr.map(({o,d}) => {
+            const c = getClientByIdSafe(o.clientId);
+            const rut = safe(o.clientRut || c?.rut || '');
+            const nombre = safe(o.clientName || c?.name || '');
+            const dir = safe(c?.direccion || '');
+            const desc = safe(o.descripcion || '');
+            const nOT = safe(o.numeroOT || '');
+            const fecha = d.toISOString().slice(0,10);
+            const estado = safe(o.estado || '');
+            return [fecha, nOT, rut, nombre, dir, desc, estado];
+          });
+
+          doc.autoTable({
+            startY: y,
+            head: [['Fecha', 'OT', 'RUT', 'Cliente', 'Dirección', 'Descripción', 'Estado']],
+            body: rows,
+            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [230,230,230], textColor: 20 },
+            columnStyles: {
+              0: { cellWidth: 18 },
+              1: { cellWidth: 16 },
+              2: { cellWidth: 24 },
+              3: { cellWidth: 28 },
+              4: { cellWidth: 28 },
+              5: { cellWidth: 52 },
+              6: { cellWidth: 18 }
+            },
+            margin: { left: 14, right: 14 }
+          });
+
+          y = (doc.lastAutoTable?.finalY || y) + 8;
+        }
+
+        doc.save(`Trabajos_realizados_por_mes_${now.toISOString().slice(0,10)}.pdf`);
+      } catch (err) {
+        console.error('Error generando PDF de realizados por mes:', err);
+        alert('No se pudo generar el PDF de trabajos realizados por mes. Revisa la consola (F12).');
+      }
+    }
 
 async function saveEditOT(otId, btn){
   try{
