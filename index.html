@@ -76,6 +76,11 @@
 .sidebar.collapsed .p-6{ padding: 16px !important; }
 .sidebar.collapsed .p-6 .flex{ justify-content:center; }
 
+
+    :root{--brand-green:#85af28;}
+    .bg-brand{background:var(--brand-green)!important;}
+    .text-brand{color:var(--brand-green)!important;}
+    .border-brand{border-color:var(--brand-green)!important;}
 </style>
 </head>
 
@@ -917,81 +922,59 @@ function renderClients() {
     }
 
     async function saveNewClient(btn) {
-    if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-    
-    try {
-        // --- FUNCIÓN INTERNA PARA BUSCAR VALORES REALES ---
-        const buscarValor = (ids) => {
-            for (let id of ids) {
-                const el = document.getElementById(id);
-                if (el && el.value.trim() !== "") return el.value.trim();
-            }
-            // Si no hay por ID, buscar por cualquier input que tenga "RUT" o "Nombre" en su placeholder
-            const todosLosInputs = document.querySelectorAll('input');
-            for (let input of todosLosInputs) {
-                const placeholder = (input.placeholder || "").toLowerCase();
-                if (ids[0].toLowerCase().includes('rut') && placeholder.includes('rut') && input.value.trim() !== "") return input.value.trim();
-                if (ids[0].toLowerCase().includes('name') && (placeholder.includes('nombre') || placeholder.includes('empresa')) && input.value.trim() !== "") return input.value.trim();
-            }
-            return "";
-        };
+  if (btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
 
-        // Buscamos el RUT y el Nombre en todas las variantes posibles de tu archivo
-        const rutVal = buscarValor(['otNewRut', 'clientRut', 'cRut', 'rut']);
-        const nameVal = buscarValor(['otNewName', 'clientNombre', 'cName', 'nombre']);
-        const phoneVal = buscarValor(['otNewPhone', 'clientTelefono', 'cTelefono']);
+  try {
+    // Captura DIRECTA desde el modal "Nuevo Cliente"
+    const rut = (document.getElementById('newRut')?.value || '').trim();
+    const name = (document.getElementById('newNombre')?.value || '').trim();
+    const tipoRaw = (document.getElementById('newTipo')?.value || '').trim();
+    const direccion = (document.getElementById('newDireccion')?.value || '').trim();
+    const telefono = (document.getElementById('newTelefono')?.value || '').trim();
+    const email = (document.getElementById('newEmail')?.value || '').trim();
 
-        console.log("Datos capturados:", { rut: rutVal, nombre: nameVal });
-
-        if (!rutVal || !nameVal) {
-            alert("Error: El sistema detecta los campos vacíos. Por favor, asegúrate de escribir en los campos del modal actual.");
-            if(btn) btn.disabled = false;
-            return;
-        }
-
-        // --- ENVÍO A SUPABASE ---
-        const { error } = await supabaseClient
-            .from('clients')
-            .insert([{
-                rut: rutVal,
-                name: nameVal,
-                telefono: phoneVal,
-                // CAMBIO AQUÍ: Si el campo no existe, le ponemos 'Empresa' o 'Particular' por defecto
-                tipo: document.getElementById('clientTipo')?.value || 
-                      document.getElementById('otNewType')?.value || 
-                      'Empresa', 
-                created_by: currentUser?.id || null,
-                created_by_email: currentUser?.email || '',
-                created_by_name: currentUserDisplayName || 'Admin'
-            }]);
-
-        // ... (vienes del código de arriba donde se hace el insert)
-
-        if (error) throw error; // Si hay error, salta al catch
-
-        alert("¡Cliente guardado con éxito!");
-        
-        // Cerramos el modal (ajusta el ID si el tuyo se llama distinto)
-        if (typeof closeModal === 'function') {
-            closeModal('clientModal');
-            closeModal('modalNuevoCliente');
-        }
-
-        // --- ESTA ES LA PARTE CLAVE DEL PASO 2 ---
-        // Al ejecutar loadData(), el sistema descarga la lista nueva de Supabase
-        // y automáticamente llama a renderQuotes y actualizarDashboardInteligente
-        await loadData(); 
-
-    } catch (err) {
-        console.error("Error completo:", err);
-        alert("Error de base de datos: " + err.message);
-    } finally {
-        // Devolvemos el botón a su estado normal
-        if(btn) { 
-            btn.disabled = false; 
-            btn.innerText = "Guardar Cliente"; 
-        }
+    if (!rut || !name) {
+      throw new Error("Debes ingresar al menos RUT y Nombre/Razón Social.");
     }
+
+    // Normalizamos tipo a lo que tu UI usa (Natural/Empresa)
+    const tipo = (tipoRaw === 'natural' || tipoRaw === 'Natural') ? 'Natural'
+               : (tipoRaw === 'empresa' || tipoRaw === 'Empresa') ? 'Empresa'
+               : (tipoRaw || 'Empresa');
+
+    const payload = {
+      rut,
+      name,
+      tipo,
+      direccion,
+      telefono,
+      email,
+      created_by: currentUser?.id || null,
+      created_by_email: currentUser?.email || '',
+      created_by_name: currentUserDisplayName || 'Admin'
+    };
+
+    const { data: inserted, error } = await supabaseClient
+      .from('clients')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Refrescamos datos (para que aparezca al tiro en tabla)
+    await loadData();
+    renderClients();
+
+    closeModal();
+    toastSuccess("✅ Cliente guardado con éxito");
+
+  } catch (err) {
+    console.error("Error guardando cliente:", err);
+    alert("Error al guardar cliente: " + (err?.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = "Guardar Cliente"; }
+  }
 } // <--- Aquí termina la función
     // ================== HISTORIAL DEL CLIENTE ==================
     function viewClient(clientId) {
@@ -1252,7 +1235,7 @@ function showNewQuoteModal(prefill = null) {
         </div>
       </div>
 
-      <div class="flex gap-4 mb-6 p-2 bg-slate-50 rounded-xl">
+      <div class="flex gap-4 mb-6 p-2 bg-white rounded-xl">
         <label class="flex items-center gap-2 cursor-pointer text-sm font-medium">
           <input type="radio" name="cMode" checked onclick="window.toggleClientMode('existing')" class="text-emerald-600"> Cliente Existente
         </label>
@@ -1290,8 +1273,8 @@ function showNewQuoteModal(prefill = null) {
           </div>
         </div>
 
-        <div class="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/50">
-          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-slate-100/50 text-[10px] font-bold text-slate-500 uppercase">
+        <div class="border border-slate-100 rounded-2xl overflow-hidden bg-[#85af28]/5">
+          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase">
             <div class="col-span-6">Descripción</div>
             <div class="col-span-1 text-center">Cant</div>
             <div class="col-span-2 text-right">Unitario</div>
@@ -1299,7 +1282,7 @@ function showNewQuoteModal(prefill = null) {
             <div class="col-span-1"></div>
           </div>
           <div id="itemsContainer" class="divide-y divide-slate-100 bg-white"></div>
-          <div class="p-3 bg-slate-50/50 flex justify-center">
+          <div class="p-3 bg-[#85af28]/10 flex justify-center">
             <button type="button" onclick="window.addItem()" class="text-emerald-600 font-bold text-xs hover:text-emerald-700 flex items-center gap-2">
               <span class="flex items-center justify-center w-5 h-5 bg-emerald-600 text-white rounded-full text-lg">+</span> Agregar Item
             </button>
@@ -1405,7 +1388,7 @@ function showNewQuoteModal(prefill = null) {
             <div class="col-span-1"></div>
           </div>
           <div id="itemsContainer" class="divide-y divide-slate-100"></div>
-          <div class="p-3 bg-slate-50/50 flex justify-center border-t border-slate-100">
+          <div class="p-3 bg-[#85af28]/10 flex justify-center border-t border-slate-100">
             <button type="button" onclick="window.addItem()" class="text-emerald-600 font-bold text-xs flex items-center gap-2 hover:scale-105 transition-all">
               <span class="flex items-center justify-center w-6 h-6 bg-emerald-600 text-white rounded-full">+</span> AGREGAR ITEM
             </button>
@@ -1780,7 +1763,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           <div class="space-y-4">
             <div><label class="block text-sm font-medium">N° OT *</label>${otNumHTML}</div>
             
-            <div class="mb-3 flex gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
+            <div class="mb-3 flex gap-4 bg-white p-2 rounded-xl border border-gray-200">
                 <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
                     <input type="radio" name="otClientMode" value="existing" checked onchange="document.getElementById('divOtExisting').style.display='block'; document.getElementById('divOtNew').style.display='none';"> 
                     <span class="text-blue-700">Existente</span>
@@ -2792,9 +2775,13 @@ async function saveNewReq() {
       
       let totalNeto = 0;
       const rows = (q.items || []).map((it, i) => {
-          const netoItem = Number(it.subtotal || (it.cant*it.valor));
+          // Compatibilidad: soporta items con llaves antiguas (desc/cant/valor) y nuevas (descripcion/cantidad/precio)
+          const desc = (it.descripcion ?? it.desc ?? '').toString();
+          const cant = Number(it.cantidad ?? it.cant ?? 0);
+          const valor = Number(it.precio ?? it.valor ?? 0);
+          const netoItem = Number(it.subtotal ?? (cant * valor) ?? 0);
           totalNeto += netoItem;
-          return [i+1, it.desc, it.cant, formatCLP(it.valor), formatCLP(netoItem)];
+          return [i+1, desc, cant, formatCLP(valor), formatCLP(netoItem)];
       });
 
       doc.autoTable({ 
@@ -2802,7 +2789,7 @@ async function saveNewReq() {
         head: [['#','Descripción','Cant.','V. Unit.','Subtotal']], 
         body: rows, 
         styles: { fontSize: 9 }, 
-        headStyles: { fillColor: [20, 50, 100], textColor: 255 }, 
+        headStyles: { fillColor: [133, 175, 40], textColor: 255 }, 
         margin: { left: 14, right: 14 } 
       });
       
