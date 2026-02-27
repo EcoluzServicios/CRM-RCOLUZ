@@ -173,8 +173,8 @@
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <div class="bg-blue-600 text-white p-6 rounded-2xl shadow-lg border border-blue-500 hover:scale-105 transition-transform">
           <h3 class="text-blue-100 text-xs font-bold uppercase tracking-wider mb-2"><i class="fas fa-building"></i> Cliente Top</h3>
-          <p id="dash-empresa" class="text-2xl font-black truncate">Cargando...</p>
-          <p class="text-blue-200 text-xs mt-2">Empresa con más cotizaciones</p>
+          <div id="dash-empresa" class="text-sm font-semibold leading-tight">Cargando...</div>
+          <p class="text-blue-200 text-xs mt-2">Cliente con más cotizaciones (todas)</p>
       </div>
       
       <div class="bg-emerald-600 text-white p-6 rounded-2xl shadow-lg border border-emerald-500 hover:scale-105 transition-transform">
@@ -3029,69 +3029,102 @@ function renderDashboard() {
   if (elO) elO.textContent = String(otsEnCurso);
   if (elD) elD.textContent = String(deuda);
 
-  // Inteligencia (Cliente Top)
-  // Nota: antes contábamos por q.clientName, pero en algunas BD ese campo viene vacío y el panel quedaba en "—".
-  // Ahora contamos por clientId y usamos la tabla clients (tipo: Empresa/Natural) para sacar el TOP real.
-  const normalizeTipo = (v) => String(v || '').toLowerCase().trim();
-  const isEmpresa = (v) => normalizeTipo(v) === 'empresa';
-  const isNatural = (v) => {
-    const t = normalizeTipo(v);
-    return t === 'natural' || t === 'persona natural' || t === 'cliente' || t === 'personanatural';
-  };
+// Inteligencia (Cliente Top por cotizaciones: pagadas + en proceso + pendientes + etc.)
+// Contamos TODAS las cotizaciones por cliente (no solo pendientes) y mostramos desglose por estado.
+const norm = (v) => String(v || '').toLowerCase().trim();
+const bucketEstadoCot = (estadoRaw) => {
+  const e = norm(estadoRaw);
+  if (!e) return 'otros';
+  if (['pagada','pagado','cobrada','cobrado','cerrada','cerrado','finalizada','finalizado'].includes(e)) return 'pagadas';
+  if (['pendiente','pendiente_aprobacion','pendiente_aprobación','pendiente_envio','pendiente_envío','por_aprobar','por aprobar'].includes(e)) return 'pendientes';
+  if (['en_proceso','proceso','en curso','en_curso','aprobada','aprobado','aceptada','aceptado','enviada','enviado'].includes(e)) return 'proceso';
+  if (['anulada','anulado','cancelada','cancelado','rechazada','rechazado'].includes(e)) return 'anuladas';
+  return 'otros';
+};
 
-  const countsByClientId = {};
-  quotes.forEach(q => {
-    const id = String(q.clientId || q.client_id || '').trim();
-    if (!id) return;
-    countsByClientId[id] = (countsByClientId[id] || 0) + 1;
+const getTipoCliente = (clientId) => {
+  const c = clientsById?.get(String(clientId));
+  const t = norm(c?.tipo || c?.type || c?.data?.tipo || '');
+  if (t.includes('emp')) return 'empresa';
+  if (t.includes('nat') || t.includes('persona')) return 'natural';
+  return ''; // desconocido
+};
+
+const countsByClient = new Map(); // id -> { total, pagadas, pendientes, proceso, anuladas, otros }
+quotes.forEach(q => {
+  const id = String(q.clientId || q.client_id || '').trim();
+  if (!id) return;
+  const st = bucketEstadoCot(q.estado || q.status || (q.data && (q.data.estado || q.data.status)));
+  const cur = countsByClient.get(id) || { total: 0, pagadas: 0, pendientes: 0, proceso: 0, anuladas: 0, otros: 0 };
+  cur.total += 1;
+  cur[st] = (cur[st] || 0) + 1;
+  countsByClient.set(id, cur);
+});
+
+const pickTopByTipo = (tipo) => {
+  let bestId = null;
+  let best = null;
+  countsByClient.forEach((v, id) => {
+    const t = getTipoCliente(id);
+    if (t !== tipo) return;
+    if (!best || v.total > best.total) { bestId = id; best = v; }
   });
+  if (!bestId) return null;
+  const c = clientsById?.get(String(bestId));
+  const name = (c?.name || c?.nombre || '—');
+  return { id: bestId, name, ...best };
+};
 
-  const pickTop = (predicateFn) => {
-    let bestId = null;
-    let bestCount = -1;
-    Object.entries(countsByClientId).forEach(([id, n]) => {
-      const c = clientsById?.get(String(id));
-      if (!c) return;
-      if (!predicateFn(c.tipo)) return;
-      if (n > bestCount) { bestCount = n; bestId = id; }
-    });
-    if (!bestId) return null;
-    const c = clientsById.get(String(bestId));
-    return { id: bestId, name: c?.name || '—', count: bestCount };
+const topEmpresa = pickTopByTipo('empresa');
+const topNatural = pickTopByTipo('natural');
+
+// Fallback (datos muy antiguos sin clientId): solo para mostrar ALGO, sin separar por tipo
+let topFallback = null;
+if (!topEmpresa && !topNatural) {
+  const byName = new Map(); // name -> counts
+  quotes.forEach(q => {
+    const name = (q.clientName || q.razonSocial || q.nombreCliente || '').toString().trim() || '—';
+    const st = bucketEstadoCot(q.estado || q.status || (q.data && (q.data.estado || q.data.status)));
+    const cur = byName.get(name) || { total: 0, pagadas: 0, pendientes: 0, proceso: 0, anuladas: 0, otros: 0 };
+    cur.total += 1;
+    cur[st] = (cur[st] || 0) + 1;
+    byName.set(name, cur);
+  });
+  const bestEntry = Array.from(byName.entries()).sort((a,b)=> (b[1].total||0) - (a[1].total||0))[0];
+  if (bestEntry) topFallback = { name: bestEntry[0], ...bestEntry[1] };
+}
+
+const elTop = document.getElementById('dash-empresa');
+if (elTop) {
+  const line = (label, obj) => {
+    if (!obj) return `<div class="text-blue-100 text-xs"><span class="font-black">${label}:</span> —</div>`;
+    return `
+      <div class="mb-2">
+        <div class="text-blue-200 text-[11px] font-black uppercase tracking-wider">${label}</div>
+        <div class="text-2xl font-black truncate">${escapeHtml(obj.name)}</div>
+        <div class="mt-1 text-blue-100 text-xs"><span class="font-black">${obj.total}</span> cotizaciones</div>
+      </div>`;
   };
 
-  const topEmpresa = pickTop(isEmpresa);
-  const topNatural = pickTop(isNatural);
-
-  // Fallback: si por alguna razón no hay clientId (datos muy antiguos), usamos clientName
-  let topFallbackName = '—';
-  if (!topEmpresa && !topNatural) {
-    const byName = {};
-    quotes.forEach(q => {
-      const k = (q.clientName || q.razonSocial || q.nombreCliente || '').toString().trim() || '—';
-      byName[k] = (byName[k] || 0) + 1;
-    });
-    topFallbackName = Object.entries(byName).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
-  }
-
-  const elTop = document.getElementById('dash-empresa');
-  if (elTop) {
-    if (topEmpresa && topNatural) {
-      // Mostramos ambos en una sola tarjeta (2 líneas)
-      elTop.innerHTML = `<div class="leading-tight">
-        <div><span class="text-blue-200 text-xs font-bold uppercase">Empresa</span><div class="text-2xl font-black truncate">${escapeHtml(topEmpresa.name)}</div></div>
-        <div class="mt-2"><span class="text-blue-200 text-xs font-bold uppercase">Natural</span><div class="text-2xl font-black truncate">${escapeHtml(topNatural.name)}</div></div>
+  if (topEmpresa || topNatural) {
+    elTop.innerHTML = `
+      <div class="leading-tight">
+        ${line('Empresa', topEmpresa)}
+        ${line('Natural', topNatural)}
       </div>`;
-    } else if (topEmpresa) {
-      elTop.textContent = topEmpresa.name;
-    } else if (topNatural) {
-      elTop.textContent = topNatural.name;
-    } else {
-      elTop.textContent = topFallbackName;
-    }
+  } else if (topFallback) {
+    elTop.innerHTML = `
+      <div class="leading-tight">
+        <div class="text-blue-200 text-[11px] font-black uppercase tracking-wider">Cliente Top</div>
+        <div class="text-2xl font-black truncate">${escapeHtml(topFallback.name)}</div>
+        <div class="mt-1 text-blue-100 text-xs"><span class="font-black">${topFallback.total}</span> cotizaciones</div>
+      </div>`;
+  } else {
+    elTop.textContent = '—';
   }
+}
 
-  const byServicio = {};
+  const byServicio = = {};
   quotes.forEach(q => {
     const k = (q.tipo_servicio || 'General').trim() || 'General';
     byServicio[k] = (byServicio[k] || 0) + 1;
