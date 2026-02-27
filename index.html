@@ -3126,7 +3126,7 @@ if (elTop) {
 
   const byServicio = {};
   quotes.forEach(q => {
-    const k = (q.tipo_servicio || 'General').trim() || 'General';
+    const k = (q.tipo_servicio ? q.tipo_servicio.trim() : 'General') || 'General';
     byServicio[k] = (byServicio[k] || 0) + 1;
   });
   const topServ = Object.entries(byServicio).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
@@ -3767,5 +3767,6 @@ window.loadData = async function(){
   <div id="toastHost"></div>
 </body>
 </html>
+
 
 
