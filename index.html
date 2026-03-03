@@ -82,6 +82,23 @@
     .text-brand{color:var(--brand-green)!important;}
     .border-brand{border-color:var(--brand-green)!important;}
 </style>
+
+<style id="ecoluz-brand-overrides">
+:root{--ecoluz-brand:#85af28;}
+.bg-brand{background:var(--ecoluz-brand)!important;}
+.text-brand{color:var(--ecoluz-brand)!important;}
+.border-brand{border-color:var(--ecoluz-brand)!important;}
+/* Recolor primary Tailwind blues to brand green (non-destructive quick theming) */
+.bg-blue-600{background:var(--ecoluz-brand)!important;}
+.hover\:bg-blue-700:hover{background:var(--ecoluz-brand)!important; filter:brightness(0.92);}
+.text-blue-600{color:var(--ecoluz-brand)!important;}
+.text-blue-700{color:var(--ecoluz-brand)!important;}
+.text-blue-900{color:var(--ecoluz-brand)!important;}
+.ring-blue-500{--tw-ring-color:var(--ecoluz-brand)!important;}
+/* Sidebar active indicator (if present) */
+.sidebar a.active, .sidebar button.active{color:var(--ecoluz-brand)!important;}
+</style>
+
 </head>
 
 <body class="bg-gray-100">
@@ -196,15 +213,13 @@
           <h1 class="text-3xl font-bold">Clientes</h1>
           <div class="flex flex-wrap gap-3">
             <button onclick="showNewClientModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo Cliente</span></button>
-            <button onclick="deleteSelectedClients(this)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-trash"></i> <span class="sidebar-label">Borrar seleccionados</span></button>
-          </div>
+</div>
         </div>
-        <div class="mb-4"><input id="clientSearch" oninput="renderClients()" placeholder="Buscar por nombre, RUT, teléfono o correo..." class="w-full px-4 py-3 border rounded-2xl"></div>
+        <div class="mb-4"><input id="clientSearch" oninput="renderClients()" placeholder="Buscar por nombre o RUT..." class="w-full px-4 py-3 border rounded-2xl"></div>
         <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
           <thead class="bg-gray-100">
             <tr>
-              <th class="p-4 text-center w-12"><input id="clientsSelectAll" type="checkbox" class="h-5 w-5 cursor-pointer" onchange="toggleSelectAllClients(this.checked)"></th>
-              <th class="p-4 text-left">RUT</th><th class="p-4 text-left">Nombre</th><th class="p-4 text-left">Tipo</th><th class="p-4 text-left">Teléfono</th><th class="p-4 text-left">Correo</th><th class="p-4 text-center">Acciones</th>
+              <th class="p-4 text-left">RUT</th><th class="p-4 text-left">Nombre</th><th class="p-4 text-left">Tipo</th><th class="p-4 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody id="clientsTable"></tbody>
@@ -427,7 +442,24 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
       setTimeout(() => div.remove(), 4000);
     }
 
-    // ================= CAMBIO DE CONTRASEÑA =================
+    
+    function toastSuccess(message){
+      // Alias de éxito (verde corporativo)
+      if (typeof toast === 'function') {
+        toast(`<div class=\"text-sm\"><b>✅ Listo</b> ${safeText(message)}</div>`);
+      } else {
+        toastInfo(message);
+      }
+    }
+
+    function toastError(message){
+      if (typeof toast === 'function') {
+        toast(`<div class=\"text-sm\"><b>⚠️ Error</b> ${safeText(message)}</div>`);
+      } else {
+        alert(message);
+      }
+    }
+// ================= CAMBIO DE CONTRASEÑA =================
     function showChangePasswordModal() {
         const html = `
         <div class="p-8">
@@ -881,24 +913,26 @@ function showView(view) {
 
 
 function renderClients() {
-      const tbody = document.getElementById('clientsTable'); tbody.innerHTML = '';
-      const q = normalizeText(document.getElementById('clientSearch')?.value);
-      const filtered = !q ? clients : clients.filter(c => [c.name, c.rut, c.telefono, c.email].map(normalizeText).join(' ').includes(q));
-      
-      filtered.forEach(client => {
-        const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
-        tr.innerHTML = `
-          <td class="p-4 text-center w-12"><input type="checkbox" class="client-select h-5 w-5 cursor-pointer" data-id="${client.id}"></td>
-          <td class="p-4">${client.rut}</td><td class="p-4 font-medium">${client.name || '—'}</td><td class="p-4">${formatClientTipo(client.tipo)}</td>
-          <td class="p-4">${client.telefono || '-'}</td><td class="p-4">${client.email || '-'}</td>
-          <td class="p-4 text-center space-x-3">
-            <button onclick="viewClient('${client.id}')" class="text-blue-600 hover:underline font-medium">Ver historial</button>
-            <button onclick="editClient('${client.id}')" class="text-emerald-700 hover:underline font-medium">Editar</button>
-            <button onclick="deleteClient('${client.id}')" class="text-red-600 hover:underline font-medium">Borrar</button>
-          </td>`;
-        tbody.appendChild(tr);
-      });
-    }
+  const tbody = document.getElementById('clientsTable'); 
+  tbody.innerHTML = '';
+  const q = normalizeText(document.getElementById('clientSearch')?.value);
+  const filtered = !q ? clients : clients.filter(c => [c.name, c.rut].map(normalizeText).join(' ').includes(q));
+
+  filtered.forEach(client => {
+    const tr = document.createElement('tr'); 
+    tr.className = 'border-t hover:bg-gray-50';
+    tr.innerHTML = `
+      <td class="p-4">${escapeHtml(client.rut || '')}</td>
+      <td class="p-4 font-medium">${escapeHtml(client.name || '—')}</td>
+      <td class="p-4">${escapeHtml(formatClientTipo(client.tipo))}</td>
+      <td class="p-4 text-center space-x-3">
+        <button onclick="showClientDatos('${client.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-xl text-sm font-semibold">Datos</button>
+        <button onclick="viewClient('${client.id}')" class="text-brand hover:underline font-medium">Historial</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
 
     function showNewClientModal() {
       const html = `
@@ -977,7 +1011,136 @@ function renderClients() {
   }
 } // <--- Aquí termina la función
     // ================== HISTORIAL DEL CLIENTE ==================
-    function viewClient(clientId) {
+    // ================== DATOS DEL CLIENTE (MODAL) ==================
+    function showClientDatos(clientId) {
+  const client = clients.find(c => String(c.id) === String(clientId));
+  if (!client) return;
+
+  const contacto = client.contacto || client.contact || (client.data && (client.data.contacto || client.data.contact)) || '';
+  const direccion = client.direccion || (client.data && client.data.direccion) || '';
+  const telefono = client.telefono || client.phone || (client.data && (client.data.telefono || client.data.phone)) || '';
+  const email = client.email || client.mail || (client.data && (client.data.email || client.data.mail)) || '';
+  const tipo = (client.tipo || '').toLowerCase();
+
+  const html = `
+    <div class="p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-black">Datos del cliente</h2>
+          <p class="text-gray-600 mt-1">Edita y guarda la información</p>
+        </div>
+        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="text-sm font-semibold">Nombre / Razón Social</label>
+          <input id="cd_name" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(client.name || '')}">
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">RUT</label>
+          <input id="cd_rut" class="w-full px-4 py-3 border rounded-2xl mt-1 bg-gray-50" value="${escapeHtml(client.rut || '')}" disabled>
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Tipo</label>
+          <select id="cd_tipo" class="w-full px-4 py-3 border rounded-2xl mt-1">
+            <option value="">—</option>
+            <option value="empresa" ${tipo === 'empresa' ? 'selected' : ''}>Empresa</option>
+            <option value="natural" ${tipo === 'natural' ? 'selected' : ''}>Natural</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Teléfono</label>
+          <input id="cd_telefono" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(telefono || '')}">
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Correo</label>
+          <input id="cd_email" type="email" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(email || '')}">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-sm font-semibold">Dirección</label>
+          <input id="cd_direccion" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(direccion || '')}">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-sm font-semibold">Contacto</label>
+          <input id="cd_contacto" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(contacto || '')}">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 mt-6">
+        <button onclick="saveClientDatos('${client.id}')" class="px-5 py-3 rounded-2xl bg-brand hover:opacity-90 text-white font-semibold">Guardar cambios</button>
+        <button onclick="viewClient('${client.id}')" class="px-5 py-3 rounded-2xl border font-semibold hover:bg-gray-50">Historial</button>
+        <button onclick="deleteClientFromDatos('${client.id}')" class="px-5 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold">Borrar cliente</button>
+        <button onclick="closeModal()" class="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-black text-white font-semibold">Cerrar</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+async function saveClientDatos(clientId) {
+  const name = document.getElementById('cd_name')?.value?.trim() || '';
+  const tipo = document.getElementById('cd_tipo')?.value || '';
+  const telefono = document.getElementById('cd_telefono')?.value?.trim() || '';
+  const email = document.getElementById('cd_email')?.value?.trim() || '';
+  const direccion = document.getElementById('cd_direccion')?.value?.trim() || '';
+  const contacto = document.getElementById('cd_contacto')?.value?.trim() || '';
+
+  try {
+    const payload = {
+      name,
+      tipo,
+      telefono,
+      email,
+      direccion,
+      contacto,
+      data: {
+        ...(clients.find(c => String(c.id) === String(clientId))?.data || {}),
+        telefono,
+        email,
+        direccion,
+        contacto
+      }
+    };
+
+    const { error } = await supabaseClient
+      .from('clients')
+      .update(payload)
+      .eq('id', clientId);
+
+    if (error) throw error;
+
+    toastSuccess('Cliente actualizado');
+    await loadData();
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    toastError('No se pudo actualizar el cliente');
+  }
+}
+
+async function deleteClientFromDatos(clientId) {
+  if (!confirm('¿Seguro que deseas borrar este cliente? Esta acción no se puede deshacer.')) return;
+  try {
+    const { error } = await supabaseClient.from('clients').delete().eq('id', clientId);
+    if (error) throw error;
+    toastSuccess('Cliente borrado');
+    await loadData();
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    toastError('No se pudo borrar el cliente');
+  }
+}
+
+function viewClient(clientId) {
       const client = clients.find(c => String(c.id) === String(clientId));
       if (!client) return;
 
@@ -1125,24 +1288,6 @@ function renderClients() {
       const { error } = await supabaseClient.from('clients').delete().eq('id', id);
       if (error) return alert("Error al eliminar cliente: " + error.message);
       await loadData(); renderClients();
-    }
-
-    function toggleSelectAllClients(checked) { document.querySelectorAll('#clientsTable .client-select').forEach(cb => cb.checked = !!checked); }
-    async function deleteSelectedClients(btn) {
-      const selectedIds = Array.from(document.querySelectorAll('#clientsTable .client-select:checked')).map(cb => cb.dataset.id);
-      if(selectedIds.length === 0) return alert("Selecciona clientes para borrar.");
-      if(!confirm(`¿Borrar ${selectedIds.length} clientes?`)) return;
-      if(btn) { btn.disabled = true; btn.innerText = "Borrando..."; }
-      
-      const { error } = await supabaseClient.from('clients').delete().in('id', selectedIds);
-      if (error) {
-         alert("Error al borrar clientes: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Borrar seleccionados'; }
-         return;
-      }
-      
-      await loadData(); renderClients();
-      if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Borrar seleccionados'; }
     }
 
 
@@ -1540,96 +1685,172 @@ async function saveNewQuote(btn) {
     }
 }
     function editQuote(quoteId) {
-      function renderQuotes() {
-    const tbody = document.getElementById('quotesTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    quotes.forEach(q => {
-        const tr = document.createElement('tr');
-        tr.className = "border-b hover:bg-gray-50";
-        tr.innerHTML = `
-            <td class="p-3">${q.numeroCotizacion}</td>
-            <td class="p-3 font-bold">${safeText(q.clientName) || 'Cliente no encontrado'}</td>
-            <td class="p-3">${q.obra}</td>
-            <td class="p-3 text-blue-600 font-bold">$${Number(q.monto).toLocaleString()}</td>
-            <td class="p-3">
-                <span class="px-2 py-1 rounded text-xs ${(q.estado==='aceptada' || q.estado==='aprobada') ? 'bg-green-100 text-green-700' : (q.estado==='rechazada' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')}">
-                    ${q.estado.toUpperCase()}
-                </span>
-            </td>
-            <td class="p-3 text-sm text-gray-500">${q.createdByName}</td>
-            <td class="p-3">
-                <button onclick="viewQuoteDetails('${q.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-eye"></i></button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
       const q = quotes.find(x => String(x.id) === String(quoteId));
       if (!q) return;
 
-      // Extraemos datos de la raíz o de .data (soporta ambos formatos)
-      const numActual = q.numeroCotizacion || (q.data && q.data.numeroCotizacion) || "";
-      const obraActual = q.obra || (q.data && q.data.obra) || "";
+      // Datos base (soporta varias formas de guardado)
+      const numActual = (q.numeroCotizacion ?? q.numero ?? q.folio ?? (q.data && (q.data.numeroCotizacion || q.data.numero || q.data.folio)) ?? '').toString();
+      const obraActual = (q.obra ?? (q.data && q.data.obra) ?? '').toString();
+      const tipoActual = (q.tipo_servicio ?? (q.data && q.data.tipo_servicio) ?? 'General').toString();
 
+      // Cliente (solo lectura para no romper referencias)
       let clientOptions = '';
-      clients.forEach(c => { 
-        clientOptions += `<option value="${c.id}" ${c.id == q.client_id ? 'selected' : ''}>${c.name} (${c.rut})</option>`; 
+      (clients || []).forEach(c => {
+        const sel = (String(c.id) === String(q.client_id)) ? 'selected' : '';
+        clientOptions += `<option value="${c.id}" ${sel}>${safeText(c.name)} (${safeText(c.rut)})</option>`;
       });
 
       const html = `
-        <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6 text-blue-900">Editar Cotización N° ${numActual}</h2>
-          <div class="space-y-4">
-            
+        <div class="p-6 md:p-8">
+          <div class="flex items-center justify-between mb-6">
             <div>
-              <label class="text-xs font-bold text-gray-500">CLIENTE</label>
-              <select id="eqClient" class="w-full px-3 py-2 border rounded-xl bg-gray-50" disabled>${clientOptions}</select>
+              <h2 class="text-2xl font-black text-slate-900">Editar Cotización</h2>
+              <p class="text-sm text-slate-500">Ajusta folio, obra e ítems y guarda cambios.</p>
+            </div>
+            <button onclick="closeModal()" class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">✕</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs font-bold text-slate-500">CLIENTE</label>
+              <select id="qClient" class="w-full px-3 py-3 border rounded-xl bg-slate-50" disabled>${clientOptions}</select>
             </div>
 
             <div>
-              <label class="text-xs font-bold text-gray-500">N° COTIZACIÓN</label>
-              <input id="eqNum" value="${numActual}" class="w-full px-3 py-2 border rounded-xl font-bold bg-gray-50" readonly>
+              <label class="text-xs font-bold text-slate-500">N° COTIZACIÓN (FOLIO)</label>
+              <input id="qNum" value="${safeText(numActual)}" class="w-full px-3 py-3 border rounded-xl font-black text-slate-800" placeholder="Ej: 4719">
             </div>
 
-            <div>
-              <label class="text-xs font-bold text-gray-500">DESCRIPCIÓN DE OBRA</label>
-              <textarea id="eqObra" rows="2" class="w-full px-3 py-2 border rounded-xl">${obraActual}</textarea>
-            </div>
-            
-            <div id="itemsContainer" class="space-y-3"></div>
-            <button type="button" onclick="addItem()" class="bg-green-600 text-white px-4 py-2 rounded-xl flex items-center gap-2">
-              <i class="fas fa-plus"></i> <span class="sidebar-label">Agregar ítem</span></button>
-
-            <div class="bg-gray-50 p-4 rounded-xl mt-4 border border-gray-200">
-              <div class="flex justify-between text-lg"><span>Neto:</span><span id="neto">$0</span></div>
-              <div class="flex justify-between text-lg"><span>IVA (19%):</span><span id="iva">$0</span></div>
-              <div class="flex justify-between text-xl font-bold mt-2 border-t pt-2"><span>Total:</span><span id="total" class="text-emerald-700">$0</span></div>
+            <div class="md:col-span-2">
+              <label class="text-xs font-bold text-slate-500">DESCRIPCIÓN DE OBRA</label>
+              <textarea id="qObra" rows="2" class="w-full px-3 py-3 border rounded-xl">${safeText(obraActual)}</textarea>
             </div>
 
-            <div class="flex gap-4 pt-6">
-              <button onclick="saveUpdatedQuote('${q.id}', this)" class="flex-1 bg-blue-700 text-white py-3 rounded-xl font-semibold">Guardar Cambios</button>
-              <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
+            <div class="md:col-span-2">
+              <label class="text-xs font-bold text-slate-500">TIPO DE SERVICIO</label>
+              <input id="qTipo" value="${safeText(tipoActual)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Mantención / Instalación / Reparación">
             </div>
           </div>
-        </div>`;
 
-      // Insertar el HTML en el modal
+          <div class="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
+            <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-[#85af28] text-white text-[10px] font-black uppercase">
+              <div class="col-span-6">Descripción</div>
+              <div class="col-span-1 text-center">Cant</div>
+              <div class="col-span-2 text-right">Valor Unit.</div>
+              <div class="col-span-2 text-right">Subtotal</div>
+              <div class="col-span-1"></div>
+            </div>
+            <div id="itemsContainer" class="divide-y divide-slate-100 bg-white"></div>
+            <div class="p-3 bg-[#85af28]/10 flex justify-center border-t border-slate-100">
+              <button type="button" onclick="window.addItem()" class="text-[#85af28] font-black text-xs flex items-center gap-2 hover:scale-105 transition-all">
+                <span class="flex items-center justify-center w-6 h-6 bg-[#85af28] text-white rounded-full">+</span> AGREGAR ITEM
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            <div class="p-4 bg-[#85af28]/10 rounded-2xl border border-[#85af28]/20 text-[10px] text-slate-700 italic leading-tight">
+              <h4 class="font-black uppercase mb-2 tracking-widest text-[#85af28]">Consideraciones Ecoluz</h4>
+              <ul class="space-y-1">
+                <li>• Validez de presupuesto: 15 días corridos.</li>
+                <li>• Pago contra entrega de servicio o según acuerdo.</li>
+              </ul>
+            </div>
+            <div class="space-y-2 text-right pr-2 self-center">
+              <div class="text-sm text-slate-400">Neto <span id="neto_display" class="font-black text-slate-800 ml-4">$0</span></div>
+              <div class="text-sm text-slate-400 border-b border-slate-100 pb-2">IVA (19%) <span id="iva_display" class="font-black text-slate-800 ml-4">$0</span></div>
+              <div class="pt-2 text-3xl font-black text-[#85af28]">TOTAL <span id="total" class="ml-4">$0</span></div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 pt-6">
+            <button type="button" onclick="previewQuote('${q.id}')" class="flex-1 bg-slate-100 text-slate-700 py-4 rounded-xl font-black">Previsualizar</button>
+            <button type="button" onclick="saveUpdatedQuote('${q.id}', this)" class="flex-1 bg-[#85af28] text-white py-4 rounded-xl font-black shadow-lg shadow-[#85af28]/20">Guardar cambios</button>
+          </div>
+        </div>
+      `;
+
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
 
-      // CARGAR ÍTEMS: Esto es vital para que no salga vacío
-      if (q.data && q.data.items && q.data.items.length > 0) {
-        q.data.items.forEach(it => addItem(it.desc, it.cant, it.valor));
+      // Cargar ítems (soporta q.items o q.data.items)
+      const items = (q.items || (q.data && q.data.items) || []);
+      if (Array.isArray(items) && items.length) {
+        items.forEach(it => {
+          const desc = it.descripcion ?? it.desc ?? it.descripcion_item ?? '';
+          const cant = it.cantidad ?? it.cant ?? 1;
+          const val  = it.precio ?? it.valor ?? it.v_unit ?? 0;
+          window.addItem(desc, cant, val);
+        });
       } else {
-        addItem();
+        window.addItem();
       }
 
-      // Escuchar cambios para recalcular precios
-      document.getElementById('modalContent').addEventListener('input', e => { 
-        if (e.target.matches('input[type="number"]')) calcularTotal(); 
-      });
+      window.calcularTotal();
+    }
+
+    async function saveUpdatedQuote(quoteId, btn){
+      if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
+      try{
+        const q = quotes.find(x => String(x.id) === String(quoteId));
+        if(!q) throw new Error('No se encontró la cotización');
+
+        const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
+        const obra  = (document.getElementById('qObra')?.value || '').trim();
+        const tipo  = (document.getElementById('qTipo')?.value || '').trim() || (q.tipo_servicio || 'General');
+
+        // Items
+        let itemsArr = [];
+        let netoTotal = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+          const d = (row.querySelector('.item-desc')?.value || '').trim();
+          const c = parseFloat(row.querySelector('.item-cant')?.value) || 0;
+          const v = parseFloat(row.querySelector('.item-valor')?.value) || 0;
+          if(d && c > 0){
+            const sub = Math.round(c * v);
+            itemsArr.push({ descripcion: d, cantidad: c, precio: v, subtotal: sub });
+            netoTotal += (c * v);
+          }
+        });
+
+        const total = Math.round(netoTotal * 1.19);
+
+        const payload = {
+          numero: folio,
+          obra: obra,
+          tipo_servicio: tipo,
+          items: itemsArr,
+          monto: total
+        };
+
+        const { error } = await supabaseClient.from('quotes').update(payload).eq('id', quoteId);
+        if(error) throw error;
+
+        closeModal();
+        await loadData();
+        renderQuotes();
+        toastInfo('Cotización actualizada ✅');
+      }catch(err){
+        console.error(err);
+        alert('Error al guardar cotización: ' + (err.message || err));
+      }finally{
+        if(btn){ btn.disabled = false; btn.innerText = 'Guardar cambios'; }
+      }
+    }
+
+    async function previewQuote(quoteId){
+      try{
+        // Genera un PDF en memoria usando la misma función si existe
+        if(typeof generateQuotePDF === 'function'){
+          // Si tu función descarga directo, aquí dejamos una alternativa simple:
+          generateQuotePDF(quoteId);
+          toastInfo('Se descargó el PDF (previsualización pendiente de habilitar) ✅');
+        }else{
+          alert('No se encontró la función de PDF.');
+        }
+      }catch(e){
+        console.error(e);
+      }
     }
 
     function renderQuotes() {
@@ -3126,7 +3347,7 @@ if (elTop) {
 
   const byServicio = {};
   quotes.forEach(q => {
-    const k = (q.tipo_servicio ? q.tipo_servicio.trim() : 'General') || 'General';
+    const k = (q.tipo_servicio || 'General').trim() || 'General';
     byServicio[k] = (byServicio[k] || 0) + 1;
   });
   const topServ = Object.entries(byServicio).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
@@ -3176,7 +3397,7 @@ function renderOTs() {
             ? (
                 !o.facturaNumero
                   ? `<button onclick="promptRegistrarFactura('${o.id}')" class="text-indigo-700 hover:underline">Registrar factura</button>`
-                  : `<button onclick="promptRegistrarPago('${o.id}')" class="text-emerald-700 hover:underline">Registrar pago</button>`
+                  : `<button onclick="promptRegistrarPago('${o.id}')" class="text-brand hover:underline">Registrar pago</button>`
               )
             : `<span class="text-emerald-700 font-bold">✅</span>`}
         </div>
@@ -3212,7 +3433,7 @@ function openEditOT(otId){
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="text-sm text-gray-600">N° OT</label>
-          <input id="eOtNumero" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.numeroOT || '')}">
+          <input id="eOtNumero" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.numero_ot || o.numeroOT || '')}">
         </div>
         <div>
           <label class="text-sm text-gray-600">Fecha</label>
@@ -3767,6 +3988,3 @@ window.loadData = async function(){
   <div id="toastHost"></div>
 </body>
 </html>
-
-
-
