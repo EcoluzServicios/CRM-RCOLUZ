@@ -1,7 +1,20 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+function formatDDMMYY(value){
+  if(!value) return '';
+  const dt = new Date(value);
+  if(isNaN(dt)) return String(value);
+  const dd=String(dt.getDate()).padStart(2,'0');
+  const mm=String(dt.getMonth()+1).padStart(2,'0');
+  const yy=String(dt.getFullYear()).slice(-2);
+  return `${dd}-${mm}-${yy}`;
+}
+
+  </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ECOLUZ CRM</title>
@@ -17,7 +30,17 @@
 
   <style>
     body { font-family: system-ui; }
-    .nav-active { background-color: #1e40af; color: white; }
+    
+    
+    /* FIX: eliminar espacio entre columnas (sidebar + contenido) */
+    #app:not(.hidden) { display: grid; grid-template-columns: auto 1fr; }
+    #sidebar { width: 260px !important; }
+    #sidebar.collapsed { width: 72px !important; }
+    #mainContent { width: 100% !important; min-width: 0 !important; padding: 24px !important; margin-left: 0 !important; }
+#mainContent { width: 100% !important; min-width: 0 !important; padding: 24px !important; margin-left: 0 !important; }
+    #mainContent [id^="view-"] { width: 100% !important; max-width: 1600px; margin: 0 auto; }
+    #mainContent table { width: 100% !important; }
+.nav-active { background-color: #1e40af; color: white; }
     .brand-logo { height: 48px; width: auto; object-fit: contain; }
     .brand-logo-sm { height: 36px; width: auto; object-fit: contain; }
 
@@ -81,6 +104,24 @@
     .bg-brand{background:var(--brand-green)!important;}
     .text-brand{color:var(--brand-green)!important;}
     .border-brand{border-color:var(--brand-green)!important;}
+
+#topbarTitle{display:none !important;}
+
+/* ====== FIX: que el contenido no quede en un rincón (todas las secciones) ====== */
+#mainContent{
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 24px !important;
+}
+#mainContent [id^="view-"]{
+  width: 100% !important;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+#mainContent table{
+  width: 100% !important;
+}
+
 </style>
 
 <style id="ecoluz-brand-overrides">
@@ -125,10 +166,14 @@
     </div>
   </div>
 
-  <div id="app" class="hidden min-h-screen flex">
-    <div id="sidebar" class="sidebar w-64 bg-white shadow-xl flex flex-col">
+  <div id="app" class="hidden min-h-screen">
+    <div id="sidebar" class="sidebar w-56 bg-white shadow-xl flex flex-col">
       <div class="p-6 border-b">
-        <div class="flex items-center gap-3"><img src="logo ecoluz.png" alt="ECOLUZ Servicios" class="brand-logo-sm"></div>
+        <div class="flex flex-col items-start gap-2">
+          <!-- Logo empresa (poner el archivo en la misma carpeta que este HTML) -->
+          <img src="logo ecoluz.png" alt="ECOLUZ" class="h-10 object-contain" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';">
+          <div id="logoFallback" class="text-xl font-extrabold text-gray-800" style="display:none">ECOLUZ</div>
+        </div>
         <p id="currentUser" class="sidebar-label text-sm text-gray-500 mt-1"></p>
         <!-- Notificaciones / Cobros -->
         <button onclick="showCobrosPendientesModal()" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-cobros" title="Cobros pendientes">
@@ -170,20 +215,54 @@
       </div>
     </div>
 
-    <div class="flex-1 p-8 overflow-auto" id="mainContent">
+    <div class="flex-1 p-5 overflow-auto" id="mainContent">
       <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3"><img src="logo ecoluz.png" alt="ECOLUZ Servicios" class="brand-logo-sm"></div>
-        <div class="text-sm text-gray-500 font-bold" id="topbarUser"></div>
-      </div>
+        <div class="flex items-center gap-3"><div id="topbarTitle" class="text-3xl font-extrabold text-gray-900">Dashboard</div></div>
+</div>
 
       <div id="view-dashboard">
   <h1 class="text-4xl font-bold mb-8">Bienvenido, <span id="welcomeName" class="text-blue-600"></span></h1>
   
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-    <div class="bg-white p-6 rounded-3xl shadow"><p class="text-gray-500 font-medium mb-2">Clientes</p><p id="dashClients" class="text-4xl font-bold text-blue-600">0</p></div>
-    <div class="bg-white p-6 rounded-3xl shadow"><p class="text-gray-500 font-medium mb-2">Cotizaciones Pendientes</p><p id="dashQuotes" class="text-4xl font-bold text-amber-500">0</p></div>
-    <div class="bg-white p-6 rounded-3xl shadow"><p class="text-gray-500 font-medium mb-2">Órdenes En Curso</p><p id="dashOTs" class="text-4xl font-bold text-emerald-600">0</p></div>
-    <div class="bg-white p-6 rounded-3xl shadow"><p class="text-gray-500 font-medium mb-2">Pendientes de pago</p><p id="dashDeudas" class="text-4xl font-bold text-red-600">0</p></div>
+  <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
+    <div class="bg-white p-6 rounded-3xl shadow">
+      <p class="text-gray-500 font-medium mb-2">Clientes</p>
+      <p id="dashClients" class="text-4xl font-bold text-blue-600">0</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('quotes_pending')">
+      <p class="text-gray-500 font-medium mb-2">Cotizaciones Pendientes</p>
+      <p id="dashQuotes" class="text-4xl font-bold text-amber-500">0</p>
+      <p class="text-xs text-gray-400 mt-2">Click para ver detalle</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('ots_en_curso')">
+      <p class="text-gray-500 font-medium mb-2">Órdenes En Curso</p>
+      <p id="dashOTs" class="text-4xl font-bold text-emerald-600">0</p>
+      <p class="text-xs text-gray-400 mt-2">Click para ver detalle</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('deudas')">
+      <p class="text-gray-500 font-medium mb-2">Pendientes de pago</p>
+      <p id="dashDeudas" class="text-4xl font-bold text-red-600">0</p>
+      <p class="text-xs text-gray-400 mt-2">Click para ver detalle</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('visitas_pend')">
+      <p class="text-gray-500 font-medium mb-2">Visitas Técnicas</p>
+      <p id="dashVisitas" class="text-4xl font-bold text-sky-600">0</p>
+      <p class="text-xs text-gray-400 mt-2">Pendientes · click detalle</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('reqs_pend')">
+      <p class="text-gray-500 font-medium mb-2">Requerimientos</p>
+      <p id="dashReqs" class="text-4xl font-bold text-violet-600">0</p>
+      <p class="text-xs text-gray-400 mt-2">Pendientes · click detalle</p>
+    </div>
   </div>
 
   <h2 class="text-3xl font-black text-gray-800 mb-6 border-t pt-8">Panel de Inteligencia</h2>
@@ -268,6 +347,7 @@
     </thead>
     <tbody id="acceptedQuotesTable"></tbody>
   </table>
+  <div id="acceptedQuotesPager" class="mt-4 flex justify-center flex-wrap gap-2"></div>
 </div>
 
 <div>
@@ -288,7 +368,9 @@
     </thead>
     <tbody id="rejectedQuotesTable"></tbody>
   </table>
+  <div id="rejectedQuotesPager" class="mt-4 flex justify-center flex-wrap gap-2"></div>
 </div>
+
       </div>
 
       <div id="view-ots" class="hidden">
@@ -303,9 +385,10 @@
           </thead>
           <tbody id="otsTable"></tbody>
         </table>
-      </div>
+      <div id="otsPager" class="mt-4 flex justify-center flex-wrap gap-2"></div>
+    </div>
 
-      <div id="view-abonos" class="hidden">
+<div id="view-abonos" class="hidden">
         <h1 class="text-3xl font-bold mb-6">Abonos / Pagos Parciales</h1>
         <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
           <thead class="bg-gray-100">
@@ -369,7 +452,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
     let currentUser = null;
     let currentUserDisplayName = null;
-    let clients = [], quotes = [], ots = [], visitas = [], requerimientos = [];
+    let clients = [], quotes = [], ots = [], visitas = [], requerimientos = [], reqs = [];
     let clientsById = new Map();
     
     let pendingOTToLink = null; 
@@ -410,6 +493,16 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   }
 
 function todayISO() { return new Date().toISOString().split('T')[0]; }
+    function dateInputToISO(dateStr){
+      if(!dateStr) return new Date().toISOString();
+      // Evita corrimiento de fecha por zona horaria (guardamos al mediodía UTC)
+      return `${dateStr}T12:00:00.000Z`;
+    }
+    function isoToDateInput(val){
+      if(!val) return '';
+      const s = String(val);
+      return s.length >= 10 ? s.slice(0,10) : s;
+    }
     function toCLDateFromISO(iso) { try { return new Date(iso).toLocaleDateString('es-CL'); } catch { return new Date().toLocaleDateString('es-CL'); } }
 
     const Fn = {
@@ -476,7 +569,9 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
           </div>
         </div>`;
         document.getElementById('modalContent').innerHTML = html;
-      document.getElementById('modal').classList.remove('hidden');
+      
+  setTimeout(()=>{ try{ window.populateQuoteSucursales && window.populateQuoteSucursales(); }catch(e){} },0);
+document.getElementById('modal').classList.remove('hidden');
 }
 
     async function saveNewPassword(btn) {
@@ -524,7 +619,7 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
         const btn = document.getElementById('btn-auto-mode');
         if(!btn) return;
         if(isAutoMode) {
-            btn.innerHTML = '<i class="fas fa-lock-open text-emerald-600"></i> <span class="text-emerald-600 font-bold">Num. Automática: ON</span>';
+            btn.innerHTML = '<i class="fas fa-lock-open text-emerald-600"></i> <span class="sidebar-label text-emerald-600 font-bold">Num. Automática: ON</span>';
             btn.classList.add('bg-emerald-50', 'border-emerald-200');
         } else {
             btn.innerHTML = '<i class="fas fa-lock text-gray-400"></i> <span class="sidebar-label text-gray-500">Activar Automático</span>';
@@ -533,34 +628,50 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
     }
 
     function getNextQuoteNumber() {
+    const BASE = 2833; // ✅ Inicio solicitado para cotizaciones
+    const baseGroup = Math.floor(BASE / 1000);
     let maxNum = 0;
-    
-    // Si no hay ninguna cotización todavía, puedes elegir donde empezar
-    if (quotes.length === 0) return "100"; // O el número que quieras de base
 
-    quotes.forEach(q => {
-        // Buscamos el número tanto en la raíz como en el campo 'data' por seguridad
-        let val = q.numeroCotizacion || (q.data && q.data.numeroCotizacion) || 0;
-        
-        // Limpiamos cualquier letra (si ingresaste algo como "520-B")
-        let numStr = String(val).replace(/\D/g, ''); 
-        let n = parseInt(numStr);
-        
-        if(!isNaN(n) && n > maxNum) maxNum = n;
+    (quotes || []).forEach(q => {
+        // Tomamos el folio desde varias rutas por compatibilidad
+        const val = q.numeroCotizacion || q.numero || q.folio ||
+          (q.data && (q.data.numeroCotizacion || q.data.numero || q.data.folio)) || 0;
+
+        const numStr = String(val).replace(/\D/g, '');
+        const n = parseInt(numStr, 10);
+        if (!isNaN(n)) {
+          if (Math.floor(n / 1000) === baseGroup) {
+            if (n > maxNum) maxNum = n;
+          }
+        }
     });
 
-    return String(maxNum + 1);
+    const next = Math.max(BASE, maxNum + 1);
+    return String(next);
 }
 
-    function getNextOTNumber() {
-        let maxNum = 0;
-        ots.forEach(o => {
-            let numStr = String(o.numeroOT).replace(/\D/g, ''); 
-            let n = parseInt(numStr);
-            if(!isNaN(n) && n > maxNum) maxNum = n;
-        });
-        return String(maxNum + 1);
-    }
+function getNextOTNumber() {
+    const BASE = 2833; // ✅ Inicio solicitado para OTs
+    const baseGroup = Math.floor(BASE / 1000); // Mantener correlativo en el mismo "miles" (ej: 2xxx)
+    let maxNum = 0;
+
+    (ots || []).forEach(o => {
+        const val = o.numeroOT || o.numero_ot ||
+          (o.data && (o.data.numeroOT || o.data.numero_ot)) || 0;
+
+        const numStr = String(val).replace(/\D/g, '');
+        const n = parseInt(numStr, 10);
+        if (!isNaN(n)) {
+          // Si existen OTs con números de otra serie (ej: 4xxx), no deben alterar la serie 2xxx
+          if (Math.floor(n / 1000) === baseGroup) {
+            if (n > maxNum) maxNum = n;
+          }
+        }
+    });
+
+    const next = Math.max(BASE, maxNum + 1);
+    return String(next);
+}
 
     // ================= EFECTOS (CHAYA Y SONIDO) =================
     function celebrarPago({ ot = null, monto = null, metodo = null, fecha = null, factura = null } = {}) {
@@ -611,8 +722,7 @@ async function loadData() {
   try {
     // ================= CLIENTES =================
     const { data: cData, error: cErr } = await supabaseClient
-      .from('clients')
-      .select('*')
+      .from('clients').select('*')
       .order('created_at', { ascending: false });
 
     if (cErr) throw cErr;
@@ -624,6 +734,8 @@ async function loadData() {
       direccion: r.direccion || r.doreccion || '',
       telefono: r.telefono || '',
       email: r.email || '',
+      contacto: r.contacto || (r.data && r.data.contacto) || '',
+      sucursales: r.sucursales || (r.data && r.data.sucursales) || '',
       name: r.name || 'Sin Nombre',
       created_by: r.created_by || null,
       createdByEmail: r.created_by_email || '',
@@ -631,7 +743,10 @@ async function loadData() {
       created_at: r.created_at || null
     }));
 
-    clientsById = new Map(clients.map(c => [String(c.id), c]));
+    clients.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
+
+    window.clients = clients;
+clientsById = new Map(clients.map(c => [String(c.id), c]));
 
     // ================= COTIZACIONES =================
     // Intento 1: traer relación clients (requiere FK quotes.client_id -> clients.id y permisos RLS)
@@ -702,6 +817,14 @@ async function loadData() {
       };
     });
 
+
+    // Ordenar cotizaciones por folio (descendente)
+    quotes.sort((a,b) => {
+      const na = parseInt(String(a.numeroCotizacion || a.numero || a.numero_cotizacion || '').replace(/\D/g,'')) || 0;
+      const nb = parseInt(String(b.numeroCotizacion || b.numero || b.numero_cotizacion || '').replace(/\D/g,'')) || 0;
+      return nb - na;
+    });
+
 // ================= OTs (TABLA: OT) =================
     const { data: oData, error: oErr } = await supabaseClient
       .from('ots')
@@ -724,6 +847,7 @@ async function loadData() {
         descripcion: r.descripcion || data.descripcion || '',
         oc: r.oc || data.oc || '',
         hes: r.hes || data.hes || '',
+        guia_despacho: r.guia_despacho || data.guia_despacho || '',
         estado: (r.estado || data.estado || 'en_curso').toLowerCase(),
         pago_estado: (r.pago_estado || '').toLowerCase(),
         fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
@@ -766,6 +890,20 @@ async function loadData() {
       };
     });
 
+    reqs = requerimientos; // alias para compatibilidad con UI antigua
+
+
+    // Ordenar OTs por N° OT (descendente) — nuevas arriba
+    ots.sort((a,b) => {
+      const na = parseInt(String(a.numeroOT || a.numero_ot || '').replace(/\D/g,''), 10) || 0;
+      const nb = parseInt(String(b.numeroOT || b.numero_ot || '').replace(/\D/g,''), 10) || 0;
+      if (nb !== na) return nb - na;
+
+      const da = new Date(a.created_at || 0).getTime() || 0;
+      const db = new Date(b.created_at || 0).getTime() || 0;
+      return db - da;
+    });
+
 // ================= VISITAS =================
     const { data: vData, error: vErr } = await supabaseClient
       .from('visitas')
@@ -789,6 +927,13 @@ async function loadData() {
       data: r.data || {}
     }));
 
+    // Exponer a window (para helpers/paginación)
+    window.quotes = quotes;
+    window.ots = ots;
+    window.visitas = visitas;
+    window.reqs = reqs;
+    window.clients = clients;
+
     // Render
     renderAll();
     renderDashboard();
@@ -801,34 +946,69 @@ async function loadData() {
 
 // --- 2. DIBUJAR TABLA (renderQuotes) ---
 function renderQuotes() {
-    const tbody = document.getElementById('quotesTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+  // New UI has 3 tables (pending/accepted/rejected). Fallback safely.
+  const tbPending = document.getElementById('pendingQuotesTable');
+  const tbAccepted = document.getElementById('acceptedQuotesTable');
+  const tbRejected = document.getElementById('rejectedQuotesTable');
+  const legacy = document.getElementById('quotesTableBody');
 
-    quotes.forEach(q => {
-        const tr = document.createElement('tr');
-        tr.className = "border-b hover:bg-gray-50";
-        tr.innerHTML = `
-            <td class="p-3">${q.numeroCotizacion}</td>
-            <td class="p-3 font-bold text-gray-800">${safeText(q.clientName) || 'Cliente no encontrado'}</td>
-            <td class="p-3 text-sm">${q.obra}</td>
-            <td class="p-3 font-bold text-blue-600">$${Number(q.monto).toLocaleString('es-CL')}</td>
-            <td class="p-3">
-                <span class="px-2 py-1 rounded text-xs font-semibold ${(q.estado==='aceptada' || q.estado==='aprobada') ? 'bg-green-100 text-green-700' : (q.estado==='rechazada' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')}">
-                    ${q.estado.toUpperCase()}
-                </span>
-            </td>
-            <td class="p-3 text-xs text-gray-500">${q.createdByName}</td>
-            <td class="p-3">
-                <div class="flex space-x-2">
-                    <button onclick="viewQuoteDetails('${q.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-eye"></i></button>
-                    <button onclick="deleteQuote('${q.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
+  // Clear
+  [tbPending,tbAccepted,tbRejected,legacy].forEach(tb => { if(tb) tb.innerHTML=''; });
+
+  const list = Array.isArray(quotes) ? quotes : (window.quotes || []);
+  if (!list.length) return;
+
+  const normState = (s) => (s||'').toString().trim().toLowerCase();
+
+  const placeRow = (tb, q) => {
+    if(!tb) return;
+    const tr = document.createElement('tr');
+    tr.className = "border-b hover:bg-gray-50";
+    tr.innerHTML = `
+      <td class="p-4">${escapeHtml(q.numeroCotizacion || q.numero || q.folio || q.id || '')}</td>
+      <td class="p-4 font-semibold">${escapeHtml(safeText(q.clientName) || safeText(q.nombreCliente) || '—')}</td>
+      <td class="p-4 font-bold text-blue-700">$${Number(q.monto||0).toLocaleString('es-CL')}</td>
+      <td class="p-4 text-xs text-gray-600">${escapeHtml(q.createdByName || q.createdByEmail || '—')}</td>
+      <td class="p-4 text-sm">${escapeHtml(formatDDMMYY(q.created_at || q.fecha || ''))}</td>
+      <td class="p-4 text-center">
+        <button onclick="generateQuotePDF('${q.id}')" class="text-red-600 hover:text-red-800" title="PDF">
+          <i class="fa-solid fa-file-pdf"></i>
+        </button>
+      </td>
+      <td class="p-4">
+        <span class="px-3 py-1 rounded-full text-xs font-bold ${normState(q.estado_envio)==='enviada'?'bg-emerald-100 text-emerald-700':'bg-gray-100 text-gray-700'}">
+          ${escapeHtml((q.estado_envio||'No enviada').toString())}
+        </span>
+      </td>
+      <td class="p-4 text-center">
+        <button onclick="showTrazabilidadCot('${q.id}')" class="text-slate-700 hover:text-slate-900" title="Trazabilidad">
+          <i class="fa-solid fa-route"></i>
+        </button>
+      </td>
+      <td class="p-4 text-center">
+        <button onclick="viewQuoteDetails('${q.id}')" class="text-blue-600 hover:text-blue-800 mr-2" title="Ver">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+        <button onclick="deleteQuote('${q.id}')" class="text-rose-600 hover:text-rose-800" title="Eliminar">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </td>
+    `;
+    tb.appendChild(tr);
+  };
+
+  list.forEach(q => {
+    const st = normState(q.estado || q.status);
+    if (tbPending || tbAccepted || tbRejected) {
+      if (st === 'aceptada' || st === 'aprobada' || st === 'aceptado') return placeRow(tbAccepted, q);
+      if (st === 'rechazada' || st === 'rechazado') return placeRow(tbRejected, q);
+      return placeRow(tbPending, q);
+    }
+    // Legacy single table
+    placeRow(legacy, q);
+  });
 }
+
 
     // ================= LOGIN Y TIEMPO REAL =================
     document.addEventListener('DOMContentLoaded', () => { document.getElementById('loginButton').addEventListener('click', login); });
@@ -855,8 +1035,7 @@ async function login() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('currentUser').textContent = `Conectado como: ${currentUserDisplayName}`;
-  document.getElementById('topbarUser').textContent = `Hola, ${currentUserDisplayName}`;
-  document.getElementById('welcomeName').textContent = currentUserDisplayName;
+document.getElementById('welcomeName').textContent = currentUserDisplayName;
 
   await loadData();
   renderAll();
@@ -865,10 +1044,7 @@ async function login() {
   suscribirseACambios();
 }
 
-function logout() { location.reload(); }
-
-
-    function logout() { location.reload(); }
+async function logout() { location.reload(); }
 
     function suscribirseACambios() {
       supabaseClient.channel('public:all').on('postgres_changes', { event: '*', schema: 'public' }, async () => {
@@ -879,16 +1055,63 @@ function logout() { location.reload(); }
     // ================= NAVEGACIÓN =================
     
 function showView(view) {
-  document.querySelectorAll('#mainContent > div').forEach(div => div.classList.add('hidden'));
-  document.getElementById(`view-${view}`).classList.remove('hidden');
-  document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('nav-active'));
-  document.getElementById(`btn-${view}`).classList.add('nav-active');
+  // Normalizar nombres de vistas (evita pantallas en blanco por alias)
+  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', quotes:'quotes', ots:'ots', dashboard:'dashboard' };
+  view = alias[view] || view;
 
-  if (view === 'dashboard') renderDashboard();
+  // Hide all views regardless of where they are in the DOM (fix nesting issues)
+  document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+
+  const target = document.getElementById(`view-${view}`);
+  if (target) target.classList.remove('hidden');
+
+  // Hide pagers by default (avoid "barra" leaking into other views)
+  ['acceptedQuotesPager','rejectedQuotesPager','otsPager'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+  if(view === 'quotes'){
+    const a=document.getElementById('acceptedQuotesPager'); if(a) a.style.display='';
+    const r=document.getElementById('rejectedQuotesPager'); if(r) r.style.display='';
+  }
+  if(view === 'ots'){
+    const o=document.getElementById('otsPager'); if(o) o.style.display='';
+  }
+
+  // Active state in sidebar
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('nav-active'));
+  const btn = document.getElementById(`btn-${view}`);
+  if (btn) btn.classList.add('nav-active');
+
+  // Top title
+  const t = document.getElementById('topbarTitle');
+  if (t) {
+    const map = {dashboard:'Dashboard', clients:'Clientes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', payments:'Abonos / Pagos', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos / Pagos', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', requerimientos:'Requerimientos'};
+    t.textContent = map[view] || '';
+  }
+// Apply pagination when entering certain views
+  if (view === 'quotes') {
+    try { acceptedQuotesPage = 1; rejectedQuotesPage = 1; } catch(e){}
+    setTimeout(() => { try { applyAcceptedQuotes(); applyRejectedQuotes(); } catch(e){} }, 0);
+  }
+  if (view === 'ots') {
+    try { otsPage = 1; } catch(e){}
+    setTimeout(() => { try { applyOTs(); } catch(e){} }, 0);
+  }
 }
 
 
-    function renderAll() { renderClients(); renderQuotes(); renderOTs(); renderAbonos(); renderVisitas(); renderReqs(); }
+    function renderAll() {
+  renderClients();
+  renderQuotes();
+  renderOTs();
+  renderAbonos();
+  renderVisitas();
+  renderReqs();
+  // aplicar paginación si ya está definida
+  setTimeout(() => { try { applyQuotes(); } catch(e){} }, 0);
+  setTimeout(() => { try { applyOTs(); } catch(e){} }, 0);
+}
 
     // ================= CLIENTES =================
     
@@ -929,12 +1152,17 @@ function renderClients() {
         <button onclick="showClientDatos('${client.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-xl text-sm font-semibold">Datos</button>
         <button onclick="viewClient('${client.id}')" class="text-brand hover:underline font-medium">Historial</button>
       </td>`;
-    tbody.appendChild(tr);
+    tr.style.cursor = 'pointer';
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          viewVisita(v.id);
+        });
+        tbody.appendChild(tr);
   });
 }
 
 
-    function showNewClientModal() {
+    async function showNewClientModal() {
       const html = `
         <div class="p-8">
           <h2 class="text-2xl font-bold mb-6">Nuevo Cliente</h2>
@@ -1071,6 +1299,12 @@ function renderClients() {
           <label class="text-sm font-semibold">Contacto</label>
           <input id="cd_contacto" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(contacto || '')}">
         </div>
+        <div class="md:col-span-2">
+          <label class="text-sm font-semibold">Sucursales (solo empresas)</label>
+          <textarea id="cd_sucursales" rows="4" class="w-full px-4 py-3 border rounded-2xl mt-1" placeholder="Una sucursal por línea. Ej: Casa Matriz - Dirección - Contacto">${escapeHtml((client.sucursales || (client.data && (client.data.sucursales || '')) || ''))}</textarea>
+          <p class="text-xs text-gray-500 mt-1">Tip: esto te permitirá elegir la sucursal al crear cotizaciones.</p>
+        </div>
+
       </div>
 
       <div class="flex flex-wrap gap-3 mt-6">
@@ -1092,6 +1326,7 @@ async function saveClientDatos(clientId) {
   const email = document.getElementById('cd_email')?.value?.trim() || '';
   const direccion = document.getElementById('cd_direccion')?.value?.trim() || '';
   const contacto = document.getElementById('cd_contacto')?.value?.trim() || '';
+  const sucursales = document.getElementById('cd_sucursales')?.value || '';
 
   try {
     const payload = {
@@ -1101,12 +1336,14 @@ async function saveClientDatos(clientId) {
       email,
       direccion,
       contacto,
+      sucursales,
       data: {
         ...(clients.find(c => String(c.id) === String(clientId))?.data || {}),
         telefono,
         email,
         direccion,
-        contacto
+        contacto,
+        sucursales
       }
     };
 
@@ -1122,7 +1359,13 @@ async function saveClientDatos(clientId) {
     closeModal();
   } catch (e) {
     console.error(e);
-    toastError('No se pudo actualizar el cliente');
+    const msg = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : String(e);
+    toastError('No se pudo actualizar el cliente: ' + msg);
+    alert(`No se pudo actualizar el cliente.
+
+Detalle: ${msg}
+
+Si usas RLS en Supabase, asegúrate de tener policy UPDATE en la tabla clients.`);
   }
 }
 
@@ -1140,7 +1383,7 @@ async function deleteClientFromDatos(clientId) {
   }
 }
 
-function viewClient(clientId) {
+async function viewClient(clientId) {
       const client = clients.find(c => String(c.id) === String(clientId));
       if (!client) return;
 
@@ -1163,8 +1406,8 @@ function viewClient(clientId) {
             <div class="bg-gray-50 p-4 rounded-xl"><p class="text-gray-500">Correo</p><p class="font-medium">${client.email || '-'}</p></div>
           </div>
           <div class="space-y-8">
-            <div><h3 class="text-xl font-bold mb-3 text-amber-700">Cotizaciones Pendientes (${pending.length})</h3>${pending.map(q => `<div class="bg-white p-4 rounded-xl border mb-3"><p class="font-medium">N° ${q.numeroCotizacion} - ${q.fecha} - ${formatCLP(q.monto)}</p></div>`).join('') || '<p class="text-gray-500">No hay.</p>'}</div>
-            <div><h3 class="text-xl font-bold mb-3 text-emerald-700">Cotizaciones Aceptadas (${accepted.length})</h3>${accepted.map(q => `<div class="bg-white p-4 rounded-xl border mb-3"><p class="font-medium">N° ${q.numeroCotizacion} - ${q.fecha} - ${formatCLP(q.monto)}</p></div>`).join('') || '<p class="text-gray-500">No hay.</p>'}</div>
+            <div><h3 class="text-xl font-bold mb-3 text-amber-700">Cotizaciones Pendientes (${pending.length})</h3>${pending.map(q => `<div class="bg-white p-4 rounded-xl border mb-3"><p class="font-medium">N° ${q.numeroCotizacion} - ${formatDDMMYY(q.fecha || q.created_at)} - ${formatCLP(q.monto)}</p></div>`).join('') || '<p class="text-gray-500">No hay.</p>'}</div>
+            <div><h3 class="text-xl font-bold mb-3 text-emerald-700">Cotizaciones Aceptadas (${accepted.length})</h3>${accepted.map(q => `<div class="bg-white p-4 rounded-xl border mb-3"><p class="font-medium">N° ${q.numeroCotizacion} - ${formatDDMMYY(q.fecha || q.created_at)} - ${formatCLP(q.monto)}</p></div>`).join('') || '<p class="text-gray-500">No hay.</p>'}</div>
             
             <div><h3 class="text-xl font-bold mb-3 text-orange-700">Facturas Pendientes (${pendingInvoices.length})</h3>${pendingInvoices.map(inv => `
               <div class="bg-white p-4 rounded-xl border mb-3">
@@ -1342,130 +1585,39 @@ window.addItem = function(desc='', cant=1, valor=0) {
 };
 
 window.calcularTotal = function() {
-  let neto = 0;
+  let bruto = 0;
   document.querySelectorAll('.item-row').forEach(row => {
     const c = parseFloat(row.querySelector('.item-cant').value) || 0;
     const v = parseFloat(row.querySelector('.item-valor').value) || 0;
     const sub = c * v;
     row.querySelector('.item-subtotal-text').textContent = '$' + Math.round(sub).toLocaleString('es-CL');
-    neto += sub;
+    bruto += sub;
   });
+
+  const pct = Math.max(0, Math.min(100, parseFloat(document.getElementById('descuento_pct')?.value) || 0));
+  const descMonto = Math.round(bruto * (pct / 100));
+  const neto = Math.max(0, Math.round(bruto - descMonto));
   const iva = Math.round(neto * 0.19);
   const total = neto + iva;
-  document.getElementById('neto_display').textContent = '$' + Math.round(neto).toLocaleString('es-CL');
+
+  const brutoEl = document.getElementById('bruto_display');
+  if (brutoEl) brutoEl.textContent = '$' + Math.round(bruto).toLocaleString('es-CL');
+
+  const descPctEl = document.getElementById('descuento_pct_display');
+  if (descPctEl) descPctEl.textContent = pct.toLocaleString('es-CL') + '%';
+
+  const descEl = document.getElementById('descuento_display');
+  if (descEl) descEl.textContent = '-$' + descMonto.toLocaleString('es-CL');
+
+  document.getElementById('neto_display').textContent = '$' + neto.toLocaleString('es-CL');
   document.getElementById('iva_display').textContent = '$' + iva.toLocaleString('es-CL');
   document.getElementById('total').textContent = '$' + Math.round(total).toLocaleString('es-CL');
 };
 
+
+
 // --- EL MODAL (TU DISEÑO ACTUALIZADO) ---
-function showNewQuoteModal(prefill = null) {
-  if(!prefill) pendingOTToLink = null;  
-  let clientOptions = '<option value="">Seleccionar Cliente...</option>';
-  if (typeof clients !== 'undefined') {
-    clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
-  }
 
-  const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
-  
-  const html = `
-    <div class="p-6 md:p-8">
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 class="text-2xl font-bold text-slate-800">Nueva Cotización</h2>
-          <p class="text-slate-500 text-sm">Registro de presupuesto y servicios</p>
-        </div>
-        <div class="text-right">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Folio</span>
-          <input id="qNum" value="${displayNum}" class="text-2xl font-bold text-emerald-600 bg-transparent border-none p-0 text-right focus:ring-0 w-24">
-        </div>
-      </div>
-
-      <div class="flex gap-4 mb-6 p-2 bg-white rounded-xl">
-        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium">
-          <input type="radio" name="cMode" checked onclick="window.toggleClientMode('existing')" class="text-emerald-600"> Cliente Existente
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-emerald-600">
-          <input type="radio" name="cMode" onclick="window.toggleClientMode('new')" class="text-emerald-600"> + Crear Nuevo Cliente
-        </label>
-      </div>
-
-      <div class="space-y-6">
-        <div id="existingClientDiv">
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Cliente *</label>
-            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm">${clientOptions}</select>
-        </div>
-
-        <div id="newClientDiv" class="hidden grid grid-cols-2 gap-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-            <input id="newCName" placeholder="Nombre / Razón Social" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white">
-            <input id="newCRut" placeholder="RUT (12.345.678-9)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white">
-            <input id="newCEmail" placeholder="Email de contacto" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white col-span-2">
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="form-group">
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Tipo de Trabajo</label>
-            <select id="qTipo" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm">
-              <option value="Reparación">Reparación</option>
-              <option value="Mantención">Mantención</option>
-              <option value="Instalación">Instalación</option>
-              <option value="Suministro">Suministro</option>
-              <option value="Suministro e Instalación">Suministro e Instalación</option> 
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
-            <textarea id="qObra" rows="1" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none" placeholder="Ej: Mantenimiento preventivo..."></textarea>
-          </div>
-        </div>
-
-        <div class="border border-slate-100 rounded-2xl overflow-hidden bg-[#85af28]/5">
-          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase">
-            <div class="col-span-6">Descripción</div>
-            <div class="col-span-1 text-center">Cant</div>
-            <div class="col-span-2 text-right">Unitario</div>
-            <div class="col-span-2 text-right">Subtotal</div>
-            <div class="col-span-1"></div>
-          </div>
-          <div id="itemsContainer" class="divide-y divide-slate-100 bg-white"></div>
-          <div class="p-3 bg-[#85af28]/10 flex justify-center">
-            <button type="button" onclick="window.addItem()" class="text-emerald-600 font-bold text-xs hover:text-emerald-700 flex items-center gap-2">
-              <span class="flex items-center justify-center w-5 h-5 bg-emerald-600 text-white rounded-full text-lg">+</span> Agregar Item
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-          <div class="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 text-[10px] text-emerald-800 italic">
-            <h4 class="font-bold uppercase mb-1">Consideraciones Ecoluz</h4>
-            <ul class="space-y-0.5">
-              <li>• 1. Sujeto a disponibilidad de agenda técnica.</li>
-              <li>• 2. Garantía de 30 días en mano de obra.</li>
-              <li>• 3. Validez de presupuesto: 15 días corridos.</li>
-              <li>• 4. No incluye materiales no especificados.</li>
-              <li>• 5. Trabajos fuera de horario sujetos a recargo.</li>
-              <li>• 6. Se requiere acceso despejado al área de trabajo.</li>
-              <li>• 7. Pago contra entrega de servicio o según acuerdo.</li>
-            </ul>
-          </div>
-          <div class="space-y-2 text-right pr-2">
-            <div class="text-sm">Neto <span id="neto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
-            <div class="text-sm border-b pb-2">IVA (19%) <span id="iva_display" class="font-bold text-slate-700 ml-4">$0</span></div>
-            <div class="pt-2 text-2xl font-bold text-emerald-600">Total <span id="total" class="ml-4">$0</span></div>
-          </div>
-        </div>
-
-        <div class="flex gap-3 pt-6">
-          <button type="button" onclick="saveNewQuote(this)" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg">Guardar Cotización</button>
-          <button type="button" onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">Cancelar</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('modalContent').innerHTML = html;
-  document.getElementById('modal').classList.remove('hidden');
-  window.addItem(); 
-}
 
 /// --- MODAL CON FOLIO VISIBLE Y CORRECCIONES ---
 function showNewQuoteModal(prefill = null) {
@@ -1483,10 +1635,23 @@ function showNewQuoteModal(prefill = null) {
           <h2 class="text-2xl font-bold text-slate-800">Nueva Cotización</h2>
           <p class="text-slate-500 text-sm font-medium">Empresa: Ecoluz</p>
         </div>
-        <div class="bg-white p-3 rounded-xl border-2 border-emerald-500 shadow-sm ring-4 ring-emerald-50">
+        <div class="flex flex-col gap-3 items-end">
+<div class="bg-white p-3 rounded-xl border-2 border-emerald-500 shadow-sm ring-4 ring-emerald-50">
           <span class="text-[10px] font-black text-emerald-600 uppercase block mb-1 text-center">N° FOLIO</span>
           <input id="qNum" value="${displayNum}" class="text-2xl font-black text-emerald-700 bg-transparent border-none p-0 text-center focus:ring-0 w-28" placeholder="0000">
+          <label class="mt-2 inline-flex items-center gap-2 text-xs text-slate-500 select-none">
+            <input id="qManualFolio" type="checkbox" class="rounded border-slate-300">
+            <span>Documento antiguo / ingresar folio manual</span>
+          </label>
         </div>
+
+        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm w-48">
+          <span class="text-[10px] font-black text-slate-500 uppercase block mb-1 text-center">Fecha</span>
+          <input id="qFecha" type="date" value="${(prefill && prefill.fecha) ? String(prefill.fecha).slice(0,10) : todayISO()}" class="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 text-center focus:ring-0">
+          <p class="text-[10px] text-slate-400 mt-1 text-center">Editable (docs antiguos)</p>
+        </div>
+
+      </div>
       </div>
 
       <div class="flex gap-4 mb-6 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
@@ -1497,7 +1662,21 @@ function showNewQuoteModal(prefill = null) {
       <div class="space-y-6">
         <div id="existingClientDiv">
             <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Seleccionar de la lista *</label>
-            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none">${clientOptions}</select>
+            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none" onchange="window.populateQuoteSucursales && window.populateQuoteSucursales()">${clientOptions}</select>
+            <div class="mt-3">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Sucursal / Dirección</label>
+              <input id="qSucursal" list="qSucursalList" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none" placeholder="Escribe o selecciona sucursal / dirección">
+              <datalist id="qSucursalList"></datalist>
+              <div id="qSucursalPreview" class="mt-2 hidden">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                  <div class="font-bold text-emerald-800 mb-1">Sucursal seleccionada (solo interno)</div>
+                  <div id="qSucursalPreviewText" class="text-emerald-900"></div>
+                </div>
+              </div>
+
+              <p class="text-[11px] text-slate-400 mt-1 ml-1">Si el cliente tiene más de una sucursal/dirección, elige aquí la que corresponde a esta cotización.</p>
+            </div>
+
         </div>
 
         <div id="newClientDiv" class="hidden grid grid-cols-2 gap-3 p-4 bg-emerald-50/50 border-2 border-emerald-100 rounded-2xl">
@@ -1516,7 +1695,8 @@ function showNewQuoteModal(prefill = null) {
               <option>Instalación</option>
               <option>Suministro</option>
               <option>Suministro e Instalación</option> 
-            </select>
+                          <option value="Arriendo de equipos">Arriendo de equipos</option>
+</select>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
@@ -1525,7 +1705,7 @@ function showNewQuoteModal(prefill = null) {
         </div>
 
         <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase border-b">
+          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase border-b">
             <div class="col-span-6">Descripción</div>
             <div class="col-span-1 text-center">Cant</div>
             <div class="col-span-2 text-right">Valor Unit.</div>
@@ -1554,6 +1734,17 @@ function showNewQuoteModal(prefill = null) {
             </ul>
           </div>
           <div class="space-y-2 text-right pr-2 self-center">
+            <div class="text-sm text-slate-400">Bruto <span id="bruto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+
+            <div class="flex items-center justify-end gap-2 text-sm">
+              <span class="text-slate-400">Descuento</span>
+              <input id="descuento_pct" type="number" min="0" max="100" step="0.01"
+                     oninput="window.calcularTotal()"
+                     class="w-20 px-2 py-1 border rounded-lg text-right" value="0">
+              <span id="descuento_pct_display" class="text-slate-500">0%</span>
+            </div>
+            <div class="text-sm text-slate-400">Descuento $ <span id="descuento_display" class="font-bold text-slate-700 ml-4">-$0</span></div>
+
             <div class="text-sm text-slate-400">Neto <span id="neto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
             <div class="text-sm text-slate-400 border-b border-slate-100 pb-2">IVA (19%) <span id="iva_display" class="font-bold text-slate-700 ml-4">$0</span></div>
             <div class="pt-2 text-3xl font-black text-emerald-600">TOTAL <span id="total" class="ml-4">$0</span></div>
@@ -1570,7 +1761,28 @@ function showNewQuoteModal(prefill = null) {
 
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
-  window.addItem(); 
+  window.addItem();
+  try{ window.populateQuoteSucursales && window.populateQuoteSucursales(); }catch(e){}
+  // Prefill (por ejemplo desde Visita Técnica / OT manual)
+  try{
+    if(prefill){
+      if(prefill.clientId){
+        const cSel = document.getElementById('qClient');
+        if(cSel){ cSel.value = String(prefill.clientId); }
+        try{ window.populateQuoteSucursales && window.populateQuoteSucursales(); }catch(e){}
+      }
+      if(prefill.obra){
+        const obraEl = document.getElementById('qObra');
+        if(obraEl) obraEl.value = String(prefill.obra);
+      }
+      if(prefill.sucursal){
+        const sEl = document.getElementById('qSucursal');
+        if(sEl) sEl.value = String(prefill.sucursal);
+        try{ window.updateSucursalPreview && window.updateSucursalPreview(); }catch(e){}
+      }
+    }
+  }catch(e){}
+  try{ window.calcularTotal && window.calcularTotal(); }catch(e){}
 }
 
 // --- LÓGICA DE BOTONES PARA MODO CLIENTE ---
@@ -1606,6 +1818,7 @@ async function saveNewQuote(btn) {
         const folio = folioRaw || 'S/N';
         const obraDesc = document.getElementById('qObra').value.trim();
         const tipoServ = document.getElementById('qTipo') ? document.getElementById('qTipo').value : "General";
+        const sucursal = (document.getElementById('qSucursal')?.value || '').trim();
         let clientId = document.getElementById('qClient').value;
 
         // 1. GESTIÓN DE CLIENTE (Si es nuevo)
@@ -1618,7 +1831,7 @@ async function saveNewQuote(btn) {
 
             const { data: cl, error: errC } = await supabaseClient
                 .from('clients')
-                .insert([{ name: n, rut: r, email: e }])
+                .insert([{ name: n, rut: r, tipo: (document.getElementById('newCTipo')?.value || 'empresa'), telefono: (document.getElementById('newCTelefono')?.value || ''), email: e, direccion: (document.getElementById('newCDireccion')?.value || ''), contacto: (document.getElementById('newCContacto')?.value || ''), data: { telefono: (document.getElementById('newCTelefono')?.value || ''), email: e, direccion: (document.getElementById('newCDireccion')?.value || ''), tipo: (document.getElementById('newCTipo')?.value || 'empresa') } }])
                 .select();
 
             if (errC) throw new Error("Error al crear cliente: " + errC.message);
@@ -1642,23 +1855,35 @@ async function saveNewQuote(btn) {
         });
 
         // ... (dentro de saveNewQuote, después de calcular totales)
+        const descPct = Math.max(0, Math.min(100, parseFloat(document.getElementById('descuento_pct')?.value) || 0));
+        const bruto = Math.round(netoTotal);
+        const descMonto = Math.round(bruto * (descPct / 100));
+        const netoCalc = Math.max(0, Math.round(bruto - descMonto));
+        const ivaCalc = Math.round(netoCalc * 0.19);
+        const totalCalc = netoCalc + ivaCalc;
+
         const { data: qInserted, error: errQ } = await supabaseClient
             .from('quotes')
             .insert([{
                 numero: folio,
                 client_id: clientId,
                 obra: obraDesc,
-                monto: (Math.round(netoTotal * 1.19)),
+                monto: totalCalc,
+                bruto: bruto,
+                descuento_pct: descPct,
+                descuento_monto: descMonto,
+                neto: netoCalc,
+                iva: ivaCalc,
                 items: itemsArr,
                 estado: 'pendiente',
                 tipo_servicio: tipoServ,
-                fecha: new Date().toISOString(),
+                data: { sucursal: sucursal },
+                fecha: dateInputToISO(document.getElementById('qFecha')?.value || todayISO()),
                 enviado_por_correo: document.getElementById('sendEmailCheckbox')?.checked || false,
                 enviado_por_wsp: document.getElementById('sendWspCheckbox')?.checked || false,
                 created_by: currentUser?.id || null,
                 created_by_email: currentUser?.email || '',
-                created_by_name: currentUserDisplayName || 'Admin'
-            }])
+                created_by_name: currentUserDisplayName || 'Admin'}])
             .select()
             .single();
 
@@ -1684,7 +1909,7 @@ async function saveNewQuote(btn) {
         if(btn) { btn.disabled = false; btn.innerText = "GUARDAR COTIZACIÓN"; }
     }
 }
-    function editQuote(quoteId) {
+    async function editQuote(quoteId) {
       const q = quotes.find(x => String(x.id) === String(quoteId));
       if (!q) return;
 
@@ -1714,12 +1939,26 @@ async function saveNewQuote(btn) {
             <div>
               <label class="text-xs font-bold text-slate-500">CLIENTE</label>
               <select id="qClient" class="w-full px-3 py-3 border rounded-xl bg-slate-50" disabled>${clientOptions}</select>
+          <div class="mt-3">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Sucursal / Dirección</label>
+            <input id="qSucursal" list="qSucursalList" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Escribe o selecciona sucursal / dirección">
+            <datalist id="qSucursalList"></datalist>
+            <p class="text-[11px] text-slate-400 mt-1 ml-1">Se imprimirá en el PDF y sirve para identificar la dirección de la sucursal.</p>
+          </div>
+
             </div>
 
             <div>
               <label class="text-xs font-bold text-slate-500">N° COTIZACIÓN (FOLIO)</label>
               <input id="qNum" value="${safeText(numActual)}" class="w-full px-3 py-3 border rounded-xl font-black text-slate-800" placeholder="Ej: 4719">
             </div>
+
+            <div>
+              <label class="text-xs font-bold text-slate-500">FECHA DEL DOCUMENTO</label>
+              <input id="qFecha" type="date" value="${isoToDateInput(q.fecha || q.created_at || todayISO())}" class="w-full px-3 py-3 border rounded-xl font-bold text-slate-800">
+              <p class="text-[11px] text-slate-400 mt-1">Puedes corregirla para documentos antiguos.</p>
+            </div>
+
 
             <div class="md:col-span-2">
               <label class="text-xs font-bold text-slate-500">DESCRIPCIÓN DE OBRA</label>
@@ -1757,6 +1996,15 @@ async function saveNewQuote(btn) {
               </ul>
             </div>
             <div class="space-y-2 text-right pr-2 self-center">
+              <div class="text-sm text-slate-400">Bruto <span id="bruto_display" class="font-black text-slate-800 ml-4">$0</span></div>
+              <div class="flex items-center justify-end gap-2 text-sm">
+                <span class="text-slate-400">Descuento</span>
+                <input id="descuento_pct" type="number" min="0" max="100" step="0.01"
+                       oninput="window.calcularTotal()"
+                       class="w-20 px-2 py-1 border rounded-lg text-right" value="0">
+                <span id="descuento_pct_display" class="text-slate-500">0%</span>
+              </div>
+              <div class="text-sm text-slate-400">Descuento $ <span id="descuento_display" class="font-black text-slate-800 ml-4">-$0</span></div>
               <div class="text-sm text-slate-400">Neto <span id="neto_display" class="font-black text-slate-800 ml-4">$0</span></div>
               <div class="text-sm text-slate-400 border-b border-slate-100 pb-2">IVA (19%) <span id="iva_display" class="font-black text-slate-800 ml-4">$0</span></div>
               <div class="pt-2 text-3xl font-black text-[#85af28]">TOTAL <span id="total" class="ml-4">$0</span></div>
@@ -1786,7 +2034,24 @@ async function saveNewQuote(btn) {
         window.addItem();
       }
 
-      window.calcularTotal();
+      // precargar descuento si existe
+      try{
+        const pctSaved = (q.descuento_pct ?? (q.data && q.data.descuento_pct) ?? 0);
+        const elPct = document.getElementById('descuento_pct');
+        if(elPct) elPct.value = pctSaved;
+      }catch(e){}
+
+      // cargar sucursales del cliente y seleccionar la guardada
+      try{
+        window.populateQuoteSucursales && window.populateQuoteSucursales();
+      }catch(e){}
+      try{
+        const savedSuc = (q.data && (q.data.sucursal || q.data.sucursal_direccion || q.data.direccion_sucursal)) || q.sucursal || '';
+        const sEl = document.getElementById('qSucursal');
+        if(sEl) sEl.value = String(savedSuc || '');
+        try{ window.updateSucursalPreview && window.updateSucursalPreview(); }catch(e){}
+      }catch(e){}
+window.calcularTotal();
     }
 
     async function saveUpdatedQuote(quoteId, btn){
@@ -1798,8 +2063,11 @@ async function saveNewQuote(btn) {
         const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
         const obra  = (document.getElementById('qObra')?.value || '').trim();
         const tipo  = (document.getElementById('qTipo')?.value || '').trim() || (q.tipo_servicio || 'General');
+        const sucursal = (document.getElementById('qSucursal')?.value || '').trim();
 
-        // Items
+        
+        const fechaStr = (document.getElementById('qFecha')?.value || isoToDateInput(q.fecha || q.created_at) || todayISO());
+// Items
         let itemsArr = [];
         let netoTotal = 0;
         document.querySelectorAll('.item-row').forEach(row => {
@@ -1813,15 +2081,26 @@ async function saveNewQuote(btn) {
           }
         });
 
-        const total = Math.round(netoTotal * 1.19);
+        const descPct = Math.max(0, Math.min(100, parseFloat(document.getElementById('descuento_pct')?.value) || 0));
+        const bruto = Math.round(netoTotal);
+        const descMonto = Math.round(bruto * (descPct / 100));
+        const netoCalc = Math.max(0, Math.round(bruto - descMonto));
+        const ivaCalc = Math.round(netoCalc * 0.19);
+        const totalCalc = netoCalc + ivaCalc;
 
         const payload = {
           numero: folio,
           obra: obra,
           tipo_servicio: tipo,
+          data: Object.assign({}, (q.data||{}), { sucursal: sucursal }),
+          fecha: dateInputToISO(fechaStr),
           items: itemsArr,
-          monto: total
-        };
+          monto: totalCalc,
+          bruto: bruto,
+          descuento_pct: descPct,
+          descuento_monto: descMonto,
+          neto: netoCalc,
+          iva: ivaCalc};
 
         const { error } = await supabaseClient.from('quotes').update(payload).eq('id', quoteId);
         if(error) throw error;
@@ -1854,8 +2133,39 @@ async function saveNewQuote(btn) {
     }
 
     function renderQuotes() {
-      document.getElementById('pendingQuotesTable').innerHTML = document.getElementById('acceptedQuotesTable').innerHTML = document.getElementById('rejectedQuotesTable').innerHTML = '';
-      quotes.forEach(q => {
+      document.getElementById('pendingQuotesTable').innerHTML =
+        document.getElementById('acceptedQuotesTable').innerHTML =
+        document.getElementById('rejectedQuotesTable').innerHTML = '';
+
+      // Ordenar por folio desc (paginación se aplica por sección: aceptadas/rechazadas)
+      const ordered = (quotes || []).slice().sort((a,b)=>{
+        const na = parseInt(a.numeroCotizacion || a.numero || 0, 10) || 0;
+        const nb = parseInt(b.numeroCotizacion || b.numero || 0, 10) || 0;
+        return nb - na;
+      });
+
+
+      // Separar y ordenar aceptadas por fecha de aceptación (si existe)
+      const pendingList = ordered.filter(q=>q.estado==='pendiente');
+      const acceptedList = ordered.filter(q=>q.estado==='aceptada');
+      const rejectedList = ordered.filter(q=>q.estado==='rechazada');
+
+      const accDate = (q)=>{
+        const d = (q.data && (q.data.fecha_aceptacion || q.data.accepted_at)) || q.fecha_aceptacion || q.accepted_at || q.updated_at || q.fecha || q.created_at;
+        const t = Date.parse(d);
+        return isNaN(t) ? 0 : t;
+      };
+      acceptedList.sort((a,b)=>{
+        const da = accDate(a), db = accDate(b);
+        if(db !== da) return db - da;
+        const na = parseInt(a.numeroCotizacion || a.numero || 0, 10) || 0;
+        const nb = parseInt(b.numeroCotizacion || b.numero || 0, 10) || 0;
+        return nb - na;
+      });
+
+      const orderedFinal = pendingList.concat(acceptedList, rejectedList);
+
+      orderedFinal.forEach(q => {
         const btnPDF = `<button onclick="generateQuotePDF('${q.id}')" class="text-blue-700 hover:text-blue-900" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
         const btnEdit = `<button onclick="editQuote('${q.id}')" class="text-blue-700 hover:text-blue-900 ml-3" title="Editar"><i class="fa-solid fa-pen-to-square text-xl"></i></button>`;
         const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
@@ -1875,7 +2185,7 @@ const estadoEnvioHtml = (q.data && q.data.ejecutor_envio) || q.ejecutor_envio
     : `<span class="text-xs text-gray-400 italic">Pendiente</span>`;
 
 // USAMOS NUESTRA FUNCIÓN formatShortName PARA LIMPIAR EL NOMBRE Y AGREGAMOS LAS 2 COLUMNAS NUEVAS
-tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'}</td><td class="p-4 font-bold">${formatCLP(q.monto)}</td><td class="p-4">${formatShortName(q.createdByName || q.createdBy)}</td><td class="p-4">${q.fecha}</td><td class="p-4 text-center">${btnPDF}${btnEdit}</td><td class="p-4">${estadoEnvioHtml}</td><td class="p-4 text-center">${btnWsp}${btnCorreo}</td><td class="p-4">${actions}</td>`;
+tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${(()=>{const base=safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'; const suc=safeText((q.data && q.data.sucursal) || q.sucursal || ''); return suc ? (base + ' - ' + suc) : base;})()}</td><td class="p-4 font-bold">${formatCLP(q.monto)}</td><td class="p-4">${formatShortName(q.createdByName || q.createdBy)}</td><td class="p-4">${formatDDMMYY(q.fecha || q.created_at)}</td><td class="p-4 text-center">${btnPDF}${btnEdit}</td><td class="p-4">${estadoEnvioHtml}</td><td class="p-4 text-center">${btnWsp}${btnCorreo}</td><td class="p-4">${actions}</td>`;
         
         if(q.estado === 'pendiente') document.getElementById('pendingQuotesTable').appendChild(tr);
         if(q.estado === 'aceptada') document.getElementById('acceptedQuotesTable').appendChild(tr);
@@ -1887,17 +2197,27 @@ tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${
 
 async function acceptQuote(id) {
   try {
+    // Buscar cotización local (para conservar data previa)
+    const q = (quotes || []).find(x => String(x.id) === String(id));
+    const nd = Object.assign({}, (q && q.data) ? q.data : {});
+    // Guardar fecha de aceptación (para ordenar aceptadas)
+    nd.fecha_aceptacion = new Date().toISOString();
+
     // 1) Marcar cotización como aceptada
-    const { error: e1 } = await supabaseClient.from('quotes').update({ estado: 'aceptada' }).eq('id', id);
+    const { error: e1 } = await supabaseClient
+      .from('quotes')
+      .update({ estado: 'aceptada', data: nd })
+      .eq('id', id);
     if (e1) throw e1;
 
-    // 2) Convertir a OT (crea una OT vinculada con quote_id)
-    await convertToOT(id);
+    // 2) Convertir a OT (si tu flujo lo usa)
+    if (typeof convertToOT === 'function') {
+      await convertToOT(id);
+    }
 
-    // convertToOT ya hace loadData en algunos flujos, pero por seguridad recargamos
     await loadData();
-    renderQuotes();
-    renderOTs();
+    if (typeof renderQuotes === 'function') renderQuotes();
+    if (typeof renderOTs === 'function') renderOTs();
   } catch (err) {
     alert("Error al aceptar cotización: " + (err?.message || err));
   }
@@ -1976,7 +2296,11 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
 
       // CORRECCIÓN: Definición limpia del número de OT
       const displayOTNum = isAutoMode ? (typeof getNextOTNumber === 'function' ? getNextOTNumber() : '') : '';
-      const otNumHTML = `<input id="mOtNum" value="${displayOTNum}" placeholder="N° OT *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>`;
+      const otNumHTML = `<input id="mOtNum" value="${displayOTNum}" placeholder="N° OT *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>
+            <label class="mt-2 inline-flex items-center gap-2 text-xs text-slate-500 select-none">
+              <input id="otManualFolio" type="checkbox" class="rounded border-slate-300">
+              <span>Documento antiguo / ingresar N° OT manual</span>
+            </label>`;
 
       const html = `
         <div class="p-8">
@@ -2096,7 +2420,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         }
       };
 
-      const { error } = await supabaseClient.from('ots').insert([payload]);
+      const { data: inserted, error } = await supabaseClient.from('ots').insert([payload]).select().single();
 
       if (error) {
          alert("Error al guardar OT: " + error.message);
@@ -2104,7 +2428,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
          return;
       }
       
-      await loadData(); renderOTs(); closeModal(); toastInfo("OT Manual creada.");
+      await loadData(); renderOTs(); closeModal(); toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
     }
 
     async function convertToOT(quoteId) {
@@ -2145,7 +2469,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         }
       };
 
-      const { error } = await supabaseClient.from('ots').insert([payload]);
+      const { data: inserted, error } = await supabaseClient.from('ots').insert([payload]).select().single();
 
       if(error){
         const msg = error.message || String(error);
@@ -2157,7 +2481,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         return;
       }
       
-      await loadData(); renderQuotes(); renderOTs(); toastInfo("OT Creada exitosamente.");
+      await loadData(); renderQuotes(); renderOTs(); toastInfo(`OT creada: ${inserted?.numero_ot || numOT}`);
     }
 
     // ... (El resto de funciones editOT, saveOTEdits y renderOTS que mandaste están bien)
@@ -2333,9 +2657,18 @@ async function savePagoFinal(otId, btn) {
   }finally{
     if(btn){ btn.disabled = false; btn.innerText = "Confirmar Pago"; }
   }
+
+      const qBtn = document.getElementById('quotesLoadMoreBtn');
+      if(qBtn){
+        if((quotes || []).length > quotesVisibleCount){
+          qBtn.classList.remove('hidden');
+        }else{
+          qBtn.classList.add('hidden');
+        }
+      }
 }
 
-    function renderAbonos() {
+    async function renderAbonos() {
       const tbody = document.getElementById('abonosTable'); tbody.innerHTML = '';
       ots.forEach(ot => {
         if (ot.estado !== 'pagado') {
@@ -2386,7 +2719,7 @@ async function savePagoFinal(otId, btn) {
     }
 
     // ================= VISITAS TÉCNICAS =================
-    function showNewVisitaModal() {
+    async function showNewVisitaModal() {
       const html = `
         <div class="p-8">
           <h2 class="text-2xl font-bold mb-6">Nueva Visita Técnica</h2>
@@ -2430,12 +2763,17 @@ async function savePagoFinal(otId, btn) {
           const { data: newClient, error: clientErr } = await supabaseClient
             .from('clients')
             .insert([{
-                rut, 
-                name: nombre, // Importante: Verifica si en tu DB es 'name' o 'nombre'
-                tipo: typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'Empresa', 
-                direccion, 
-                telefono, 
-                email
+                rut,
+                name: nombre,
+                tipo: typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa',
+                direccion,
+                telefono,
+                email,
+                contacto: '',
+                created_by: currentUser?.id || null,
+                created_by_email: currentUser?.email || '',
+                created_by_name: currentUserDisplayName || 'Admin',
+                data: { telefono, email, direccion, tipo: (typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa') }
             }])
             .select()
             .single();
@@ -2469,7 +2807,7 @@ async function savePagoFinal(otId, btn) {
       await loadData(); renderVisitas(); renderClients(); closeModal(); toastInfo("Visita registrada.");
     }
 
-    function renderVisitas() {
+    async function renderVisitas() {
       const tbody = document.getElementById('visitasTable'); tbody.innerHTML = '';
       visitas.forEach(v => {
         const estadoBadge = v.estado === 'pendiente' ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">Pendiente</span>` : v.estado === 'realizada' ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Realizada</span>` : `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">Cancelada</span>`;
@@ -2496,6 +2834,7 @@ async function savePagoFinal(otId, btn) {
 
         let accionesHTML = `
             <div class="flex gap-3 justify-center mb-2">
+                <button onclick="viewVisita('${v.id}')" class="text-slate-600 hover:text-slate-900" title="Ver"><i class="fa-solid fa-eye text-lg"></i></button>
                 <button onclick="editVisita('${v.id}')" class="text-blue-700 hover:text-blue-900" title="Editar Visita"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
             </div>
             <button onclick="createQuoteFromVisita('${v.id}')" class="bg-indigo-600 text-white text-xs px-3 py-1 rounded-xl w-full hover:bg-indigo-700 font-bold shadow-sm">Crear Cotización</button>
@@ -2503,12 +2842,172 @@ async function savePagoFinal(otId, btn) {
         `;
 
         const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
-        tr.innerHTML = `<td class="p-4">${v.fecha}</td><td class="p-4 font-medium">${v.nombre}</td><td class="p-4">${v.rut}</td><td class="p-4 text-center font-bold text-blue-900">${eq}</td><td class="p-4">${falla.substring(0,30)}...</td><td class="p-4">${estadoBadge}</td><td class="p-4 text-center align-middle">${accionesHTML}</td>`;
+        tr.innerHTML = `<td class="p-4">${formatDDMMYY(v.fecha || v.created_at)}</td><td class="p-4 font-medium">${v.nombre}</td><td class="p-4">${v.rut}</td><td class="p-4 text-center font-bold text-blue-900">${eq}</td><td class="p-4">${falla.substring(0,30)}...</td><td class="p-4">${estadoBadge}</td><td class="p-4 text-center align-middle">${accionesHTML}</td>`;
+        // Click en fila para ver detalle (como Requerimientos)
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', (ev) => {
+          try{
+            if(ev && ev.target && ev.target.closest && ev.target.closest('button, a, input, select, textarea, label, i')) return;
+          }catch(e){}
+          viewVisita(v.id);
+        });
         tbody.appendChild(tr);
       });
     }
 
-    async function setVisitaEstado(id, estado) {
+    
+    // --- VISTA RÁPIDA (ICONO O CLICK EN FILA) ---
+    function viewVisita(id){
+      const v = (visitas || []).find(x => String(x.id) === String(id));
+      if(!v) return;
+
+      const estado = (v.estado || 'pendiente').toLowerCase();
+      const estadoBadge = estado === 'pendiente'
+        ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">Pendiente</span>`
+        : estado === 'realizada'
+          ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Realizada</span>`
+          : `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">Cancelada</span>`;
+
+      let eq = "1";
+      let falla = v.descripcion || '';
+      if (falla.startsWith("[Equipos: ")) {
+        const endBracket = falla.indexOf("]");
+        if (endBracket !== -1) {
+          eq = falla.substring(10, endBracket);
+          falla = falla.substring(endBracket + 1).trim();
+        }
+      }
+
+      openModal(`
+        <div class="p-6 md:p-8">
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900">Detalle Visita Técnica</h2>
+              <p class="text-sm text-slate-500">Información completa de la visita.</p>
+            </div>
+            <button onclick="closeModal()" class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">✕</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl border bg-white">
+              <div class="text-xs font-bold text-slate-500 mb-1">FECHA</div>
+              <div class="text-lg font-extrabold text-slate-900">${formatDDMMYY(v.fecha || v.created_at)}</div>
+              <div class="mt-2">${estadoBadge}</div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white">
+              <div class="text-xs font-bold text-slate-500 mb-1">EQUIPOS</div>
+              <div class="text-lg font-extrabold text-slate-900">${escapeHtml(eq)}</div>
+              <div class="text-xs text-slate-500 mt-1">Cantidad de equipos reportada.</div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white md:col-span-2">
+              <div class="text-xs font-bold text-slate-500 mb-2">CLIENTE</div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <div class="text-xs text-slate-500">Nombre / Razón Social</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(v.nombre || '')}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500">RUT</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(v.rut || '')}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500">Teléfono</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(v.telefono || '')}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500">Correo</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(v.email || '')}</div>
+                </div>
+                <div class="md:col-span-2">
+                  <div class="text-xs text-slate-500">Dirección</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(v.direccion || '')}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white md:col-span-2">
+              <div class="text-xs font-bold text-slate-500 mb-2">DESCRIPCIÓN / FALLA</div>
+              <div class="whitespace-pre-wrap text-slate-800">${escapeHtml(falla || '')}</div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white md:col-span-2">
+              <div class="text-xs font-bold text-slate-500 mb-1">CREADO POR</div>
+              <div class="font-bold text-slate-900">${escapeHtml(v.createdByName || '—')}</div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 pt-6">
+            <button onclick="createQuoteFromVisita('${v.id}')" class="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-semibold hover:bg-indigo-700">Crear Cotización</button>
+            <button onclick="editVisita('${v.id}')" class="flex-1 border py-3 rounded-2xl font-semibold">Editar</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function viewReq(id){
+      const r = (requerimientos || []).find(x => String(x.id) === String(id));
+      if(!r) return;
+
+      const estado = (r.estado || 'pendiente').toLowerCase();
+      const badge = estado === 'pendiente'
+        ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">Pendiente</span>`
+        : estado === 'realizado'
+          ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Realizado</span>`
+          : `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">Cancelado</span>`;
+
+      openModal(`
+        <div class="p-6 md:p-8">
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900">Detalle Requerimiento</h2>
+              <p class="text-sm text-slate-500">Información completa del requerimiento.</p>
+            </div>
+            <button onclick="closeModal()" class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">✕</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl border bg-white">
+              <div class="text-xs font-bold text-slate-500 mb-1">FECHA</div>
+              <div class="text-lg font-extrabold text-slate-900">${formatDDMMYY(r.fecha || r.created_at)}</div>
+              <div class="mt-2">${badge}</div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white">
+              <div class="text-xs font-bold text-slate-500 mb-1">CREADO POR</div>
+              <div class="text-lg font-extrabold text-slate-900">${escapeHtml(r.createdByName || '—')}</div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white md:col-span-2">
+              <div class="text-xs font-bold text-slate-500 mb-2">CLIENTE</div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <div class="text-xs text-slate-500">Nombre / Razón Social</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(r.nombre || '')}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500">RUT</div>
+                  <div class="font-bold text-slate-900">${escapeHtml(r.rut || '')}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl border bg-white md:col-span-2">
+              <div class="text-xs font-bold text-slate-500 mb-2">DETALLE</div>
+              <div class="whitespace-pre-wrap text-slate-800">${escapeHtml((r.detalle || '').trim())}</div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 pt-6">
+            <button onclick="editReq('${r.id}')" class="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-semibold hover:bg-blue-700">Editar</button>
+            <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl font-semibold">Cerrar</button>
+          </div>
+        </div>
+      `);
+    }
+
+async function setVisitaEstado(id, estado) {
       if(!confirm(`¿Marcar visita como ${estado}?`)) return;
       const { error } = await supabaseClient.from('visitas').update({estado: estado}).eq('id', id);
       if(error) return alert("Error al actualizar la visita: " + error.message);
@@ -2532,6 +3031,7 @@ async function savePagoFinal(otId, btn) {
 
         let acciones = `
           <div class="flex gap-3 justify-center mb-2">
+            <button onclick="viewReq('${r.id}')" class="text-slate-600 hover:text-slate-900" title="Ver"><i class="fa-solid fa-eye text-lg"></i></button>
             <button onclick="editReq('${r.id}')" class="text-blue-700 hover:text-blue-900" title="Editar"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
           </div>
         `;
@@ -2559,6 +3059,11 @@ async function savePagoFinal(otId, btn) {
           <td class="p-4">${escapeHtml(r.createdByName || '—')}</td>
           <td class="p-4 text-center align-middle">${acciones}</td>
         `;
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          viewReq(r.id);
+        });
         tbody.appendChild(tr);
       });
     }
@@ -2619,7 +3124,15 @@ async function savePagoFinal(otId, btn) {
     </div>
   `;
   openModal(html);
-  initReqClientAutocomplete();
+  
+  setTimeout(()=>{ 
+    const cSel = document.getElementById('qClient');
+    if(cSel){
+      cSel.addEventListener('change', ()=>{ try{ window.populateQuoteSucursales(); }catch(e){} });
+      try{ window.populateQuoteSucursales(); }catch(e){}
+    }
+  },0);
+initReqClientAutocomplete();
 }
 
     function initReqClientAutocomplete() {
@@ -2796,7 +3309,7 @@ async function saveNewReq() {
       showView('reqs');
     }
 
-    function editReq(reqId) {
+    async function editReq(reqId) {
       const r = (requerimientos || []).find(x => String(x.id) === String(reqId));
       if (!r) return;
 
@@ -2883,7 +3396,7 @@ async function saveNewReq() {
       showView('reqs');
     }
 
-    function editVisita(visitaId) {
+    async function editVisita(visitaId) {
         const v = visitas.find(x => String(x.id) === String(visitaId));
         if(!v) return;
 
@@ -2940,7 +3453,7 @@ async function saveNewReq() {
         await loadData(); renderVisitas(); renderClients(); closeModal(); toastInfo("Visita actualizada.");
     }
 
-    function createQuoteFromVisita(visitaId) {
+    async function createQuoteFromVisita(visitaId) {
       const v = visitas.find(x => String(x.id) === String(visitaId));
       if (!v) return;
       
@@ -2952,6 +3465,7 @@ async function saveNewReq() {
       
       const prefill = { 
           clientId: v.clientId, 
+          sucursal: (v.direccion || v.dirección || ''),
           obra: "Revisión y/o reparación según Visita Técnica:\n" + falla 
       };
       showNewQuoteModal(prefill);
@@ -2961,7 +3475,7 @@ async function saveNewReq() {
     function loadLogoDataUrl() { return new Promise(res => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height; canvas.getContext('2d').drawImage(img,0,0); res(canvas.toDataURL('image/png')); }; img.onerror = () => res(null); img.src = window.LOGO_FILE; }); }
     async function addLogoToPdf(doc) { const dUrl = await loadLogoDataUrl(); if(dUrl) doc.addImage(dUrl, 'PNG', 14, 10, 45, 14); }
     
-    function addCompanyHeaderRight(doc) {
+    async function addCompanyHeaderRight(doc) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text("ECOLUZ SERVICIOS", 200, 12, { align: 'right' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
       doc.text("21 de Mayo #1223, Iquique.", 200, 17, { align: 'right' });
@@ -2982,12 +3496,18 @@ async function saveNewReq() {
       doc.text(`COTIZACIÓN N° ${q.numeroCotizacion}`, 14, 40);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
       
-      doc.text(`Fecha: ${q.fecha}  |  Creado por: ${formatShortName(q.createdByName || q.createdBy || '')}`, 14, 48);
+      doc.text(`Fecha: ${formatDDMMYY(q.fecha || q.created_at)}  |  Creado por: ${formatShortName(q.createdByName || q.createdBy || '')}`, 14, 48);
       
       let yCursor = 58;
       doc.setFont('helvetica', 'bold'); doc.text('Cliente', 14, yCursor); doc.setFont('helvetica', 'normal');
-      doc.text([`Nombre / Razón Social: ${safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'}`, `RUT: ${q.rut}`], 14, yCursor + 7);
-      
+      const sucDoc = (q.data && q.data.sucursal) || q.sucursal || '';
+      const clLines = [
+        `Nombre / Razón Social: ${safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'}`,
+        `RUT: ${q.rut}`
+      ];
+      if (sucDoc) clLines.push(`Sucursal / Dirección: ${safeText(sucDoc)}`);
+      doc.text(clLines, 14, yCursor + 7);
+
       yCursor += 25;
       doc.setFont('helvetica', 'bold'); doc.text('Descripción de Obra', 14, yCursor); doc.setFont('helvetica', 'normal');
       const textLines = doc.splitTextToSize(q.obra, 180); doc.text(textLines, 14, yCursor + 6);
@@ -3067,13 +3587,16 @@ async function saveNewReq() {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
       
       // TAMBIÉN USAMOS LA FUNCIÓN DE LIMPIAR NOMBRE AQUÍ EN EL PDF
-      doc.text(`Fecha: ${o.fecha}  |  Creado por: ${formatShortName(o.createdBy)}`, 14, 48);
+      doc.text(`Fecha: ${formatDDMMYY(o.created_at || o.fecha)}  |  Creado por: ${formatShortName(o.createdBy)}`, 14, 48);
       doc.setFontSize(10); doc.text(`N° Cotización: ${o.numeroCotizacion}  |  Cliente: ${o.clientName}`, 14, 55);
       
       let y = 65;
       doc.setFont('helvetica', 'bold'); doc.text('Detalle', 14, y); doc.setFont('helvetica', 'normal');
       const textLines = doc.splitTextToSize(o.descripcion, 180);
-      doc.text([`Descripción:`, ...textLines, `OC: ${o.oc || '-'}`, `HES: ${o.hes || '-'}`, `Estado: ${o.estado}`], 14, y + 6);
+      doc.text([`Descripción:`, ...textLines, `OC: ${o.oc || '-'}`,
+        `Guía despacho: ${o.guia_despacho || '-'}`,
+        `HES: ${o.hes || '-'}`,
+        `Factura: ${(o.factura_num || o.factura || (o.data && o.data.factura_num) || (o.data && o.data.factura) || '-')}`, `Estado: ${o.estado}`], 14, y + 6);
       
       y += 6 + (textLines.length * 5) + 30;
       doc.setFont('helvetica', 'bold'); doc.text(`Monto OT: ${formatCLP(o.monto)}`, 14, y);
@@ -3239,16 +3762,22 @@ function renderDashboard() {
   const quotesPending = quotes.filter(q => q.estado === 'pendiente').length;
   const otsEnCurso = ots.filter(o => o.estado === 'en_curso' || o.estado === 'pendiente_pago' || o.estado === 'pendiente').length;
   const deuda = ots.filter(o => (o.estado !== 'pagado') && (Number(o.monto) > 0)).length;
+  const visitasPend = visitas.filter(v => String(v.estado||'').toLowerCase() === 'pendiente').length;
+  const reqsPend = (requerimientos||[]).filter(r => !['realizado','realizada','cancelado','cancelada'].includes(String(r.estado||'').toLowerCase())).length;
 
   const elC = document.getElementById('dashClients');
   const elQ = document.getElementById('dashQuotes');
   const elO = document.getElementById('dashOTs');
   const elD = document.getElementById('dashDeudas');
+  const elV = document.getElementById('dashVisitas');
+  const elR = document.getElementById('dashReqs');
 
   if (elC) elC.textContent = String(clientsCount);
   if (elQ) elQ.textContent = String(quotesPending);
   if (elO) elO.textContent = String(otsEnCurso);
   if (elD) elD.textContent = String(deuda);
+  if (elV) elV.textContent = String(visitasPend);
+  if (elR) elR.textContent = String(reqsPend);
 
 // Inteligencia (Cliente Top por cotizaciones: pagadas + en proceso + pendientes + etc.)
 // Contamos TODAS las cotizaciones por cliente (no solo pendientes) y mostramos desglose por estado.
@@ -3367,21 +3896,129 @@ if (elTop) {
 }
 
 // ================= OTs (RENDER FIX MIN) =================
+
+function showOTDescripcion(otId){
+  const ot = (ots || []).find(o => String(o.id)===String(otId));
+  if(!ot) return;
+
+  const q = (quotes || []).find(x => String(x.id)===String(ot.quote_id || ot.quoteId)) 
+            || (quotes || []).find(x => String(x.numeroCotizacion || x.numero || '') === String(ot.numeroCotizacion || ''));
+
+  // Items de la cotización (si existe)
+  const items = (q && (q.items || (q.data && (q.data.items || q.data.detalles)))) || [];
+  const safeItems = Array.isArray(items) ? items : [];
+  const rows = safeItems.map((it, idx) => {
+    const desc = it.descripcion || it.desc || it.detalle || '';
+    const cant = Number(it.cantidad ?? it.cant ?? 0) || 0;
+    const unit = Number(it.valor_unitario ?? it.unitario ?? it.valor ?? it.precio ?? 0) || 0;
+    const sub = Number(it.subtotal ?? (cant*unit) ?? 0) || 0;
+    return `<tr class="border-t">
+      <td class="p-2 text-sm">${idx+1}</td>
+      <td class="p-2 text-sm">${escapeHtml(desc)}</td>
+      <td class="p-2 text-sm text-right">${cant}</td>
+      <td class="p-2 text-sm text-right">$${unit.toLocaleString('es-CL')}</td>
+      <td class="p-2 text-sm text-right font-semibold">$${sub.toLocaleString('es-CL')}</td>
+    </tr>`;
+  }).join('');
+
+  const tot = (q && (q.total ?? q.monto ?? (q.data && (q.data.total || q.data.monto)))) || null;
+
+  const html = `
+    <div class="p-8">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-2xl font-black">Detalle OT ${escapeHtml(ot.numeroOT||'')}</h2>
+          <p class="text-gray-500 text-sm">${escapeHtml(ot.clientName||'')} · ${escapeHtml(ot.clientRut||'')}</p>
+        </div>
+        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+      </div>
+
+      <div class="bg-white border rounded-2xl p-5">
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div><span class="text-slate-500">Fecha:</span> <span class="font-semibold">${escapeHtml(formatDDMMYY(ot.fecha || ot.created_at || ''))}</span></div>
+          <div><span class="text-slate-500">Cotización:</span> <span class="font-semibold">${escapeHtml(ot.numeroCotizacion||'-')}</span></div>
+          <div><span class="text-slate-500">OT:</span> <span class="font-semibold">${escapeHtml(ot.numeroOT||'-')}</span></div>
+          <div><span class="text-slate-500">OC:</span> <span class="font-semibold">${escapeHtml(ot.oc||'-')}</span></div>
+          <div><span class="text-slate-500">Factura:</span> <span class="font-semibold">${escapeHtml(ot.facturaNumero || ot.factura_num || ot.factura_numero || '-') }</span></div>
+          <div><span class="text-slate-500">Guía:</span> <span class="font-semibold">${escapeHtml(ot.guia_despacho || '-')}</span></div>
+        </div>
+
+        <div class="mt-4">
+          <div class="text-xs font-bold text-slate-500 uppercase mb-2">Obra / Descripción</div>
+          <div class="bg-slate-50 border rounded-2xl p-4 whitespace-pre-wrap">${escapeHtml(ot.descripcion||'')}</div>
+        </div>
+
+        <div class="mt-5">
+          <div class="text-xs font-bold text-slate-500 uppercase mb-2">Ítems de la cotización (vista previa)</div>
+          ${safeItems.length ? `
+            <div class="border rounded-2xl overflow-hidden">
+              <table class="w-full">
+                <thead style="background:#85af28;color:#fff">
+                  <tr>
+                    <th class="p-2 text-left text-xs">#</th>
+                    <th class="p-2 text-left text-xs">Descripción</th>
+                    <th class="p-2 text-right text-xs">Cant.</th>
+                    <th class="p-2 text-right text-xs">V. Unit</th>
+                    <th class="p-2 text-right text-xs">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            ${tot!=null ? `<div class="text-right mt-3 font-black">Total: $${Number(tot||0).toLocaleString('es-CL')}</div>` : ``}
+          ` : `<div class="text-sm text-slate-500">No hay ítems asociados a esta OT (o la cotización no está vinculada).</div>`}
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <button onclick="closeModal()" class="px-5 py-3 rounded-2xl bg-gray-900 hover:bg-black text-white font-semibold w-full">Cerrar</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+let quotesVisibleCount = 10;
+function loadMoreQuotes(){
+  quotesVisibleCount += 10;
+  renderQuotes();
+}
+
+
 function renderOTs() {
   const tbody = document.getElementById('otsTable');
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  ots.forEach(o => {
-    const btnPDF = `<button onclick="generateOTPDF('${o.id}')" class="text-blue-700 hover:text-blue-900" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
+  const ordered = (ots || []).slice().sort((a,b)=>{
+    const na = parseInt(String(a.numero_ot || a.numeroOT || '').replace(/\D/g,''), 10) || 0;
+    const nb = parseInt(String(b.numero_ot || b.numeroOT || '').replace(/\D/g,''), 10) || 0;
+    if(nb !== na) return nb - na;
+
+    // Si el folio es igual o viene vacío, usamos fecha para asegurar que lo nuevo quede arriba
+    const da = new Date(a.created_at || 0).getTime() || 0;
+    const db = new Date(b.created_at || 0).getTime() || 0;
+    return db - da;
+  });
+  // Renderizamos todas las filas y la paginación (abajo) se encarga de mostrar 10 por página
+  ordered.forEach(o => {
+    const btnPDF = `<button onclick="generateOTPDF('${o.id}')" class="text-brand hover:opacity-80" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
+    const btnFactura = `<button onclick="promptRegistrarFactura('${o.id}')" class="text-slate-700 hover:text-slate-900" title="Registrar factura"><i class="fa-solid fa-receipt text-lg"></i></button>`;
+    const btnPago = `<button onclick="promptRegistrarPago('${o.id}')" class="text-emerald-700 hover:text-emerald-900" title="Registrar pago"><i class="fa-solid fa-sack-dollar text-lg"></i></button>`;
+    const btnEdit = `<button onclick="editOT('${o.id}')" class="text-brand hover:opacity-80" title="Editar OT"><i class="fa-solid fa-pen-to-square text-lg"></i></button>`;
     const tr = document.createElement('tr');
     tr.className = 'border-t hover:bg-gray-50';
     tr.innerHTML = `
-      <td class="p-4">${o.fecha || ''}</td>
+      <td class="p-4">${formatDDMMYY(o.created_at || o.fecha || '')}</td>
       <td class="p-4">${o.numeroCotizacion || '-'}</td>
-      <td class="p-4 font-bold">${o.numeroOT || '-'}</td>
+      <td class="p-4 font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
       <td class="p-4">${o.clientName || '-'}</td>
-      <td class="p-4">${(o.descripcion || '').substring(0,40)}${(o.descripcion||'').length>40?'...':''}</td>
+      <td class="p-4 text-center">
+        <button onclick="showOTDescripcion('${o.id}')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200" title="Ver detalle (obra + ítems)">
+          <i class="fa-solid fa-align-left text-slate-700"></i>
+        </button>
+      </td>
       <td class="p-4">${o.oc || '-'}</td>
       <td class="p-4">${o.hes || '-'}</td>
       <td class="p-4">${formatShortName(o.createdByName || o.createdByEmail || '')}</td>
@@ -3390,23 +4027,14 @@ function renderOTs() {
       <td class="p-4 text-center">${btnPDF}</td>
       <td class="p-4 text-center">
         <div class="flex items-center justify-center gap-3">
-          <button onclick="openEditOT('${o.id}')" class="text-blue-700 hover:underline">Editar</button>
-          ${!o.quoteId ? `<button onclick=\"createQuoteFromOT('${o.id}')\" class=\"text-slate-700 hover:underline\">Crear cotización</button>` : ``}
-
-          ${(o.pago_estado || o.estado) !== 'pagado'
-            ? (
-                !o.facturaNumero
-                  ? `<button onclick="promptRegistrarFactura('${o.id}')" class="text-indigo-700 hover:underline">Registrar factura</button>`
-                  : `<button onclick="promptRegistrarPago('${o.id}')" class="text-brand hover:underline">Registrar pago</button>`
-              )
-            : `<span class="text-emerald-700 font-bold">✅</span>`}
+          ${btnFactura}
+          ${btnPago}
+          ${btnEdit}
         </div>
       </td>
     `;
     tbody.appendChild(tr);
   });
-
-
 }
 
 // Crear cotización desde una OT manual (vincula quote_id al guardar)
@@ -3473,6 +4101,12 @@ function openEditOT(otId){
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
 }
+// Alias global para botones onclick
+window.editOT = function(otId){
+  try { openEditOT(otId); } catch(e){ console.error(e); alert('No se pudo abrir edición OT.'); }
+};
+
+
 
 
     // ====== PDF: Trabajos realizados por mes ======
@@ -3631,6 +4265,178 @@ async function saveEditOT(otId, btn){
 
 
 
+
+
+// ================= DASHBOARD DETAILS (click cards) =================
+window.showDashDetails = function(kind){
+  try{
+    const norm = (v)=>String(v||'').toLowerCase().trim();
+    const fm = (n)=>'$' + (Number(n||0)).toLocaleString('es-CL');
+    const getClient = (id)=>{
+      const c = (clientsById && clientsById.get(String(id))) || (clients||[]).find(x=>String(x.id)===String(id));
+      return c || {};
+    };
+
+    let title = '';
+    let rows = [];
+    let headers = [];
+    if(kind==='quotes_pending'){
+      title = 'Cotizaciones Pendientes';
+      headers = ['N° Presupuesto','Cliente','Monto'];
+      rows = (quotes||[])
+        .filter(q=>norm(q.estado)==='pendiente')
+        .sort((a,b)=>Number(b.numero||b.numeroCotizacion||0)-Number(a.numero||a.numeroCotizacion||0))
+        .map(q=>{
+          const c = getClient(q.clientId || q.client_id);
+          const nombre = (c.name||c.nombre||q.clientName||'—');
+          const num = q.numero || q.numeroCotizacion || 'S/N';
+          const monto = Number(q.total||q.monto||0);
+          return [String(num), String(nombre), fm(monto)];
+        });
+    } else if(kind==='ots_en_curso'){
+      title = 'Órdenes En Curso';
+      headers = ['N° OT','N° Cotización','Cliente','Estado','Monto'];
+      rows = (ots||[])
+        .filter(o=>['en_curso','pendiente_pago','pendiente'].includes(norm(o.estado)))
+        .sort((a,b)=>Number(b.numero_ot||b.numeroOT||0)-Number(a.numero_ot||a.numeroOT||0))
+        .map(o=>{
+          const c = getClient(o.clientId || o.client_id);
+          const nombre = (c.name||c.nombre||o.clientName||o.clientName||'—');
+          const numOt = o.numero_ot || o.numeroOT || 'S/N';
+          const numQ = o.numeroCotizacion || o.numero_cotizacion || o.quoteNumero || o.quoteNumber || 'S/N';
+          const monto = Number(o.monto||0);
+          return [String(numOt), String(numQ), String(nombre), String(o.estado||''), fm(monto)];
+        });
+    } else if(kind==='deudas'){
+      title = 'Pendientes de Pago';
+      headers = ['N° OT','Cliente','Factura','Monto','Estado'];
+      rows = (ots||[])
+        .filter(o=>norm(o.estado)!=='pagado' && Number(o.monto||0)>0)
+        .sort((a,b)=>Number(b.numero_ot||b.numeroOT||0)-Number(a.numero_ot||a.numeroOT||0))
+        .map(o=>{
+          const c = getClient(o.clientId || o.client_id);
+          const nombre = (c.name||c.nombre||o.clientName||'—');
+          const numOt = o.numero_ot || o.numeroOT || 'S/N';
+          const factura = o.factura_num || o.facturaNumero || (o.data && (o.data.factura_num || o.data.facturaNumero)) || '';
+          const monto = Number(o.monto||0);
+          return [String(numOt), String(nombre), String(factura||'—'), fm(monto), String(o.estado||'')];
+        });
+    } else if(kind==='visitas_pend'){
+      title = 'Visitas Técnicas Pendientes';
+      headers = ['Fecha','Cliente','Dirección','Detalle'];
+      rows = (visitas||[])
+        .filter(v=>norm(v.estado)==='pendiente')
+        .sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')))
+        .map(v=>{
+          const c = getClient(v.clientId || v.client_id);
+          const nombre = (v.nombre||c.name||c.nombre||'—');
+          const dir = v.direccion || c.direccion || '';
+          const det = v.descripcion || v.detalle || '';
+          return [String(v.fecha||''), String(nombre), String(dir||'—'), String(det||'')];
+        });
+    } else if(kind==='reqs_pend'){
+      title = 'Requerimientos Pendientes';
+      headers = ['Fecha','Cliente','Dirección','Detalle','Estado'];
+      rows = (requerimientos||[])
+        .filter(r=>!['realizado','realizada','cancelado','cancelada'].includes(norm(r.estado)))
+        .sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')))
+        .map(r=>{
+          const c = getClient(r.clientId || r.client_id);
+          const nombre = (r.nombre||c.name||c.nombre||'—');
+          const dir = c.direccion || '';
+          const det = r.detalle || r.descripcion || '';
+          return [String(r.fecha||''), String(nombre), String(dir||'—'), String(det||''), String(r.estado||'')];
+        });
+    } else {
+      return;
+    }
+
+    const table = `
+      <div class="overflow-auto max-h-[70vh] border rounded-xl">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-white border-b">
+            <tr>${headers.map(h=>`<th class="text-left p-3 font-bold">${h}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${rows.length ? rows.map(r=>`<tr class="border-b hover:bg-gray-50">${r.map(c=>`<td class="p-3 align-top">${String(c).replace(/</g,'&lt;')}</td>`).join('')}</tr>`).join('') :
+              `<tr><td class="p-4 text-gray-500" colspan="${headers.length}">No hay registros.</td></tr>`}
+          </tbody>
+        </table>
+      </div>`;
+
+    openModal(`
+      <div class="p-6">
+        <div class="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-2xl font-black">${title}</h2>
+            <p class="text-sm text-gray-500">Total: <span class="font-bold">${rows.length}</span></p>
+          </div>
+          <button onclick="closeModal()" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Cerrar</button>
+        </div>
+        ${table}
+      </div>
+    `);
+  } catch(err){
+    alert('Error mostrando detalle: ' + (err?.message || err));
+  }
+};
+
+
+function bindFolioToggles(){
+  // Quote folio manual toggle
+  try{
+    const cb = document.getElementById('qManualFolio');
+    const inp = document.getElementById('qNum');
+    if(cb && inp && !cb.dataset.bound){
+      cb.dataset.bound = '1';
+      const apply = ()=>{
+        if(cb.checked){
+          inp.removeAttribute('readonly');
+          inp.classList.remove('bg-transparent','border-none','p-0');
+          inp.classList.add('bg-white','border','border-slate-200','rounded-xl','px-3','py-2');
+        }else{
+          const next = (typeof getNextQuoteNumber==='function') ? getNextQuoteNumber() : inp.value;
+          inp.value = next;
+          inp.setAttribute('readonly','readonly');
+        }
+      };
+      cb.addEventListener('change', apply);
+      // default: auto unless user checks
+      if(!cb.checked){
+        const next = (typeof getNextQuoteNumber==='function') ? getNextQuoteNumber() : inp.value;
+        inp.value = next;
+        inp.setAttribute('readonly','readonly');
+      }
+    }
+  }catch(e){}
+
+  // OT folio manual toggle
+  try{
+    const cb = document.getElementById('otManualFolio');
+    const inp = document.getElementById('mOtNum');
+    if(cb && inp && !cb.dataset.bound){
+      cb.dataset.bound = '1';
+      const apply = ()=>{
+        if(cb.checked){
+          inp.removeAttribute('readonly');
+          inp.classList.remove('bg-indigo-50','text-indigo-700');
+          inp.classList.add('bg-white','text-gray-900');
+        }else{
+          const next = (typeof getNextOTNumber==='function') ? getNextOTNumber() : inp.value;
+          inp.value = next;
+          inp.setAttribute('readonly','readonly');
+          inp.classList.add('bg-indigo-50','text-indigo-700');
+        }
+      };
+      cb.addEventListener('change', apply);
+      if(!cb.checked){
+        const next = (typeof getNextOTNumber==='function') ? getNextOTNumber() : inp.value;
+        inp.value = next;
+        inp.setAttribute('readonly','readonly');
+      }
+    }
+  }catch(e){}
+}
 
 function openModal(html) {
   const modal = document.getElementById('modal');
@@ -3984,7 +4790,416 @@ window.loadData = async function(){
   maybeNotifyCobros();
 };
 
+
+// =========================
+// Sucursales en Cotizaciones (NO se guardan en la cotización)
+// =========================
+window.populateQuoteSucursales = function () {
+  const clientSel = document.getElementById('qClient');
+  const sucEl = document.getElementById('qSucursal');
+  const listEl = document.getElementById('qSucursalList');
+  if (!sucEl) return;
+
+  const isSelect = ((sucEl.tagName || '').toUpperCase() === 'SELECT');
+
+  // Limpieza
+  if (isSelect) {
+    sucEl.innerHTML = '';
+  } else {
+    if (listEl) listEl.innerHTML = '';
+  }
+
+  if (!clientSel || !clientSel.value) {
+    if (isSelect) {
+      sucEl.innerHTML = '<option value="">(Selecciona cliente primero)</option>';
+    } else {
+      sucEl.value = '';
+      sucEl.placeholder = '(Selecciona cliente primero)';
+    }
+    try { window.updateSucursalPreview && window.updateSucursalPreview(); } catch(e){}
+    return;
+  }
+
+  let c = (((typeof clients!=='undefined' && clients) ? clients : (window.clients||[]))).find(x => String(x.id) === String(clientSel.value));
+
+  // Fallback: algunas versiones guardan el value como RUT u otra clave
+  if (!c) {
+    const optText = clientSel.options && clientSel.selectedIndex >= 0 ? (clientSel.options[clientSel.selectedIndex].text || '') : '';
+    const rutMatch = optText.match(/\(([^)]+)\)/);
+    const rut = rutMatch ? rutMatch[1].trim() : '';
+    if (rut) c = (((typeof clients!=='undefined' && clients) ? clients : (window.clients||[]))).find(x => String(x.rut||'').trim() === rut);
+  }
+
+  if (!c) {
+    if (isSelect) {
+      sucEl.innerHTML = '<option value="">(Cliente no encontrado)</option>';
+    } else {
+      sucEl.value = '';
+      sucEl.placeholder = '(Cliente no encontrado)';
+    }
+    try { window.updateSucursalPreview && window.updateSucursalPreview(); } catch(e){}
+    return;
+  }
+
+  const addOption = (value, label) => {
+    const v = (value || '').toString().trim();
+    if (!v) return;
+
+    if (isSelect) {
+      const lab = (label || v).toString();
+      sucEl.innerHTML += `<option value="${escapeHtml(v)}">${escapeHtml(lab)}</option>`;
+    } else {
+      if (!listEl) return;
+      // En datalist el label no se muestra igual en todos los navegadores, usamos value
+      listEl.innerHTML += `<option value="${escapeHtml(v)}"></option>`;
+    }
+  };
+
+  // Dirección principal (si existe)
+  const mainDir = (c.direccion || c.dirección || c.address || '').toString().trim();
+  if (mainDir) addOption(mainDir, `Principal: ${mainDir}`);
+
+  // Sucursales: soporta formatos:
+  // - texto (una por línea)
+  // - texto con "Sucursal | Encargado | Dirección"
+  // - data.sucursales como array de objetos [{sucursal, encargado, direccion}]
+  let added = 0;
+
+  const addLine = (line) => {
+    if (!line) return;
+    const parts = line.split('|').map(s => s.trim()).filter(Boolean);
+    const suc = parts[0] || line;
+    const enc = parts[1] || '';
+    const dir = parts[2] || '';
+    const label = enc ? `${suc} — ${enc}` : suc;
+    const value = (dir || suc).trim();
+    addOption(value, label);
+    added++;
+  };
+
+  const dataSucs = c.data && c.data.sucursales;
+  if (Array.isArray(dataSucs)) {
+    dataSucs.forEach(obj => {
+      const suc = (obj.sucursal || obj.nombre || '').toString().trim();
+      const enc = (obj.encargado || obj.contacto || '').toString().trim();
+      const dir = (obj.direccion || obj.dirección || '').toString().trim();
+      const label = enc ? `${suc} — ${enc}` : suc;
+      const value = (dir || suc).trim();
+      if (suc || dir) {
+        addOption(value, label);
+        added++;
+      }
+    });
+  } else {
+    const raw = (c.sucursales || '').toString();
+    raw.split('\n').map(s => s.trim()).filter(Boolean).forEach(addLine);
+  }
+
+  if (!mainDir && added === 0) {
+    if (isSelect) {
+      sucEl.innerHTML = '<option value="">(Cliente sin dirección/sucursales)</option>';
+    } else {
+      sucEl.placeholder = 'Escribe la sucursal / dirección (cliente sin registros)';
+    }
+  }
+
+  // En input: si no hay valor todavía, mantenemos vacío para que el usuario escriba
+  try { window.updateSucursalPreview && window.updateSucursalPreview(); } catch(e){}
+};
+
+window.updateSucursalPreview = function () {
+  const sucEl = document.getElementById('qSucursal');
+  const box = document.getElementById('qSucursalPreview');
+  const txt = document.getElementById('qSucursalPreviewText');
+  const clientSel = document.getElementById('qClient');
+  if (!box || !txt) return;
+
+  const val = (sucEl && sucEl.value) ? String(sucEl.value).trim() : '';
+  if (!val) {
+    box.classList.add('hidden');
+    txt.innerHTML = '';
+    return;
+  }
+
+  // Nombre del cliente (texto del select, sin el (RUT))
+  let clientLabel = '';
+  try {
+    if (clientSel && clientSel.options && clientSel.selectedIndex >= 0) {
+      clientLabel = (clientSel.options[clientSel.selectedIndex].text || '').trim();
+      clientLabel = clientLabel.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    }
+  } catch(e){}
+
+  const combo = clientLabel ? `${clientLabel} - ${val}` : val;
+
+  box.classList.remove('hidden');
+  txt.innerHTML = `
+    <div class="font-extrabold">${escapeHtml(combo)}</div>
+    ${clientLabel ? `<div class="text-xs mt-1 text-emerald-800"><b>Cliente:</b> ${escapeHtml(clientLabel)} · <b>Sucursal:</b> ${escapeHtml(val)}</div>` : ``}
+  `;
+};
+
+// Hook: cada vez que se carguen sucursales, activar preview
+const _oldPopulate = window.populateQuoteSucursales;
+window.populateQuoteSucursales = function () {
+  _oldPopulate();
+  const sucSel = document.getElementById('qSucursal');
+  if (sucSel) {
+    sucSel.onchange = window.updateSucursalPreview;
+    sucSel.oninput = window.updateSucursalPreview;
+  }
+  try { window.updateSucursalPreview(); } catch(e){}
+};
+
+
+
+// =========================
+// Cotizaciones: paginación (10 y "Ver más")
+// =========================
+(function(){
+  let quotesLimit = 10;
+
+  const ensureMoreBtn = () => {
+    const wrap = document.getElementById('view-quotes') || document.getElementById('quotesView') || document.body;
+    if (!wrap) return null;
+    let btn = document.getElementById('btnMoreQuotes');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'btnMoreQuotes';
+      btn.className = 'mt-4 px-5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-sm font-bold';
+      btn.innerText = 'Ver más cotizaciones';
+      btn.onclick = () => { quotesLimit += 10; window.renderQuotes && window.renderQuotes(); };
+      // intenta insertarlo al final de la vista
+      wrap.appendChild(btn);
+    }
+    return btn;
+  };
+
+  const _oldRenderQuotes = window.renderQuotes;
+  window.renderQuotes = function(){
+    try{
+      // si existe un renderQuotes original que usa window.quotes, lo llamamos pero limitamos antes
+      if (Array.isArray(window.quotes)) {
+        const original = window.quotes.slice();
+        window.quotes = original.slice(0, quotesLimit);
+        _oldRenderQuotes && _oldRenderQuotes();
+        window.quotes = original; // restaurar
+        const btn = ensureMoreBtn();
+        if (btn) {
+          btn.style.display = (original.length > quotesLimit) ? 'inline-flex' : 'none';
+        }
+        return;
+      }
+      _oldRenderQuotes && _oldRenderQuotes();
+    } catch(e){
+      console.error(e);
+    }
+  };
+})();
+
+
+
+
+// --- Layout fix: move "Panel de Inteligencia" inside Dashboard to avoid mixing with other views ---
+document.addEventListener('DOMContentLoaded', () => {
+  const dash = document.getElementById('view-dashboard');
+  if (!dash) return;
+
+  // Find the header by text (it's currently outside the dashboard container in some versions)
+  const headers = Array.from(document.querySelectorAll('h2'));
+  const h2 = headers.find(h => (h.textContent || '').trim() === 'Panel de Inteligencia');
+  if (!h2) return;
+
+  const grid = h2.nextElementSibling;
+  dash.appendChild(h2);
+  if (grid) dash.appendChild(grid);
+});
 </script>
   <div id="toastHost"></div>
+
+<script>
+/* === Pagination (10 por página) para Cotizaciones y OTs === */
+(function(){
+  const PAGE_SIZE = 10;
+  let quotesPage = 1;
+  let otsPage = 1;
+
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function paginate(tbodyId, page){
+    const tbody = document.getElementById(tbodyId);
+    if(!tbody) return {page:1, total:1, totalItems:0, from:0, to:0};
+    const rows = Array.from(tbody.children).filter(el => el && el.tagName === 'TR');
+    const totalItems = rows.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const p = clamp(page, 1, totalPages);
+    const start = (p - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    rows.forEach((tr, i) => {
+      tr.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+    const from = totalItems === 0 ? 0 : (start + 1);
+    const to = totalItems === 0 ? 0 : Math.min(end, totalItems);
+    return {page:p, total:totalPages, totalItems, from, to};
+  }
+
+  function makeBtn(label, active, disabled, onClick){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.className = [
+      'px-3','py-2','rounded-xl','text-sm','font-extrabold','border',
+      active ? 'bg-brand text-white border-brand' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50',
+      disabled ? 'opacity-50 pointer-events-none' : ''
+    ].join(' ');
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function renderPager(containerId, info, setPageFn){
+    const box = document.getElementById(containerId);
+    if(!box) return;
+
+    // Layout container
+    box.className = 'mt-4 flex flex-col items-center gap-2';
+
+    box.innerHTML = '';
+    const total = info.total || 1;
+    const page = info.page || 1;
+
+    // Row: buttons
+    const row = document.createElement('div');
+    row.className = 'flex justify-center flex-wrap gap-2';
+    box.appendChild(row);
+
+    if(total <= 1){
+      // Still show count + goto when there are items
+      const meta = document.createElement('div');
+      meta.className = 'w-full flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600';
+      meta.innerHTML = `<span>Mostrando <b>${info.from}</b>–<b>${info.to}</b> de <b>${info.totalItems}</b></span>`;
+      box.appendChild(meta);
+      return;
+    }
+
+    // Prev
+    row.appendChild(makeBtn('‹', false, page<=1, () => setPageFn(page-1)));
+
+    // Window of pages
+    const maxBtns = 7;
+    let start = Math.max(1, page - Math.floor(maxBtns/2));
+    let end = Math.min(total, start + maxBtns - 1);
+    start = Math.max(1, end - maxBtns + 1);
+
+    if(start > 1){
+      row.appendChild(makeBtn('1', page===1, false, () => setPageFn(1)));
+      if(start > 2){
+        const dots = document.createElement('span');
+        dots.textContent = '…';
+        dots.className = 'px-2 py-2 text-slate-500 font-bold';
+        row.appendChild(dots);
+      }
+    }
+
+    for(let i=start; i<=end; i++){
+      row.appendChild(makeBtn(String(i), page===i, false, () => setPageFn(i)));
+    }
+
+    if(end < total){
+      if(end < total-1){
+        const dots = document.createElement('span');
+        dots.textContent = '…';
+        dots.className = 'px-2 py-2 text-slate-500 font-bold';
+        row.appendChild(dots);
+      }
+      row.appendChild(makeBtn(String(total), page===total, false, () => setPageFn(total)));
+    }
+
+    // Next
+    row.appendChild(makeBtn('›', false, page>=total, () => setPageFn(page+1)));
+
+    // Row: meta + goto
+    const meta = document.createElement('div');
+    meta.className = 'w-full flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600';
+    meta.innerHTML = `
+      <span>Mostrando <b>${info.from}</b>–<b>${info.to}</b> de <b>${info.totalItems}</b></span>
+      <span class="text-slate-300">|</span>
+      <label class="flex items-center gap-2">
+        <span>Ir a página</span>
+        <input id="${containerId}__goto" type="number" min="1" max="${total}"
+               class="w-20 px-2 py-1 border border-slate-200 rounded-lg text-center bg-white" placeholder="${page}" />
+      </label>
+      <button type="button"
+              class="px-3 py-2 rounded-xl text-sm font-extrabold border bg-brand text-white border-brand hover:opacity-90"
+              id="${containerId}__gobtn">Ir</button>
+    `;
+    box.appendChild(meta);
+
+    const input = document.getElementById(`${containerId}__goto`);
+    const btn = document.getElementById(`${containerId}__gobtn`);
+    const go = () => {
+      const raw = Number((input && input.value) || '');
+      if(!raw) return;
+      const target = clamp(raw, 1, total);
+      setPageFn(target);
+    };
+    if(btn) btn.onclick = go;
+    if(input){
+      input.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter'){
+          e.preventDefault();
+          go();
+        }
+      });
+    }
+  }
+
+  // ---- Paginación por secciones (Cotizaciones Aceptadas / Rechazadas) ----
+  let acceptedQuotesPage = 1;
+  let rejectedQuotesPage = 1;
+
+  function applyAcceptedQuotes(){
+    const info = paginate('acceptedQuotesTable', acceptedQuotesPage);
+    acceptedQuotesPage = info.page;
+    renderPager('acceptedQuotesPager', info, (p)=>{ acceptedQuotesPage=p; applyAcceptedQuotes(); });
+  }
+  function applyRejectedQuotes(){
+    const info = paginate('rejectedQuotesTable', rejectedQuotesPage);
+    rejectedQuotesPage = info.page;
+    renderPager('rejectedQuotesPager', info, (p)=>{ rejectedQuotesPage=p; applyRejectedQuotes(); });
+  }
+
+  // Exponer por si lo usamos desde navegación
+  window.applyAcceptedQuotes = applyAcceptedQuotes;
+  window.applyRejectedQuotes = applyRejectedQuotes;
+
+
+function applyOTs(){
+    const info = paginate('otsTable', otsPage);
+    otsPage = info.page;
+    renderPager('otsPager', info, (p)=>{ otsPage=p; applyOTs(); window.scrollTo({top:0,behavior:'smooth'}); });
+  }
+
+    window.applyOTs = applyOTs;
+
+// Hook renders
+  const _renderQuotes = window.renderQuotes;
+  window.renderQuotes = function(){
+    if(typeof _renderQuotes === 'function') _renderQuotes();
+    setTimeout(()=>{ try{ applyAcceptedQuotes(); applyRejectedQuotes(); }catch(e){} }, 0);
+  };
+
+  const _renderOTs = window.renderOTs;
+  window.renderOTs = function(){
+    if(typeof _renderOTs === 'function') _renderOTs();
+    setTimeout(applyOTs, 0);
+  };
+
+  // Ensure first apply after initial load
+  window.addEventListener('load', () => {
+    setTimeout(() => { try{ applyAcceptedQuotes(); applyRejectedQuotes(); }catch(e){} try{ applyOTs(); }catch(e){} }, 400);
+  });
+})();
+</script>
+
 </body>
 </html>
