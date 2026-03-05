@@ -628,7 +628,7 @@ document.getElementById('modal').classList.remove('hidden');
     }
 
     function getNextQuoteNumber() {
-    const BASE = 2833; // ✅ Inicio solicitado para cotizaciones
+    const BASE = 4812; // ✅ Inicio solicitado para cotizaciones
     const baseGroup = Math.floor(BASE / 1000);
     let maxNum = 0;
 
@@ -1268,7 +1268,7 @@ function renderClients() {
 
         <div>
           <label class="text-sm font-semibold">RUT</label>
-          <input id="cd_rut" class="w-full px-4 py-3 border rounded-2xl mt-1 bg-gray-50" value="${escapeHtml(client.rut || '')}" disabled>
+          <input id="cd_rut" class="w-full px-4 py-3 border rounded-2xl mt-1" value="${escapeHtml(client.rut || '')}" >
         </div>
 
         <div>
@@ -1321,6 +1321,8 @@ function renderClients() {
 
 async function saveClientDatos(clientId) {
   const name = document.getElementById('cd_name')?.value?.trim() || '';
+  const rutRaw = document.getElementById('cd_rut')?.value?.trim() || '';
+  const rut = normalizeRut(rutRaw);
   const tipo = document.getElementById('cd_tipo')?.value || '';
   const telefono = document.getElementById('cd_telefono')?.value?.trim() || '';
   const email = document.getElementById('cd_email')?.value?.trim() || '';
@@ -1329,8 +1331,13 @@ async function saveClientDatos(clientId) {
   const sucursales = document.getElementById('cd_sucursales')?.value || '';
 
   try {
+    if(!rut) { alert('El RUT no puede quedar vacío.'); return; }
+    const existsRut = (clients || []).find(c => normalizeRut(c.rut) === rut && String(c.id) !== String(clientId));
+    if(existsRut) { alert('Ya existe un cliente con ese RUT: ' + (existsRut.name || '')); return; }
+
     const payload = {
       name,
+      rut,
       tipo,
       telefono,
       email,
@@ -1339,6 +1346,7 @@ async function saveClientDatos(clientId) {
       sucursales,
       data: {
         ...(clients.find(c => String(c.id) === String(clientId))?.data || {}),
+        rut,
         telefono,
         email,
         direccion,
@@ -1485,7 +1493,7 @@ async function viewClient(clientId) {
 
     async function updateClient(id){
       try{
-        const rut = document.getElementById('editRut').value.trim();
+        const rut = normalizeRut(document.getElementById('editRut').value.trim());
         const name = document.getElementById('editNombre').value.trim();
         const tipo = document.getElementById('editTipo').value;
         const telefono = document.getElementById('editTelefono').value.trim();
@@ -1493,6 +1501,10 @@ async function viewClient(clientId) {
         const email = document.getElementById('editEmail').value.trim();
 
         if(!name) return alert("El nombre no puede quedar vacío.");
+
+        if(!rut) return alert("El RUT no puede quedar vacío.");
+        const existsRut = (clients || []).find(c => normalizeRut(c.rut) === rut && String(c.id) !== String(id));
+        if(existsRut) return alert("Ya existe un cliente con ese RUT: " + (existsRut.name || ""));
 
         // Detecta automáticamente si la columna es 'direccion' o 'doreccion' SIN romper por schema cache
         let addressCol = 'direccion';
