@@ -3353,28 +3353,6 @@ async function savePagoFinal(otId, btn) {
             </div>
           </div>
 
-          <div id="vtClientDataPreview" class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-            <div>
-              <label class="block text-sm">Nombre / Razón Social *</label>
-              <input id="vtNombrePreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
-            </div>
-            <div>
-              <label class="block text-sm">RUT *</label>
-              <input id="vtRutPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
-            </div>
-            <div>
-              <label class="block text-sm">Teléfono</label>
-              <input id="vtTelefonoPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
-            </div>
-            <div>
-              <label class="block text-sm">Correo</label>
-              <input id="vtEmailPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-sm">Dirección *</label>
-              <input id="vtDireccionPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
-            </div>
-          </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label class="block text-sm">Cantidad de equipos *</label><input id="vtEquipos" type="number" min="1" value="1" class="w-full px-4 py-3 border rounded-2xl"></div>
@@ -3506,13 +3484,11 @@ async function savePagoFinal(otId, btn) {
       vtClientMode = (mode === 'new') ? 'new' : 'existing';
       const existingWrap = document.getElementById('vtExistingClientWrap');
       const newFieldsWrap = document.getElementById('vtNewClientFields');
-      const previewWrap = document.getElementById('vtClientDataPreview');
       const btnExisting = document.getElementById('btnVTUseExisting');
       const btnNew = document.getElementById('btnVTCreateNew');
 
       if (existingWrap) existingWrap.classList.toggle('hidden', vtClientMode !== 'existing');
       if (newFieldsWrap) newFieldsWrap.classList.toggle('hidden', vtClientMode !== 'new');
-      if (previewWrap) previewWrap.classList.toggle('hidden', vtClientMode !== 'existing');
 
       if (btnExisting) {
         btnExisting.className = vtClientMode === 'existing'
@@ -3533,7 +3509,6 @@ async function savePagoFinal(otId, btn) {
       } else {
         const sel = document.getElementById('vtClientSelect');
         if (sel && !sel.value && sel.options.length > 1) sel.selectedIndex = 1;
-        fillVTClientFromExisting();
       }
     }
 
@@ -3557,25 +3532,11 @@ async function savePagoFinal(otId, btn) {
     }
 
     function fillVTClientFromExisting(){
-      if (vtClientMode !== 'existing') return;
-      const sel = document.getElementById('vtClientSelect');
-      if (!sel || !sel.value) return;
-      const c = (clients || []).find(x => String(x.id) === String(sel.value));
-      if (!c) return;
-
-      const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val || '';
-      };
-
-      setVal('vtNombrePreview', c.name || c.nombre || '');
-      setVal('vtRutPreview', c.rut || '');
-      setVal('vtDireccionPreview', c.direccion || c.address || '');
-      setVal('vtTelefonoPreview', c.telefono || c.phone || '');
-      setVal('vtEmailPreview', c.email || '');
+      return;
     }
 
     async function renderVisitas() {
+
       const tbodyPend = document.getElementById('visitasPendientesTable');
       const tbodyReal = document.getElementById('visitasRealizadasTable');
       const legacy = document.getElementById('visitasTable');
