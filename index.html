@@ -13,7 +13,95 @@ function formatDDMMYY(value){
   return `${dd}-${mm}-${yy}`;
 }
 
-  </script>
+// ===== OT: estado de trabajo + facturación (UI amigable) =====
+function normalizeOTTrabajoEstado(v){
+  const s = String(v||'').toLowerCase().replace(/-/g,'_').trim();
+  if(s === 'en_curso' || s === 'encurso') return 'en_curso';
+  if(s === 'finalizado') return 'finalizada';
+  if(s === 'finalizada') return 'finalizada';
+  if(s === 'pagado') return 'finalizada'; // compatibilidad con registros antiguos
+  if(s === 'pendiente') return 'pendiente';
+  return 'pendiente';
+}
+
+function getFacturaNumeroOT(o){
+  // Soporta distintas versiones/columnas
+  return String(
+    (o && (o.factura_num || o.facturaNumero || o.factura_numero)) ||
+    (o && o.data && (o.data.facturaNumero || o.data.factura_num || o.data.factura_numero || o.data.nroFactura || o.data.factura)) ||
+    ''
+  ).trim();
+}
+function getFacturaRegistroFechaOT(o){
+  return (o && (o.factura_registro_fecha || (o.data && (o.data.facturaRegistroFecha || o.data.factura_registro_fecha)))) || null;
+}
+function getFacturaEnvioFechaOT(o){
+  return (o && (o.factura_enviada_fecha || (o.data && (o.data.facturaEnviadaFecha || o.data.factura_enviada_fecha)))) || null;
+}
+function isOTPagada(o){
+  const s = String(
+    (o && (o.pago_estado || o.cobro_estado)) ||
+    (o && o.data && (o.data.pago_estado || o.data.cobro_estado)) ||
+    ''
+  ).toLowerCase().replace(/-/g,'_').trim();
+  if(['pagado','pagada','paid'].includes(s)) return true;
+  if(o && o.data && (o.data.pagoConfirmado === true)) return true;
+  if(o && o.data && (o.data.fechaPagoISO || o.data.fechaPago)) return true;
+  return false;
+}
+// compatibilidad (por si algo viejo lo usa)
+function normalizeOTCobroEstado(o){
+  const fac = getFacturaNumeroOT(o);
+  if(!fac) return 'sin_factura';
+  if(isOTPagada(o)) return 'pagado';
+  return 'sin_pago';
+}
+
+function badgeOTTrabajoEstado(v){
+  const s = normalizeOTTrabajoEstado(v);
+  if(s === 'pendiente') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>';
+  if(s === 'en_curso') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">En curso</span>';
+  if(s === 'finalizada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Finalizada</span>';
+  return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">'+ (v || '—') +'</span>';
+}
+
+function badgeOTCobro(o){
+  const fac = getFacturaNumeroOT(o);
+  const pagada = isOTPagada(o);
+  const esc = (v) => (typeof escapeHtml === 'function' ? escapeHtml(v) : String(v));
+  const id = (o && o.id) ? String(o.id) : '';
+  if(!fac){
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200" title="Click para registrar factura">
+      <i class="fa-solid fa-file-invoice text-slate-500"></i> SIN FACTURA
+    </button>`;
+  }
+  if(!pagada){
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100" title="Click para registrar pago">
+      <i class="fa-solid fa-receipt text-indigo-600"></i> FACTURA N° ${esc(fac)} <span class="text-indigo-500 font-semibold">SIN PAGO</span>
+    </button>`;
+  }
+  return `<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Factura pagada">
+    <i class="fa-solid fa-circle-check text-emerald-600"></i> FACTURA N° ${esc(fac)} PAGADA
+  </span>`;
+}
+
+function handleOTFacturaPagoClick(otId){
+  const ot = (ots || []).find(o => String(o.id) === String(otId));
+  if(!ot) return alert('OT no encontrada');
+  const fac = getFacturaNumeroOT(ot);
+  if(!fac) return promptRegistrarFactura(otId);
+  if(!isOTPagada(ot)) return promptRegistrarPago(otId);
+}
+
+
+function toggleEditOTFacturaField(){
+  const st = String(document.getElementById('eOtCobro')?.value || '').toLowerCase();
+  const wrap = document.getElementById('eOtFacturaWrap');
+  if(!wrap) return;
+  const show = (st === 'facturado' || st === 'pagado');
+  wrap.style.display = show ? 'block' : 'none';
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -223,7 +311,7 @@ function formatDDMMYY(value){
       <div id="view-dashboard">
   <h1 class="text-4xl font-bold mb-8">Bienvenido, <span id="welcomeName" class="text-blue-600"></span></h1>
   
-  <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
+  <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-6 mb-12">
     <div class="bg-white p-6 rounded-3xl shadow">
       <p class="text-gray-500 font-medium mb-2">Clientes</p>
       <p id="dashClients" class="text-4xl font-bold text-blue-600">0</p>
@@ -262,6 +350,20 @@ function formatDDMMYY(value){
       <p class="text-gray-500 font-medium mb-2">Requerimientos</p>
       <p id="dashReqs" class="text-4xl font-bold text-violet-600">0</p>
       <p class="text-xs text-gray-400 mt-2">Pendientes · click detalle</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('mantenciones')">
+      <p class="text-gray-500 font-medium mb-2">Mantenciones</p>
+      <p id="dashMantenciones" class="text-4xl font-bold text-cyan-700">0</p>
+      <p class="text-xs text-gray-400 mt-2">Solo pendientes · click detalle</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+         onclick="showDashDetails('suministro_instalacion')">
+      <p class="text-gray-500 font-medium mb-2">Suministros e Instalaciones</p>
+      <p id="dashSuministrosInst" class="text-4xl font-bold text-fuchsia-700">0</p>
+      <p class="text-xs text-gray-400 mt-2">Solo pendientes de AC · click detalle</p>
     </div>
   </div>
 
@@ -310,6 +412,38 @@ function formatDDMMYY(value){
           <h1 class="text-3xl font-bold">Cotizaciones</h1>
           <button onclick="showNewQuoteModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nueva Cotización</span></button>
         </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="md:col-span-1">
+            <label class="text-sm font-semibold text-gray-600">Buscar por N° cotización</label>
+            <div class="mt-1 flex items-center gap-2 bg-white border rounded-2xl px-3 py-2 shadow-sm">
+              <i class="fas fa-hashtag text-gray-400"></i>
+              <input id="quoteSearchNumber" type="text" placeholder="Ej: 4812" class="w-full outline-none bg-transparent" oninput="setQuoteSearch()" autocomplete="off" />
+              <button type="button" class="text-gray-500 hover:text-gray-800 px-2" title="Limpiar" onclick="clearQuoteSearch()"><i class="fas fa-times-circle"></i></button>
+            </div>
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-sm font-semibold text-gray-600">Buscar por empresa</label>
+            <div class="mt-1 flex items-center gap-2 bg-white border rounded-2xl px-3 py-2 shadow-sm">
+              <i class="fas fa-building text-gray-400"></i>
+              <input id="quoteSearchClient" type="text" placeholder="Ej: Cruz Verde" class="w-full outline-none bg-transparent" oninput="setQuoteSearch()" autocomplete="off" />
+              <button type="button" class="text-gray-500 hover:text-gray-800 px-2" title="Limpiar" onclick="clearQuoteSearch()"><i class="fas fa-times-circle"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div id="quotesEmptyBanner" class="hidden mb-6 p-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-800" style="display:none !important;">
+          <div class="font-black mb-1">No aparecen cotizaciones</div>
+          <div class="text-sm">
+            Si sabes que existen cotizaciones en Supabase pero aquí sale vacío, normalmente es por permisos (RLS) en la tabla
+            <span class="font-mono">quotes</span>.
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button onclick="showQuotesDiag()" class="px-3 py-2 rounded-xl bg-rose-600 text-white font-bold text-sm">Ver diagnóstico</button>
+            <button onclick="hideQuotesEmptyBanner()" class="px-3 py-2 rounded-xl bg-white border border-rose-200 font-bold text-sm">Cerrar</button>
+          </div>
+        </div>
+
         <div class="mb-10">
   <h2 class="text-2xl font-bold mb-4 text-amber-700">Cotizaciones Pendientes</h2>
   <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
@@ -379,13 +513,46 @@ function formatDDMMYY(value){
           <button id="btnNewOTManual" onclick="showNewOTManualModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2">
             <i class="fas fa-plus"></i> <span class="sidebar-label">Nueva OT Manual</span></button>
         </div>
-        <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
-          <thead class="bg-gray-100">
-            <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° Cotización</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-left">OC</th><th class="p-4 text-left">HES</th><th class="p-4 text-left">Creado por</th><th class="p-4 text-left">Estado</th><th class="p-4 text-left">Pago</th><th class="p-4 text-center">PDF</th><th class="p-4 text-center">Acciones</th></tr>
-          </thead>
-          <tbody id="otsTable"></tbody>
-        </table>
-      <div id="otsPager" class="mt-4 flex justify-center flex-wrap gap-2"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Buscar por N° OT</label>
+            <div class="mt-1 flex items-center gap-2 bg-white border rounded-2xl px-3 py-2 shadow-sm">
+              <i class="fas fa-hashtag text-gray-400"></i>
+              <input id="otSearchNumber" type="text" placeholder="Ej: 2833" class="w-full outline-none bg-transparent" oninput="setOTSearch()" autocomplete="off" />
+              <button type="button" class="text-gray-500 hover:text-gray-800 px-2" title="Limpiar" onclick="clearOTSearch()"><i class="fas fa-times-circle"></i></button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Buscar por empresa</label>
+            <div class="mt-1 flex items-center gap-2 bg-white border rounded-2xl px-3 py-2 shadow-sm">
+              <i class="fas fa-building text-gray-400"></i>
+              <input id="otSearchClient" type="text" placeholder="Ej: Cruz Verde" class="w-full outline-none bg-transparent" oninput="setOTSearch()" autocomplete="off" />
+              <button type="button" class="text-gray-500 hover:text-gray-800 px-2" title="Limpiar" onclick="clearOTSearch()"><i class="fas fa-times-circle"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-10">
+          <h2 class="text-2xl font-bold text-amber-700 mb-4">OT en curso / pendientes de pago</h2>
+          <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+            <thead class="bg-amber-50">
+              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° Cotización</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-left">OC</th><th class="p-4 text-left">HES</th><th class="p-4 text-left">Creado por</th><th class="p-4 text-left">Estado</th><th class="p-4 text-left">Facturación</th><th class="p-4 text-center">PDF</th><th class="p-4 text-center">Acciones</th></tr>
+            </thead>
+            <tbody id="otsActiveTable"></tbody>
+          </table>
+        </div>
+
+        <div class="mb-4">
+          <h2 class="text-2xl font-bold text-emerald-700 mb-4">OT finalizadas y pagadas</h2>
+          <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+            <thead class="bg-emerald-50">
+              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° Cotización</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-left">OC</th><th class="p-4 text-left">HES</th><th class="p-4 text-left">Creado por</th><th class="p-4 text-left">Estado</th><th class="p-4 text-left">Facturación</th><th class="p-4 text-center">PDF</th><th class="p-4 text-center">Acciones</th></tr>
+            </thead>
+            <tbody id="otsClosedTable"></tbody>
+          </table>
+        </div>
+      <div id="otsPager" class="hidden mt-4 flex justify-center flex-wrap gap-2"></div>
     </div>
 
 <div id="view-abonos" class="hidden">
@@ -403,12 +570,26 @@ function formatDDMMYY(value){
           <h1 class="text-3xl font-bold">Visitas Técnicas</h1>
           <button onclick="showNewVisitaModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nueva Visita</span></button>
         </div>
-        <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
-          <thead class="bg-gray-100">
-            <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">RUT</th><th class="p-4 text-left">Equipos</th><th class="p-4 text-left">Falla (resumen)</th><th class="p-4 text-left">Estado</th><th class="p-4 text-center">Acciones</th></tr>
-          </thead>
-          <tbody id="visitasTable"></tbody>
-        </table>
+
+        <div class="mb-10">
+          <h2 class="text-2xl font-bold text-amber-700 mb-4">Visitas Técnicas Pendientes</h2>
+          <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+            <thead class="bg-amber-50">
+              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">RUT</th><th class="p-4 text-left">Equipos</th><th class="p-4 text-left">Falla (resumen)</th><th class="p-4 text-left">Estado</th><th class="p-4 text-center">Acciones</th></tr>
+            </thead>
+            <tbody id="visitasPendientesTable"></tbody>
+          </table>
+        </div>
+
+        <div>
+          <h2 class="text-2xl font-bold text-emerald-700 mb-4">Visitas Técnicas Realizadas</h2>
+          <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+            <thead class="bg-emerald-50">
+              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">RUT</th><th class="p-4 text-left">Equipos</th><th class="p-4 text-left">Falla (resumen)</th><th class="p-4 text-left">Estado</th><th class="p-4 text-center">Acciones</th></tr>
+            </thead>
+            <tbody id="visitasRealizadasTable"></tbody>
+          </table>
+        </div>
       </div>
     
 
@@ -456,6 +637,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     let clientsById = new Map();
     
     let pendingOTToLink = null; 
+    // Cuando creas una OT desde una cotización aceptada (documentos antiguos)
+    let pendingQuoteToLinkOT = null; 
     let isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
 
     window.LOGO_FILE = "logo ecoluz.png";
@@ -746,6 +929,7 @@ async function loadData() {
     clients.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
 
     window.clients = clients;
+    try { populateVTClients(); } catch(e) {}
 clientsById = new Map(clients.map(c => [String(c.id), c]));
 
     // ================= COTIZACIONES =================
@@ -855,7 +1039,11 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         abonos: Array.isArray(data.abonos) ? data.abonos : [],
         fechaPago: data.fechaPago || null,
         metodoPago: data.metodoPago || null,
-        facturaNumero: data.facturaNumero || data.factura || data.nroFactura || null,
+        facturaNumero: (r.factura_num || r.factura_numero || data.facturaNumero || data.factura || data.nroFactura || null),
+        factura_num: r.factura_num || r.factura_numero || null,
+        factura_enviada_fecha: r.factura_enviada_fecha || null,
+        factura_registro_fecha: r.factura_registro_fecha || null,
+        cobro_estado: (r.cobro_estado || '').toLowerCase(),
         createdByName: r.created_by_name || data.createdBy || formatShortName(r.created_by_email || '') || '—',
         createdByEmail: r.created_by_email || '',
         created_by: r.created_by || null,
@@ -893,10 +1081,18 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     reqs = requerimientos; // alias para compatibilidad con UI antigua
 
 
-    // Ordenar OTs por N° OT (descendente) — nuevas arriba
+    // Ordenar OTs por N° OT (prioriza serie 2xxx/3xxx primero) — nuevas arriba
     ots.sort((a,b) => {
-      const na = parseInt(String(a.numeroOT || a.numero_ot || '').replace(/\D/g,''), 10) || 0;
-      const nb = parseInt(String(b.numeroOT || b.numero_ot || '').replace(/\D/g,''), 10) || 0;
+      const getNum = (x) => parseInt(String((x?.numeroOT ?? x?.numero_ot ?? '')).replace(/\D/g,''), 10) || 0;
+      const na = getNum(a);
+      const nb = getNum(b);
+
+      // Si existen OT antiguas con otra serie (ej. 4xxx), se dejan al final para no “romper” la secuencia 2xxx.
+      const rank = (n) => (n >= 2000 && n < 4000) ? 0 : 1; // 0 = serie principal (2xxx/3xxx), 1 = otras
+      const ra = rank(na);
+      const rb = rank(nb);
+      if (ra !== rb) return ra - rb;
+
       if (nb !== na) return nb - na;
 
       const da = new Date(a.created_at || 0).getTime() || 0;
@@ -932,6 +1128,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     window.ots = ots;
     window.visitas = visitas;
     window.reqs = reqs;
+    try { renderVisitas(); } catch(e) {}
     window.clients = clients;
 
     // Render
@@ -943,6 +1140,34 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
   }
 }
 
+
+
+// ================= BUSCADORES COTIZACIONES =================
+window.quoteSearchNumber = window.quoteSearchNumber || '';
+window.quoteSearchClient = window.quoteSearchClient || '';
+
+function setQuoteSearch(){
+  window.quoteSearchNumber = (document.getElementById('quoteSearchNumber')?.value || '').toString();
+  window.quoteSearchClient = (document.getElementById('quoteSearchClient')?.value || '').toString();
+  try { renderQuotes(); } catch(e) { /* renderQuotes might not be ready yet */ }
+}
+function clearQuoteSearch(){
+  const n = document.getElementById('quoteSearchNumber'); if(n) n.value = '';
+  const c = document.getElementById('quoteSearchClient'); if(c) c.value = '';
+  window.quoteSearchNumber = '';
+  window.quoteSearchClient = '';
+  renderQuotes();
+}
+
+function showQuotesEmptyBanner(show){
+  const b = document.getElementById('quotesEmptyBanner');
+  if(!b) return;
+  b.classList.toggle('hidden', !show);
+}
+function hideQuotesEmptyBanner(){ showQuotesEmptyBanner(false); }
+
+// Diagnóstico: útil cuando RLS devuelve 0 filas sin error
+async function showQuotesDiag(){ return; }
 
 // --- 2. DIBUJAR TABLA (renderQuotes) ---
 function renderQuotes() {
@@ -957,6 +1182,31 @@ function renderQuotes() {
 
   const list = Array.isArray(quotes) ? quotes : (window.quotes || []);
   if (!list.length) return;
+
+  // Filtros de búsqueda (folio y empresa)
+  const qNumF = (window.quoteSearchNumber || '').toString().trim().toLowerCase();
+  const qCliF = (window.quoteSearchClient || '').toString().trim().toLowerCase();
+
+  const filtered = list.filter(q => {
+    const folio = String(q.numeroCotizacion || q.numero || q.folio || '').toLowerCase();
+    const client = String(safeText(q.clientName) || safeText(q.nombreCliente) || '').toLowerCase();
+    const rut = String(q.clientRut || q.rut || '').toLowerCase();
+    const branch = String(q.sucursal || q.branch || q.sucursal_nombre || q.sucursalName || q.sucursal_name || '').toLowerCase();
+    const okNum = !qNumF || folio.includes(qNumF);
+    const okCli = !qCliF || (client + ' ' + rut + ' ' + branch).includes(qCliF);
+    return okNum && okCli;
+  });
+
+  if (!filtered.length) {
+    const tb = tbPending || legacy;
+    if (tb) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="p-6 text-center text-gray-500" colspan="9">Sin resultados</td>`;
+      tb.appendChild(tr);
+    }
+    return;
+  }
+
 
   const normState = (s) => (s||'').toString().trim().toLowerCase();
 
@@ -997,7 +1247,7 @@ function renderQuotes() {
     tb.appendChild(tr);
   };
 
-  list.forEach(q => {
+  filtered.forEach(q => {
     const st = normState(q.estado || q.status);
     if (tbPending || tbAccepted || tbRejected) {
       if (st === 'aceptada' || st === 'aprobada' || st === 'aceptado') return placeRow(tbAccepted, q);
@@ -1092,10 +1342,25 @@ function showView(view) {
 // Apply pagination when entering certain views
   if (view === 'quotes') {
     try { acceptedQuotesPage = 1; rejectedQuotesPage = 1; } catch(e){}
+    try {
+      const n = document.getElementById('quoteSearchNumber'); if(n) n.value = '';
+      const c = document.getElementById('quoteSearchClient'); if(c) c.value = '';
+      window.quoteSearchNumber = '';
+      window.quoteSearchClient = '';
+      hideQuotesEmptyBanner();
+      if (typeof renderQuotes === 'function') renderQuotes();
+    } catch(e){}
     setTimeout(() => { try { applyAcceptedQuotes(); applyRejectedQuotes(); } catch(e){} }, 0);
   }
   if (view === 'ots') {
     try { otsPage = 1; } catch(e){}
+    try {
+      const n = document.getElementById('otSearchNumber'); if(n) n.value = '';
+      const c = document.getElementById('otSearchClient'); if(c) c.value = '';
+      otSearchNumber = '';
+      otSearchClient = '';
+      if (typeof renderOTs === 'function') renderOTs();
+    } catch(e){}
     setTimeout(() => { try { applyOTs(); } catch(e){} }, 0);
   }
 }
@@ -1103,6 +1368,8 @@ function showView(view) {
 
     function renderAll() {
   renderClients();
+      try { populateVTClients(); } catch(e) {}
+      try { populateVTClients(); } catch(e) {}
   renderQuotes();
   renderOTs();
   renderAbonos();
@@ -1181,6 +1448,7 @@ function renderClients() {
         </div>`;
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
+  setTimeout(()=>{ try{ toggleEditOTFacturaField(); }catch(e){} }, 0);
     }
 
     async function saveNewClient(btn) {
@@ -1399,8 +1667,8 @@ async function viewClient(clientId) {
       const pending = clientQuotes.filter(q => q.estado === 'pendiente');
       const accepted = clientQuotes.filter(q => q.estado === 'aceptada');
       
-      const pendingInvoices = ots.filter(o => o.clientName === client.name && (o.estado === 'en_curso' || o.estado === 'pendiente_pago'));
-      const paidInvoices = ots.filter(o => o.clientName === client.name && o.estado === 'pagado');
+      const pendingInvoices = ots.filter(o => o.clientName === client.name && normalizeOTCobroEstado(o) !== 'pagado');
+      const paidInvoices = ots.filter(o => o.clientName === client.name && normalizeOTCobroEstado(o) === 'pagado');
 
       const html = `
         <div class="p-8">
@@ -1436,6 +1704,8 @@ async function viewClient(clientId) {
         </div>`;
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
+      try { populateVTClients(); } catch(e) { console.warn(e); }
+      try { setVTClientMode('existing'); } catch(e) { console.warn(e); }
     }
 
     async function editClient(id) {
@@ -1489,6 +1759,8 @@ async function viewClient(clientId) {
 
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
+      try { populateVTClients(); } catch(e) { console.warn('populateVTClients', e); }
+      try { setVTClientMode('existing'); } catch(e) { console.warn('setVTClientMode', e); }
     }
 
     async function updateClient(id){
@@ -2149,18 +2421,55 @@ window.calcularTotal();
         document.getElementById('acceptedQuotesTable').innerHTML =
         document.getElementById('rejectedQuotesTable').innerHTML = '';
 
+      // ====== Filtros de búsqueda (folio / empresa) ======
+      const qNumF = (window.quoteSearchNumber || '').toString().trim().toLowerCase();
+      const qCliF = (window.quoteSearchClient || '').toString().trim().toLowerCase();
+
+      const allQuotes = Array.isArray(quotes) ? quotes : (window.quotes || []);
+
+      const baseList = allQuotes.filter(q => {
+        const folio = String(q.numeroCotizacion || q.numero || q.folio || q.id || '').toLowerCase();
+        const nombre = safeText(q.razonSocial) || safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.nombre) || '';
+        const rut = safeText(q.clientRut || q.rut || '');
+        const suc = safeText((q.data && q.data.sucursal) || q.sucursal || q.branch || q.sucursal_nombre || q.sucursalName || '');
+        const hay = (nombre + ' ' + rut + ' ' + suc).toLowerCase();
+
+        const okNum = !qNumF || folio.includes(qNumF);
+        const okCli = !qCliF || hay.includes(qCliF);
+        return okNum && okCli;
+      });
+
+      if (!baseList.length) {
+        try { showQuotesEmptyBanner(true); } catch(e){}
+        const msg = `<tr><td class="p-6 text-center text-gray-500" colspan="9">Sin resultados</td></tr>`;
+        document.getElementById('pendingQuotesTable').innerHTML = msg;
+        document.getElementById('acceptedQuotesTable').innerHTML = msg;
+        document.getElementById('rejectedQuotesTable').innerHTML = msg;
+        try { actualizarDashboardInteligente(); } catch(e){}
+        return;
+      }
+      try { showQuotesEmptyBanner(false); } catch(e){}
+
       // Ordenar por folio desc (paginación se aplica por sección: aceptadas/rechazadas)
-      const ordered = (quotes || []).slice().sort((a,b)=>{
+      const ordered = baseList.slice().sort((a,b)=>{
         const na = parseInt(a.numeroCotizacion || a.numero || 0, 10) || 0;
         const nb = parseInt(b.numeroCotizacion || b.numero || 0, 10) || 0;
         return nb - na;
       });
 
+      // Normalizar estados (para no "perder" cotizaciones por valores distintos)
+      const _normQState = (s) => (s||'').toString().trim().toLowerCase().replace(/-/g,'_');
+      const getQuoteState = (q) => {
+        const s = _normQState((q && (q.estado || q.status)) || (q && q.data && q.data.estado) || '');
+        if(['aceptada','aceptado','aprobada','aprobado'].includes(s)) return 'aceptada';
+        if(['rechazada','rechazado','cancelada','cancelado'].includes(s)) return 'rechazada';
+        return 'pendiente';
+      };
 
       // Separar y ordenar aceptadas por fecha de aceptación (si existe)
-      const pendingList = ordered.filter(q=>q.estado==='pendiente');
-      const acceptedList = ordered.filter(q=>q.estado==='aceptada');
-      const rejectedList = ordered.filter(q=>q.estado==='rechazada');
+      const pendingList = ordered.filter(q=>getQuoteState(q)==='pendiente');
+      const acceptedList = ordered.filter(q=>getQuoteState(q)==='aceptada');
+      const rejectedList = ordered.filter(q=>getQuoteState(q)==='rechazada');
 
       const accDate = (q)=>{
         const d = (q.data && (q.data.fecha_aceptacion || q.data.accepted_at)) || q.fecha_aceptacion || q.accepted_at || q.updated_at || q.fecha || q.created_at;
@@ -2181,30 +2490,37 @@ window.calcularTotal();
         const btnPDF = `<button onclick="generateQuotePDF('${q.id}')" class="text-blue-700 hover:text-blue-900" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
         const btnEdit = `<button onclick="editQuote('${q.id}')" class="text-blue-700 hover:text-blue-900 ml-3" title="Editar"><i class="fa-solid fa-pen-to-square text-xl"></i></button>`;
         const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
-        
+
         let actions = '';
-        if(q.estado === 'pendiente') actions = `<button onclick="acceptQuote('${q.id}')" class="text-emerald-600 font-bold mr-3">Aceptar</button><button onclick="rejectQuote('${q.id}')" class="text-red-600 font-bold">Rechazar</button>`;
-        if(q.estado === 'aceptada') actions = ots.some(o => String(o.quoteId) === String(q.id)) ? `<span class="text-emerald-600 text-sm">OT Creada</span>` : `<button onclick="convertToOT('${q.id}')" class="bg-blue-600 text-white text-xs px-3 py-1 rounded-xl">Crear OT</button>`;
+        const qState = getQuoteState(q);
+        if(qState === 'pendiente') actions = `<button onclick="acceptQuote('${q.id}')" class="text-emerald-600 font-bold mr-3">Aceptar</button><button onclick="rejectQuote('${q.id}')" class="text-red-600 font-bold">Rechazar</button>`;
+        if(qState === 'aceptada') actions = ots.some(o => String(o.quoteId) === String(q.id)) ? `<span class="text-emerald-600 text-sm">OT Creada</span>` : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="bg-blue-600 text-white text-xs px-3 py-1 rounded-xl">Crear OT</button>`;
 
-        // USAMOS NUESTRA FUNCIÓN formatShortName PARA LIMPIAR EL NOMBRE
-        // Definimos los botones de envío
-const btnWsp = `<button onclick="registrarEnvio('${q.id}', 'WhatsApp')" class="text-green-500 hover:scale-125 transition ml-2" title="Marcar envío por WhatsApp"><i class="fab fa-whatsapp text-xl"></i></button>`;
-const btnCorreo = `<button onclick="registrarEnvio('${q.id}', 'Email')" class="text-red-500 hover:scale-125 transition ml-2" title="Marcar envío por Email"><i class="fas fa-envelope text-xl"></i></button>`;
+        // Botones de envío
+        const btnWsp = `<button onclick="registrarEnvio('${q.id}', 'WhatsApp')" class="text-green-500 hover:scale-125 transition ml-2" title="Marcar envío por WhatsApp"><i class="fab fa-whatsapp text-xl"></i></button>`;
+        const btnCorreo = `<button onclick="registrarEnvio('${q.id}', 'Email')" class="text-red-500 hover:scale-125 transition ml-2" title="Marcar envío por Email"><i class="fas fa-envelope text-xl"></i></button>`;
 
-// Definimos el estado actual del envío buscando en 'data' si existe, o en la raíz
-const estadoEnvioHtml = (q.data && q.data.ejecutor_envio) || q.ejecutor_envio 
-    ? `<span class="text-xs font-bold text-emerald-600"><i class="fas fa-check"></i> ${(q.data && q.data.ejecutor_envio) || q.ejecutor_envio}</span>` 
-    : `<span class="text-xs text-gray-400 italic">Pendiente</span>`;
+        const estadoEnvioHtml = (q.data && q.data.ejecutor_envio) || q.ejecutor_envio
+          ? `<span class="text-xs font-bold text-emerald-600"><i class="fas fa-check"></i> ${(q.data && q.data.ejecutor_envio) || q.ejecutor_envio}</span>`
+          : `<span class="text-xs text-gray-400 italic">Pendiente</span>`;
 
-// USAMOS NUESTRA FUNCIÓN formatShortName PARA LIMPIAR EL NOMBRE Y AGREGAMOS LAS 2 COLUMNAS NUEVAS
-tr.innerHTML = `<td class="p-4">N° ${q.numeroCotizacion}</td><td class="p-4">${(()=>{const base=safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'; const suc=safeText((q.data && q.data.sucursal) || q.sucursal || ''); return suc ? (base + ' - ' + suc) : base;})()}</td><td class="p-4 font-bold">${formatCLP(q.monto)}</td><td class="p-4">${formatShortName(q.createdByName || q.createdBy)}</td><td class="p-4">${formatDDMMYY(q.fecha || q.created_at)}</td><td class="p-4 text-center">${btnPDF}${btnEdit}</td><td class="p-4">${estadoEnvioHtml}</td><td class="p-4 text-center">${btnWsp}${btnCorreo}</td><td class="p-4">${actions}</td>`;
-        
-        if(q.estado === 'pendiente') document.getElementById('pendingQuotesTable').appendChild(tr);
-        if(q.estado === 'aceptada') document.getElementById('acceptedQuotesTable').appendChild(tr);
-        if(q.estado === 'rechazada') document.getElementById('rejectedQuotesTable').appendChild(tr);
+        tr.innerHTML = `<td class="p-4">N° ${escapeHtml(q.numeroCotizacion || q.numero || '')}</td>
+                        <td class="p-4">${(()=>{const base=safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'; const suc=safeText((q.data && q.data.sucursal) || q.sucursal || ''); return suc ? (escapeHtml(base + ' - ' + suc)) : escapeHtml(base);})()}</td>
+                        <td class="p-4 font-bold">${formatCLP(q.monto)}</td>
+                        <td class="p-4">${escapeHtml(formatShortName(q.createdByName || q.createdBy))}</td>
+                        <td class="p-4">${escapeHtml(formatDDMMYY(q.fecha || q.created_at))}</td>
+                        <td class="p-4 text-center">${btnPDF}${btnEdit}</td>
+                        <td class="p-4">${estadoEnvioHtml}</td>
+                        <td class="p-4 text-center">${btnWsp}${btnCorreo}</td>
+                        <td class="p-4">${actions}</td>`;
+
+        if(qState === 'pendiente') document.getElementById('pendingQuotesTable').appendChild(tr);
+        if(qState === 'aceptada') document.getElementById('acceptedQuotesTable').appendChild(tr);
+        if(qState === 'rechazada') document.getElementById('rejectedQuotesTable').appendChild(tr);
       });
-    // Actualizar el dashboard cada vez que se dibujan las cotizaciones
-   actualizarDashboardInteligente();
+
+      // Actualizar el dashboard cada vez que se dibujan las cotizaciones
+      actualizarDashboardInteligente();
 }
 
 async function acceptQuote(id) {
@@ -2222,10 +2538,8 @@ async function acceptQuote(id) {
       .eq('id', id);
     if (e1) throw e1;
 
-    // 2) Convertir a OT (si tu flujo lo usa)
-    if (typeof convertToOT === 'function') {
-      await convertToOT(id);
-    }
+    // 2) No creamos OT automáticamente al aceptar (útil para documentos antiguos)
+    //    La OT se crea con el botón "Crear OT" cuando tú lo decidas.
 
     await loadData();
     if (typeof renderQuotes === 'function') renderQuotes();
@@ -2299,7 +2613,74 @@ window.registrarEnvio = async function(idCotizacion, medio) {
     }
 };
 
- // ================= ÓRDENES DE TRABAJO =================
+ // Crear OT desde una cotización aceptada (sin autonumerar/auto-crear al aceptar)
+function showNewOTFromQuoteModal(quoteId){
+  try{
+    const q = (quotes || []).find(x => String(x.id) === String(quoteId));
+    if(!q){ alert('No se encontró la cotización.'); return; }
+
+    const exists = (ots || []).some(o => String(o.quoteId) === String(quoteId));
+    if(exists){
+      alert('Esta cotización ya tiene una OT creada.');
+      return;
+    }
+
+    // Guardamos el vínculo para que al guardar OT se asocie a esta cotización
+    pendingQuoteToLinkOT = quoteId;
+
+    // Abrir modal de OT manual (con opción "Documento antiguo")
+    if(typeof showNewOTManualModal === 'function') showNewOTManualModal();
+
+    // Prefill de campos desde la cotización
+    const preClientId = q.clientId || q.client_id || '';
+    const preDesc = q.obra || q.descripcion || (q.data && (q.data.obra || q.data.descripcion)) || '';
+    const preOC = (q.data && (q.data.oc || q.data.OC)) || q.oc || '';
+    const preHES = (q.data && (q.data.hes || q.data.HES)) || q.hes || '';
+
+    const sel = document.getElementById('mOtClient');
+    if(sel && preClientId) sel.value = String(preClientId);
+
+    const ta = document.getElementById('mOtDesc');
+    if(ta && preDesc) ta.value = String(preDesc);
+
+    const oc = document.getElementById('mOtOC');
+    if(oc && preOC) oc.value = String(preOC);
+
+    const hes = document.getElementById('mOtHES');
+    if(hes && preHES) hes.value = String(preHES);
+
+    // Banner informativo
+    const mc = document.getElementById('modalContent');
+    if(mc){
+      const box = document.createElement('div');
+      box.className = 'mb-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm';
+      const folio = q.numeroCotizacion || q.numero || '';
+      const cname = (q.razonSocial || q.clientName || q.nombreCliente || q.nombre || '').toString();
+      box.innerHTML = `<div class="font-bold text-blue-900 mb-1">OT asociada a Cotización</div>
+                       <div class="text-blue-800">Cotización N° <b>${escapeHtml(folio)}</b> ${cname ? ('- ' + escapeHtml(cname)) : ''}</div>
+                       <div class="text-blue-700 text-xs mt-1">Marca "Documento antiguo" si necesitas ingresar el N° OT manual.</div>`;
+      const container = mc.querySelector('.p-8');
+      if(container){
+        const h2 = container.querySelector('h2');
+        if(h2 && h2.nextSibling){
+          container.insertBefore(box, h2.nextSibling);
+        }else{
+          container.insertBefore(box, container.firstChild);
+        }
+      }else{
+        mc.prepend(box);
+      }
+    }
+
+    // Asegurar toggles de folio
+    try{ bindFolioToggles(); }catch(e){}
+  }catch(err){
+    console.error(err);
+    alert('Error abriendo OT desde cotización: ' + (err?.message || err));
+  }
+}
+
+// ================= ÓRDENES DE TRABAJO =================
     function showNewOTManualModal() {
       
   try {
@@ -2357,6 +2738,8 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
             document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
 
+      try{ bindFolioToggles(); }catch(e){}
+
   } catch (error) {
       console.error("Error en showNewOTManualModal:", error);
       alert("Error al abrir formulario de OT.");
@@ -2412,8 +2795,8 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         descripcion: desc,
         oc: document.getElementById('mOtOC').value || '',
         hes: document.getElementById('mOtHES').value || '',
-        estado: 'en_curso',
-        pago_estado: 'pendiente',
+        estado: 'pendiente',
+        pago_estado: 'pendiente_facturar',
         fecha: todayISO(),
         created_by: currentUser?.id || null,
         created_by_email: currentUser?.email || '',
@@ -2432,6 +2815,21 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         }
       };
 
+      // Vincular a una cotización aceptada si la OT se crea desde "Crear OT" en Cotizaciones
+      try{
+        if (pendingQuoteToLinkOT) {
+          payload.quote_id = pendingQuoteToLinkOT;
+          const qq = (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT));
+          const qNum = qq ? (qq.numeroCotizacion || qq.numero || '') : '';
+          const qMonto = qq ? Number(qq.monto || 0) : 0;
+
+          payload.data = payload.data || {};
+          payload.data.quoteId = pendingQuoteToLinkOT;
+          if(qNum) payload.data.numeroCotizacion = qNum;
+          if(qMonto) payload.data.monto = qMonto;
+        }
+      }catch(e){}
+
       const { data: inserted, error } = await supabaseClient.from('ots').insert([payload]).select().single();
 
       if (error) {
@@ -2440,7 +2838,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
          return;
       }
       
-      await loadData(); renderOTs(); closeModal(); toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
+      await loadData(); renderOTs(); pendingQuoteToLinkOT = null; closeModal(); toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
     }
 
     async function convertToOT(quoteId) {
@@ -2463,8 +2861,8 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         descripcion: q.obra || q.descripcion || '',
         oc: '',
         hes: '',
-        estado: 'en_curso',
-        pago_estado: 'pendiente',
+        estado: 'pendiente',
+        pago_estado: 'pendiente_facturar',
         fecha: todayISO(),
         created_by: currentUser?.id || null,
         created_by_email: currentUser?.email || '',
@@ -2535,6 +2933,8 @@ async function saveFacturaOT(otId, btn){
   if(!ot.data) ot.data = {};
   ot.data.facturaNumero = factura;
   ot.data.facturaEnviadaFecha = fechaEnvio;
+  // Fecha de registro de factura (para resumen en acciones)
+  ot.data.facturaRegistroFecha = todayISO();
 
   let error = null;
   // Intentamos guardar también en columnas (si existen) para activar notificaciones
@@ -2542,14 +2942,15 @@ async function saveFacturaOT(otId, btn){
     data: ot.data,
     factura_num: factura,
     factura_enviada_fecha: fechaEnvio,
-    cobro_estado: 'pendiente'
+    cobro_estado: 'facturado',
+    pago_estado: 'facturado'
   }).eq('id', otId);
 
   error = updateTry.error;
 
   // Si la DB no tiene esas columnas todavía, guardamos solo en 'data'
-  if(error && String(error.message||'').toLowerCase().includes('column') && String(error.message||'').toLowerCase().includes('factura_')){
-    const fallback = await supabaseClient.from('ots').update({ data: ot.data }).eq('id', otId);
+  if(error && String(error.message||'').toLowerCase().includes('column') && (String(error.message||'').toLowerCase().includes('factura_') || String(error.message||'').toLowerCase().includes('factura_num') || String(error.message||'').toLowerCase().includes('cobro_estado') || String(error.message||'').toLowerCase().includes('pago_estado'))){
+    const fallback = await supabaseClient.from('ots').update({ data: ot.data, pago_estado: 'facturado' }).eq('id', otId);
     error = fallback.error;
     if(!error){
       alert('Guardé la factura, pero falta agregar columnas en Supabase para notificaciones (factura_enviada_fecha / cobro_estado). Si quieres, te paso el SQL.');
@@ -2561,6 +2962,180 @@ async function saveFacturaOT(otId, btn){
     return;
   }
   await loadData(); renderOTs(); closeModal();
+}
+
+
+
+// Registrar SOLO el envío de factura (para documentos antiguos)
+function promptRegistrarEnvioFactura(otId){
+  const ot = (ots || []).find(o => String(o.id) === String(otId));
+  if(!ot){ alert("OT no encontrada"); return; }
+  const factura = getFacturaNumeroOT(ot);
+  if(!factura){
+    alert("Primero debes registrar el N° de factura.");
+    return;
+  }
+  const actual = (getFacturaEnvioFechaOT(ot) || '').toString().slice(0,10) || todayISO();
+  const html = `
+    <div class="p-8">
+      <h2 class="text-2xl font-bold mb-2">Registrar envío de factura</h2>
+      <p class="text-sm text-gray-500 mb-6">Factura: <span class="font-bold text-indigo-700">${typeof escapeHtml==='function'?escapeHtml(factura):factura}</span></p>
+      <div class="space-y-4">
+        <label class="text-sm font-semibold text-gray-700">Fecha de envío</label>
+        <input id="facturaEnviadaFechaOnly" type="date" value="${actual}" class="w-full px-3 py-2 border rounded-xl" required>
+        <div class="flex gap-4 pt-4">
+          <button onclick="saveEnvioFacturaOT('${otId}', this)" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Guardar envío</button>
+          <button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+async function saveEnvioFacturaOT(otId, btn){
+  if(btn){ btn.disabled = true; btn.innerText = "Guardando..."; }
+  const fechaEnvio = (document.getElementById('facturaEnviadaFechaOnly')?.value || '').trim() || todayISO();
+  const ot = (ots || []).find(o => String(o.id) === String(otId));
+  if(!ot){ alert("OT no encontrada"); if(btn){btn.disabled=false;btn.innerText="Guardar envío";} return; }
+
+  if(!ot.data) ot.data = {};
+  ot.data.facturaEnviadaFecha = fechaEnvio;
+
+  let { error } = await supabaseClient.from('ots').update({
+    data: ot.data,
+    factura_enviada_fecha: fechaEnvio
+  }).eq('id', otId);
+
+  // fallback si no existe la columna factura_enviada_fecha
+  if(error && String(error.message||'').toLowerCase().includes('column')){
+    ({ error } = await supabaseClient.from('ots').update({ data: ot.data }).eq('id', otId));
+  }
+
+  if(error){
+    alert("Error guardando envío: " + error.message);
+    if(btn){ btn.disabled=false; btn.innerText="Guardar envío"; }
+    return;
+  }
+  await loadData(); renderOTs(); closeModal();
+}
+
+
+// ===== OT: Libro/Bitácora (Factura · Envío · Pago) =====
+function getPagoFechaOT(o){
+  return (
+    (o && (o.pago_fecha || o.fecha_pago || o.pagoFecha)) ||
+    (o && o.data && (o.data.fechaPagoISO || o.data.fechaPago || o.data.pagoFechaISO || o.data.pagoFecha)) ||
+    null
+  );
+}
+function getPagoMetodoOT(o){
+  return (
+    (o && (o.pago_metodo || o.metodo_pago || o.metodoPago)) ||
+    (o && o.data && (o.data.metodoPago || o.data.pagoMetodo)) ||
+    ''
+  );
+}
+
+function openOTLibro(otId){
+  const ot = (ots || []).find(o => String(o.id) === String(otId));
+  if(!ot){ alert('OT no encontrada'); return; }
+
+  const fac = getFacturaNumeroOT(ot);
+  const reg = getFacturaRegistroFechaOT(ot);
+  const env = getFacturaEnvioFechaOT(ot);
+  const pagada = isOTPagada(ot);
+  const pagoFecha = getPagoFechaOT(ot);
+  const pagoMetodo = getPagoMetodoOT(ot);
+
+  // Acciones rápidas dentro de la bitácora (para no llenar la tabla con texto)
+  let facturaActions = '';
+  if(!fac){
+    facturaActions = `<button onclick="promptRegistrarFactura('${otId}')" class="mt-4 w-full px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-black">Registrar factura</button>`;
+  } else {
+    // Permite registrar/editar fecha de envío
+    facturaActions = `<button onclick="promptRegistrarEnvioFactura('${otId}')" class="mt-4 w-full px-4 py-2 rounded-xl border bg-white hover:bg-slate-50 font-semibold">Registrar/Editar envío</button>`;
+  }
+
+  let pagoActions = '';
+  if(!pagada){
+    pagoActions = fac ? `<button onclick="promptRegistrarPago('${otId}')" class="mt-4 w-full px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700">Registrar pago</button>`
+                   : `<div class="mt-4 text-xs text-slate-500">Primero registra la factura para habilitar el pago.</div>`;
+  }
+
+  const safe = (typeof escapeHtml==='function') ? escapeHtml : (s)=>String(s||'');
+  const facTxt = fac ? `Factura N° ${safe(fac)}` : 'Sin factura';
+
+  const html = `
+    <div class="p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold">Bitácora OT</h2>
+          <p class="text-sm text-slate-500">OT <span class="font-semibold text-slate-800">${safe(ot.numero_ot || ot.numeroOT || '-')}</span> · ${safe(ot.clientName || '-')}</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800" title="Cerrar">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded-2xl p-5 bg-slate-50">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl bg-white border flex items-center justify-center">
+              <i class="fa-solid fa-file-invoice text-slate-700"></i>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500">Factura</div>
+              <div class="text-lg font-bold text-slate-900">${facTxt}</div>
+            </div>
+          </div>
+
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600">Registrada</span>
+              <span class="font-semibold text-slate-900">${reg ? formatDDMMYY(reg) : '—'}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600">Envío</span>
+              <span class="font-semibold text-slate-900">${env ? formatDDMMYY(env) : '—'}</span>
+            </div>
+          </div>
+
+          ${facturaActions}
+        </div>
+
+        <div class="border rounded-2xl p-5 bg-slate-50">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl bg-white border flex items-center justify-center">
+              <i class="fa-solid fa-hand-holding-dollar text-slate-700"></i>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500">Pago</div>
+              <div class="text-lg font-bold ${pagada ? 'text-emerald-700' : 'text-slate-900'}">${pagada ? 'Pagada' : 'Sin pago'}</div>
+            </div>
+          </div>
+
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600">Fecha</span>
+              <span class="font-semibold text-slate-900">${pagoFecha ? formatDDMMYY(pagoFecha) : '—'}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600">Método</span>
+              <span class="font-semibold text-slate-900">${pagoMetodo ? safe(pagoMetodo) : '—'}</span>
+            </div>
+          </div>
+
+          ${pagoActions}
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button onclick="closeModal()" class="px-5 py-3 rounded-xl border hover:bg-white font-semibold">Cerrar</button>
+      </div>
+    </div>
+  `;
+  openModal(html);
 }
 
 function promptRegistrarPago(otId) {
@@ -2619,14 +3194,15 @@ async function savePagoFinal(otId, btn) {
     ot.data.facturaNumero = factura;
     if(fechaEnvio) ot.data.facturaEnviadaFecha = fechaEnvio;
     ot.data.fechaPago = toCLDateFromISO(fecha);
+    ot.data.fechaPagoISO = fecha;
+    ot.data.pagoConfirmado = true;
     ot.data.metodoPago = metodo;
 
     // Actualizamos OT como pagada y también marcamos cobro_estado
     const payload = {
-      estado: 'pagado',
       pago_estado: 'pagado',
       cobro_estado: 'pagado',
-      ultimo_recordatorio: new Date().toISOString(),
+            ultimo_recordatorio: new Date().toISOString(),
       data: ot.data
     };
 
@@ -2634,10 +3210,16 @@ async function savePagoFinal(otId, btn) {
     if('factura_num' in (ot||{})) payload.factura_num = factura;
     if(fechaEnvio) payload.factura_enviada_fecha = fechaEnvio;
 
-    const { error } = await supabaseClient
+    let { error } = await supabaseClient
       .from('ots')
       .update(payload)
       .eq('id', otId);
+
+    if(error && String(error.message||'').toLowerCase().includes('column')){
+      const retry = { ...payload };
+      delete retry.cobro_estado;
+      ({ error } = await supabaseClient.from('ots').update(retry).eq('id', otId));
+    }
 
     if(error) {
       alert("Error guardando el pago: " + error.message);
@@ -2669,15 +3251,6 @@ async function savePagoFinal(otId, btn) {
   }finally{
     if(btn){ btn.disabled = false; btn.innerText = "Confirmar Pago"; }
   }
-
-      const qBtn = document.getElementById('quotesLoadMoreBtn');
-      if(qBtn){
-        if((quotes || []).length > quotesVisibleCount){
-          qBtn.classList.remove('hidden');
-        }else{
-          qBtn.classList.add('hidden');
-        }
-      }
 }
 
     async function renderAbonos() {
@@ -2701,6 +3274,8 @@ async function savePagoFinal(otId, btn) {
       const html = `<div class="p-8"><h2 class="text-2xl font-bold mb-6">Registrar Abono</h2><input id="abonoMonto" type="number" placeholder="Monto" class="w-full px-4 py-3 border rounded-xl mb-4"><input id="abonoFecha" type="date" value="${todayISO()}" class="w-full px-4 py-3 border rounded-xl mb-4"><select id="abonoMetodo" class="w-full px-4 py-3 border rounded-xl"><option value="Transferencia">Transferencia</option><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option></select><div class="flex gap-4 mt-6"><button onclick="guardarAbono('${otId}', this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-semibold">Registrar Abono</button><button onclick="closeModal()" class="flex-1 border py-3 rounded-xl">Cancelar</button></div></div>`;
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
+      try { populateVTClients(); } catch(e) { console.warn('populateVTClients', e); }
+      try { setVTClientMode('existing'); } catch(e) { console.warn('setVTClientMode', e); }
     }
 
     async function guardarAbono(otId, btn) {
@@ -2734,17 +3309,79 @@ async function savePagoFinal(otId, btn) {
     async function showNewVisitaModal() {
       const html = `
         <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6">Nueva Visita Técnica</h2>
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-bold">Nueva Visita Técnica</h2>
+              <p class="text-sm text-slate-500 mt-1">Puedes usar un cliente existente o crear uno nuevo, igual que en cotizaciones.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-4 mb-6 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
+            <button type="button" id="btnVTUseExisting" onclick="setVTClientMode('existing')" class="px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-slate-700 transition-all">Cliente existente</button>
+            <button type="button" id="btnVTCreateNew" onclick="setVTClientMode('new')" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-emerald-600 transition-all">+ Cliente nuevo</button>
+          </div>
+
+          <div id="vtExistingClientWrap" class="mb-6">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Seleccionar cliente existente</label>
+            <select id="vtClientSelect" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none" onchange="fillVTClientFromExisting()">
+              <option value="">Seleccionar cliente...</option>
+            </select>
+            <p class="text-[11px] text-slate-400 mt-1 ml-1">Al elegir un cliente, sus datos se cargarán automáticamente.</p>
+          </div>
+
+          <div id="vtNewClientFields" class="hidden mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-emerald-50/50 border-2 border-emerald-100 rounded-2xl">
+            <div class="md:col-span-2 text-[10px] font-bold text-emerald-700 uppercase mb-1">Datos del nuevo cliente</div>
+            <div>
+              <label class="block text-sm">Nombre / Razón Social *</label>
+              <input id="vtNombre" class="w-full px-4 py-3 border rounded-2xl bg-white">
+            </div>
+            <div>
+              <label class="block text-sm">RUT *</label>
+              <input id="vtRut" class="w-full px-4 py-3 border rounded-2xl bg-white">
+            </div>
+            <div>
+              <label class="block text-sm">Teléfono</label>
+              <input id="vtTelefono" class="w-full px-4 py-3 border rounded-2xl bg-white">
+            </div>
+            <div>
+              <label class="block text-sm">Correo</label>
+              <input id="vtEmail" class="w-full px-4 py-3 border rounded-2xl bg-white">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm">Dirección *</label>
+              <input id="vtDireccion" class="w-full px-4 py-3 border rounded-2xl bg-white">
+            </div>
+          </div>
+
+          <div id="vtClientDataPreview" class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+            <div>
+              <label class="block text-sm">Nombre / Razón Social *</label>
+              <input id="vtNombrePreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
+            </div>
+            <div>
+              <label class="block text-sm">RUT *</label>
+              <input id="vtRutPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
+            </div>
+            <div>
+              <label class="block text-sm">Teléfono</label>
+              <input id="vtTelefonoPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
+            </div>
+            <div>
+              <label class="block text-sm">Correo</label>
+              <input id="vtEmailPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm">Dirección *</label>
+              <input id="vtDireccionPreview" class="w-full px-4 py-3 border rounded-2xl bg-slate-100" readonly>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label class="block text-sm">Nombre / Razón Social *</label><input id="vtNombre" class="w-full px-4 py-3 border rounded-2xl"></div>
-            <div><label class="block text-sm">RUT *</label><input id="vtRut" class="w-full px-4 py-3 border rounded-2xl"></div>
-            <div><label class="block text-sm">Teléfono</label><input id="vtTelefono" class="w-full px-4 py-3 border rounded-2xl"></div>
-            <div><label class="block text-sm">Correo</label><input id="vtEmail" class="w-full px-4 py-3 border rounded-2xl"></div>
-            <div class="md:col-span-2"><label class="block text-sm">Dirección *</label><input id="vtDireccion" class="w-full px-4 py-3 border rounded-2xl"></div>
             <div><label class="block text-sm">Cantidad de equipos *</label><input id="vtEquipos" type="number" min="1" value="1" class="w-full px-4 py-3 border rounded-2xl"></div>
             <div><label class="block text-sm">Fecha</label><input id="vtFecha" type="date" value="${todayISO()}" class="w-full px-4 py-3 border rounded-2xl"></div>
             <div class="md:col-span-2"><label class="block text-sm">Descripción de la falla *</label><textarea id="vtDescripcion" rows="3" class="w-full px-4 py-3 border rounded-2xl"></textarea></div>
           </div>
+
           <div class="flex gap-4 pt-6">
             <button onclick="saveNewVisita(this)" class="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-semibold">Guardar Visita</button>
             <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
@@ -2752,29 +3389,55 @@ async function savePagoFinal(otId, btn) {
         </div>`;
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
+      try { populateVTClients(); } catch(e) {}
+      try { setVTClientMode('existing'); } catch(e) {}
     }
 
     async function saveNewVisita(btn) {
-      const rutInput = document.getElementById('vtRut').value.trim();
-      const rut = normalizeRut(rutInput);
-      const nombre = document.getElementById('vtNombre').value.trim();
-      const direccion = document.getElementById('vtDireccion').value.trim();
-      const telefono = document.getElementById('vtTelefono').value.trim();
-      const email = document.getElementById('vtEmail').value.trim();
-      const equipos = document.getElementById('vtEquipos').value;
-      const descripcion = document.getElementById('vtDescripcion').value.trim();
-      if (!nombre || !rut || !direccion || !descripcion) return alert("Completa los datos obligatorios.");
+      try {
+        if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
 
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
+        const equipos = document.getElementById('vtEquipos').value;
+        const descripcion = document.getElementById('vtDescripcion').value.trim();
+        const fecha = document.getElementById('vtFecha').value || todayISO();
+        if (!descripcion) throw new Error("Debes ingresar la descripción de la falla.");
 
-      // 1. Buscamos si el cliente ya existe por su RUT
-      let client = clients.find(c => normalizeRut(c.rut) === rut);
-      
-      // 2. Si no existe, lo creamos automáticamente con los datos que pusiste en el formulario
-      if(!client) {
-          const { data: newClient, error: clientErr } = await supabaseClient
-            .from('clients')
-            .insert([{
+        let client = null;
+        let nombre = '';
+        let rut = '';
+        let direccion = '';
+        let telefono = '';
+        let email = '';
+
+        if (vtClientMode === 'existing') {
+          const clientId = document.getElementById('vtClientSelect')?.value || '';
+          if (!clientId) throw new Error("Debes seleccionar un cliente existente.");
+          client = (clients || []).find(c => String(c.id) === String(clientId));
+          if (!client) throw new Error("No se encontró el cliente seleccionado.");
+
+          nombre = String(client.name || client.nombre || '').trim();
+          rut = normalizeRut(client.rut || '');
+          direccion = String(client.direccion || client.address || '').trim();
+          telefono = String(client.telefono || client.phone || '').trim();
+          email = String(client.email || '').trim();
+        } else {
+          nombre = document.getElementById('vtNombre')?.value.trim() || '';
+          rut = normalizeRut(document.getElementById('vtRut')?.value.trim() || '');
+          direccion = document.getElementById('vtDireccion')?.value.trim() || '';
+          telefono = document.getElementById('vtTelefono')?.value.trim() || '';
+          email = document.getElementById('vtEmail')?.value.trim() || '';
+
+          if (!nombre || !rut || !direccion) {
+            throw new Error("Completa los datos obligatorios del nuevo cliente.");
+          }
+
+          const existingByRut = (clients || []).find(c => normalizeRut(c.rut) === rut);
+          if (existingByRut) {
+            client = existingByRut;
+          } else {
+            const { data: newClient, error: clientErr } = await supabaseClient
+              .from('clients')
+              .insert([{
                 rut,
                 name: nombre,
                 tipo: typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa',
@@ -2785,89 +3448,209 @@ async function savePagoFinal(otId, btn) {
                 created_by: currentUser?.id || null,
                 created_by_email: currentUser?.email || '',
                 created_by_name: currentUserDisplayName || 'Admin',
-                data: { telefono, email, direccion, tipo: (typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa') }
-            }])
-            .select()
-            .single();
+                data: {
+                  telefono,
+                  email,
+                  direccion,
+                  tipo: (typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa')
+                }
+              }])
+              .select()
+              .single();
 
-          if (clientErr) {
-              console.error("Error al crear cliente automático:", clientErr);
-          } else {
-              client = newClient;
-              if (typeof clients !== 'undefined') clients.push(newClient);
+            if (clientErr) throw clientErr;
+            client = newClient;
+            if (Array.isArray(clients)) clients.push(newClient);
           }
+        }
+
+        if (!nombre || !rut || !direccion) {
+          throw new Error("No se pudieron obtener correctamente los datos del cliente.");
+        }
+
+        const payload = {
+          fecha,
+          created_by: currentUser?.id || null,
+          created_by_email: currentUser?.email || '',
+          created_by_name: currentUserDisplayName || 'Admin',
+          client_id: client?.id || null,
+          nombre,
+          rut,
+          direccion,
+          telefono,
+          email,
+          descripcion: `[Equipos: ${equipos}] ` + descripcion,
+          estado: 'pendiente'
+        };
+
+        const { error } = await supabaseClient.from('visitas').insert([payload]);
+        if (error) throw error;
+
+        await loadData();
+        renderVisitas();
+        renderClients();
+        try { populateVTClients(); } catch(e) {}
+        closeModal();
+        toastInfo("Visita registrada.");
+      } catch (err) {
+        console.error("Error guardando visita:", err);
+        alert("Error al guardar visita: " + (err?.message || err));
+      } finally {
+        if(btn) { btn.disabled = false; btn.innerText = "Guardar Visita"; }
+      }
+    }
+
+    let vtClientMode = 'existing';
+
+    function setVTClientMode(mode){
+      vtClientMode = (mode === 'new') ? 'new' : 'existing';
+      const existingWrap = document.getElementById('vtExistingClientWrap');
+      const newFieldsWrap = document.getElementById('vtNewClientFields');
+      const previewWrap = document.getElementById('vtClientDataPreview');
+      const btnExisting = document.getElementById('btnVTUseExisting');
+      const btnNew = document.getElementById('btnVTCreateNew');
+
+      if (existingWrap) existingWrap.classList.toggle('hidden', vtClientMode !== 'existing');
+      if (newFieldsWrap) newFieldsWrap.classList.toggle('hidden', vtClientMode !== 'new');
+      if (previewWrap) previewWrap.classList.toggle('hidden', vtClientMode !== 'existing');
+
+      if (btnExisting) {
+        btnExisting.className = vtClientMode === 'existing'
+          ? 'px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-slate-700 transition-all'
+          : 'px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-emerald-600 transition-all';
+      }
+      if (btnNew) {
+        btnNew.className = vtClientMode === 'new'
+          ? 'px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-emerald-600 transition-all'
+          : 'px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-emerald-600 transition-all';
       }
 
-      const payload = {
-        fecha: document.getElementById('vtFecha').value,
-        created_by: currentUser?.id || null,
-        created_by_email: currentUser?.email || '',
-        created_by_name: currentUserDisplayName || 'Admin', 
-        client_id: client?.id || null,
-        nombre, rut, direccion, telefono, email,
-        descripcion: `[Equipos: ${equipos}] ` + descripcion, 
-        estado: 'pendiente'
+      if (vtClientMode === 'new') {
+        ['vtNombre','vtRut','vtTelefono','vtEmail','vtDireccion'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+      } else {
+        const sel = document.getElementById('vtClientSelect');
+        if (sel && !sel.value && sel.options.length > 1) sel.selectedIndex = 1;
+        fillVTClientFromExisting();
+      }
+    }
+
+    function populateVTClients(){
+      const sel = document.getElementById('vtClientSelect');
+      if (!sel) return;
+      const current = sel.value || '';
+      const list = (clients || []).slice().sort((a,b)=>
+        String(a.name || a.nombre || '').localeCompare(String(b.name || b.nombre || ''), 'es', { sensitivity:'base' })
+      );
+      sel.innerHTML = '<option value="">Seleccionar cliente...</option>' + list.map(c => {
+        const name = String(c.name || c.nombre || 'Sin nombre').trim();
+        const rut = String(c.rut || '').trim();
+        return `<option value="${c.id}">${name}${rut ? ' · ' + rut : ''}</option>`;
+      }).join('');
+      if (current && list.some(c => String(c.id) === String(current))) {
+        sel.value = current;
+      } else if (list.length > 0) {
+        sel.value = String(list[0].id);
+      }
+    }
+
+    function fillVTClientFromExisting(){
+      if (vtClientMode !== 'existing') return;
+      const sel = document.getElementById('vtClientSelect');
+      if (!sel || !sel.value) return;
+      const c = (clients || []).find(x => String(x.id) === String(sel.value));
+      if (!c) return;
+
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
       };
-      
-      const { error } = await supabaseClient.from('visitas').insert([payload]);
-      if (error) {
-         alert("Error de base de datos (Visitas): " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Guardar Visita"; }
-         return;
-      }
 
-      await loadData(); renderVisitas(); renderClients(); closeModal(); toastInfo("Visita registrada.");
+      setVal('vtNombrePreview', c.name || c.nombre || '');
+      setVal('vtRutPreview', c.rut || '');
+      setVal('vtDireccionPreview', c.direccion || c.address || '');
+      setVal('vtTelefonoPreview', c.telefono || c.phone || '');
+      setVal('vtEmailPreview', c.email || '');
     }
 
     async function renderVisitas() {
-      const tbody = document.getElementById('visitasTable'); tbody.innerHTML = '';
-      visitas.forEach(v => {
-        const estadoBadge = v.estado === 'pendiente' ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">Pendiente</span>` : v.estado === 'realizada' ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Realizada</span>` : `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">Cancelada</span>`;
-        
+      const tbodyPend = document.getElementById('visitasPendientesTable');
+      const tbodyReal = document.getElementById('visitasRealizadasTable');
+      const legacy = document.getElementById('visitasTable');
+
+      const badge = (estado) => {
+        const e = String(estado || 'pendiente').trim().toLowerCase();
+        if (e === 'realizada') return '<span class="px-3 py-1 rounded-full text-sm bg-emerald-100 text-emerald-700">Realizada</span>';
+        if (e === 'cancelada' || e === 'cancelado') return '<span class="px-3 py-1 rounded-full text-sm bg-rose-100 text-rose-700">Cancelada</span>';
+        return '<span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-700">Pendiente</span>';
+      };
+
+      const ordered = (Array.isArray(visitas) ? visitas : []).slice().sort((a,b)=>{
+        const da = new Date(a.fecha || a.created_at || 0).getTime() || 0;
+        const db = new Date(b.fecha || b.created_at || 0).getTime() || 0;
+        return db - da;
+      });
+
+      const makeRow = (v) => {
         let eq = "1";
         let falla = v.descripcion || '';
-        
         if (falla.startsWith("[Equipos: ")) {
-            const endBracket = falla.indexOf("]");
-            if (endBracket !== -1) {
-                eq = falla.substring(10, endBracket);
-                falla = falla.substring(endBracket + 1).trim();
-            }
+          const endBracket = falla.indexOf("]");
+          if (endBracket !== -1) {
+            eq = falla.substring(10, endBracket);
+            falla = falla.substring(endBracket + 1).trim();
+          }
         }
 
         let btnEstado = '';
-        if (v.estado === 'pendiente') {
-            btnEstado = `
+        if (String(v.estado || '').trim().toLowerCase() === 'pendiente') {
+          btnEstado = `
             <div class="mt-2 pt-2 border-t border-gray-200">
-                <button onclick="setVisitaEstado('${v.id}', 'realizada')" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded w-full mb-1">✔ Realizada</button>
-                <button onclick="setVisitaEstado('${v.id}', 'cancelada')" class="bg-red-600 text-white text-xs px-2 py-1 rounded w-full">✖ Cancelar</button>
+              <button onclick="setVisitaEstado('${v.id}', 'realizada')" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded w-full mb-1">✔ Realizada</button>
+              <button onclick="setVisitaEstado('${v.id}', 'cancelada')" class="bg-red-600 text-white text-xs px-2 py-1 rounded w-full">✖ Cancelar</button>
             </div>`;
         }
 
         let accionesHTML = `
-            <div class="flex gap-3 justify-center mb-2">
-                <button onclick="viewVisita('${v.id}')" class="text-slate-600 hover:text-slate-900" title="Ver"><i class="fa-solid fa-eye text-lg"></i></button>
-                <button onclick="editVisita('${v.id}')" class="text-blue-700 hover:text-blue-900" title="Editar Visita"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
-            </div>
-            <button onclick="createQuoteFromVisita('${v.id}')" class="bg-indigo-600 text-white text-xs px-3 py-1 rounded-xl w-full hover:bg-indigo-700 font-bold shadow-sm">Crear Cotización</button>
-            ${btnEstado}
+          <div class="flex gap-3 justify-center mb-2">
+            <button onclick="viewVisita('${v.id}')" class="text-slate-600 hover:text-slate-900" title="Ver"><i class="fa-solid fa-eye text-lg"></i></button>
+            <button onclick="editVisita('${v.id}')" class="text-blue-700 hover:text-blue-900" title="Editar Visita"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
+          </div>
+          ${String(v.estado || '').trim().toLowerCase() === 'realizada' ? '' : `<button onclick="createQuoteFromVisita('${v.id}')" class="bg-indigo-600 text-white text-xs px-3 py-1 rounded-xl w-full hover:bg-indigo-700 font-bold shadow-sm">Crear Cotización</button>`}
+          ${btnEstado}
         `;
 
-        const tr = document.createElement('tr'); tr.className = 'border-t hover:bg-gray-50';
-        tr.innerHTML = `<td class="p-4">${formatDDMMYY(v.fecha || v.created_at)}</td><td class="p-4 font-medium">${v.nombre}</td><td class="p-4">${v.rut}</td><td class="p-4 text-center font-bold text-blue-900">${eq}</td><td class="p-4">${falla.substring(0,30)}...</td><td class="p-4">${estadoBadge}</td><td class="p-4 text-center align-middle">${accionesHTML}</td>`;
-        // Click en fila para ver detalle (como Requerimientos)
-        tr.style.cursor = 'pointer';
-        tr.addEventListener('click', (ev) => {
-          try{
-            if(ev && ev.target && ev.target.closest && ev.target.closest('button, a, input, select, textarea, label, i')) return;
-          }catch(e){}
-          viewVisita(v.id);
-        });
-        tbody.appendChild(tr);
-      });
+        return `<tr class="border-t hover:bg-gray-50">
+          <td class="p-4">${formatDDMMYY(v.fecha || v.created_at)}</td>
+          <td class="p-4 font-medium">${v.nombre || '—'}</td>
+          <td class="p-4">${v.rut || '—'}</td>
+          <td class="p-4 text-center font-bold text-blue-900">${eq}</td>
+          <td class="p-4">${(falla || '—').substring(0,60)}</td>
+          <td class="p-4">${badge(v.estado)}</td>
+          <td class="p-4 text-center align-middle">${accionesHTML}</td>
+        </tr>`;
+      };
+
+      if (legacy) {
+        legacy.innerHTML = ordered.map(makeRow).join('');
+      }
+
+      if (tbodyPend && tbodyReal) {
+        const pendientes = ordered.filter(v => String(v.estado || '').trim().toLowerCase() !== 'realizada');
+        const realizadas = ordered.filter(v => String(v.estado || '').trim().toLowerCase() === 'realizada');
+
+        tbodyPend.innerHTML = pendientes.length
+          ? pendientes.map(makeRow).join('')
+          : '<tr class="border-t"><td colspan="7" class="p-8 text-center text-slate-500">Sin visitas pendientes</td></tr>';
+
+        tbodyReal.innerHTML = realizadas.length
+          ? realizadas.map(makeRow).join('')
+          : '<tr class="border-t"><td colspan="7" class="p-8 text-center text-slate-500">Sin visitas realizadas</td></tr>';
+      }
     }
 
-    
     // --- VISTA RÁPIDA (ICONO O CLICK EN FILA) ---
     function viewVisita(id){
       const v = (visitas || []).find(x => String(x.id) === String(id));
@@ -3621,7 +4404,7 @@ async function saveNewReq() {
           y = doc.lastAutoTable.finalY + 10;
       }
 
-      if(o.estado === 'pagado') {
+      if(normalizeOTCobroEstado(o) === 'pagado') {
           doc.text(`Pagado el: ${o.fechaPago}  |  Método: ${o.metodoPago}`, 14, y+10);
       }
       
@@ -3768,6 +4551,69 @@ async function saveNewReq() {
     
 
 // ================= DASHBOARD (FIX) =================
+function normalizeDashText(v){
+  return String(v || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function getQuoteServiceType(q){
+  return (
+    q?.tipo_servicio ||
+    q?.tipoServicio ||
+    q?.servicio ||
+    q?.service ||
+    q?.data?.tipo_servicio ||
+    q?.data?.tipoServicio ||
+    q?.data?.servicio ||
+    q?.obra ||
+    q?.descripcion ||
+    ''
+  ).toString();
+}
+
+function isMantencionQuote(q){
+  const t = normalizeDashText(getQuoteServiceType(q));
+  return t.includes('mantencion') || t.includes('mantenimiento');
+}
+
+function isSuministroInstalacionQuote(q){
+  const t = normalizeDashText(getQuoteServiceType(q));
+  return (
+    t.includes('suministro e instalacion') ||
+    t.includes('suministro y instalacion') ||
+    t.includes('suministro e instal') ||
+    t.includes('suministro y instal')
+  );
+}
+
+function isPendingQuote(q){
+  const e = normalizeDashText(q?.estado || q?.status || q?.quoteStatus || q?.data?.estado || '');
+  return !['aceptada','aprobada','rechazada','anulada','cancelada','finalizada','facturada','pagada'].includes(e);
+}
+
+function isACEquipmentQuote(q){
+  const txt = normalizeDashText([
+    getQuoteServiceType(q),
+    q?.obra,
+    q?.descripcion,
+    q?.detalle,
+    q?.data?.obra,
+    q?.data?.descripcion,
+    q?.data?.detalle
+  ].filter(Boolean).join(' | '));
+  return (
+    txt.includes('equipo ac') ||
+    txt.includes('equipos ac') ||
+    txt.includes('aire acondicionado') ||
+    txt.includes('equipos de climatizacion') ||
+    txt.includes('equipo de climatizacion') ||
+    txt.includes('climatizacion')
+  );
+}
+
 function renderDashboard() {
   // Contadores principales
   const clientsCount = clients.length;
@@ -3776,6 +4622,8 @@ function renderDashboard() {
   const deuda = ots.filter(o => (o.estado !== 'pagado') && (Number(o.monto) > 0)).length;
   const visitasPend = visitas.filter(v => String(v.estado||'').toLowerCase() === 'pendiente').length;
   const reqsPend = (requerimientos||[]).filter(r => !['realizado','realizada','cancelado','cancelada'].includes(String(r.estado||'').toLowerCase())).length;
+  const mantencionesCount = (quotes||[]).filter(q => isPendingQuote(q) && isMantencionQuote(q)).length;
+  const suministrosInstCount = (quotes||[]).filter(q => isPendingQuote(q) && isSuministroInstalacionQuote(q) && isACEquipmentQuote(q)).length;
 
   const elC = document.getElementById('dashClients');
   const elQ = document.getElementById('dashQuotes');
@@ -3783,6 +4631,8 @@ function renderDashboard() {
   const elD = document.getElementById('dashDeudas');
   const elV = document.getElementById('dashVisitas');
   const elR = document.getElementById('dashReqs');
+  const elM = document.getElementById('dashMantenciones');
+  const elSI = document.getElementById('dashSuministrosInst');
 
   if (elC) elC.textContent = String(clientsCount);
   if (elQ) elQ.textContent = String(quotesPending);
@@ -3790,6 +4640,8 @@ function renderDashboard() {
   if (elD) elD.textContent = String(deuda);
   if (elV) elV.textContent = String(visitasPend);
   if (elR) elR.textContent = String(reqsPend);
+  if (elM) elM.textContent = String(mantencionesCount);
+  if (elSI) elSI.textContent = String(suministrosInstCount);
 
 // Inteligencia (Cliente Top por cotizaciones: pagadas + en proceso + pendientes + etc.)
 // Contamos TODAS las cotizaciones por cliente (no solo pendientes) y mostramos desglose por estado.
@@ -3991,6 +4843,39 @@ function showOTDescripcion(otId){
   document.getElementById('modal').classList.remove('hidden');
 }
 
+let otSearchNumber = '';
+let otSearchClient = '';
+
+function setOTSearch(){
+  otSearchNumber = ((document.getElementById('otSearchNumber') || {}).value || '').toString().trim().toLowerCase();
+  otSearchClient = ((document.getElementById('otSearchClient') || {}).value || '').toString().trim().toLowerCase();
+  renderOTs();
+}
+
+function clearOTSearch(){
+  const n = document.getElementById('otSearchNumber');
+  const c = document.getElementById('otSearchClient');
+  if(n) n.value = '';
+  if(c) c.value = '';
+  otSearchNumber = '';
+  otSearchClient = '';
+  renderOTs();
+}
+
+function otMatchesSearch(o){
+  const numOt = String(o.numero_ot || o.numeroOT || '').toLowerCase();
+  const numCot = String(o.numeroCotizacion || o.quoteId || '').toLowerCase();
+  const cliente = String(o.clientName || '').toLowerCase();
+  const desc = String(o.descripcion || '').toLowerCase();
+  const okNumber = !otSearchNumber || numOt.includes(otSearchNumber) || numCot.includes(otSearchNumber);
+  const okClient = !otSearchClient || cliente.includes(otSearchClient) || desc.includes(otSearchClient);
+  return okNumber && okClient;
+}
+
+function makeOTEmptyRow(msg){
+  return `<tr class="border-t"><td colspan="12" class="p-8 text-center text-slate-500">${msg}</td></tr>`;
+}
+
 let quotesVisibleCount = 10;
 function loadMoreQuotes(){
   quotesVisibleCount += 10;
@@ -3999,25 +4884,29 @@ function loadMoreQuotes(){
 
 
 function renderOTs() {
-  const tbody = document.getElementById('otsTable');
-  if (!tbody) return;
-  tbody.innerHTML = '';
+  const tbodyActive = document.getElementById('otsActiveTable');
+  const tbodyClosed = document.getElementById('otsClosedTable');
+  const legacyTbody = document.getElementById('otsTable');
+  if (legacyTbody) legacyTbody.innerHTML = '';
+  if (!tbodyActive || !tbodyClosed) return;
+
+  tbodyActive.innerHTML = '';
+  tbodyClosed.innerHTML = '';
 
   const ordered = (ots || []).slice().sort((a,b)=>{
     const na = parseInt(String(a.numero_ot || a.numeroOT || '').replace(/\D/g,''), 10) || 0;
     const nb = parseInt(String(b.numero_ot || b.numeroOT || '').replace(/\D/g,''), 10) || 0;
     if(nb !== na) return nb - na;
-
-    // Si el folio es igual o viene vacío, usamos fecha para asegurar que lo nuevo quede arriba
-    const da = new Date(a.created_at || 0).getTime() || 0;
-    const db = new Date(b.created_at || 0).getTime() || 0;
+    const da = new Date(a.created_at || a.fecha || 0).getTime() || 0;
+    const db = new Date(b.created_at || b.fecha || 0).getTime() || 0;
     return db - da;
-  });
-  // Renderizamos todas las filas y la paginación (abajo) se encarga de mostrar 10 por página
+  }).filter(otMatchesSearch);
+
+  const activeRows = [];
+  const closedRows = [];
+
   ordered.forEach(o => {
     const btnPDF = `<button onclick="generateOTPDF('${o.id}')" class="text-brand hover:opacity-80" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button>`;
-    const btnFactura = `<button onclick="promptRegistrarFactura('${o.id}')" class="text-slate-700 hover:text-slate-900" title="Registrar factura"><i class="fa-solid fa-receipt text-lg"></i></button>`;
-    const btnPago = `<button onclick="promptRegistrarPago('${o.id}')" class="text-emerald-700 hover:text-emerald-900" title="Registrar pago"><i class="fa-solid fa-sack-dollar text-lg"></i></button>`;
     const btnEdit = `<button onclick="editOT('${o.id}')" class="text-brand hover:opacity-80" title="Editar OT"><i class="fa-solid fa-pen-to-square text-lg"></i></button>`;
     const tr = document.createElement('tr');
     tr.className = 'border-t hover:bg-gray-50';
@@ -4034,19 +4923,42 @@ function renderOTs() {
       <td class="p-4">${o.oc || '-'}</td>
       <td class="p-4">${o.hes || '-'}</td>
       <td class="p-4">${formatShortName(o.createdByName || o.createdByEmail || '')}</td>
-      <td class="p-4">${o.estado || '-'}</td>
-      <td class="p-4">${(o.pago_estado || o.estado) === 'pagado' ? 'Pagado' : 'Pendiente'}</td>
+      <td class="p-4">${badgeOTTrabajoEstado(o.estado)}</td>
+      <td class="p-4">${badgeOTCobro(o)}</td>
       <td class="p-4 text-center">${btnPDF}</td>
-      <td class="p-4 text-center">
-        <div class="flex items-center justify-center gap-3">
-          ${btnFactura}
-          ${btnPago}
+      <td class="p-4">
+        <div class="flex items-center justify-end gap-3">
+          <button onclick="openOTLibro('${o.id}')" class="text-slate-600 hover:text-slate-900" title="Bitácora (Factura / Envío / Pago)">
+            <i class="fa-solid fa-book-open text-lg"></i>
+          </button>
           ${btnEdit}
         </div>
       </td>
     `;
-    tbody.appendChild(tr);
+
+    const trabajoFinalizado = normalizeOTTrabajoEstado(o.estado) === 'finalizada';
+    const pagada = isOTPagada(o);
+    if (trabajoFinalizado && pagada) {
+      closedRows.push(tr);
+    } else {
+      activeRows.push(tr);
+    }
   });
+
+  if (!activeRows.length) {
+    tbodyActive.innerHTML = makeOTEmptyRow('Sin resultados');
+  } else {
+    activeRows.forEach(tr => tbodyActive.appendChild(tr));
+  }
+
+  if (!closedRows.length) {
+    tbodyClosed.innerHTML = makeOTEmptyRow('Sin resultados');
+  } else {
+    closedRows.forEach(tr => tbodyClosed.appendChild(tr));
+  }
+
+  const pager = document.getElementById('otsPager');
+  if (pager) pager.innerHTML = '';
 }
 
 // Crear cotización desde una OT manual (vincula quote_id al guardar)
@@ -4091,19 +5003,24 @@ function openEditOT(otId){
           <label class="text-sm text-gray-600">HES</label>
           <input id="eOtHES" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.hes || '')}">
         </div>
-        <div>
-          <label class="text-sm text-gray-600">Estado</label>
+                <div>
+          <label class="text-sm text-gray-600">Estado del trabajo</label>
           <select id="eOtEstado" class="w-full px-3 py-2 border rounded-xl">
-            ${['en_curso','pendiente','finalizada','pagado'].map(s => `<option value="${s}" ${String((o.estado||'').toLowerCase())===s?'selected':''}>${s}</option>`).join('')}
+            ${[['pendiente','Pendiente'],['en_curso','En curso'],['finalizada','Finalizada']].map(([v,l]) => `<option value="${v}" ${normalizeOTTrabajoEstado(o.estado)===v?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div>
-          <label class="text-sm text-gray-600">Pago</label>
-          <select id="eOtPago" class="w-full px-3 py-2 border rounded-xl">
-            <option value="pendiente" ${(String((o.pago_estado||o.estado||'')).toLowerCase()!=='pagado')?'selected':''}>Pendiente</option>
-            <option value="pagado" ${(String((o.pago_estado||o.estado||'')).toLowerCase()==='pagado')?'selected':''}>Pagado</option>
+          <label class="text-sm text-gray-600">Facturación</label>
+          <select id="eOtCobro" class="w-full px-3 py-2 border rounded-xl" onchange="toggleEditOTFacturaField()">
+            ${[['pendiente_facturar','Pendiente de facturar'],['facturado','Facturado'],['pagado','Pagado']].map(([v,l]) => `<option value="${v}" ${normalizeOTCobroEstado(o)===v?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
+        <div class="md:col-span-2" id="eOtFacturaWrap" style="display:none;">
+          <label class="text-sm text-gray-600">N° Factura</label>
+          <input id="eOtFacturaNum" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(getFacturaNumeroOT(o) || '')}" placeholder="Ej: 12345">
+          <p class="text-xs text-gray-500 mt-1">Se mostrará en la tabla como: <span class="font-semibold">Facturado #N°</span></p>
+        </div>
+
       </div>
       <div class="flex gap-4 pt-6">
         <button onclick="saveEditOT('${otId}', this)" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button>
@@ -4112,6 +5029,7 @@ function openEditOT(otId){
     </div>`;
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
+  setTimeout(()=>{ try{ toggleEditOTFacturaField(); }catch(e){} }, 0);
 }
 // Alias global para botones onclick
 window.editOT = function(otId){
@@ -4252,22 +5170,36 @@ window.editOT = function(otId){
 async function saveEditOT(otId, btn){
   try{
     if(btn){ btn.disabled=true; btn.innerText='Guardando...'; }
+        const ot = (ots || []).find(x => String(x.id) === String(otId)) || {};
+    const cobro = (document.getElementById('eOtCobro')?.value || (ot.cobro_estado || ot.pago_estado) || 'pendiente_facturar').toLowerCase();
+    const facturaNum = (document.getElementById('eOtFacturaNum')?.value || getFacturaNumeroOT(ot) || '').trim();
+
+    const dataNew = Object.assign({}, (ot.data || {}));
+    if(facturaNum) dataNew.facturaNumero = facturaNum;
+
     const payload = {
       numero_ot: (document.getElementById('eOtNumero').value || '').trim(),
       fecha: document.getElementById('eOtFecha').value || todayISO(),
       descripcion: (document.getElementById('eOtDesc').value || '').trim(),
       oc: (document.getElementById('eOtOC').value || '').trim(),
       hes: (document.getElementById('eOtHES').value || '').trim(),
-      estado: (document.getElementById('eOtEstado').value || 'en_curso').toLowerCase(),
-      pago_estado: (document.getElementById('eOtPago').value || 'pendiente').toLowerCase(),
+      estado: (document.getElementById('eOtEstado').value || 'pendiente').toLowerCase(),
+      pago_estado: cobro,
+      cobro_estado: cobro,
+      data: dataNew
     };
-    // Si pago_estado es pagado, aseguramos estado pagado
-    if(payload.pago_estado === 'pagado') payload.estado = 'pagado';
+    if(facturaNum) payload.factura_num = facturaNum;
 
-    const { error } = await supabaseClient.from('ots').update(payload).eq('id', otId);
+    let { error } = await supabaseClient.from('ots').update(payload).eq('id', otId);
+    if(error && String(error.message||'').toLowerCase().includes('column')){
+      const retry = { ...payload };
+      delete retry.factura_num;
+      delete retry.cobro_estado;
+      ({ error } = await supabaseClient.from('ots').update(retry).eq('id', otId));
+    }
     if(error) throw error;
 
-    await loadData(); renderOTs(); closeModal();
+await loadData(); renderOTs(); closeModal();
   } catch(err){
     alert('Error guardando OT: ' + (err?.message || err));
   } finally {
@@ -4358,6 +5290,34 @@ window.showDashDetails = function(kind){
           const dir = c.direccion || '';
           const det = r.detalle || r.descripcion || '';
           return [String(r.fecha||''), String(nombre), String(dir||'—'), String(det||''), String(r.estado||'')];
+        });
+    } else if(kind==='mantenciones'){
+      title = 'Mantenciones Pendientes';
+      headers = ['N° Presupuesto','Cliente','Tipo servicio','Monto','Estado'];
+      rows = (quotes||[])
+        .filter(q=>isPendingQuote(q) && isMantencionQuote(q))
+        .sort((a,b)=>Number(b.numero||b.numeroCotizacion||0)-Number(a.numero||a.numeroCotizacion||0))
+        .map(q=>{
+          const c = getClient(q.clientId || q.client_id);
+          const nombre = (c.name||c.nombre||q.clientName||'—');
+          const num = q.numero || q.numeroCotizacion || 'S/N';
+          const tipo = getQuoteServiceType(q) || '—';
+          const monto = Number(q.total||q.monto||0);
+          return [String(num), String(nombre), String(tipo), fm(monto), String(q.estado||'')];
+        });
+    } else if(kind==='suministro_instalacion'){
+      title = 'Suministros e Instalaciones Pendientes (AC / Climatización)';
+      headers = ['N° Presupuesto','Cliente','Tipo servicio','Monto','Estado'];
+      rows = (quotes||[])
+        .filter(q=>isPendingQuote(q) && isSuministroInstalacionQuote(q) && isACEquipmentQuote(q))
+        .sort((a,b)=>Number(b.numero||b.numeroCotizacion||0)-Number(a.numero||a.numeroCotizacion||0))
+        .map(q=>{
+          const c = getClient(q.clientId || q.client_id);
+          const nombre = (c.name||c.nombre||q.clientName||'—');
+          const num = q.numero || q.numeroCotizacion || 'S/N';
+          const tipo = getQuoteServiceType(q) || '—';
+          const monto = Number(q.total||q.monto||0);
+          return [String(num), String(nombre), String(tipo), fm(monto), String(q.estado||'')];
         });
     } else {
       return;
@@ -4456,11 +5416,12 @@ function openModal(html) {
   if (!modal || !content) { console.error('Modal elements not found'); return; }
   content.innerHTML = html || '';
   modal.classList.remove('hidden');
+  try{ bindFolioToggles(); }catch(e){}
   // Reset scroll so form opens at top
   content.scrollTop = 0;
 }
 
-function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+function closeModal() { try{ pendingQuoteToLinkOT = null; }catch(e){} document.getElementById('modal').classList.add('hidden'); }
 
     setTimeout(() => { if(!currentUser) document.getElementById('loginScreen').classList.remove('hidden'); }, 500);
    function actualizarDashboardInteligente() {
@@ -4967,47 +5928,11 @@ window.populateQuoteSucursales = function () {
 
 // =========================
 // Cotizaciones: paginación (10 y "Ver más")
-// =========================
-(function(){
-  let quotesLimit = 10;
 
-  const ensureMoreBtn = () => {
-    const wrap = document.getElementById('view-quotes') || document.getElementById('quotesView') || document.body;
-    if (!wrap) return null;
-    let btn = document.getElementById('btnMoreQuotes');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.id = 'btnMoreQuotes';
-      btn.className = 'mt-4 px-5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-sm font-bold';
-      btn.innerText = 'Ver más cotizaciones';
-      btn.onclick = () => { quotesLimit += 10; window.renderQuotes && window.renderQuotes(); };
-      // intenta insertarlo al final de la vista
-      wrap.appendChild(btn);
-    }
-    return btn;
-  };
 
-  const _oldRenderQuotes = window.renderQuotes;
-  window.renderQuotes = function(){
-    try{
-      // si existe un renderQuotes original que usa window.quotes, lo llamamos pero limitamos antes
-      if (Array.isArray(window.quotes)) {
-        const original = window.quotes.slice();
-        window.quotes = original.slice(0, quotesLimit);
-        _oldRenderQuotes && _oldRenderQuotes();
-        window.quotes = original; // restaurar
-        const btn = ensureMoreBtn();
-        if (btn) {
-          btn.style.display = (original.length > quotesLimit) ? 'inline-flex' : 'none';
-        }
-        return;
-      }
-      _oldRenderQuotes && _oldRenderQuotes();
-    } catch(e){
-      console.error(e);
-    }
-  };
-})();
+// (paginación de cotizaciones removida para que el buscador encuentre documentos antiguos)
+
+
 
 
 
@@ -5032,7 +5957,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 /* === Pagination (10 por página) para Cotizaciones y OTs === */
 (function(){
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 999999;
   let quotesPage = 1;
   let otsPage = 1;
 
@@ -5186,9 +6111,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function applyOTs(){
-    const info = paginate('otsTable', otsPage);
-    otsPage = info.page;
-    renderPager('otsPager', info, (p)=>{ otsPage=p; applyOTs(); window.scrollTo({top:0,behavior:'smooth'}); });
+    const pager = document.getElementById('otsPager');
+    if (pager) pager.innerHTML = '';
+    return;
   }
 
     window.applyOTs = applyOTs;
