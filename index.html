@@ -18,9 +18,9 @@ function normalizeOTTrabajoEstado(v){
   const s = String(v||'').toLowerCase().replace(/-/g,'_').trim();
   if(s === 'en_curso' || s === 'encurso') return 'en_curso';
   if(s === 'realizada' || s === 'realizado') return 'realizada';
-  if(s === 'finalizado' || s === 'finalizada') return 'finalizada';
-  if(s === 'cerrada' || s === 'cerrado' || s === 'terminada' || s === 'terminado') return 'finalizada';
-  if(s === 'pagado') return 'finalizada'; // compatibilidad con registros antiguos
+  if(s === 'finalizado' || s === 'finalizada') return 'realizada';
+  if(s === 'cerrada' || s === 'cerrado' || s === 'terminada' || s === 'terminado') return 'realizada';
+  if(s === 'pagado') return 'realizada'; // compatibilidad con registros antiguos
   if(s === 'pendiente') return 'pendiente';
   return 'pendiente';
 }
@@ -104,7 +104,7 @@ function badgeOTTrabajoEstado(v){
   const s = normalizeOTTrabajoEstado(v);
   if(s === 'pendiente') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>';
   if(s === 'en_curso') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">En curso</span>';
-  if(s === 'finalizada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Finalizada</span>';
+  if(s === 'realizada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Realizada</span>';
   return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">'+ (v || '—') +'</span>';
 }
 
@@ -139,10 +139,10 @@ function handleOTFacturaPagoClick(otId){
 
 
 function toggleEditOTFacturaField(){
-  const st = String(document.getElementById('eOtCobro')?.value || '').toLowerCase();
+  const st = String(document.getElementById('eOtCobro')?.value || '').toLowerCase().replace(/-/g,'_').trim();
   const wrap = document.getElementById('eOtFacturaWrap');
   if(!wrap) return;
-  const show = (st === 'facturado' || st === 'pagado');
+  const show = (st === 'pendiente_pago' || st === 'facturado' || st === 'pagado');
   wrap.style.display = show ? 'block' : 'none';
 }
 </script>
@@ -6248,7 +6248,7 @@ function openEditOT(otId){
         <div>
           <label class="text-sm text-gray-600">Estado del trabajo</label>
           <select id="eOtEstado" class="w-full px-3 py-2 border rounded-xl">
-            ${[['pendiente','Pendiente'],['en_curso','En curso'],['realizada','Realizada'],['finalizada','Finalizada']].map(([v,l]) => `<option value="${v}" ${normalizeOTTrabajoEstado(o.estado)===v?'selected':''}>${l}</option>`).join('')}
+            ${[['pendiente','Pendiente'],['en_curso','En curso'],['realizada','Realizada']].map(([v,l]) => `<option value="${v}" ${normalizeOTTrabajoEstado(o.estado)===v?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div>
@@ -6266,7 +6266,7 @@ function openEditOT(otId){
             </select>
             <input id="eOtFacturaNum" class="md:col-span-2 w-full px-3 py-2 border rounded-xl" value="${escapeHtml(getFacturaNumeroOT(o) || '')}" placeholder="Ej: 12345">
           </div>
-          <p class="text-xs text-gray-500 mt-1">Se mostrará en la tabla como boleta o factura según corresponda. También puedes editarlo aunque la OT esté realizada o finalizada. Usa “Pendiente de pago” cuando ya existe documento pero aún no está pagada.</p>
+          <p class="text-xs text-gray-500 mt-1">Se mostrará en la tabla como boleta o factura según corresponda. También puedes editarlo aunque la OT esté realizada. Usa “Pendiente de pago” cuando ya existe documento pero aún no está pagada.</p>
         </div>
 
       </div>
