@@ -17,8 +17,9 @@ function formatDDMMYY(value){
 function normalizeOTTrabajoEstado(v){
   const s = String(v||'').toLowerCase().replace(/-/g,'_').trim();
   if(s === 'en_curso' || s === 'encurso') return 'en_curso';
-  if(s === 'finalizado') return 'finalizada';
-  if(s === 'finalizada') return 'finalizada';
+  if(s === 'realizada' || s === 'realizado') return 'realizada';
+  if(s === 'finalizado' || s === 'finalizada') return 'finalizada';
+  if(s === 'cerrada' || s === 'cerrado' || s === 'terminada' || s === 'terminado') return 'finalizada';
   if(s === 'pagado') return 'finalizada'; // compatibilidad con registros antiguos
   if(s === 'pendiente') return 'pendiente';
   return 'pendiente';
@@ -48,8 +49,8 @@ function getFacturaNumeroOT(o){
   // Compatibilidad: mantiene el nombre histórico de la función,
   // pero ahora sirve para boleta o factura
   return String(
-    (o && (o.factura_num || o.facturaNumero || o.factura_numero)) ||
-    (o && o.data && (o.data.facturaNumero || o.data.factura_num || o.data.factura_numero || o.data.nroFactura || o.data.factura)) ||
+    (o && (o.factura_num || o.facturaNumero || o.factura_numero || o.documento_numero || o.documentoNumero)) ||
+    (o && o.data && (o.data.facturaNumero || o.data.factura_num || o.data.factura_numero || o.data.nroFactura || o.data.factura || o.data.documentoNumero || o.data.documento_numero)) ||
     ''
   ).trim();
 }
@@ -72,10 +73,31 @@ function isOTPagada(o){
 }
 // compatibilidad (por si algo viejo lo usa)
 function normalizeOTCobroEstado(o){
+  const raw = String(
+    (o && (o.cobro_estado || o.pago_estado)) ||
+    (o && o.data && (o.data.cobro_estado || o.data.pago_estado)) ||
+    ''
+  ).toLowerCase().replace(/-/g,'_').trim();
+
+  if(['pagado','pagada','paid'].includes(raw) || isOTPagada(o)) return 'pagado';
+
+  if([
+    'pendiente_pago','pendiente de pago','por_cobrar','cobrar',
+    'facturado','facturada','pendiente'
+  ].includes(raw)) return 'pendiente_pago';
+
   const fac = getFacturaNumeroOT(o);
-  if(!fac) return 'sin_factura';
-  if(isOTPagada(o)) return 'pagado';
-  return 'sin_pago';
+  if(fac) return 'pendiente_pago';
+
+  return 'pendiente_facturar';
+}
+
+function prettyOTCobroEstado(o){
+  const s = normalizeOTCobroEstado(o);
+  if(s === 'pendiente_facturar') return 'Pendiente de facturar';
+  if(s === 'pendiente_pago') return 'Pendiente de pago';
+  if(s === 'pagado') return 'Pagado';
+  return String(s || '—').replace(/_/g,' ');
 }
 
 function badgeOTTrabajoEstado(v){
@@ -569,7 +591,7 @@ function toggleEditOTFacturaField(){
         </div>
 
         <div class="mb-4">
-          <h2 class="text-2xl font-bold text-emerald-700 mb-4">OT finalizadas y pagadas</h2>
+          <h2 class="text-2xl font-bold text-emerald-700 mb-4">OT realizadas / finalizadas y pagadas</h2>
           <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
             <thead class="bg-emerald-50">
               <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° Cotización</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-left">OC</th><th class="p-4 text-left">HES</th><th class="p-4 text-left">Guía</th><th class="p-4 text-left">Creado por</th><th class="p-4 text-left">Estado</th><th class="p-4 text-left">Documento</th><th class="p-4 text-center">PDF</th><th class="p-4 text-center">Acciones</th></tr>
@@ -792,6 +814,112 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
       if(yy.length === 2) yy = '20' + yy;
       return `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
     }
+
+    function otMoneyRound(n){
+      const x = Number(n || 0);
+      if(!isFinite(x)) return 0;
+      return Math.max(0, Math.round(x));
+    }
+    function otMoneyToNumber(v){
+      if(v === null || v === undefined) return 0;
+      if(typeof v === 'number') return otMoneyRound(v);
+      const cleaned = String(v).replace(/\./g,'').replace(/,/g,'.').replace(/[^\d.-]/g,'');
+      const n = Number(cleaned || 0);
+      return otMoneyRound(n);
+    }
+    function otCalcFinancialsFromNeto(neto){
+      const n = otMoneyRound(neto);
+      const iva = otMoneyRound(n * 0.19);
+      return { neto: n, iva, total: n + iva };
+    }
+    function otCalcFinancialsFromTotal(total){
+      const t = otMoneyRound(total);
+      if(!t) return { neto: 0, iva: 0, total: 0 };
+      const neto = otMoneyRound(t / 1.19);
+      return { neto, iva: Math.max(0, t - neto), total: t };
+    }
+    function getFinancialBreakdownFromSource(source){
+      const data = source?.data || {};
+      const total = otMoneyToNumber(data.total ?? data.monto ?? source?.monto ?? 0);
+      const neto = otMoneyToNumber(data.neto ?? source?.neto ?? '');
+      const iva = otMoneyToNumber(data.iva ?? source?.iva ?? '');
+      if(neto || iva){
+        const safeTotal = total || (neto + iva);
+        return { neto, iva: iva || Math.max(0, safeTotal - neto), total: safeTotal };
+      }
+      return otCalcFinancialsFromTotal(total);
+    }
+    function syncNewOTManualAmounts(source){
+      const netoEl = document.getElementById('mOtNeto');
+      const ivaEl = document.getElementById('mOtIva');
+      const totalEl = document.getElementById('mOtTotal');
+      if(!netoEl || !ivaEl || !totalEl) return;
+      let fin = source === 'total' ? otCalcFinancialsFromTotal(totalEl.value) : otCalcFinancialsFromNeto(netoEl.value);
+      netoEl.value = fin.neto;
+      ivaEl.value = fin.iva;
+      totalEl.value = fin.total;
+    }
+    function toggleNewOTManualAmountFields(){
+      const wrap = document.getElementById('mOtManualMontoWrap');
+      const hint = document.getElementById('mOtManualMontoHint');
+      const netoEl = document.getElementById('mOtNeto');
+      const ivaEl = document.getElementById('mOtIva');
+      const totalEl = document.getElementById('mOtTotal');
+      if(!wrap || !netoEl || !ivaEl || !totalEl) return;
+      const hasLinkedQuote = !!window.pendingQuoteToLinkOT;
+      [netoEl, totalEl].forEach(el => el.readOnly = hasLinkedQuote);
+      ivaEl.readOnly = true;
+      if(hasLinkedQuote){
+        const q = (quotes || []).find(x => String(x.id || '') === String(window.pendingQuoteToLinkOT || ''));
+        const fin = getFinancialBreakdownFromSource(q || {});
+        netoEl.value = fin.neto;
+        ivaEl.value = fin.iva;
+        totalEl.value = fin.total;
+        wrap.classList.add('opacity-70');
+        if(hint) hint.textContent = 'Esta OT se está creando desde una cotización, por eso el monto se toma automáticamente desde la cotización.';
+      }else{
+        wrap.classList.remove('opacity-70');
+        if(hint) hint.textContent = 'Usa esta sección cuando la OT no tenga cotización. Puedes ingresar neto o total.';
+      }
+    }
+    function syncEditOTManualAmounts(source){
+      const netoEl = document.getElementById('eOtNeto');
+      const ivaEl = document.getElementById('eOtIva');
+      const totalEl = document.getElementById('eOtTotal');
+      if(!netoEl || !ivaEl || !totalEl) return;
+      let fin = source === 'total' ? otCalcFinancialsFromTotal(totalEl.value) : otCalcFinancialsFromNeto(netoEl.value);
+      netoEl.value = fin.neto;
+      ivaEl.value = fin.iva;
+      totalEl.value = fin.total;
+    }
+    function toggleEditOTManualAmountFields(){
+      const quoteSel = document.getElementById('eOtQuoteId');
+      const wrap = document.getElementById('eOtManualMontoWrap');
+      const hint = document.getElementById('eOtManualMontoHint');
+      const netoEl = document.getElementById('eOtNeto');
+      const ivaEl = document.getElementById('eOtIva');
+      const totalEl = document.getElementById('eOtTotal');
+      if(!wrap || !netoEl || !ivaEl || !totalEl) return;
+      const qid = String(quoteSel?.value || '').trim();
+      const selectedQuote = qid ? (quotes || []).find(q => String(q.id || '') === qid) : null;
+      if(selectedQuote){
+        const fin = getFinancialBreakdownFromSource(selectedQuote);
+        netoEl.value = fin.neto;
+        ivaEl.value = fin.iva;
+        totalEl.value = fin.total;
+      }
+      const locked = !!selectedQuote;
+      [netoEl, totalEl].forEach(el => el.readOnly = locked);
+      ivaEl.readOnly = true;
+      if(locked){
+        wrap.classList.add('opacity-70');
+        if(hint) hint.textContent = 'Esta OT está vinculada a una cotización, por eso el monto se toma desde la cotización asociada.';
+      }else{
+        wrap.classList.remove('opacity-70');
+        if(hint) hint.textContent = 'Puedes definir neto, IVA y total para una OT sin cotización.';
+      }
+    }
+
 
     const Fn = {
       validaRut: function(rutCompleto) {
@@ -1151,9 +1279,9 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         abonos: Array.isArray(data.abonos) ? data.abonos : [],
         fechaPago: data.fechaPago || null,
         metodoPago: data.metodoPago || null,
-        documentoTipo: (r.documento_tipo || data.documentoTipo || data.documento_tipo || ((r.factura_num || r.factura_numero || data.facturaNumero || data.factura || data.nroFactura) ? 'factura' : 'sin_documento')),
-        facturaNumero: (r.factura_num || r.factura_numero || data.facturaNumero || data.factura || data.nroFactura || null),
-        factura_num: r.factura_num || r.factura_numero || null,
+        documentoTipo: (r.documento_tipo || data.documentoTipo || data.documento_tipo || ((r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero) ? 'factura' : 'sin_documento')),
+        facturaNumero: (r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero || null),
+        factura_num: r.factura_num || r.factura_numero || r.documento_numero || null,
         factura_enviada_fecha: r.factura_enviada_fecha || null,
         factura_registro_fecha: r.factura_registro_fecha || null,
         cobro_estado: (r.cobro_estado || '').toLowerCase(),
@@ -1550,7 +1678,7 @@ function renderClients() {
     tr.style.cursor = 'pointer';
         tr.addEventListener('click', (e) => {
           if (e.target.closest('button') || e.target.closest('a')) return;
-          viewVisita(v.id);
+          showClientDatos(client.id);
         });
         tbody.appendChild(tr);
   });
@@ -1894,14 +2022,13 @@ async function saveClientDatos(clientId) {
     const existsRut = (clients || []).find(c => normalizeRut(c.rut) === rut && String(c.id) !== String(clientId));
     if(existsRut) { alert('Ya existe un cliente con ese RUT: ' + (existsRut.name || '')); return; }
 
-    const payload = {
+    const basePayload = {
       name,
       rut,
       tipo,
       telefono,
       telefono2,
       email,
-      direccion,
       ciudad,
       contacto,
       giro,
@@ -1926,10 +2053,20 @@ async function saveClientDatos(clientId) {
       }
     };
 
-    const { error } = await supabaseClient
+    let payload = { ...basePayload, direccion };
+
+    let { error } = await supabaseClient
       .from('clients')
       .update(payload)
       .eq('id', clientId);
+
+    if (error && String(error.message || '').toLowerCase().includes('doreccion')) {
+      payload = { ...basePayload, doreccion: direccion };
+      ({ error } = await supabaseClient
+        .from('clients')
+        .update(payload)
+        .eq('id', clientId));
+    }
 
     if (error) throw error;
 
@@ -2224,13 +2361,69 @@ window.toggleClientMode = function(mode) {
   }
 };
 
+
+window.quoteServiceTypeOptions = [
+  'Reparación',
+  'Mantención',
+  'Instalación',
+  'Suministro',
+  'Suministro e Instalación',
+  'Asistencia de emergencia',
+  'Visita de emergencia',
+  'Arriendo de equipos',
+  'Mantención máquina de café',
+  'Reparación máquina de café',
+  'Instalación máquina de café'
+];
+
+window.quoteItemPresets = [];
+
+window.renderQuoteServiceTypeOptions = function(selectedValue = '') {
+  const selected = String(selectedValue || '').trim();
+  const base = Array.isArray(window.quoteServiceTypeOptions) ? window.quoteServiceTypeOptions.slice() : [];
+  if (selected && !base.some(x => String(x).toLowerCase() === selected.toLowerCase())) {
+    base.unshift(selected);
+  }
+  return base.map(opt => `<option value="${safeText(opt)}" ${String(opt).toLowerCase() === selected.toLowerCase() ? 'selected' : ''}>${safeText(opt)}</option>`).join('');
+};
+
+window.renderQuoteItemPresetButtons = function() {
+  const presets = Array.isArray(window.quoteItemPresets) ? window.quoteItemPresets : [];
+  return presets.map(item => `
+    <button type="button"
+            onclick="window.addPresetQuoteItem(${JSON.stringify(item)})"
+            class="px-3 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition">
+      ${safeText(item)}
+    </button>
+  `).join('');
+};
+
+window.renderQuoteItemPresetDatalist = function() {
+  const presets = Array.isArray(window.quoteItemPresets) ? window.quoteItemPresets : [];
+  return `<datalist id="quoteItemPresetsList">${presets.map(item => `<option value="${safeText(item)}"></option>`).join('')}</datalist>`;
+};
+
+window.addPresetQuoteItem = function(desc) {
+  window.addItem(desc || '', 1, 0);
+  try {
+    const rows = document.querySelectorAll('#itemsContainer .item-row');
+    const last = rows[rows.length - 1];
+    const input = last ? last.querySelector('.item-desc') : null;
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  } catch (e) {}
+};
+
+
 window.addItem = function(desc='', cant=1, valor=0) {
   const container = document.getElementById('itemsContainer');
   if (!container) return;
   const row = document.createElement('div'); 
   row.className = 'item-row grid grid-cols-12 gap-2 p-4 items-center bg-white border-b border-slate-50';
   row.innerHTML = `
-    <div class="col-span-6"><input type="text" class="item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${desc}"></div>
+    <div class="col-span-6"><input type="text" list="quoteItemPresetsList" class="item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${desc}"></div>
     <div class="col-span-1"><input type="number" class="item-cant w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${cant}" oninput="window.calcularTotal()"></div>
     <div class="col-span-2"><input type="number" class="item-valor w-full bg-transparent border-none text-right font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${valor}" oninput="window.calcularTotal()"></div>
     <div class="col-span-2 text-right"><span class="item-subtotal-text font-bold text-sm text-emerald-600">$0</span></div>
@@ -2346,13 +2539,8 @@ function showNewQuoteModal(prefill = null) {
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Tipo de Trabajo</label>
             <select id="qTipo" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-              <option>Reparación</option>
-              <option>Mantención</option>
-              <option>Instalación</option>
-              <option>Suministro</option>
-              <option>Suministro e Instalación</option> 
-                          <option value="Arriendo de equipos">Arriendo de equipos</option>
-</select>
+              ${window.renderQuoteServiceTypeOptions((prefill && prefill.tipo_servicio) ? prefill.tipo_servicio : 'Mantención')}
+            </select>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
@@ -2369,6 +2557,13 @@ function showNewQuoteModal(prefill = null) {
             <div class="col-span-1"></div>
           </div>
           <div id="itemsContainer" class="divide-y divide-slate-100"></div>
+          ${window.renderQuoteItemPresetDatalist()}
+          <div class="px-4 py-3 border-t border-slate-100 bg-slate-50">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Items rápidos</div>
+            <div class="flex flex-wrap gap-2">
+              ${window.renderQuoteItemPresetButtons()}
+            </div>
+          </div>
           <div class="p-3 bg-[#85af28]/10 flex justify-center border-t border-slate-100">
             <button type="button" onclick="window.addItem()" class="text-emerald-600 font-bold text-xs flex items-center gap-2 hover:scale-105 transition-all">
               <span class="flex items-center justify-center w-6 h-6 bg-emerald-600 text-white rounded-full">+</span> AGREGAR ITEM
@@ -2595,7 +2790,8 @@ async function saveNewQuote(btn) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="text-xs font-bold text-slate-500">CLIENTE</label>
-              <select id="qClient" class="w-full px-3 py-3 border rounded-xl bg-slate-50" disabled>${clientOptions}</select>
+              <select id="qClient" class="w-full px-3 py-3 border rounded-xl bg-white" onchange="const s=document.getElementById('qSucursal'); if(s) s.value=''; window.populateQuoteSucursales && window.populateQuoteSucursales()">${clientOptions}</select>
+              <p class="text-[11px] text-slate-400 mt-1">Ahora puedes cambiar el cliente o empresa a la que va dirigida esta cotización.</p>
           <div class="mt-3">
             <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Sucursal / Dirección</label>
             <input id="qSucursal" list="qSucursalList" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Escribe o selecciona sucursal / dirección">
@@ -2624,7 +2820,8 @@ async function saveNewQuote(btn) {
 
             <div class="md:col-span-2">
               <label class="text-xs font-bold text-slate-500">TIPO DE SERVICIO</label>
-              <input id="qTipo" value="${safeText(tipoActual)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Mantención / Instalación / Reparación">
+              <input id="qTipo" list="qTipoList" value="${safeText(tipoActual)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Mantención / Instalación / Reparación">
+              <datalist id="qTipoList">${window.renderQuoteServiceTypeOptions(tipoActual)}</datalist>
             </div>
           </div>
 
@@ -2637,6 +2834,13 @@ async function saveNewQuote(btn) {
               <div class="col-span-1"></div>
             </div>
             <div id="itemsContainer" class="divide-y divide-slate-100 bg-white"></div>
+            ${window.renderQuoteItemPresetDatalist()}
+            <div class="px-4 py-3 border-t border-slate-100 bg-slate-50">
+              <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Items rápidos</div>
+              <div class="flex flex-wrap gap-2">
+                ${window.renderQuoteItemPresetButtons()}
+              </div>
+            </div>
             <div class="p-3 bg-[#85af28]/10 flex justify-center border-t border-slate-100">
               <button type="button" onclick="window.addItem()" class="text-[#85af28] font-black text-xs flex items-center gap-2 hover:scale-105 transition-all">
                 <span class="flex items-center justify-center w-6 h-6 bg-[#85af28] text-white rounded-full">+</span> AGREGAR ITEM
@@ -2668,7 +2872,8 @@ async function saveNewQuote(btn) {
             </div>
           </div>
 
-          <div class="flex gap-3 pt-6">
+          <div class="flex flex-col md:flex-row gap-3 pt-6">
+            <button type="button" onclick="deleteQuote('${q.id}', { fromEdit: true })" class="md:w-auto bg-rose-50 text-rose-700 py-4 px-5 rounded-xl font-black border border-rose-200 hover:bg-rose-100">Eliminar cotización</button>
             <button type="button" onclick="previewQuote('${q.id}')" class="flex-1 bg-slate-100 text-slate-700 py-4 rounded-xl font-black">Previsualizar</button>
             <button type="button" onclick="saveUpdatedQuote('${q.id}', this)" class="flex-1 bg-[#85af28] text-white py-4 rounded-xl font-black shadow-lg shadow-[#85af28]/20">Guardar cambios</button>
           </div>
@@ -2717,7 +2922,14 @@ window.calcularTotal();
         const q = quotes.find(x => String(x.id) === String(quoteId));
         if(!q) throw new Error('No se encontró la cotización');
 
-        const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
+        
+        const selectedClientId = (document.getElementById('qClient')?.value || '').trim();
+        if(!selectedClientId) throw new Error('Debes seleccionar un cliente para la cotización.');
+
+        const selectedClient = (clients || []).find(c => String(c.id) === String(selectedClientId));
+        if(!selectedClient) throw new Error('No se encontró el cliente seleccionado.');
+
+const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
         const obra  = (document.getElementById('qObra')?.value || '').trim();
         const tipo  = (document.getElementById('qTipo')?.value || '').trim() || (q.tipo_servicio || 'General');
         const sucursal = (document.getElementById('qSucursal')?.value || '').trim();
@@ -2746,10 +2958,18 @@ window.calcularTotal();
         const totalCalc = netoCalc + ivaCalc;
 
         const payload = {
+          client_id: selectedClientId,
           numero: folio,
           obra: obra,
           tipo_servicio: tipo,
-          data: Object.assign({}, (q.data||{}), { sucursal: sucursal }),
+          data: Object.assign({}, (q.data||{}), {
+            clientId: selectedClientId,
+            client_id: selectedClientId,
+            clientName: selectedClient.name || '',
+            razonSocial: selectedClient.name || '',
+            rut: selectedClient.rut || '',
+            sucursal: sucursal
+          }),
           fecha: dateInputToISO(fechaStr),
           items: itemsArr,
           monto: totalCalc,
@@ -2762,15 +2982,68 @@ window.calcularTotal();
         const { error } = await supabaseClient.from('quotes').update(payload).eq('id', quoteId);
         if(error) throw error;
 
+        const linkedOTs = (ots || []).filter(o => String(o.quoteId || o.quote_id || '') === String(quoteId));
+        for (const ot of linkedOTs) {
+          const otData = Object.assign({}, (ot.data || {}), {
+            clientId: selectedClientId,
+            client_id: selectedClientId,
+            clientName: selectedClient.name || '',
+            razonSocial: selectedClient.name || '',
+            rut: selectedClient.rut || ''
+          });
+          const { error: otErr } = await supabaseClient
+            .from('ots')
+            .update({ client_id: selectedClientId, data: otData })
+            .eq('id', ot.id);
+          if (otErr) throw otErr;
+        }
+
         closeModal();
         await loadData();
         renderQuotes();
+        try{ renderOTs(); }catch(e){}
         toastInfo('Cotización actualizada ✅');
       }catch(err){
         console.error(err);
         alert('Error al guardar cotización: ' + (err.message || err));
       }finally{
         if(btn){ btn.disabled = false; btn.innerText = 'Guardar cambios'; }
+      }
+    }
+
+    async function deleteQuote(quoteId, opts = {}){
+      try{
+        const q = (quotes || []).find(x => String(x.id) === String(quoteId));
+        if(!q){
+          alert('No se encontró la cotización.');
+          return;
+        }
+
+        const linkedOTs = (ots || []).filter(o => String(o.quoteId || o.quote_id || '') === String(quoteId));
+        if(linkedOTs.length){
+          alert('No puedes eliminar esta cotización porque tiene una OT vinculada. Primero debes editar o eliminar la OT asociada.');
+          return;
+        }
+
+        const folio = q.numeroCotizacion || q.numero || q.folio || 'S/N';
+        const cliente = q.clientName || q.razonSocial || 'cliente';
+        const ok = confirm(`¿Eliminar la cotización ${folio} de ${cliente}? Esta acción no se puede deshacer.`);
+        if(!ok) return;
+
+        const { error } = await supabaseClient.from('quotes').delete().eq('id', quoteId);
+        if(error) throw error;
+
+        if(opts && opts.fromEdit){
+          try{ closeModal(); }catch(e){}
+        }
+
+        await loadData();
+        try{ renderQuotes(); }catch(e){}
+        try{ renderOTs(); }catch(e){}
+        toastInfo('Cotización eliminada ✅');
+      }catch(err){
+        console.error(err);
+        alert('Error al eliminar cotización: ' + (err.message || err));
       }
     }
 
@@ -3162,7 +3435,28 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
                 <input type="text" id="otNewPhone" placeholder="Teléfono" class="w-full px-3 py-2 border rounded-xl">
                 <select id="otNewType" class="w-full px-3 py-2 border rounded-xl mt-2"><option value="Natural">Natural</option><option value="Empresa">Empresa</option></select>
             </div>
-            <div><label class="block text-sm font-medium">Descripción de trabajos *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl"></textarea></div>
+            <div><label class="block text-sm font-medium">Descripción del trabajo realizado *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Mantención correctiva, cambio de repuestos, revisión general..."></textarea></div>
+            <div id="mOtManualMontoWrap" class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+                <label class="block text-sm font-semibold text-slate-700">Monto del trabajo</label>
+                <span id="mOtManualMontoHint" class="text-xs text-slate-500">Usa esta sección cuando la OT no tenga cotización.</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">Neto</label>
+                  <input id="mOtNeto" type="number" min="0" step="1" value="0" oninput="syncNewOTManualAmounts('neto')" class="w-full px-3 py-2 border rounded-xl">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">IVA</label>
+                  <input id="mOtIva" type="number" min="0" step="1" value="0" readonly class="w-full px-3 py-2 border rounded-xl bg-slate-100 text-slate-600">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">Total</label>
+                  <input id="mOtTotal" type="number" min="0" step="1" value="0" oninput="syncNewOTManualAmounts('total')" class="w-full px-3 py-2 border rounded-xl">
+                </div>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Puedes ingresar el neto o el total. El IVA se recalcula automáticamente al 19%.</p>
+            </div>
             <div><label class="block text-sm font-medium">OC</label><input id="mOtOC" class="w-full px-3 py-2 border rounded-xl"></div>
             <div><label class="block text-sm font-medium">HES</label><input id="mOtHES" class="w-full px-3 py-2 border rounded-xl"></div>
             <div><label class="block text-sm font-medium">Guía de despacho</label><input id="mOtGuia" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: GD-1234"></div>
@@ -3178,6 +3472,8 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
       document.getElementById('modal').classList.remove('hidden');
 
       try{ bindFolioToggles(); }catch(e){}
+      try{ syncNewOTManualAmounts('neto'); }catch(e){}
+      try{ toggleNewOTManualAmountFields(); }catch(e){}
 
   } catch (error) {
       console.error("Error en showNewOTManualModal:", error);
@@ -3190,9 +3486,17 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
 
       // CORRECCIÓN: Capturamos el número directamente del input que creamos
       const numeroOT = document.getElementById('mOtNum').value.trim();
-      const monto = 0; // OT manual no tiene monto hasta asociar cotización
       const desc = document.getElementById('mOtDesc').value.trim();
-      
+      const linkedQuote = pendingQuoteToLinkOT ? (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT)) : null;
+      const manualFin = {
+        neto: otMoneyToNumber(document.getElementById('mOtNeto')?.value || 0),
+        iva: otMoneyToNumber(document.getElementById('mOtIva')?.value || 0),
+        total: otMoneyToNumber(document.getElementById('mOtTotal')?.value || 0)
+      };
+      const quoteFin = linkedQuote ? getFinancialBreakdownFromSource(linkedQuote) : null;
+      const fin = quoteFin || manualFin;
+      const monto = otMoneyToNumber(fin.total || 0);
+
       let client = null;
       const otClientMode = document.querySelector('input[name="otClientMode"]:checked').value;
 
@@ -3248,6 +3552,10 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           clientName: client.name,
           descripcion: desc,
           monto,
+          total: monto,
+          neto: otMoneyToNumber(fin.neto || 0),
+          iva: otMoneyToNumber(fin.iva || 0),
+          manual_pricing: !linkedQuote,
           oc: document.getElementById('mOtOC').value || '',
           hes: document.getElementById('mOtHES').value || '',
           guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
@@ -3266,8 +3574,16 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
 
           payload.data = payload.data || {};
           payload.data.quoteId = pendingQuoteToLinkOT;
+          payload.data.quote_id = pendingQuoteToLinkOT;
+          payload.data.manual_pricing = false;
           if(qNum) payload.data.numeroCotizacion = qNum;
-          if(qMonto) payload.data.monto = qMonto;
+          if(qMonto){
+            const qFin = getFinancialBreakdownFromSource(qq || {});
+            payload.data.monto = qMonto;
+            payload.data.total = qFin.total || qMonto;
+            payload.data.neto = qFin.neto || 0;
+            payload.data.iva = qFin.iva || 0;
+          }
         }
       }catch(e){}
 
@@ -3665,6 +3981,7 @@ async function savePagoFinal(otId, btn) {
 
     // Si existen columnas, también las mantenemos consistentes
     if('factura_num' in (ot||{})) payload.factura_num = factura;
+    if('documento_numero' in (ot||{})) payload.documento_numero = factura;
     if('documento_tipo' in (ot||{})) payload.documento_tipo = documentoTipo;
     if(fechaEnvio) payload.factura_enviada_fecha = fechaEnvio;
 
@@ -3877,14 +4194,15 @@ async function savePagoFinal(otId, btn) {
         delete ot.data.fechaPagoISO;
         ot.data.metodoPago = abonos.length > 1 ? 'Múltiples abonos' : (abonos[0]?.metodo || '');
         ot.data.pagoConfirmado = false;
-        ot.data.pago_estado = 'pendiente';
-        ot.data.cobro_estado = 'pendiente';
+        const cobroPendiente = getFacturaNumeroOT(ot) ? 'pendiente_pago' : 'pendiente_facturar';
+        ot.data.pago_estado = cobroPendiente;
+        ot.data.cobro_estado = cobroPendiente;
       }
 
       const payload = {
         data: ot.data,
-        pago_estado: pagoCompleto ? 'pagado' : 'pendiente',
-        cobro_estado: pagoCompleto ? 'pagado' : 'pendiente'
+        pago_estado: pagoCompleto ? 'pagado' : (getFacturaNumeroOT(ot) ? 'pendiente_pago' : 'pendiente_facturar'),
+        cobro_estado: pagoCompleto ? 'pagado' : (getFacturaNumeroOT(ot) ? 'pendiente_pago' : 'pendiente_facturar')
       };
       const { error } = await supabaseClient.from('ots').update(payload).eq('id', ot.id);
       return { error, pagoCompleto };
@@ -3970,7 +4288,7 @@ async function savePagoFinal(otId, btn) {
               <input id="vtNombre" class="w-full px-4 py-3 border rounded-2xl bg-white">
             </div>
             <div>
-              <label class="block text-sm">RUT *</label>
+              <label class="block text-sm">RUT (opcional)</label>
               <input id="vtRut" class="w-full px-4 py-3 border rounded-2xl bg-white">
             </div>
             <div>
@@ -4051,17 +4369,17 @@ async function savePagoFinal(otId, btn) {
 
           nombre = String(client.name || client.nombre || '').trim();
           rut = normalizeRut(client.rut || '');
-          direccion = String(client.direccion || client.address || '').trim();
-          telefono = String(client.telefono || client.phone || '').trim();
-          email = String(client.email || '').trim();
+          direccion = String(client.direccion || client.address || (client.data && (client.data.direccion || client.data.doreccion)) || '').trim();
+          telefono = String(client.telefono || client.phone || (client.data && client.data.telefono) || '').trim();
+          email = String(client.email || (client.data && client.data.email) || '').trim();
         } else {
           nombre = document.getElementById('vtNombre')?.value.trim() || '';
-          rut = normalizeRut(document.getElementById('vtRut')?.value.trim() || '');
+          rut = pickRutOrProvisional(document.getElementById('vtRut')?.value.trim() || '');
           direccion = document.getElementById('vtDireccion')?.value.trim() || '';
           telefono = document.getElementById('vtTelefono')?.value.trim() || '';
           email = document.getElementById('vtEmail')?.value.trim() || '';
 
-          if (!nombre || !rut || !direccion) {
+          if (!nombre || !direccion) {
             throw new Error("Completa los datos obligatorios del nuevo cliente.");
           }
 
@@ -4069,32 +4387,44 @@ async function savePagoFinal(otId, btn) {
           if (existingByRut) {
             client = existingByRut;
           } else {
-            const { data: newClient, error: clientErr } = await supabaseClient
-              .from('clients')
-              .insert([{
-                rut,
-                name: nombre,
-                tipo: typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa',
-                direccion,
+            const newClientPayload = {
+              rut,
+              name: nombre,
+              tipo: typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa',
+              direccion,
+              telefono,
+              email,
+              contacto: '',
+              created_by: currentUser?.id || null,
+              created_by_email: currentUser?.email || '',
+              created_by_name: currentUserDisplayName || 'Admin',
+              data: {
                 telefono,
                 email,
-                contacto: '',
-                created_by: currentUser?.id || null,
-                created_by_email: currentUser?.email || '',
-                created_by_name: currentUserDisplayName || 'Admin',
-                data: {
-                  telefono,
-                  email,
-                  direccion,
-                  tipo: (typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa')
-                }
-              }])
+                direccion,
+                tipo: (typeof guessClientTipo === 'function' ? guessClientTipo(nombre) : 'empresa')
+              }
+            };
+
+            let clientRes = await supabaseClient
+              .from('clients')
+              .insert([newClientPayload])
               .select()
               .single();
 
-            if (clientErr) throw clientErr;
-            client = newClient;
-            if (Array.isArray(clients)) clients.push(newClient);
+            if (clientRes.error && String(clientRes.error.message || '').toLowerCase().includes('doreccion')) {
+              delete newClientPayload.direccion;
+              newClientPayload.doreccion = direccion;
+              clientRes = await supabaseClient
+                .from('clients')
+                .insert([newClientPayload])
+                .select()
+                .single();
+            }
+
+            if (clientRes.error) throw clientRes.error;
+            client = clientRes.data;
+            if (Array.isArray(clients)) clients.push(clientRes.data);
           }
         }
 
@@ -4204,9 +4534,9 @@ async function savePagoFinal(otId, btn) {
 
       setVal('vtNombrePreview', c.name || c.nombre || '');
       setVal('vtRutPreview', c.rut || '');
-      setVal('vtDireccionPreview', c.direccion || c.address || '');
-      setVal('vtTelefonoPreview', c.telefono || c.phone || '');
-      setVal('vtEmailPreview', c.email || '');
+      setVal('vtDireccionPreview', c.direccion || c.address || (c.data && (c.data.direccion || c.data.doreccion)) || '');
+      setVal('vtTelefonoPreview', c.telefono || c.phone || (c.data && c.data.telefono) || '');
+      setVal('vtEmailPreview', c.email || (c.data && c.data.email) || '');
     }
 
     async function renderVisitas() {
@@ -5031,8 +5361,9 @@ async function saveNewReq() {
       const numeroDocumento = getFacturaNumeroOT(o) || '-';
       const items = Array.isArray(quote?.items) ? quote.items : [];
       const abonos = Array.isArray(o.abonos) ? o.abonos : [];
+      const fin = getFinancialBreakdownFromSource(o || {});
       const totalAbonado = abonos.reduce((acc, a) => acc + Number(a?.monto || 0), 0);
-      const saldoPendiente = Math.max(0, Number(o.monto || 0) - totalAbonado);
+      const saldoPendiente = Math.max(0, Number(fin.total || o.monto || 0) - totalAbonado);
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -5076,7 +5407,7 @@ async function saveNewReq() {
           ['Descripción del trabajo', o.descripcion || quote?.obra || quote?.descripcion || '-'],
           ['Tipo de servicio', quote?.tipo_servicio || (o.data && o.data.tipo_servicio) || '-'],
           ['Estado del trabajo', normalizeOTTrabajoEstado(o.estado).replace(/_/g, ' ')],
-          ['Estado de pago', normalizeOTCobroEstado(o).replace(/_/g, ' ')],
+          ['Estado de pago', prettyOTCobroEstado(o)],
           ['Documento tributario', `${tipoDocumento} ${numeroDocumento !== '-' ? 'N° ' + numeroDocumento : '(pendiente)'}`],
           ['OC', o.oc || '-'],
           ['HES', o.hes || '-'],
@@ -5112,7 +5443,9 @@ async function saveNewReq() {
       }
 
       const resumenPago = [
-        ['Monto OT', formatCLP(o.monto || 0)],
+        ['Neto OT', formatCLP(fin.neto || 0)],
+        ['IVA OT', formatCLP(fin.iva || 0)],
+        ['Total OT', formatCLP(fin.total || o.monto || 0)],
         ['Abonado', formatCLP(totalAbonado)],
         ['Saldo pendiente', formatCLP(saldoPendiente)],
         ['Pago completo', isOTPagada(o) || saldoPendiente <= 0 ? 'Sí' : 'No'],
@@ -5650,7 +5983,7 @@ function showOTDescripcion(otId){
           <div><span class="text-slate-500">Cotización:</span> <span class="font-semibold">${escapeHtml(ot.numeroCotizacion||'-')}</span></div>
           <div><span class="text-slate-500">OT:</span> <span class="font-semibold">${escapeHtml(ot.numeroOT||'-')}</span></div>
           <div><span class="text-slate-500">OC:</span> <span class="font-semibold">${escapeHtml(ot.oc||'-')}</span></div>
-          <div><span class="text-slate-500">Documento:</span> <span class="font-semibold">${escapeHtml((getDocumentoLabelOT(ot) !== "Documento" ? getDocumentoLabelOT(ot) + " " : "") + (ot.facturaNumero || ot.factura_num || ot.factura_numero || "-")) }</span></div>
+          <div><span class="text-slate-500">Documento:</span> <span class="font-semibold">${escapeHtml((getDocumentoLabelOT(ot) !== "Documento" ? getDocumentoLabelOT(ot) + " " : "") + (getFacturaNumeroOT(ot) || "-")) }</span></div>
           <div><span class="text-slate-500">Guía:</span> <span class="font-semibold">${escapeHtml(ot.guia_despacho || '-')}</span></div>
         </div>
 
@@ -5784,9 +6117,9 @@ function renderOTs() {
       </td>
     `;
 
-    const trabajoFinalizado = normalizeOTTrabajoEstado(o.estado) === 'finalizada';
+    const trabajoCerrado = ['realizada','finalizada'].includes(normalizeOTTrabajoEstado(o.estado));
     const pagada = isOTPagada(o);
-    if (trabajoFinalizado && pagada) {
+    if (trabajoCerrado && pagada) {
       closedRows.push(tr);
     } else {
       activeRows.push(tr);
@@ -5830,6 +6163,31 @@ function createQuoteFromOT(otId){
 function openEditOT(otId){
   const o = ots.find(x => String(x.id) === String(otId));
   if(!o) return;
+
+  const currentQuoteId = String(o.quote_id || o.quoteId || (o.data && (o.data.quoteId || o.data.quote_id)) || '');
+  const preferredQuotes = (quotes || []).filter(q => {
+    const qid = String(q.id || '');
+    const sameClient = o.clientId && String(q.clientId || q.client_id || '') === String(o.clientId || '');
+    return sameClient || (currentQuoteId && qid === currentQuoteId);
+  });
+  const quotePool = (preferredQuotes.length ? preferredQuotes : (quotes || []).slice()).sort((a,b)=>{
+    const nb = parseInt(String(b.numeroCotizacion || b.numero || '').replace(/\D/g,''), 10) || 0;
+    const na = parseInt(String(a.numeroCotizacion || a.numero || '').replace(/\D/g,''), 10) || 0;
+    return nb - na;
+  });
+  const quoteOptions = ['<option value="">Sin cotización / OT manual</option>'].concat(
+    quotePool.map(q => {
+      const qid = String(q.id || '');
+      const num = escapeHtml(q.numeroCotizacion || q.numero || 'S/N');
+      const cli = escapeHtml(q.clientName || q.razonSocial || '—');
+      const estado = escapeHtml(String(q.estado || 'pendiente'));
+      const monto = formatCLP(q.monto || 0);
+      const selected = qid === currentQuoteId ? 'selected' : '';
+      return `<option value="${qid}" ${selected}>${num} · ${cli} · ${estado} · ${monto}</option>`;
+    })
+  ).join('');
+  const currentFin = getFinancialBreakdownFromSource(o || {});
+
   const html = `
     <div class="p-8">
       <h2 class="text-2xl font-bold mb-6">Editar OT</h2>
@@ -5843,8 +6201,37 @@ function openEditOT(otId){
           <input id="eOtFecha" type="date" class="w-full px-3 py-2 border rounded-xl" value="${(o.fecha || todayISO()).slice(0,10)}">
         </div>
         <div class="md:col-span-2">
-          <label class="text-sm text-gray-600">Descripción</label>
-          <textarea id="eOtDesc" class="w-full px-3 py-2 border rounded-xl" rows="3">${escapeHtml(o.descripcion || '')}</textarea>
+          <label class="text-sm text-gray-600">Cotización asociada</label>
+          <select id="eOtQuoteId" class="w-full px-3 py-2 border rounded-xl" onchange="toggleEditOTManualAmountFields()">${quoteOptions}</select>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <button type="button" onclick="createQuoteFromOT('${otId}')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold">Crear nueva cotización para esta OT</button>
+            <span class="text-xs text-gray-500">Puedes dejarla sin cotización o vincular una existente.</span>
+          </div>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-sm text-gray-600">Descripción del trabajo realizado</label>
+          <textarea id="eOtDesc" class="w-full px-3 py-2 border rounded-xl" rows="3" placeholder="Detalle del trabajo realizado o servicio ejecutado">${escapeHtml(o.descripcion || '')}</textarea>
+        </div>
+        <div class="md:col-span-2" id="eOtManualMontoWrap">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+            <label class="text-sm text-gray-600">Monto del trabajo</label>
+            <span id="eOtManualMontoHint" class="text-xs text-gray-500">Puedes definir neto, IVA y total para una OT sin cotización.</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-xs text-gray-500">Neto</label>
+              <input id="eOtNeto" type="number" min="0" step="1" value="${currentFin.neto || 0}" oninput="syncEditOTManualAmounts('neto')" class="w-full px-3 py-2 border rounded-xl">
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">IVA</label>
+              <input id="eOtIva" type="number" min="0" step="1" value="${currentFin.iva || 0}" readonly class="w-full px-3 py-2 border rounded-xl bg-slate-100 text-slate-600">
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">Total</label>
+              <input id="eOtTotal" type="number" min="0" step="1" value="${currentFin.total || 0}" oninput="syncEditOTManualAmounts('total')" class="w-full px-3 py-2 border rounded-xl">
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Cuando la OT no tenga cotización, puedes usar este valor para la facturación, abonos y pago final.</p>
         </div>
         <div>
           <label class="text-sm text-gray-600">OC</label>
@@ -5858,16 +6245,16 @@ function openEditOT(otId){
           <label class="text-sm text-gray-600">Guía de despacho</label>
           <input id="eOtGuia" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.guia_despacho || '')}" placeholder="Ej: GD-1234">
         </div>
-                <div>
+        <div>
           <label class="text-sm text-gray-600">Estado del trabajo</label>
           <select id="eOtEstado" class="w-full px-3 py-2 border rounded-xl">
-            ${[['pendiente','Pendiente'],['en_curso','En curso'],['finalizada','Finalizada']].map(([v,l]) => `<option value="${v}" ${normalizeOTTrabajoEstado(o.estado)===v?'selected':''}>${l}</option>`).join('')}
+            ${[['pendiente','Pendiente'],['en_curso','En curso'],['realizada','Realizada'],['finalizada','Finalizada']].map(([v,l]) => `<option value="${v}" ${normalizeOTTrabajoEstado(o.estado)===v?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div>
           <label class="text-sm text-gray-600">Estado de cobro</label>
           <select id="eOtCobro" class="w-full px-3 py-2 border rounded-xl" onchange="toggleEditOTFacturaField()">
-            ${[['pendiente_facturar','Pendiente de facturar'],['facturado','Facturado'],['pagado','Pagado']].map(([v,l]) => `<option value="${v}" ${normalizeOTCobroEstado(o)===v?'selected':''}>${l}</option>`).join('')}
+            ${[['pendiente_facturar','Pendiente de facturar'],['pendiente_pago','Pendiente de pago'],['pagado','Pagado']].map(([v,l]) => `<option value="${v}" ${normalizeOTCobroEstado(o)===v?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div class="md:col-span-2" id="eOtFacturaWrap" style="display:none;">
@@ -5879,7 +6266,7 @@ function openEditOT(otId){
             </select>
             <input id="eOtFacturaNum" class="md:col-span-2 w-full px-3 py-2 border rounded-xl" value="${escapeHtml(getFacturaNumeroOT(o) || '')}" placeholder="Ej: 12345">
           </div>
-          <p class="text-xs text-gray-500 mt-1">Se mostrará en la tabla como boleta o factura según corresponda.</p>
+          <p class="text-xs text-gray-500 mt-1">Se mostrará en la tabla como boleta o factura según corresponda. También puedes editarlo aunque la OT esté realizada o finalizada. Usa “Pendiente de pago” cuando ya existe documento pero aún no está pagada.</p>
         </div>
 
       </div>
@@ -5891,7 +6278,10 @@ function openEditOT(otId){
     </div>`;
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
-  setTimeout(()=>{ try{ toggleEditOTFacturaField(); }catch(e){} }, 0);
+  setTimeout(()=>{
+    try{ toggleEditOTFacturaField(); }catch(e){}
+    try{ toggleEditOTManualAmountFields(); }catch(e){}
+  }, 0);
 }
 // Alias global para botones onclick
 window.editOT = function(otId){
@@ -6031,51 +6421,156 @@ window.editOT = function(otId){
 
 async function saveEditOT(otId, btn){
   try{
-    if(btn){ btn.disabled=true; btn.innerText='Guardando...'; }
-        const ot = (ots || []).find(x => String(x.id) === String(otId)) || {};
-    const cobro = (document.getElementById('eOtCobro')?.value || (ot.cobro_estado || ot.pago_estado) || 'pendiente_facturar').toLowerCase();
-    const facturaNum = (document.getElementById('eOtFacturaNum')?.value || getFacturaNumeroOT(ot) || '').trim();
-    const documentoTipo = (document.getElementById('eOtDocumentoTipo')?.value || getDocumentoTipoOT(ot) || 'factura').trim().toLowerCase();
+    if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
+
+    const ot = (ots || []).find(x => String(x.id) === String(otId)) || {};
+    let cobro = String(document.getElementById('eOtCobro')?.value || (ot.cobro_estado || ot.pago_estado) || 'pendiente_facturar').toLowerCase().trim().replace(/-/g,'_');
+    if(cobro === 'facturado' || cobro === 'pendiente') cobro = 'pendiente_pago';
+    const facturaNum = String(document.getElementById('eOtFacturaNum')?.value ?? '').trim();
+    const documentoTipo = String(document.getElementById('eOtDocumentoTipo')?.value || getDocumentoTipoOT(ot) || 'factura').toLowerCase().trim();
+    const guiaDespacho = String(document.getElementById('eOtGuia')?.value || '').trim();
+    const selectedQuoteId = String(document.getElementById('eOtQuoteId')?.value || '').trim();
+    const selectedQuote = selectedQuoteId ? (quotes || []).find(q => String(q.id) === selectedQuoteId) : null;
 
     const dataNew = Object.assign({}, (ot.data || {}));
-    if(facturaNum) dataNew.facturaNumero = facturaNum;
-    dataNew.documentoTipo = documentoTipo;
-    dataNew.guia_despacho = (document.getElementById('eOtGuia')?.value || '').trim();
+    const manualFin = {
+      neto: otMoneyToNumber(document.getElementById('eOtNeto')?.value || 0),
+      iva: otMoneyToNumber(document.getElementById('eOtIva')?.value || 0),
+      total: otMoneyToNumber(document.getElementById('eOtTotal')?.value || 0)
+    };
+    const selectedQuoteFin = selectedQuote ? getFinancialBreakdownFromSource(selectedQuote) : null;
+    const fin = selectedQuoteFin || manualFin;
+
+    if((cobro === 'pendiente_pago' || cobro === 'facturado' || cobro === 'pagado') && !facturaNum){
+      alert('Para marcar la OT como facturada o pagada debes ingresar el número de documento.');
+      if(btn){ btn.disabled = false; btn.innerText = 'Guardar'; }
+      return;
+    }
+
+    if(facturaNum){
+      dataNew.facturaNumero = facturaNum;
+      dataNew.factura_num = facturaNum;
+      dataNew.documentoNumero = facturaNum;
+      dataNew.documento_numero = facturaNum;
+      if(!dataNew.facturaRegistroFecha) dataNew.facturaRegistroFecha = todayISO();
+    } else {
+      delete dataNew.facturaNumero;
+      delete dataNew.factura_num;
+      delete dataNew.documentoNumero;
+      delete dataNew.documento_numero;
+      delete dataNew.nroFactura;
+      delete dataNew.factura;
+    }
+
+    if(documentoTipo && documentoTipo !== 'sin_documento'){
+      dataNew.documentoTipo = documentoTipo;
+      dataNew.documento_tipo = documentoTipo;
+    } else {
+      delete dataNew.documentoTipo;
+      delete dataNew.documento_tipo;
+    }
+
+    dataNew.guia_despacho = guiaDespacho;
+    dataNew.pago_estado = cobro;
+    dataNew.cobro_estado = cobro;
+
+    if(cobro === 'pagado'){
+      if(!dataNew.fechaPagoISO && !dataNew.fechaPago) dataNew.fechaPagoISO = todayISO();
+      if(!dataNew.metodoPago) dataNew.metodoPago = 'Registro manual';
+      dataNew.pagoConfirmado = true;
+    } else {
+      delete dataNew.fechaPago;
+      delete dataNew.fechaPagoISO;
+      if(cobro === 'pendiente_facturar') {
+        dataNew.pagoConfirmado = false;
+      } else if(cobro === 'pendiente_pago') {
+        dataNew.pagoConfirmado = false;
+      }
+    }
+
+    if (selectedQuote) {
+      const linkedQuoteNumber = selectedQuote.numeroCotizacion || selectedQuote.numero || '';
+      const linkedClient = (clientsById && clientsById.get(String(selectedQuote.clientId || selectedQuote.client_id || ''))) || (clients || []).find(c => String(c.id) === String(selectedQuote.clientId || selectedQuote.client_id || '')) || null;
+      dataNew.quoteId = selectedQuoteId;
+      dataNew.quote_id = selectedQuoteId;
+      dataNew.numeroCotizacion = linkedQuoteNumber;
+      dataNew.monto = otMoneyToNumber(fin.total || selectedQuote.monto || 0);
+      dataNew.total = otMoneyToNumber(fin.total || selectedQuote.monto || 0);
+      dataNew.neto = otMoneyToNumber(fin.neto || 0);
+      dataNew.iva = otMoneyToNumber(fin.iva || 0);
+      dataNew.manual_pricing = false;
+      if (linkedClient) {
+        dataNew.clientName = linkedClient.name || dataNew.clientName || '';
+        dataNew.rut = linkedClient.rut || dataNew.rut || '';
+      }
+    } else {
+      delete dataNew.quoteId;
+      delete dataNew.quote_id;
+      dataNew.numeroCotizacion = '';
+      dataNew.monto = otMoneyToNumber(fin.total || 0);
+      dataNew.total = otMoneyToNumber(fin.total || 0);
+      dataNew.neto = otMoneyToNumber(fin.neto || 0);
+      dataNew.iva = otMoneyToNumber(fin.iva || 0);
+      dataNew.manual_pricing = true;
+    }
 
     const payload = {
-      numero_ot: (document.getElementById('eOtNumero').value || '').trim(),
-      fecha: document.getElementById('eOtFecha').value || todayISO(),
-      descripcion: (document.getElementById('eOtDesc').value || '').trim(),
-      oc: (document.getElementById('eOtOC').value || '').trim(),
-      hes: (document.getElementById('eOtHES').value || '').trim(),
-      guia_despacho: (document.getElementById('eOtGuia').value || '').trim(),
-      estado: (document.getElementById('eOtEstado').value || 'pendiente').toLowerCase(),
+      numero_ot: String(document.getElementById('eOtNumero')?.value || '').trim(),
+      fecha: document.getElementById('eOtFecha')?.value || todayISO(),
+      descripcion: String(document.getElementById('eOtDesc')?.value || '').trim(),
+      oc: String(document.getElementById('eOtOC')?.value || '').trim(),
+      hes: String(document.getElementById('eOtHES')?.value || '').trim(),
+      guia_despacho: guiaDespacho || null,
+      estado: String(document.getElementById('eOtEstado')?.value || 'pendiente').toLowerCase().trim(),
       pago_estado: cobro,
       cobro_estado: cobro,
+      factura_num: facturaNum || null,
+      documento_numero: facturaNum || null,
+      documento_tipo: (facturaNum ? documentoTipo : null),
+      quote_id: selectedQuoteId || null,
       data: dataNew
     };
-    if(facturaNum) payload.factura_num = facturaNum;
-    payload.documento_tipo = documentoTipo;
+
+    if (selectedQuote) {
+      payload.client_id = selectedQuote.clientId || selectedQuote.client_id || ot.clientId || ot.client_id || null;
+      payload.monto = otMoneyToNumber(fin.total || selectedQuote.monto || 0);
+    } else {
+      payload.client_id = ot.clientId || ot.client_id || null;
+      payload.monto = otMoneyToNumber(fin.total || 0);
+    }
 
     let { error } = await supabaseClient.from('ots').update(payload).eq('id', otId);
-    if(error && String(error.message||'').toLowerCase().includes('column')){
+
+    if(error && String(error.message || '').toLowerCase().includes('column')){
       const retry = { ...payload };
-      delete retry.factura_num;
-      delete retry.documento_tipo;
-      delete retry.cobro_estado;
-      ({ error } = await supabaseClient.from('ots').update(retry).eq('id', otId));
+      const removable = ['cobro_estado','documento_numero','documento_tipo','factura_num','guia_despacho','pago_estado','monto'];
+
+      if (String(error.message || '').toLowerCase().includes('quote_id')) {
+        delete retry.quote_id;
+      }
+
+      for(const field of removable){
+        if(!error) break;
+        const msg = String(error.message || '').toLowerCase();
+        if(msg.includes(field)){
+          delete retry[field];
+          ({ error } = await supabaseClient.from('ots').update(retry).eq('id', otId));
+        }
+      }
     }
+
     if(error) throw error;
 
-await loadData(); renderOTs(); closeModal();
+    await loadData();
+    renderOTs();
+    closeModal();
   } catch(err){
+    console.error('saveEditOT error:', err);
     alert('Error guardando OT: ' + (err?.message || err));
   } finally {
-    if(btn){ btn.disabled=false; btn.innerText='Guardar'; }
+    if(btn){ btn.disabled = false; btn.innerText = 'Guardar'; }
   }
 }
-
-
 
 
 
@@ -6426,8 +6921,8 @@ function daysDiffFromToday(dateStr){
 function isOtCobrablePendiente(ot){
   const est = (ot.estado || '').toLowerCase();
   if(est === 'cancelada' || est === 'anulada') return false;
-  const cobro = (ot.cobro_estado || '').toLowerCase();
-  if(cobro === 'pagado') return false;
+  const cobro = normalizeOTCobroEstado(ot);
+  if(cobro === 'pagado' || cobro === 'pendiente_facturar') return false;
 
   // Fallbacks por si tienes otros campos
   if(String(ot.pagado).toLowerCase() === 'true') return false;
