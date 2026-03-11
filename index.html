@@ -100,6 +100,18 @@ function prettyOTCobroEstado(o){
   return String(s || '—').replace(/_/g,' ');
 }
 
+function isOTDashboardPendientePago(o){
+  return normalizeOTTrabajoEstado(o?.estado) === 'realizada' && normalizeOTCobroEstado(o) !== 'pagado';
+}
+
+function getOTDashboardDocumentoBadgeText(o){
+  const s = normalizeOTCobroEstado(o);
+  if(s === 'pendiente_facturar') return 'Sin documento';
+  if(s === 'pendiente_pago') return 'Sin pago';
+  if(s === 'pagado') return 'Pagada';
+  return '—';
+}
+
 function badgeOTTrabajoEstado(v){
   const s = normalizeOTTrabajoEstado(v);
   if(s === 'pendiente') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>';
@@ -321,6 +333,7 @@ function toggleEditOTFacturaField(){
       <nav class="flex-1 p-4 space-y-1">
         <button onclick="showView('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 nav-active" id="btn-dashboard"><i class="fas fa-home"></i> <span class="sidebar-label">Dashboard</span></button>
         <button onclick="showView('clients')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-clients"><i class="fas fa-users"></i> <span class="sidebar-label">Clientes</span></button>
+        <button onclick="showView('mandantes')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-mandantes"><i class="fas fa-building"></i> <span class="sidebar-label">Mandantes</span></button>
         <button onclick="showView('quotes')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-quotes"><i class="fas fa-file-invoice"></i> <span class="sidebar-label">Cotizaciones</span></button>
         <button onclick="showView('ots')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-ots"><i class="fas fa-tools"></i> <span class="sidebar-label">Órdenes de Trabajo</span></button>
         <button onclick="showView('abonos')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-abonos"><i class="fas fa-hand-holding-dollar"></i> <span class="sidebar-label">Abonos / Pagos</span></button>
@@ -379,7 +392,7 @@ function toggleEditOTFacturaField(){
          onclick="showDashDetails('deudas')">
       <p class="text-gray-500 font-medium mb-2">Pendientes de pago</p>
       <p id="dashDeudas" class="text-4xl font-bold text-red-600">0</p>
-      <p class="text-xs text-gray-400 mt-2">Click para ver detalle</p>
+      <p class="text-xs text-gray-400 mt-2">OTs realizadas · sin documento o sin pago</p>
     </div>
 
     <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
@@ -450,6 +463,104 @@ function toggleEditOTFacturaField(){
           <tbody id="clientsTable"></tbody>
         </table>
         <div id="clientsPager" class="mt-4 flex justify-center flex-wrap gap-2"></div>
+      </div>
+
+      <div id="view-mandantes" class="hidden">
+        <div id="mandantesListPage">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 class="text-3xl font-bold">Mandantes</h1>
+              <p class="text-sm text-gray-500 mt-1">Usa clientes existentes como mandantes y revisa todos sus trabajos en una sola vista.</p>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="showAddMandanteModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Agregar mandante</span></button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">Mandantes registrados</p>
+              <p id="mandantesCount" class="text-3xl font-black text-blue-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">OTs en curso</p>
+              <p id="mandantesEnCursoCount" class="text-3xl font-black text-cyan-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">OTs realizadas</p>
+              <p id="mandantesRealizadasCount" class="text-3xl font-black text-emerald-600 mt-1">0</p>
+            </div>
+          </div>
+
+          <div id="mandantesEmpty" class="hidden bg-white rounded-3xl shadow p-10 text-center text-gray-500">
+            No hay mandantes marcados todavía. Usa <b>Agregar mandante</b> para seleccionar uno desde tus clientes.
+          </div>
+
+          <div id="mandantesGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="mandanteDetailPage" class="hidden">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <button onclick="backToMandantesList()" class="mb-3 px-4 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold"><i class="fas fa-arrow-left mr-2"></i>Volver a mandantes</button>
+              <h1 id="mandanteDetailTitle" class="text-3xl font-black">Mandante</h1>
+              <p id="mandanteDetailSubtitle" class="text-sm text-gray-500 mt-1">Resumen de trabajos y cotizaciones</p>
+            </div>
+            <div class="flex gap-3">
+              <button id="mandanteRemoveBtn" class="px-5 py-3 rounded-2xl bg-red-50 text-red-700 border border-red-200 font-semibold hover:bg-red-100">Quitar de mandantes</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mb-8">
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">Pendientes</p>
+              <p id="mandanteStatPendiente" class="text-3xl font-black text-amber-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">En curso</p>
+              <p id="mandanteStatEnCurso" class="text-3xl font-black text-cyan-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">Realizadas sin pago</p>
+              <p id="mandanteStatRealizada" class="text-3xl font-black text-emerald-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">Realizadas pagadas</p>
+              <p id="mandanteStatPagada" class="text-3xl font-black text-violet-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">Cotizaciones pendientes</p>
+              <p id="mandanteStatCotPendiente" class="text-3xl font-black text-orange-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-3xl shadow p-5">
+              <p class="text-sm text-gray-500">Monto pendiente</p>
+              <p id="mandanteStatMonto" class="text-3xl font-black text-slate-800 mt-1">$0</p>
+            </div>
+          </div>
+
+          <div class="space-y-8">
+            <div>
+              <h2 class="text-xl font-black text-amber-700 mb-3">Trabajos pendientes</h2>
+              <div id="mandantePendienteList"></div>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-cyan-700 mb-3">Trabajos en curso</h2>
+              <div id="mandanteEnCursoList"></div>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-emerald-700 mb-3">Trabajos realizados sin pago</h2>
+              <div id="mandanteRealizadaList"></div>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-violet-700 mb-3">Trabajos realizados y pagados</h2>
+              <div id="mandantePagadaList"></div>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-orange-700 mb-3">Cotizaciones pendientes</h2>
+              <div id="mandanteQuoteList"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div id="view-quotes" class="hidden">
@@ -693,8 +804,8 @@ function toggleEditOTFacturaField(){
 </div>
   </div>
 
-  <div id="modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-3xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto relative" id="modalContent"></div>
+  <div id="modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-4xl w-full mx-auto max-h-[92vh] overflow-y-auto overflow-x-hidden relative shadow-2xl" id="modalContent"></div>
   </div>
 
   <script>
@@ -1131,6 +1242,430 @@ function getNextOTNumber() {
       setTimeout(() => ov.classList.remove('show'), 4500);
     }
 
+let selectedMandanteId = null;
+
+function isMandanteClient(client){
+  return !!(client && (client.isMandante || (client.data && (client.data.is_mandante || client.data.mandante || client.data.es_mandante))));
+}
+
+function getMandanteClients(){
+  return (clients || []).filter(isMandanteClient).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
+}
+
+function getOTsForClient(clientId){
+  const client = (clients || []).find(c => String(c.id) === String(clientId));
+  const clientName = String(client?.name || '').trim().toLowerCase();
+  return (ots || []).filter(o => {
+    const sameId = String(o.clientId || o.client_id || '') === String(clientId);
+    const sameName = clientName && String(o.clientName || '').trim().toLowerCase() === clientName;
+    return sameId || sameName;
+  }).sort((a,b)=>{
+    const na = parseInt(String(a.numeroOT || a.numero_ot || '').replace(/\D/g,'')) || 0;
+    const nb = parseInt(String(b.numeroOT || b.numero_ot || '').replace(/\D/g,'')) || 0;
+    return nb - na;
+  });
+}
+
+function getQuotesForClient(clientId){
+  const client = (clients || []).find(c => String(c.id) === String(clientId));
+  const clientName = String(client?.name || '').trim().toLowerCase();
+  return (quotes || []).filter(q => {
+    const sameId = String(q.clientId || q.client_id || q.data?.clientId || q.data?.client_id || '') === String(clientId);
+    const qName = String(q.clientName || q.razonSocial || q.data?.clientName || q.data?.razonSocial || '').trim().toLowerCase();
+    const sameName = clientName && qName === clientName;
+    return sameId || sameName;
+  }).sort((a,b)=>{
+    const na = parseInt(String(a.numeroCotizacion || a.numero || '').replace(/\D/g,'')) || 0;
+    const nb = parseInt(String(b.numeroCotizacion || b.numero || '').replace(/\D/g,'')) || 0;
+    return nb - na;
+  });
+}
+
+function getMandantePendingAmount(jobs){
+  return (jobs || [])
+    .filter(o => !isOTPagada(o))
+    .reduce((sum,o)=>sum + Number(o.monto || o.total || (o.data && o.data.total) || 0), 0);
+}
+
+function getMandanteQuoteEstado(q){
+  const e = normalizeDashText(q?.estado || q?.status || q?.quoteStatus || q?.data?.estado || '');
+  if(!e) return 'Pendiente';
+  return e.replace(/_/g,' ');
+}
+
+function getMandanteQuoteBadge(q){
+  const e = getMandanteQuoteEstado(q);
+  const en = normalizeDashText(e);
+  if(en.includes('pendiente')) return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>';
+  if(en.includes('acept')) return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Aceptada</span>';
+  if(en.includes('rechaz')) return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Rechazada</span>';
+  return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">'+escapeHtml(e || '—')+'</span>';
+}
+
+function getLinkedQuoteForOT(ot){
+  if(!ot) return null;
+  const qid = String(ot.quote_id || ot.quoteId || ot.data?.quoteId || ot.data?.quote_id || '').trim();
+  if(qid){
+    const byId = (quotes || []).find(q => String(q.id) === qid);
+    if(byId) return byId;
+  }
+
+  const qnum = String(ot.numeroCotizacion || ot.data?.numeroCotizacion || '').trim().toLowerCase();
+  if(qnum){
+    const byNum = (quotes || []).find(q => String(q.numeroCotizacion || q.numero || '').trim().toLowerCase() === qnum);
+    if(byNum) return byNum;
+  }
+
+  return null;
+}
+
+function formatMoneySafe(v){
+  try { return typeof formatCLP === 'function' ? formatCLP(Number(v||0)) : new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0)); }
+  catch(e){ return '$' + Number(v||0).toLocaleString('es-CL'); }
+}
+
+function renderMandanteOTCards(list, containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  if(!list || !list.length){
+    el.innerHTML = '<div class="bg-white border rounded-3xl p-6 text-gray-500">No hay trabajos en esta categoría.</div>';
+    return;
+  }
+  el.innerHTML = list.map(o => {
+    const docNum = (typeof getFacturaNumeroOT === 'function') ? getFacturaNumeroOT(o) : (o.facturaNumero || o.factura_num || '');
+    const cobro = (typeof prettyOTCobroEstado === 'function') ? prettyOTCobroEstado(o) : (o.cobro_estado || o.pago_estado || '—');
+    const estadoBadge = (typeof badgeOTTrabajoEstado === 'function') ? badgeOTTrabajoEstado(o.estado) : String(o.estado || '—');
+    const monto = Number(o.monto || o.total || (o.data && o.data.total) || 0);
+    const descripcion = String(o.descripcion || (o.data && o.data.descripcion_trabajo) || (o.data && o.data.descripcion) || 'Sin descripción');
+    const linkedQuote = getLinkedQuoteForOT(o);
+    const quoteNum = linkedQuote ? String(linkedQuote.numeroCotizacion || linkedQuote.numero || 'S/N') : '';
+    const quoteTipo = linkedQuote ? String(getQuoteServiceType(linkedQuote) || 'Sin tipo') : '';
+    const quoteMonto = linkedQuote ? Number(linkedQuote.monto || linkedQuote.total || linkedQuote.neto || 0) : 0;
+    const quoteBadge = linkedQuote ? getMandanteQuoteBadge(linkedQuote) : '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">Sin cotización</span>';
+    return `
+      <div class="bg-white border rounded-3xl p-5 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-lg font-black text-slate-800">OT ${escapeHtml(String(o.numeroOT || o.numero_ot || 'S/N'))}</span>
+              ${estadoBadge}
+            </div>
+            <p class="text-sm text-gray-500 mt-1">${escapeHtml(descripcion)}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm text-gray-500">Monto pendiente OT</p>
+            <p class="text-xl font-black text-slate-800">${escapeHtml(formatMoneySafe(monto))}</p>
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.15em] text-indigo-700 font-black">Cotización asociada</p>
+              ${linkedQuote ? `
+                <div class="flex items-center gap-2 flex-wrap mt-1">
+                  <span class="text-lg font-black text-indigo-900">Cotización ${escapeHtml(quoteNum)}</span>
+                  ${quoteBadge}
+                </div>
+                <p class="text-sm text-slate-700 mt-2"><span class="font-semibold">Tipo:</span> ${escapeHtml(quoteTipo)}</p>
+              ` : `
+                <div class="mt-2">${quoteBadge}</div>
+                <p class="text-sm text-slate-500 mt-2">Esta OT no tiene una cotización vinculada.</p>
+              `}
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500">Monto cotización</p>
+              <p class="text-xl font-black text-indigo-900">${linkedQuote ? escapeHtml(formatMoneySafe(quoteMonto)) : '—'}</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-4">
+            ${linkedQuote ? `
+              <button onclick="previewQuote('${linkedQuote.id}')" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Visualizar cotización</button>
+              <button onclick="editQuote('${linkedQuote.id}')" class="px-4 py-2 rounded-xl bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-50">Editar cotización</button>
+            ` : `
+              <span class="text-sm text-slate-500">No hay cotización para visualizar.</span>
+            `}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 text-sm">
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Fecha</p>
+            <p class="font-semibold">${escapeHtml(typeof formatDDMMYY === 'function' ? formatDDMMYY(o.fecha || o.created_at) : String(o.fecha || '—'))}</p>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Documento</p>
+            <p class="font-semibold">${escapeHtml(docNum || 'Sin documento')}</p>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Cobro</p>
+            <p class="font-semibold">${escapeHtml(cobro)}</p>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">OC / HES</p>
+            <p class="font-semibold">${escapeHtml(String((o.oc || '—') + ' / ' + (o.hes || '—')))}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderMandanteQuoteCards(list, containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  if(!list || !list.length){
+    el.innerHTML = '<div class="bg-white border rounded-3xl p-6 text-gray-500">No hay cotizaciones pendientes en esta categoría.</div>';
+    return;
+  }
+  el.innerHTML = list.map(q => {
+    const monto = Number(q.monto || q.total || q.neto || 0);
+    const badge = getMandanteQuoteBadge(q);
+    const tipo = String(getQuoteServiceType(q) || 'Sin tipo');
+    const obra = String(q.obra || q.descripcion || q.data?.obra || q.data?.descripcion || 'Sin descripción');
+    const linked = (typeof getLinkedOTsByQuote === 'function') ? getLinkedOTsByQuote(q) : [];
+    const linkedTxt = linked.length ? linked.map(o => 'OT ' + String(o.numeroOT || o.numero_ot || 'S/N')).join(', ') : 'Sin OT vinculada';
+    const items = Array.isArray(q.items) ? q.items : [];
+    const resumenItems = items.slice(0,3).map(it => String(it.descripcion || it.name || it.detalle || '').trim()).filter(Boolean).join(' · ');
+    return `
+      <div class="bg-white border rounded-3xl p-5 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-lg font-black text-slate-800">Cotización ${escapeHtml(String(q.numeroCotizacion || q.numero || 'S/N'))}</span>
+              ${badge}
+            </div>
+            <p class="text-sm text-slate-700 mt-2"><span class="font-semibold">Tipo de trabajo:</span> ${escapeHtml(tipo)}</p>
+            <p class="text-sm text-gray-500 mt-1">${escapeHtml(obra)}</p>
+            ${resumenItems ? `<p class="text-sm text-gray-500 mt-1"><span class="font-semibold text-slate-700">Ítems:</span> ${escapeHtml(resumenItems)}</p>` : ''}
+          </div>
+          <div class="text-right">
+            <p class="text-sm text-gray-500">Monto cotizado</p>
+            <p class="text-xl font-black text-slate-800">${escapeHtml(formatMoneySafe(monto))}</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 text-sm">
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Fecha</p>
+            <p class="font-semibold">${escapeHtml(typeof formatDDMMYY === 'function' ? formatDDMMYY(q.fecha || q.created_at) : String(q.fecha || '—'))}</p>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Cliente</p>
+            <p class="font-semibold">${escapeHtml(String(q.clientName || q.razonSocial || '—'))}</p>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Vinculación</p>
+            <p class="font-semibold">${escapeHtml(linkedTxt)}</p>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-3">
+            <p class="text-gray-500">Creada por</p>
+            <p class="font-semibold">${escapeHtml(String(q.creadoPor || q.createdByName || '—'))}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button onclick="previewQuote('${q.id}')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200">Previsualizar</button>
+          <button onclick="editQuote('${q.id}')" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700">Editar cotización</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderMandanteDetail(clientId){
+  const client = (clients || []).find(c => String(c.id) === String(clientId));
+  if(!client) return;
+  selectedMandanteId = clientId;
+
+  const listPage = document.getElementById('mandantesListPage');
+  const detailPage = document.getElementById('mandanteDetailPage');
+  if(listPage) listPage.classList.add('hidden');
+  if(detailPage) detailPage.classList.remove('hidden');
+
+  const jobs = getOTsForClient(clientId);
+  const quotesForClient = getQuotesForClient(clientId);
+  const pendientes = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'pendiente');
+  const enCurso = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'en_curso');
+  const realizadas = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'realizada' && !isOTPagada(o));
+  const pagadas = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'realizada' && isOTPagada(o));
+  const cotPendientes = quotesForClient.filter(q => typeof isPendingQuote === 'function' ? isPendingQuote(q) : true);
+  const montoPendiente = getMandantePendingAmount(jobs);
+
+  const setText = (id, value) => { const e = document.getElementById(id); if(e) e.textContent = value; };
+  setText('mandanteDetailTitle', client.name || 'Mandante');
+  setText('mandanteDetailSubtitle', `${client.rut || 'Sin RUT'} · ${jobs.length} trabajo(s) · ${quotesForClient.length} cotización(es)`);
+  setText('mandanteStatPendiente', String(pendientes.length));
+  setText('mandanteStatEnCurso', String(enCurso.length));
+  setText('mandanteStatRealizada', String(realizadas.length));
+  setText('mandanteStatPagada', String(pagadas.length));
+  setText('mandanteStatCotPendiente', String(cotPendientes.length));
+  setText('mandanteStatMonto', formatMoneySafe(montoPendiente));
+
+  const removeBtn = document.getElementById('mandanteRemoveBtn');
+  if(removeBtn) removeBtn.onclick = () => toggleClientMandante(client.id, false);
+
+  renderMandanteOTCards(pendientes, 'mandantePendienteList');
+  renderMandanteOTCards(enCurso, 'mandanteEnCursoList');
+  renderMandanteOTCards(realizadas, 'mandanteRealizadaList');
+  renderMandanteOTCards(pagadas, 'mandantePagadaList');
+  renderMandanteQuoteCards(cotPendientes, 'mandanteQuoteList');
+}
+
+function backToMandantesList(){
+  selectedMandanteId = null;
+  const listPage = document.getElementById('mandantesListPage');
+  const detailPage = document.getElementById('mandanteDetailPage');
+  if(detailPage) detailPage.classList.add('hidden');
+  if(listPage) listPage.classList.remove('hidden');
+  renderMandantes();
+}
+
+async function toggleClientMandante(clientId, forceValue){
+  try{
+    const client = (clients || []).find(c => String(c.id) === String(clientId));
+    if(!client) return;
+    const next = typeof forceValue === 'boolean' ? forceValue : !isMandanteClient(client);
+    const data = Object.assign({}, (client.data || {}), {
+      is_mandante: next,
+      mandante: next,
+      es_mandante: next
+    });
+    const payload = { data };
+    const { error } = await supabaseClient.from('clients').update(payload).eq('id', clientId);
+    if(error) throw error;
+    await loadData();
+    renderClients();
+    renderMandantes();
+    if(next){
+      showView('mandantes');
+      renderMandanteDetail(clientId);
+      try { toastSuccess('Mandante actualizado ✅'); } catch(e){}
+    } else {
+      backToMandantesList();
+      try { toastInfo('Mandante quitado de la lista'); } catch(e){}
+    }
+  }catch(err){
+    console.error(err);
+    alert('No se pudo actualizar el mandante: ' + (err.message || err));
+  }
+}
+
+function showAddMandanteModal(){
+  const available = (clients || []).filter(c => !isMandanteClient(c));
+  const html = `
+    <div class="p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-black">Agregar mandante</h2>
+          <p class="text-sm text-gray-500 mt-1">Selecciona un cliente ya existente para marcarlo como mandante.</p>
+        </div>
+        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+      </div>
+      ${available.length ? `
+        <div class="space-y-3 max-h-[60vh] overflow-auto pr-1">
+          ${available.map(c => `
+            <div class="border rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <p class="font-bold text-slate-800">${escapeHtml(c.name || 'Sin nombre')}</p>
+                <p class="text-sm text-gray-500">${escapeHtml(c.rut || 'Sin RUT')} · ${escapeHtml(formatClientTipo(c.tipo))}</p>
+              </div>
+              <button onclick="toggleClientMandante('${c.id}', true); closeModal();" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold">Agregar</button>
+            </div>
+          `).join('')}
+        </div>` : `
+        <div class="bg-slate-50 rounded-2xl p-6 text-gray-500">Todos los clientes disponibles ya están marcados como mandantes.</div>
+      `}
+      <div class="mt-6">
+        <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-semibold hover:bg-gray-50">Cerrar</button>
+      </div>
+    </div>`;
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function renderMandantes(){
+  const grid = document.getElementById('mandantesGrid');
+  const empty = document.getElementById('mandantesEmpty');
+  if(!grid) return;
+
+  const mandantes = getMandanteClients();
+  const jobs = mandantes.flatMap(c => getOTsForClient(c.id));
+  const enCursoCount = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'en_curso').length;
+  const realizadasCount = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'realizada').length;
+
+  const setText = (id, value) => { const e = document.getElementById(id); if(e) e.textContent = value; };
+  setText('mandantesCount', String(mandantes.length));
+  setText('mandantesEnCursoCount', String(enCursoCount));
+  setText('mandantesRealizadasCount', String(realizadasCount));
+
+  if(selectedMandanteId){
+    renderMandanteDetail(selectedMandanteId);
+    return;
+  }
+
+  const detailPage = document.getElementById('mandanteDetailPage');
+  const listPage = document.getElementById('mandantesListPage');
+  if(detailPage) detailPage.classList.add('hidden');
+  if(listPage) listPage.classList.remove('hidden');
+
+  if(!mandantes.length){
+    grid.innerHTML = '';
+    if(empty) empty.classList.remove('hidden');
+    return;
+  }
+  if(empty) empty.classList.add('hidden');
+
+  grid.innerHTML = mandantes.map(client => {
+    const jobs = getOTsForClient(client.id);
+    const quotesForClient = getQuotesForClient(client.id);
+    const pendiente = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'pendiente').length;
+    const enCurso = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'en_curso').length;
+    const realizada = jobs.filter(o => normalizeOTTrabajoEstado(o.estado) === 'realizada').length;
+    const cotPendientes = quotesForClient.filter(q => typeof isPendingQuote === 'function' ? isPendingQuote(q) : true).length;
+    const montoPendiente = getMandantePendingAmount(jobs);
+
+    return `
+      <div class="bg-white rounded-3xl shadow p-6 hover:shadow-lg transition-shadow border border-slate-100">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-indigo-600 font-black">Mandante</p>
+            <h3 class="text-2xl font-black text-slate-800 mt-1">${escapeHtml(client.name || 'Sin nombre')}</h3>
+            <p class="text-sm text-gray-500 mt-1">${escapeHtml(client.rut || 'Sin RUT')}</p>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">${jobs.length} trabajo(s)</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">${cotPendientes} cotización(es) pendiente(s)</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mt-5">
+          <div class="rounded-2xl bg-amber-50 border border-amber-100 p-3 text-center">
+            <p class="text-xs text-amber-700">Pendiente</p>
+            <p class="text-2xl font-black text-amber-700">${pendiente}</p>
+          </div>
+          <div class="rounded-2xl bg-cyan-50 border border-cyan-100 p-3 text-center">
+            <p class="text-xs text-cyan-700">En curso</p>
+            <p class="text-2xl font-black text-cyan-700">${enCurso}</p>
+          </div>
+          <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3 text-center">
+            <p class="text-xs text-emerald-700">Realizada</p>
+            <p class="text-2xl font-black text-emerald-700">${realizada}</p>
+          </div>
+        </div>
+
+        <div class="mt-5 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs text-gray-500">Monto pendiente</p>
+            <p class="text-lg font-black text-slate-800">${escapeHtml(formatMoneySafe(montoPendiente))}</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="renderMandanteDetail('${client.id}')" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold">Ver trabajos</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
     // ================= CARGA DE DATOS SUPABASE =================
     // --- 1. CARGA DE DATOS (loadData) ---
 
@@ -1158,6 +1693,7 @@ async function loadData() {
       condicion_pago: r.condicion_pago || (r.data && r.data.condicion_pago) || '',
       observaciones: r.observaciones || (r.data && r.data.observaciones) || '',
       sucursales: r.sucursales || (r.data && r.data.sucursales) || '',
+      isMandante: !!(r.is_mandante || (r.data && (r.data.is_mandante || r.data.mandante || r.data.es_mandante))),
       data: r.data || {},
       name: r.name || 'Sin Nombre',
       created_by: r.created_by || null,
@@ -1547,7 +2083,7 @@ async function logout() { location.reload(); }
     
 function showView(view) {
   // Normalizar nombres de vistas (evita pantallas en blanco por alias)
-  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', quotes:'quotes', ots:'ots', dashboard:'dashboard' };
+  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', mandantes:'mandantes', quotes:'quotes', ots:'ots', dashboard:'dashboard' };
   view = alias[view] || view;
 
   // Hide all views regardless of where they are in the DOM (fix nesting issues)
@@ -1582,10 +2118,13 @@ function showView(view) {
   // Top title
   const t = document.getElementById('topbarTitle');
   if (t) {
-    const map = {dashboard:'Dashboard', clients:'Clientes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', payments:'Abonos / Pagos', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos / Pagos', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', requerimientos:'Requerimientos'};
+    const map = {dashboard:'Dashboard', clients:'Clientes', mandantes:'Mandantes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', payments:'Abonos / Pagos', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos / Pagos', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', requerimientos:'Requerimientos'};
     t.textContent = map[view] || '';
   }
 // Apply pagination when entering certain views
+  if (view === 'mandantes') {
+    try { if (typeof renderMandantes === 'function') renderMandantes(); } catch(e){}
+  }
   if (view === 'quotes') {
     try { pendingQuotesPage = 1; acceptedQuotesPage = 1; rejectedQuotesPage = 1; } catch(e){}
     try {
@@ -1622,6 +2161,7 @@ function showView(view) {
 
     function renderAll() {
   renderClients();
+  renderMandantes();
       try { populateVTClients(); } catch(e) {}
       try { populateVTClients(); } catch(e) {}
   renderQuotes();
@@ -1670,7 +2210,7 @@ function renderClients() {
     tr.innerHTML = `
       <td class="p-4">${escapeHtml(client.rut || '')}</td>
       <td class="p-4 font-medium">${escapeHtml(client.name || '—')}</td>
-      <td class="p-4">${escapeHtml(formatClientTipo(client.tipo))}</td>
+      <td class="p-4">${escapeHtml(formatClientTipo(client.tipo))}${isMandanteClient(client) ? ' <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Mandante</span>' : ''}</td>
       <td class="p-4 text-center space-x-3">
         <button onclick="showClientDatos('${client.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-xl text-sm font-semibold">Datos</button>
         <button onclick="viewClient('${client.id}')" class="text-brand hover:underline font-medium">Historial</button>
@@ -5799,7 +6339,7 @@ function renderDashboard() {
   const clientsCount = clients.length;
   const quotesPending = quotes.filter(q => q.estado === 'pendiente').length;
   const otsEnCurso = ots.filter(o => o.estado === 'en_curso' || o.estado === 'pendiente_pago' || o.estado === 'pendiente').length;
-  const deuda = ots.filter(o => isActiveOTStatus(o?.estado) && normalizeDashText(o?.estado) !== 'pagado' && (Number(o.monto) > 0)).length;
+  const deuda = ots.filter(o => isOTDashboardPendientePago(o)).length;
   const visitasPend = visitas.filter(v => String(v.estado||'').toLowerCase() === 'pendiente').length;
   const reqsPend = (requerimientos||[]).filter(r => !['realizado','realizada','cancelado','cancelada'].includes(String(r.estado||'').toLowerCase())).length;
   const mantencionesCount = (quotes||[]).filter(q => isAcceptedAndActiveWorkQuote(q) && isMantencionQuote(q)).length;
@@ -6616,17 +7156,24 @@ window.showDashDetails = function(kind){
         });
     } else if(kind==='deudas'){
       title = 'Pendientes de Pago';
-      headers = ['N° OT','Cliente','Documento','Monto','Estado'];
+      headers = ['N° OT','Cliente','Documento','N° Documento','Monto','Estado trabajo'];
       rows = (ots||[])
-        .filter(o=>isActiveOTStatus(o?.estado) && norm(o.estado)!=='pagado' && Number(o.monto||0)>0)
+        .filter(o=>isOTDashboardPendientePago(o))
         .sort((a,b)=>Number(b.numero_ot||b.numeroOT||0)-Number(a.numero_ot||a.numeroOT||0))
         .map(o=>{
           const c = getClient(o.clientId || o.client_id);
           const nombre = (c.name||c.nombre||o.clientName||'—');
           const numOt = o.numero_ot || o.numeroOT || 'S/N';
-          const factura = o.factura_num || o.facturaNumero || (o.data && (o.data.factura_num || o.data.facturaNumero)) || '';
-          const monto = Number(o.monto||0);
-          return [String(numOt), String(nombre), String(factura||'—'), fm(monto), String(o.estado||'')];
+          const nroDoc = getFacturaNumeroOT(o);
+          const monto = Number(o.monto||o.total||o.data?.total||0);
+          return [
+            String(numOt),
+            String(nombre),
+            String(getOTDashboardDocumentoBadgeText(o)),
+            String(nroDoc || '—'),
+            fm(monto),
+            'Realizada'
+          ];
         });
     } else if(kind==='visitas_pend'){
       title = 'Visitas Técnicas Pendientes';
@@ -6935,14 +7482,16 @@ function isOtCobrablePendiente(ot){
 function getCobrosPendientes(){
   const list = (ots || []).filter(isOtCobrablePendiente).map(ot => {
     const fechaBase = ot.factura_enviada_fecha || ot.data?.facturaEnviadaFecha || ot.data?.factura_enviada_fecha;
-    const days = daysDiffFromToday(fechaBase);
-    const level = (days !== null && days >= 30) ? 'critico' : (days !== null && days >= 14) ? 'atrasado' : 'ok';
+    const rawDays = daysDiffFromToday(fechaBase);
+    const days = rawDays === null ? null : Math.max(1, Number(rawDays || 0));
+    const level = (days !== null && days >= 31) ? 'critico' : (days !== null && days >= 14) ? 'atrasado' : 'ok';
     return { ot, days, level };
   });
 
-  // Solo alertamos atrasado/critico en la campanita
+  // La campana sigue alertando solo atrasados o críticos,
+  // pero la lista muestra todos desde el día 1.
   const alertas = list.filter(x => x.days !== null && x.days >= 14);
-  // Orden: críticos primero, luego más antiguos
+  list.sort((a,b) => (b.days||0) - (a.days||0));
   alertas.sort((a,b) => (b.days||0) - (a.days||0));
   return { todos: list, alertas };
 }
@@ -6975,7 +7524,7 @@ async function maybeNotifyCobros(){
   if(localStorage.getItem(key) === '1') return;
   localStorage.setItem(key,'1');
 
-  const criticos = alertas.filter(x => (x.days||0) >= 30).length;
+  const criticos = todos.filter(x => (x.days||0) >= 31).length;
   const atrasados = alertas.length - criticos;
 
   toast(`
@@ -6984,8 +7533,8 @@ async function maybeNotifyCobros(){
       <div class="flex-1">
         <div class="font-bold text-gray-900">Cobros pendientes</div>
         <div class="text-sm text-gray-600 mt-1">
-          ${criticos ? `<div><b>${criticos}</b> crítico(s) (30+ días)</div>` : ``}
-          ${atrasados ? `<div><b>${atrasados}</b> atrasado(s) (14–29 días)</div>` : ``}
+          ${criticos ? `<div><b>${criticos}</b> crítico(s) (31+ días)</div>` : ``}
+          ${atrasados ? `<div><b>${atrasados}</b> atrasado(s) (14–30 días)</div>` : ``}
         </div>
         <button onclick="showCobrosPendientesModal()" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2 rounded-xl w-full">Ver lista</button>
       </div>
@@ -7004,82 +7553,78 @@ async function maybeNotifyCobros(){
 }
 
 function cobroBadgeText(level, days){
-  if(days === null) return `<span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">Sin fecha</span>`;
-  if(level === 'critico') return `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">CRÍTICO • ${days} días</span>`;
-  if(level === 'atrasado') return `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">ATRASADO • ${days} días</span>`;
-  return `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs">OK • ${days} días</span>`;
+  if(days === null) return `<span class="inline-flex items-center justify-center whitespace-nowrap px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold leading-none min-h-[38px]">Sin fecha</span>`;
+  if(level === 'critico') return `<span class="inline-flex items-center justify-center whitespace-nowrap px-4 py-2 bg-red-100 text-red-700 rounded-full text-xs font-bold leading-none min-h-[38px]">CRÍTICO • ${days} días</span>`;
+  if(level === 'atrasado') return `<span class="inline-flex items-center justify-center whitespace-nowrap px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-xs font-bold leading-none min-h-[38px]">ATRASADO • ${days} días</span>`;
+  return `<span class="inline-flex items-center justify-center whitespace-nowrap px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold leading-none min-h-[38px]">AL DÍA • ${days} día${days===1?'':'s'}</span>`;
 }
 
 function showCobrosPendientesModal(){
   const { todos, alertas } = getCobrosPendientes();
 
-  const rows = alertas.length ? alertas : todos; // si no hay atrasados, igual muestra los “OK” con fecha
+  const rows = todos; // mostrar todos desde el día 1
   const table = rows.length ? rows.map(({ot,days,level})=>{
-    const rut = ot.rut || '';
-    const nombre = ot.nombre || ot.clientName || '';
-    const dir = ot.direccion || ot.dirección || ot.address || '';
-    const desc = (ot.descripcion || ot.detalle || '').toString();
-    const nro = ot.numero || ot.nro || ot.num_ot || ot.ot_num || '';
-    const fac = ot.factura_num || ot.facturaNumero || ot.data?.facturaNumero || '';
+    const nombre = ot.nombre || ot.clientName || ot.razonSocial || '';
+    const desc = (ot.descripcion || ot.detalle || ot.data?.descripcion_trabajo || ot.data?.descripcion || '').toString();
+    const nro = ot.numeroOT || ot.numero_ot || ot.numero || ot.nro || ot.num_ot || ot.ot_num || '';
+    const fac = ot.factura_num || ot.facturaNumero || ot.data?.facturaNumero || ot.data?.factura_num || '';
     return `
-      <tr class="border-t">
-        <td class="p-3">${nro || '-'}</td>
+      <tr class="border-t border-gray-100 align-top">
+        <td class="p-3 font-semibold whitespace-nowrap">${nro || '-'}</td>
         <td class="p-3">${nombre}</td>
-        <td class="p-3">${rut}</td>
-        <td class="p-3">${dir}</td>
         <td class="p-3">${(desc || '').substring(0,60)}${desc && desc.length>60 ? '…' : ''}</td>
-        <td class="p-3">${fac || '-'}</td>
-        <td class="p-3">${cobroBadgeText(level,days)}</td>
+        <td class="p-3 whitespace-nowrap">${fac || '-'}</td>
+        <td class="p-3 whitespace-nowrap">${cobroBadgeText(level,days)}</td>
         <td class="p-3 text-right">
-          <button onclick="markOtAsPaid('${ot.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl">Marcar pagado</button>
+          <button onclick="markOtAsPaid('${ot.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl whitespace-nowrap">Marcar pagado</button>
         </td>
       </tr>
     `;
-  }).join('') : `<tr><td class="p-4 text-center text-gray-500" colspan="8">No hay cobros pendientes con fecha de factura enviada.</td></tr>`;
+  }).join('') : `<tr><td class="p-4 text-center text-gray-500" colspan="6">No hay cobros registrados con fecha de factura enviada.</td></tr>`;
 
-  const criticos = alertas.filter(x => (x.days||0) >= 30).length;
-  const atrasados = alertas.filter(x => (x.days||0) >= 14 && (x.days||0) < 30).length;
+  const criticos = todos.filter(x => (x.days||0) >= 31).length;
+  const atrasados = todos.filter(x => (x.days||0) >= 14 && (x.days||0) < 31).length;
 
   const permisoBtn = ('Notification' in window && Notification.permission !== 'granted')
-    ? `<button onclick="askNotifPermission()" class="border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-xl text-sm">Activar notificaciones</button>`
+    ? `<button onclick="askNotifPermission()" class="border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-xl text-sm whitespace-nowrap">Activar notificaciones</button>`
     : ``;
 
   openModal(`
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <div class="text-2xl font-extrabold">Cobros pendientes</div>
-        <div class="text-sm text-gray-600 mt-1">
-          ${criticos ? `<span class="mr-3"><b>${criticos}</b> crítico(s)</span>` : ``}
-          ${atrasados ? `<span><b>${atrasados}</b> atrasado(s)</span>` : ``}
-          ${(!criticos && !atrasados) ? `<span>Sin atrasos (solo mostrando “OK” si corresponde)</span>` : ``}
+    <div class="p-5 sm:p-7">
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div class="min-w-0 pr-2">
+          <div class="text-2xl sm:text-3xl font-extrabold leading-tight break-words">Cobros pendientes</div>
+          <div class="text-sm text-gray-600 mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            ${criticos ? `<span><b>${criticos}</b> crítico(s)</span>` : ``}
+            ${atrasados ? `<span><b>${atrasados}</b> atrasado(s)</span>` : ``}
+            ${(!criticos && !atrasados) ? `<span>Sin atrasos. Se muestran igualmente los cobros registrados desde el día 1.</span>` : ``}
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 md:justify-end shrink-0">
+          ${permisoBtn}
+          <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 whitespace-nowrap">Cerrar</button>
         </div>
       </div>
-      <div class="flex gap-2">
-        ${permisoBtn}
-        <button onclick="closeModal()" class="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
+
+      <div class="mt-5 overflow-x-auto border border-gray-200 rounded-2xl">
+        <table class="w-full text-sm min-w-[760px]">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="text-left p-3 whitespace-nowrap">OT</th>
+              <th class="text-left p-3">Cliente</th>
+              <th class="text-left p-3">Descripción</th>
+              <th class="text-left p-3 whitespace-nowrap">Documento</th>
+              <th class="text-left p-3 whitespace-nowrap">Estado</th>
+              <th class="text-right p-3 whitespace-nowrap">Acción</th>
+            </tr>
+          </thead>
+          <tbody>${table}</tbody>
+        </table>
       </div>
-    </div>
 
-    <div class="mt-4 overflow-auto border border-gray-200 rounded-2xl">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="text-left p-3">OT</th>
-            <th class="text-left p-3">Cliente</th>
-            <th class="text-left p-3">RUT</th>
-            <th class="text-left p-3">Dirección</th>
-            <th class="text-left p-3">Descripción</th>
-            <th class="text-left p-3">Documento</th>
-            <th class="text-left p-3">Estado</th>
-            <th class="text-right p-3">Acción</th>
-          </tr>
-        </thead>
-        <tbody>${table}</tbody>
-      </table>
-    </div>
-
-    <div class="mt-4 text-xs text-gray-500">
-      Se considera “Atrasado” desde 14 días y “Crítico” desde 30 días, contando desde <b>factura_enviada_fecha</b>.
+      <div class="mt-4 text-xs text-gray-500 leading-relaxed">
+        Los cobros quedan registrados desde el día 1. Se considera “Atrasado” desde 14 días y “Crítico” desde 31 días, contando desde la fecha de factura enviada.
+      </div>
     </div>
   `);
 }
