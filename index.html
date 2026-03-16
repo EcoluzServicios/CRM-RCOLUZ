@@ -5045,10 +5045,33 @@ async function showQuotesDiag(){ return; }
 
 function getQuoteSendInfoSimple(q){
   const d = q?.data || {};
-  const via = d.envio_via || (String(d.ejecutor_envio || '').includes('WhatsApp') ? 'WhatsApp' : '') || (String(d.ejecutor_envio || '').includes('Email') ? 'Correo' : '');
-  const ejecutor = d.ejecutor_envio_simple || (d.ejecutor_envio ? String(d.ejecutor_envio).replace(/\s*\((WhatsApp|Email)\)\s*/i,'').trim() : '') || q?.createdByName || q?.createdBy || '';
-  const fecha = d.fecha_envio || '';
-  return { sent: !!(via || ejecutor || fecha), via: via === 'Email' ? 'Correo' : via, ejecutor, fecha };
+
+  const viaRaw =
+    d.envio_via ||
+    q?.envio_via ||
+    (q?.enviado_por_wsp ? 'WhatsApp' : '') ||
+    (q?.enviado_por_correo ? 'Correo' : '') ||
+    (d.fecha_envio && String(d.ejecutor_envio || '').includes('WhatsApp') ? 'WhatsApp' : '') ||
+    (d.fecha_envio && String(d.ejecutor_envio || '').includes('Email') ? 'Correo' : '');
+
+  const via = String(viaRaw || '').replace(/^Email$/i, 'Correo');
+  const ejecutor =
+    d.ejecutor_envio_simple ||
+    (d.ejecutor_envio ? String(d.ejecutor_envio).replace(/\s*\((WhatsApp|Email)\)\s*/i,'').trim() : '') ||
+    q?.ejecutor_envio ||
+    '';
+
+  const fecha = d.fecha_envio || q?.fecha_envio || '';
+
+  // Solo cuenta como enviado si realmente se registró una vía o una fecha de envío.
+  const sent = !!(via || fecha || q?.enviado_por_wsp || q?.enviado_por_correo);
+
+  return {
+    sent,
+    via,
+    ejecutor: sent ? ejecutor : '',
+    fecha: sent ? fecha : ''
+  };
 }
 
 function formatQuoteSendDateShort(value){
@@ -8337,25 +8360,23 @@ function formatQuoteSendDateTime(value){
 
 function getQuoteSendInfo(q){
   const d = (q && q.data) ? q.data : {};
-  const via =
+  const viaRaw =
     d.envio_via ||
+    q?.envio_via ||
     (q?.enviado_por_wsp ? 'WhatsApp' : '') ||
-    (q?.enviado_por_correo ? 'Email' : '') ||
-    (String(d.ejecutor_envio || q?.ejecutor_envio || '').includes('(WhatsApp)') ? 'WhatsApp' : '') ||
-    (String(d.ejecutor_envio || q?.ejecutor_envio || '').includes('(Email)') ? 'Email' : '');
+    (q?.enviado_por_correo ? 'Correo' : '') ||
+    (d.fecha_envio && String(d.ejecutor_envio || q?.ejecutor_envio || '').includes('(WhatsApp)') ? 'WhatsApp' : '') ||
+    (d.fecha_envio && String(d.ejecutor_envio || q?.ejecutor_envio || '').includes('(Email)') ? 'Correo' : '');
+
+  const via = String(viaRaw || '').replace(/^Email$/i, 'Correo');
+  const fecha = d.fecha_envio || q?.fecha_envio || '';
+  const sent = !!(via || fecha || q?.enviado_por_wsp || q?.enviado_por_correo);
 
   const ejecutor =
-    d.ejecutor_envio_simple ||
-    d.ejecutor_envio ||
-    q?.ejecutor_envio ||
-    '';
+    sent
+      ? (d.ejecutor_envio_simple || d.ejecutor_envio || q?.ejecutor_envio || '')
+      : '';
 
-  const fecha =
-    d.fecha_envio ||
-    q?.fecha_envio ||
-    '';
-
-  const sent = !!(via || ejecutor || fecha);
   return { via, ejecutor, fecha, sent };
 }
 
