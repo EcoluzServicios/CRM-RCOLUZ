@@ -284,6 +284,212 @@ function toggleEditOTFacturaField(){
 .sidebar a.active, .sidebar button.active{color:var(--ecoluz-brand)!important;}
 </style>
 
+
+<style id="ecoluz-dark-mode-overrides">
+body.dark-mode {
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+}
+body.dark-mode #app,
+body.dark-mode #mainContent {
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+}
+body.dark-mode #sidebar,
+body.dark-mode #modalContent,
+body.dark-mode .celebrate-card,
+body.dark-mode #loginScreen > div {
+  background: #111827 !important;
+  color: #e5e7eb !important;
+  border-color: #334155 !important;
+}
+body.dark-mode #loginScreen {
+  background: #020617 !important;
+}
+body.dark-mode .bg-white,
+body.dark-mode [class*=" bg-white"],
+body.dark-mode [class^="bg-white"] {
+  background-color: #111827 !important;
+  color: #e5e7eb !important;
+}
+body.dark-mode .bg-gray-50,
+body.dark-mode .bg-gray-100,
+body.dark-mode .bg-slate-50,
+body.dark-mode .bg-slate-100,
+body.dark-mode .bg-white\/70,
+body.dark-mode .hover\:bg-white:hover,
+body.dark-mode .hover\:bg-gray-50:hover,
+body.dark-mode .hover\:bg-blue-50:hover,
+body.dark-mode .hover\:bg-red-50:hover {
+  background-color: #1f2937 !important;
+}
+body.dark-mode .text-gray-400,
+body.dark-mode .text-gray-500,
+body.dark-mode .text-gray-600,
+body.dark-mode .text-slate-400,
+body.dark-mode .text-slate-500,
+body.dark-mode .text-slate-600 {
+  color: #94a3b8 !important;
+}
+body.dark-mode .text-gray-700,
+body.dark-mode .text-gray-800,
+body.dark-mode .text-gray-900,
+body.dark-mode .text-slate-700,
+body.dark-mode .text-slate-800,
+body.dark-mode .text-slate-900 {
+  color: #e5e7eb !important;
+}
+body.dark-mode .border,
+body.dark-mode [class*=" border-"],
+body.dark-mode [class^="border-"] {
+  border-color: #334155 !important;
+}
+body.dark-mode table,
+body.dark-mode th,
+body.dark-mode td {
+  border-color: #334155 !important;
+}
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+  border-color: #334155 !important;
+}
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #94a3b8 !important;
+}
+body.dark-mode .nav-active {
+  background-color: #334155 !important;
+  color: white !important;
+}
+body.dark-mode .notif-badge {
+  color: white !important;
+}
+body.dark-mode #btn-theme-toggle {
+  border-color: #475569 !important;
+}
+</style>
+
+
+<style id="ecoluz-darkmode-refined">
+  html.dark { color-scheme: dark; }
+  html.dark body { background:#0f172a !important; color:#e5e7eb !important; }
+  html.dark #app,
+  html.dark #mainContent { background:#111827 !important; color:#e5e7eb !important; }
+
+  /* Sidebar */
+  html.dark aside,
+  html.dark .sidebar,
+  html.dark #sidebar {
+    background:#0b1220 !important;
+    border-color:#1f2937 !important;
+    color:#e5e7eb !important;
+  }
+  html.dark aside .text-gray-600,
+  html.dark aside .text-gray-500,
+  html.dark #sidebar .text-gray-600,
+  html.dark #sidebar .text-gray-500 { color:#9ca3af !important; }
+  html.dark .nav-btn {
+    color:#e5e7eb !important;
+  }
+  html.dark .nav-btn:hover {
+    background:#172033 !important;
+  }
+
+  /* Generic surfaces */
+  html.dark .bg-white { background:#182233 !important; }
+  html.dark .bg-gray-50 { background:#111827 !important; }
+  html.dark .bg-gray-100 { background:#1f2937 !important; }
+  html.dark .bg-slate-50 { background:#111827 !important; }
+  html.dark .border,
+  html.dark [class*="border-"] {
+    border-color:#334155 !important;
+  }
+  html.dark .shadow,
+  html.dark .shadow-lg,
+  html.dark .shadow-xl,
+  html.dark .shadow-2xl {
+    box-shadow: 0 10px 30px rgba(0,0,0,.35) !important;
+  }
+
+  /* Text */
+  html.dark .text-gray-900,
+  html.dark .text-slate-900,
+  html.dark .text-slate-800,
+  html.dark .text-gray-800,
+  html.dark .text-black { color:#f3f4f6 !important; }
+  html.dark .text-gray-700,
+  html.dark .text-slate-700,
+  html.dark .text-slate-600,
+  html.dark .text-gray-600 { color:#d1d5db !important; }
+  html.dark .text-gray-500,
+  html.dark .text-slate-500,
+  html.dark .text-slate-400,
+  html.dark .text-gray-400 { color:#9ca3af !important; }
+
+  /* Inputs/selects/textarea */
+  html.dark input,
+  html.dark select,
+  html.dark textarea {
+    background:#0f172a !important;
+    color:#f3f4f6 !important;
+    border-color:#334155 !important;
+  }
+  html.dark input::placeholder,
+  html.dark textarea::placeholder { color:#6b7280 !important; }
+
+  /* Tables */
+  html.dark table { color:#e5e7eb !important; }
+  html.dark thead,
+  html.dark thead tr,
+  html.dark thead th {
+    background:#1f2937 !important;
+    color:#e5e7eb !important;
+    border-color:#334155 !important;
+  }
+  html.dark tbody tr { border-color:#334155 !important; }
+  html.dark tbody tr:hover { background:#1b2638 !important; }
+
+  /* Modals */
+  html.dark #modalContent,
+  html.dark .modal-content {
+    background:#182233 !important;
+    color:#e5e7eb !important;
+  }
+
+  /* Buttons */
+  html.dark .bg-blue-600 { background:#2563eb !important; }
+  html.dark .hover\:bg-blue-700:hover { background:#1d4ed8 !important; }
+  html.dark .bg-emerald-600 { background:#059669 !important; }
+  html.dark .hover\:bg-emerald-700:hover { background:#047857 !important; }
+  html.dark .bg-rose-50 { background:#3b1220 !important; }
+  html.dark .bg-amber-50 { background:#3a2a0a !important; }
+  html.dark .bg-emerald-50 { background:#07261d !important; }
+  html.dark .bg-cyan-50 { background:#082f49 !important; }
+  html.dark .bg-violet-50 { background:#2b1648 !important; }
+  html.dark .bg-blue-50 { background:#0f2747 !important; }
+
+  /* Calendar / cards / soft panels */
+  html.dark .rounded-2xl.bg-slate-50,
+  html.dark .rounded-2xl.bg-gray-50,
+  html.dark .rounded-2xl.bg-white {
+    background:#0f172a !important;
+  }
+
+  /* Scrollbars */
+  html.dark ::-webkit-scrollbar { width:10px; height:10px; }
+  html.dark ::-webkit-scrollbar-thumb { background:#334155; border-radius:999px; }
+  html.dark ::-webkit-scrollbar-track { background:#111827; }
+
+  /* Sticky headers in maintenance */
+  html.dark .sticky.top-0 { background:#1f2937 !important; }
+
+  /* Login / auth surfaces */
+  html.dark .bg-white\/70 { background:rgba(24,34,51,.88) !important; }
+</style>
+
 </head>
 
 <body class="bg-gray-100">
@@ -350,6 +556,9 @@ function toggleEditOTFacturaField(){
         </button>
         <button onclick="showChangePasswordModal()" class="w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-4 text-sm transition-colors border">
            <i class="fas fa-key text-blue-600"></i> <span class="sidebar-label text-gray-600 font-medium">Cambiar Contraseña</span>
+        </button>
+        <button onclick="toggleTheme()" id="btn-theme-toggle" class="w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-4 text-sm transition-colors border">
+           <i id="themeToggleIcon" class="fas fa-moon text-gray-500"></i> <span id="themeToggleLabel" class="sidebar-label text-gray-600 font-medium">Modo oscuro</span>
         </button>
         <button onclick="logout()" class="w-full text-red-600 hover:bg-red-50 py-3 rounded-xl flex items-center gap-2 justify-center"><i class="fas fa-sign-out-alt"></i> <span class="sidebar-label">Cerrar sesión</span></button>        <button onclick="generatePendientesPDF()" class="w-full mt-3 bg-white/70 hover:bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm flex items-center justify-center gap-2" title="PDF Pendientes">
           <i class="fa-solid fa-file-pdf text-red-600"></i> <span class="sidebar-label">Pendientes (PDF)</span>
@@ -1329,6 +1538,65 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     // Cuando creas una OT desde una cotización aceptada (documentos antiguos)
     let pendingQuoteToLinkOT = null; 
     let isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
+    let currentThemeMode = 'light';
+
+    function getThemeStorageKey(emailOverride='') {
+      const base = String(emailOverride || currentUser?.email || '').trim().toLowerCase();
+      return base ? `ecoluz_theme_${base}` : 'ecoluz_theme_guest';
+    }
+
+    function getStoredTheme(emailOverride='') {
+      return localStorage.getItem(getThemeStorageKey(emailOverride)) || localStorage.getItem('ecoluz_theme_guest') || 'light';
+    }
+
+    function updateThemeToggleUI() {
+      const btn = document.getElementById('btn-theme-toggle');
+      const icon = document.getElementById('themeToggleIcon');
+      const label = document.getElementById('themeToggleLabel');
+      if(!btn || !icon || !label) return;
+      const isDark = document.body.classList.contains('dark-mode');
+      if(isDark){
+        icon.className = 'fas fa-sun text-amber-400';
+        label.textContent = 'Modo claro';
+        label.className = 'sidebar-label text-slate-200 font-medium';
+        btn.classList.add('bg-slate-800');
+      } else {
+        icon.className = 'fas fa-moon text-gray-500';
+        label.textContent = 'Modo oscuro';
+        label.className = 'sidebar-label text-gray-600 font-medium';
+        btn.classList.remove('bg-slate-800');
+      }
+    }
+
+    function applyTheme(mode='light') {
+      currentThemeMode = mode === 'dark' ? 'dark' : 'light';
+      document.body.classList.toggle('dark-mode', currentThemeMode === 'dark');
+      document.documentElement.classList.toggle('dark-mode', currentThemeMode === 'dark');
+      updateThemeToggleUI();
+    }
+
+    function saveThemePreference(mode='light', emailOverride='') {
+      const normalized = mode === 'dark' ? 'dark' : 'light';
+      localStorage.setItem('ecoluz_theme_guest', normalized);
+      localStorage.setItem(getThemeStorageKey(emailOverride), normalized);
+      if(currentUser?.email) {
+        localStorage.setItem(getThemeStorageKey(currentUser.email), normalized);
+      }
+    }
+
+    function initializeThemeForCurrentUser(emailOverride='') {
+      applyTheme(getStoredTheme(emailOverride));
+    }
+
+    function toggleTheme(){
+      const next = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+      applyTheme(next);
+      saveThemePreference(next);
+    }
+
+    window.toggleTheme = toggleTheme;
+    window.applyTheme = applyTheme;
+
 
     window.LOGO_FILE = "logo ecoluz.png";
 
@@ -2870,7 +3138,7 @@ async function loadData() {
 
     async function saveCalendarEvents(){
       await loadCalendarEvents();
-      renderCalendar();
+      if (typeof window.renderCalendar === 'function') window.renderCalendar();
     }
     function normalizeCalendarEvents(){
       if(!Array.isArray(calendarEvents)) calendarEvents = [];
@@ -2931,7 +3199,7 @@ async function loadData() {
           .eq('id', id);
         if(error) throw error;
         await loadCalendarEvents();
-        renderCalendar();
+        if (typeof window.renderCalendar === 'function') window.renderCalendar();
       }catch(err){
         console.error('Error actualizando estado del calendario:', err);
         alert('No se pudo actualizar el estado del trabajo.');
@@ -3023,17 +3291,17 @@ async function loadData() {
           selectedCalendarDate = calendarDateISO(d);
         }
       }
-      renderCalendar();
+      if (typeof window.renderCalendar === 'function') window.renderCalendar();
     }
     function goToTodayCalendar(){
       const now = new Date();
       currentCalendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       selectedCalendarDate = todayISO();
-      renderCalendar();
+      if (typeof window.renderCalendar === 'function') window.renderCalendar();
     }
     function selectCalendarDate(dateISO){
       selectedCalendarDate = dateISO;
-      renderCalendar();
+      if (typeof window.renderCalendar === 'function') window.renderCalendar();
     }
     function getUpcomingCalendarEvents(limit=8){
       normalizeCalendarEvents();
@@ -3182,7 +3450,7 @@ async function moveCalendarEventToDate(id, newDateISO){
         selectedCalendarDate = targetDate;
         currentCalendarMonth = new Date(`${targetDate}T00:00:00`);
         await loadCalendarEvents();
-        renderCalendar();
+        if (typeof window.renderCalendar === 'function') window.renderCalendar();
         try{
           const timeTxt = nextTime ? ` · ${nextTime}` : '';
           toastSuccess(`Trabajo reprogramado: ${ev.title || 'Trabajo'} · ${formatDDMMYY(oldDate)} → ${formatDDMMYY(targetDate)}${timeTxt}`);
@@ -3208,7 +3476,7 @@ async function moveCalendarEventToDate(id, newDateISO){
 
 function setCalendarViewMode(mode){
       calendarViewMode = String(mode || 'month') === 'week' ? 'week' : 'month';
-      renderCalendar();
+      if (typeof window.renderCalendar === 'function') window.renderCalendar();
     }
 
     function getCalendarWeekStart(dateLike){
@@ -3479,6 +3747,8 @@ async function renderCalendar(){
       renderCalendarDayDetail(selectedCalendarDate || todayISO());
       renderCalendarUpcoming();
     }
+window.renderCalendar = renderCalendar;
+
     
     function addDaysISO(dateISO, days){
       const d = new Date(String(dateISO) + 'T00:00:00');
@@ -3801,6 +4071,8 @@ function sanitizeRecyclePayload(item){
 
   return p;
 }
+window.sanitizeRecyclePayload = sanitizeRecyclePayload;
+
 
 
 async function restoreRecycleItem(trashId){
@@ -3814,7 +4086,7 @@ async function restoreRecycleItem(trashId){
     if(!ok) return;
 
     const sourceTable = item.source_table;
-    const payload = sanitizeRecyclePayload(item);
+    const payload = window.sanitizeRecyclePayload(item);
 
     const { error: insertError } = await supabaseClient.from(sourceTable).insert([payload]);
     if(insertError) throw insertError;
@@ -3866,7 +4138,7 @@ async function deleteCalendarEvent(id){
           entityType: 'calendar_event',
           sourceTable: CALENDAR_TABLE,
           recordId: ev.id,
-          payload: sanitizeRecyclePayload({ entity_type: 'calendar_event', payload: ev }),
+          payload: window.sanitizeRecyclePayload({ entity_type: 'calendar_event', payload: ev }),
           displayName: ev.title || 'Trabajo de calendario'
         });
 
@@ -3876,7 +4148,7 @@ async function deleteCalendarEvent(id){
           .eq('id', id);
         if(error) throw error;
         await loadCalendarEvents();
-        renderCalendar();
+        if (typeof window.renderCalendar === 'function') window.renderCalendar();
         toastInfo('Trabajo enviado a papelera ✅');
       }catch(err){
         console.error('Error enviando trabajo a papelera:', err);
@@ -4148,7 +4420,7 @@ async function showCalendarEventModal(dateISO='', eventId=''){
         currentCalendarMonth = new Date(`${date}T00:00:00`);
         closeModal();
         await loadCalendarEvents();
-        renderCalendar();
+        if (typeof window.renderCalendar === 'function') window.renderCalendar();
       }catch(err){
         console.error('Error guardando trabajo del calendario:', err);
         alert('No se pudo guardar el trabajo del calendario.');
@@ -4840,6 +5112,10 @@ function showQuoteMoreOptions(quoteId){
         <button onclick="generateQuotePDF('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
           <i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF
         </button>
+        ${['aceptada','aprobada','aceptado'].includes(qState) && !quoteHasLinkedOT(q) ? `
+        <button onclick="showNewOTFromQuoteModal('${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
+          <i class="fa-solid fa-screwdriver-wrench mr-2 text-emerald-700"></i> Crear OT
+        </button>` : ``}
         ${canBackToPending ? `
         <button onclick="setQuoteStatus('${quoteId}','pendiente', true); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
           <i class="fa-solid fa-rotate-left mr-2 text-slate-700"></i> Volver a pendiente
@@ -4850,6 +5126,25 @@ function showQuoteMoreOptions(quoteId){
 }
 
 window.showQuoteMoreOptions = showQuoteMoreOptions;
+
+
+function quoteHasLinkedOT(q){
+  try{
+    const quoteId = String(q?.id || '');
+    const quoteNum = String(q?.numeroCotizacion || q?.numero || '');
+    const byOT = (ots || []).some(o => {
+      const linkedId = String(o?.quoteId || o?.quote_id || o?.data?.quoteId || o?.data?.quote_id || '');
+      const linkedNum = String(o?.numeroCotizacion || o?.data?.numeroCotizacion || '');
+      return (quoteId && linkedId === quoteId) || (quoteNum && linkedNum === quoteNum);
+    });
+    const byQuoteFlag = !!(q?.data?.ot_created || q?.data?.otCreada || q?.ot_created);
+    return byOT || byQuoteFlag;
+  }catch(e){
+    return false;
+  }
+}
+
+window.quoteHasLinkedOT = quoteHasLinkedOT;
 
 function renderQuotes() {
   const tbPending = document.getElementById('pendingQuotesTable');
@@ -4880,8 +5175,12 @@ function renderQuotes() {
     let actions = '';
     const st = normState(q.estado || q.status);
     if (st === 'aceptada' || st === 'aprobada' || st === 'aceptado') {
+      const hasOT = quoteHasLinkedOT(q);
       actions = `
-        <div class="flex items-center justify-center gap-5">
+        <div class="flex items-center justify-center gap-3 flex-wrap">
+          ${hasOT
+            ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>`
+            : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
           <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
             <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
           </button>
@@ -4937,7 +5236,7 @@ function renderQuotes() {
 
 
     // ================= LOGIN Y TIEMPO REAL =================
-    document.addEventListener('DOMContentLoaded', () => { document.getElementById('loginButton').addEventListener('click', login); });
+    document.addEventListener('DOMContentLoaded', () => { initializeThemeForCurrentUser(); document.getElementById('loginButton').addEventListener('click', login); updateThemeToggleUI(); });
 
     
 async function login() {
@@ -4962,15 +5261,17 @@ async function login() {
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('currentUser').textContent = `Conectado como: ${currentUserDisplayName}`;
 document.getElementById('welcomeName').textContent = currentUserDisplayName;
+  initializeThemeForCurrentUser(currentUser?.email || email);
 
   await loadData();
   renderAll();
   showView('dashboard');
   updateAutoModeUI();
+  updateThemeToggleUI();
   suscribirseACambios();
 }
 
-async function logout() { location.reload(); }
+async function logout() { try{ await supabaseClient.auth.signOut(); }catch(e){} location.reload(); }
 
     function suscribirseACambios() {
       supabaseClient.channel('public:all').on('postgres_changes', { event: '*', schema: 'public' }, async () => {
@@ -5850,7 +6151,7 @@ function showView(view) {
   }
 // Apply pagination when entering certain views
   if (view === 'calendar') {
-    try { renderCalendar(); } catch(e){ console.error(e); }
+    try { if (typeof window.renderCalendar === 'function') window.renderCalendar(); } catch(e){ console.error(e); }
   }
   if (view === 'mandantes') {
     try { if (typeof renderMandantes === 'function') renderMandantes(); } catch(e){}
@@ -6276,7 +6577,7 @@ function renderAll() {
   renderVisitas();
   renderReqs();
   try { renderMaintenancePrograms(); } catch(e) {}
-  try { renderCalendar(); } catch(e) {}
+  try { if (typeof window.renderCalendar === 'function') window.renderCalendar(); } catch(e) {}
   // aplicar paginación si ya está definida
   setTimeout(() => { try { applyClients(); } catch(e){} }, 0);
   setTimeout(() => { try { applyPendingQuotes(); applyAcceptedQuotes(); applyRejectedQuotes(); } catch(e){} }, 0);
@@ -6759,7 +7060,7 @@ async function safeDeleteClientToTrash(clientId, fromDatos=false) {
       entityType: 'client',
       sourceTable: 'clients',
       recordId: client.id,
-      payload: sanitizeRecyclePayload({ entity_type: 'client', payload: client }),
+      payload: window.sanitizeRecyclePayload({ entity_type: 'client', payload: client }),
       displayName: `${client.name || 'Cliente'}${client.rut ? ' · ' + client.rut : ''}`
     });
 
@@ -7722,7 +8023,7 @@ const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
           entityType: 'quote',
           sourceTable: 'quotes',
           recordId: q.id,
-          payload: sanitizeRecyclePayload({ entity_type: 'quote', payload: q }),
+          payload: window.sanitizeRecyclePayload({ entity_type: 'quote', payload: q }),
           displayName: `N° ${folio} · ${cliente}`
         });
 
@@ -8113,13 +8414,20 @@ function getQuoteSimpleSendHTMLCompact(q){
   }
 
   const via = String(info.via || '').toLowerCase();
-  const viaLabel = via.includes('whats') ? 'WhatsApp' : 'Correo';
+  const isWsp = via.includes('whats');
+  const viaLabel = isWsp ? 'WhatsApp' : 'Correo';
+  const icon = isWsp
+    ? `<span class="text-green-500"><i class="fab fa-whatsapp text-xl"></i></span>`
+    : `<span class="text-red-500"><i class="fas fa-envelope text-xl"></i></span>`;
 
   return `
-    <div class="text-sm leading-tight text-center">
-      <div class="font-semibold text-slate-700">${escapeHtml(viaLabel)}</div>
-      <div class="text-slate-500 mt-1">${escapeHtml(info.ejecutor || '—')}</div>
-      <div class="text-slate-500">${escapeHtml(formatQuoteSendDateShort(info.fecha))}</div>
+    <div class="flex items-start justify-center gap-3 text-sm leading-tight">
+      <div class="pt-1">${icon}</div>
+      <div class="text-left">
+        <div class="font-semibold text-slate-700">${escapeHtml(viaLabel)}</div>
+        <div class="text-slate-500 mt-1">${escapeHtml(info.ejecutor || '—')}</div>
+        <div class="text-slate-500">${escapeHtml(formatQuoteSendDateShort(info.fecha))}</div>
+      </div>
     </div>
   `;
 }
@@ -8243,8 +8551,20 @@ function renderQuotes() {
               </button>
             </div>`;
         } else if(qState === 'aceptada') {
+          const hasOT = (typeof quoteHasLinkedOT === 'function')
+            ? quoteHasLinkedOT(q)
+            : (ots || []).some(o => {
+                const linkedId = String(o?.quoteId || o?.quote_id || o?.data?.quoteId || o?.data?.quote_id || '');
+                const linkedNum = String(o?.numeroCotizacion || o?.data?.numeroCotizacion || '');
+                const qNum = String(q?.numeroCotizacion || q?.numero || '');
+                return (linkedId && linkedId === String(q.id)) || (qNum && linkedNum === qNum);
+              });
+
           actions = `
-            <div class="flex items-center justify-center gap-5">
+            <div class="flex items-center justify-center gap-3 flex-wrap">
+              ${hasOT
+                ? `<span class="inline-flex items-center px-3 py-2 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>`
+                : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
               <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
                 <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
               </button>
@@ -8306,6 +8626,7 @@ async function setQuoteStatus(id, nextStatus, askConfirm=true) {
     const currentData = Object.assign({}, quote?.data || {});
     const nowIso = new Date().toISOString();
 
+    currentData.estado = status;
     if (status === 'aceptada') {
       currentData.fecha_aceptacion = nowIso;
     } else if (status === 'rechazada') {
@@ -8326,6 +8647,16 @@ async function setQuoteStatus(id, nextStatus, askConfirm=true) {
     try { renderQuotes(); } catch(e) {}
     try { renderMandantes(); } catch(e) {}
     toastInfo(`Cotización actualizada: ${labels[status]} ✅`);
+
+    if(status === 'aceptada'){
+      const hasOT = quoteHasLinkedOT(quote);
+      if(!hasOT){
+        const createNow = confirm('Cotización aceptada. ¿Quieres crear la OT ahora?');
+        if(createNow && typeof showNewOTFromQuoteModal === 'function'){
+          showNewOTFromQuoteModal(id);
+        }
+      }
+    }
   } catch (err) {
     console.error(err);
     alert('No se pudo actualizar el estado de la cotización.');
@@ -8673,7 +9004,20 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
          return;
       }
       
-      await loadData(); renderOTs(); pendingQuoteToLinkOT = null; closeModal(); toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
+      try{
+        if (payload.quote_id) {
+          const qq = (quotes || []).find(x => String(x.id) === String(payload.quote_id));
+          const qData = Object.assign({}, qq?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
+          await supabaseClient.from('quotes').update({ data: qData }).eq('id', payload.quote_id);
+        }
+      }catch(e){ console.error('No se pudo marcar la cotización como OT creada:', e); }
+
+      await loadData();
+      try { renderOTs(); } catch(e){}
+      try { renderQuotes(); } catch(e){}
+      pendingQuoteToLinkOT = null;
+      closeModal();
+      toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
     }
 
     async function convertToOT(quoteId) {
@@ -8726,7 +9070,10 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         return;
       }
       
-      await loadData(); renderQuotes(); renderOTs(); toastInfo(`OT creada: ${inserted?.numero_ot || numOT}`);
+      try{
+      await supabaseClient.from('quotes').update({ data: Object.assign({}, q?.data || {}, { ot_created: true, ot_numero: numOT }) }).eq('id', quoteId);
+    }catch(e){ console.error(e); }
+    await loadData(); renderQuotes(); renderOTs(); toastInfo(`OT creada: ${inserted?.numero_ot || numOT}`);
     }
 
     // ... (El resto de funciones editOT, saveOTEdits y renderOTS que mandaste están bien)
@@ -11275,7 +11622,10 @@ function renderDashboard() {
   // Contadores principales
   const clientsCount = clients.length;
   const quotesPending = quotes.filter(q => q.estado === 'pendiente').length;
-  const otsEnCurso = ots.filter(o => o.estado === 'en_curso' || o.estado === 'pendiente_pago' || o.estado === 'pendiente').length;
+  const otsEnCurso = ots.filter(o => {
+  const estado = normalizeOTTrabajoEstado(o?.estado);
+  return estado === 'pendiente' || estado === 'en_curso';
+}).length;
   const deuda = ots.filter(o => isOTDashboardPendientePago(o)).length;
   const visitasPend = visitas.filter(v => String(v.estado||'').toLowerCase() === 'pendiente').length;
   const reqsPend = (requerimientos||[]).filter(r => !['realizado','realizada','cancelado','cancelada'].includes(String(r.estado||'').toLowerCase())).length;
@@ -12093,151 +12443,123 @@ async function saveEditOT(otId, btn){
 
 
 // ================= DASHBOARD DETAILS (click cards) =================
+
+
+function getOTDetailDescription(ot){
+  return safeText(
+    ot?.descripcion ||
+    ot?.data?.descripcion_trabajo ||
+    ot?.data?.descripcion ||
+    ot?.data?.serviceType ||
+    ot?.tipoTrabajo ||
+    ot?.tipo_trabajo ||
+    'Sin descripción'
+  );
+}
+
+function getQuoteDetailDescription(q){
+  return safeText(
+    q?.obra ||
+    q?.descripcion ||
+    q?.data?.descripcion ||
+    q?.data?.descripcion_trabajo ||
+    q?.data?.serviceType ||
+    q?.serviceType ||
+    'Sin descripción'
+  );
+}
+
+function getSimpleOTCardHTML(ot){
+  const numeroOT = ot?.numeroOT || ot?.numero_ot || ot?.id || '—';
+  const numeroCot = ot?.numeroCotizacion || ot?.quoteNumber || ot?.data?.numeroCotizacion || '';
+  const cliente = safeText(ot?.clientName || ot?.data?.clientName || 'Cliente');
+  const descripcion = getOTDetailDescription(ot);
+
+  return `
+    <div class="border rounded-2xl p-5 bg-white">
+      <div class="font-black text-slate-800 text-2xl">OT ${escapeHtml(String(numeroOT))}</div>
+      <div class="text-slate-500 mt-1">${escapeHtml(cliente)}${numeroCot ? ' - Cot. ' + escapeHtml(String(numeroCot)) : ''}</div>
+
+      <div class="mt-4 rounded-2xl bg-slate-50 p-4">
+        <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Trabajo</div>
+        <div class="text-slate-800 text-lg">${escapeHtml(descripcion)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function getSimpleQuoteCardHTML(q){
+  const numeroCot = q?.numeroCotizacion || q?.numero || q?.folio || q?.id || '—';
+  const cliente = safeText(q?.clientName || q?.razonSocial || 'Cliente');
+  const descripcion = getQuoteDetailDescription(q);
+
+  return `
+    <div class="border rounded-2xl p-5 bg-white">
+      <div class="font-black text-slate-800 text-2xl">Cot. ${escapeHtml(String(numeroCot))}</div>
+      <div class="text-slate-500 mt-1">${escapeHtml(cliente)}</div>
+
+      <div class="mt-4 rounded-2xl bg-slate-50 p-4">
+        <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Trabajo</div>
+        <div class="text-slate-800 text-lg">${escapeHtml(descripcion)}</div>
+      </div>
+    </div>
+  `;
+}
+
 window.showDashDetails = function(kind){
   try{
-    const norm = (v)=>String(v||'').toLowerCase().trim();
-    const fm = (n)=>'$' + (Number(n||0)).toLocaleString('es-CL');
-    const getClient = (id)=>{
-      const c = (clientsById && clientsById.get(String(id))) || (clients||[]).find(x=>String(x.id)===String(id));
-      return c || {};
-    };
+    let title = 'Detalle';
+    let html = '';
 
-    let title = '';
-    let rows = [];
-    let headers = [];
-    if(kind==='quotes_pending'){
-      title = 'Cotizaciones Pendientes';
-      headers = ['N° Presupuesto','Cliente','Monto'];
-      rows = (quotes||[])
-        .filter(q=>norm(q.estado)==='pendiente')
-        .sort((a,b)=>Number(b.numero||b.numeroCotizacion||0)-Number(a.numero||a.numeroCotizacion||0))
-        .map(q=>{
-          const c = getClient(q.clientId || q.client_id);
-          const nombre = (c.name||c.nombre||q.clientName||'—');
-          const num = q.numero || q.numeroCotizacion || 'S/N';
-          const monto = Number(q.total||q.monto||0);
-          return [String(num), String(nombre), fm(monto)];
+    if(kind === 'quotes_pending'){
+      title = 'Cotizaciones pendientes';
+      const items = (quotes || []).filter(q => (String(q?.estado || '').toLowerCase() || 'pendiente') === 'pendiente');
+      html = items.length
+        ? items.map(q => getSimpleQuoteCardHTML(q)).join('')
+        : `<div class="text-sm text-slate-400 border border-dashed rounded-2xl p-4">Sin cotizaciones pendientes.</div>`;
+    } else if(kind === 'ots_en_curso'){
+      const items = (ots || [])
+        .filter(o => {
+          const estado = normalizeOTTrabajoEstado(o?.estado);
+          return estado === 'pendiente' || estado === 'en_curso';
+        })
+        .sort((a, b) => {
+          const na = Number(a?.numeroOT || a?.numero_ot || 0) || 0;
+          const nb = Number(b?.numeroOT || b?.numero_ot || 0) || 0;
+          return nb - na;
         });
-    } else if(kind==='ots_en_curso'){
-      title = 'Órdenes En Curso';
-      headers = ['N° OT','N° Cotización','Cliente','Estado','Monto'];
-      rows = (ots||[])
-        .filter(o=>['en_curso','pendiente_pago','pendiente'].includes(norm(o.estado)))
-        .sort((a,b)=>Number(b.numero_ot||b.numeroOT||0)-Number(a.numero_ot||a.numeroOT||0))
-        .map(o=>{
-          const c = getClient(o.clientId || o.client_id);
-          const nombre = (c.name||c.nombre||o.clientName||o.clientName||'—');
-          const numOt = o.numero_ot || o.numeroOT || 'S/N';
-          const numQ = o.numeroCotizacion || o.numero_cotizacion || o.quoteNumero || o.quoteNumber || 'S/N';
-          const monto = Number(o.monto||0);
-          return [String(numOt), String(numQ), String(nombre), String(o.estado||''), fm(monto)];
-        });
-    } else if(kind==='deudas'){
-      title = 'Pendientes de Pago';
-      headers = ['N° OT','Cliente','Documento','N° Documento','Monto','Estado trabajo'];
-      rows = (ots||[])
-        .filter(o=>isOTDashboardPendientePago(o))
-        .sort((a,b)=>Number(b.numero_ot||b.numeroOT||0)-Number(a.numero_ot||a.numeroOT||0))
-        .map(o=>{
-          const c = getClient(o.clientId || o.client_id);
-          const nombre = (c.name||c.nombre||o.clientName||'—');
-          const numOt = o.numero_ot || o.numeroOT || 'S/N';
-          const nroDoc = getFacturaNumeroOT(o);
-          const monto = Number(o.monto||o.total||o.data?.total||0);
-          return [
-            String(numOt),
-            String(nombre),
-            String(getOTDashboardDocumentoBadgeText(o)),
-            String(nroDoc || '—'),
-            fm(monto),
-            'Realizada'
-          ];
-        });
-    } else if(kind==='visitas_pend'){
-      title = 'Visitas Técnicas Pendientes';
-      headers = ['Fecha','Cliente','Dirección','Detalle'];
-      rows = (visitas||[])
-        .filter(v=>norm(v.estado)==='pendiente')
-        .sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')))
-        .map(v=>{
-          const c = getClient(v.clientId || v.client_id);
-          const nombre = (v.nombre||c.name||c.nombre||'—');
-          const dir = v.direccion || c.direccion || '';
-          const det = v.descripcion || v.detalle || '';
-          return [String(v.fecha||''), String(nombre), String(dir||'—'), String(det||'')];
-        });
-    } else if(kind==='reqs_pend'){
-      title = 'Requerimientos Pendientes';
-      headers = ['Fecha','Cliente','Dirección','Detalle','Estado'];
-      rows = (requerimientos||[])
-        .filter(r=>!['realizado','realizada','cancelado','cancelada'].includes(norm(r.estado)))
-        .sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')))
-        .map(r=>{
-          const c = getClient(r.clientId || r.client_id);
-          const nombre = (r.nombre||c.name||c.nombre||'—');
-          const dir = c.direccion || '';
-          const det = r.detalle || r.descripcion || '';
-          return [String(r.fecha||''), String(nombre), String(dir||'—'), String(det||''), String(r.estado||'')];
-        });
-    } else if(kind==='mantenciones'){
-      title = 'Mantenciones activas';
-      headers = ['N° Presupuesto','Cliente','Tipo servicio','Monto','Estado'];
-      rows = (quotes||[])
-        .filter(q=>isAcceptedAndActiveWorkQuote(q) && isMantencionQuote(q))
-        .sort((a,b)=>Number(b.numero||b.numeroCotizacion||0)-Number(a.numero||a.numeroCotizacion||0))
-        .map(q=>{
-          const c = getClient(q.clientId || q.client_id);
-          const nombre = (c.name||c.nombre||q.clientName||'—');
-          const num = q.numero || q.numeroCotizacion || 'S/N';
-          const tipo = getQuoteServiceType(q) || '—';
-          const monto = Number(q.total||q.monto||0);
-          return [String(num), String(nombre), String(tipo), fm(monto), getActiveWorkLabelForQuote(q)];
-        });
-    } else if(kind==='suministro_instalacion'){
-      title = 'Suministros e Instalaciones activas (AC / Climatización)';
-      headers = ['N° Presupuesto','Cliente','Tipo servicio','Monto','Estado'];
-      rows = (quotes||[])
-        .filter(q=>isAcceptedAndActiveWorkQuote(q) && isSuministroInstalacionQuote(q) && isACEquipmentQuote(q))
-        .sort((a,b)=>Number(b.numero||b.numeroCotizacion||0)-Number(a.numero||a.numeroCotizacion||0))
-        .map(q=>{
-          const c = getClient(q.clientId || q.client_id);
-          const nombre = (c.name||c.nombre||q.clientName||'—');
-          const num = q.numero || q.numeroCotizacion || 'S/N';
-          const tipo = getQuoteServiceType(q) || '—';
-          const monto = Number(q.total||q.monto||0);
-          return [String(num), String(nombre), String(tipo), fm(monto), getActiveWorkLabelForQuote(q)];
-        });
+
+      title = `Órdenes pendientes y en curso (${items.length})`;
+      html = items.length
+        ? items.map(o => getSimpleOTCardHTML(o)).join('')
+        : `<div class="text-sm text-slate-400 border border-dashed rounded-2xl p-4">Sin órdenes pendientes o en curso.</div>`;} else if(kind === 'deudas'){
+      title = 'Pendientes de pago';
+      const items = (ots || []).filter(o => {
+        const trabajo = normalizeOTTrabajoEstado(o?.estado);
+        const cobro = normalizeOTCobroEstado ? normalizeOTCobroEstado(o) : '';
+        return trabajo === 'realizada' && ['pendiente_facturar','pendiente_pago'].includes(cobro);
+      });
+      html = items.length
+        ? items.map(o => getSimpleOTCardHTML(o)).join('')
+        : `<div class="text-sm text-slate-400 border border-dashed rounded-2xl p-4">Sin pendientes de pago.</div>`;
     } else {
-      return;
+      html = `<div class="text-sm text-slate-400 border border-dashed rounded-2xl p-4">Este detalle no fue modificado en esta versión.</div>`;
     }
 
-    const table = `
-      <div class="overflow-auto max-h-[70vh] border rounded-xl">
-        <table class="w-full text-sm">
-          <thead class="sticky top-0 bg-white border-b">
-            <tr>${headers.map(h=>`<th class="text-left p-3 font-bold">${h}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${rows.length ? rows.map(r=>`<tr class="border-b hover:bg-gray-50">${r.map(c=>`<td class="p-3 align-top">${String(c).replace(/</g,'&lt;')}</td>`).join('')}</tr>`).join('') :
-              `<tr><td class="p-4 text-gray-500" colspan="${headers.length}">No hay registros.</td></tr>`}
-          </tbody>
-        </table>
-      </div>`;
-
     openModal(`
-      <div class="p-6">
-        <div class="flex items-center justify-between gap-4 mb-4">
+      <div class="p-6 sm:p-8">
+        <div class="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 class="text-2xl font-black">${title}</h2>
-            <p class="text-sm text-gray-500">Total: <span class="font-bold">${rows.length}</span></p>
+            <h2 class="text-2xl font-black">${escapeHtml(title)}</h2>
           </div>
-          <button onclick="closeModal()" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Cerrar</button>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
         </div>
-        ${table}
+        <div class="space-y-4">${html}</div>
       </div>
     `);
-  } catch(err){
-    alert('Error mostrando detalle: ' + (err?.message || err));
+  }catch(err){
+    console.error(err);
+    alert('No se pudo abrir el detalle del dashboard.');
   }
 };
 
@@ -13077,6 +13399,19 @@ document.addEventListener('DOMContentLoaded', () => {
       try{ applyAbonos(); applyAbonosClosed(); }catch(e){}
     }, 400);
   });
+})();
+</script>
+
+
+<script id="ecoluz-darkmode-refined-js">
+(function(){
+  const applyRefinedDark = () => {
+    const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+    document.body.classList.toggle('dark', isDark);
+  };
+  applyRefinedDark();
+  const observer = new MutationObserver(applyRefinedDark);
+  observer.observe(document.documentElement, { attributes:true, attributeFilter:['class'] });
 })();
 </script>
 
