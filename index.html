@@ -1327,6 +1327,14 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
     async function logout() {
       try {
+        if (sharedSyncInterval) {
+          clearInterval(sharedSyncInterval);
+          sharedSyncInterval = null;
+        }
+        if (sharedSyncChannel) {
+          try { supabaseClient.removeChannel(sharedSyncChannel); } catch(e) {}
+          sharedSyncChannel = null;
+        }
         await supabaseClient.auth.signOut();
       } catch (e) {
         console.error('Error cerrando sesión:', e);
@@ -6014,10 +6022,68 @@ window.renderQuotes = renderQuotes;
 
 
 
+    let sharedSyncChannel = null;
+    let sharedSyncInterval = null;
+    let sharedSyncRunning = false;
+    let sharedSyncLastRefreshAt = 0;
+
+    async function refreshSharedDataSilently(showToast = false) {
+      if (sharedSyncRunning) return;
+      try {
+        sharedSyncRunning = true;
+        await loadData();
+        renderAll();
+        sharedSyncLastRefreshAt = Date.now();
+        if (showToast && typeof toastInfo === 'function') {
+          toastInfo('Datos actualizados por otro usuario 🔄');
+        }
+      } catch (err) {
+        console.error('Error sincronizando datos compartidos:', err);
+      } finally {
+        sharedSyncRunning = false;
+      }
+    }
+
     function suscribirseACambios() {
-      supabaseClient.channel('public:all').on('postgres_changes', { event: '*', schema: 'public' }, async () => {
-        await loadData(); renderAll(); toastInfo("Datos actualizados por otro usuario 🔄");
-      }).subscribe();
+      try {
+        if (sharedSyncChannel) {
+          try { supabaseClient.removeChannel(sharedSyncChannel); } catch(e) {}
+          sharedSyncChannel = null;
+        }
+
+        sharedSyncChannel = supabaseClient
+          .channel('public:shared-sync')
+          .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
+            await refreshSharedDataSilently(true);
+          })
+          .subscribe((status) => {
+            console.log('Realtime estado:', status);
+          });
+
+        if (sharedSyncInterval) clearInterval(sharedSyncInterval);
+        sharedSyncInterval = setInterval(async () => {
+          const enoughTimePassed = (Date.now() - sharedSyncLastRefreshAt) > 12000;
+          if (document.visibilityState === 'visible' && enoughTimePassed) {
+            await refreshSharedDataSilently(false);
+          }
+        }, 15000);
+
+        if (!window.__sharedSyncVisibilityBound) {
+          window.__sharedSyncVisibilityBound = true;
+
+          document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible') {
+              await refreshSharedDataSilently(false);
+            }
+          });
+
+          window.addEventListener('focus', async () => {
+            await refreshSharedDataSilently(false);
+          });
+        }
+      } catch (err) {
+        console.error('Error iniciando sincronización compartida:', err);
+      }
     }
 
 
@@ -10302,9 +10368,38 @@ async function savePagoFinal(otId, btn) {
       return { days, label: `${days} día(s)`, badge, sortDays: days };
     }
 
+    function getClientCobranzaEmail(client, ot){
+      const data = (client && client.data) || {};
+      const otData = (ot && ot.data) || {};
+      const candidates = [
+        client && client.correo_cobranza,
+        client && client.email_cobranza,
+        client && client.cobranza_email,
+        data.correo_cobranza,
+        data.email_cobranza,
+        data.cobranza_email,
+        ot && ot.correo_cobranza,
+        ot && ot.email_cobranza,
+        otData.correo_cobranza,
+        otData.email_cobranza,
+        client && client.email,
+        client && client.mail,
+        data.email,
+        data.mail,
+        ot && ot.email,
+        otData.email
+      ];
+
+      for(const value of candidates){
+        const clean = safeText(value || '');
+        if(clean) return clean;
+      }
+      return '';
+    }
+
     function getCobranzaEmailDraft(ot){
       const client = getClientByOT(ot) || {};
-      const email = safeText(client.email || ot?.email || ot?.data?.email || '');
+      const email = getClientCobranzaEmail(client, ot);
       const factura = getFacturaNumeroOT(ot) || 'S/N';
       const montoTotal = Number(ot?.monto || ot?.total || ot?.data?.total || 0);
       const abonos = getOTAbonos(ot);
@@ -10315,26 +10410,40 @@ async function savePagoFinal(otId, btn) {
       const info = getCobranzaInfo(ot) || {};
       const respuesta = info.proximaGestion || info.promesaPago || '';
       const clientName = safeText(ot?.clientName || client.name || 'cliente');
-      const subject = `Seguimiento formal factura ${factura} - ${clientName}`;
+      const numeroCotizacion = safeText(ot?.numeroCotizacion || ot?.numero_cotizacion || ot?.quoteNumber || ot?.quote_id || ot?.data?.numeroCotizacion || '—');
+      const numeroOT = safeText(ot?.numeroOT || ot?.numero_ot || ot?.data?.numeroOT || '—');
+      const oc = safeText(ot?.oc || ot?.data?.oc || ot?.data?.orden_compra || '—');
+      const hes = safeText(ot?.hes || ot?.data?.hes || '—');
+      const obra = safeText(ot?.obra || ot?.data?.obra || ot?.description || ot?.data?.description || ot?.data?.trabajo || '—');
+      const sucursal = safeText(ot?.sucursal || ot?.direccion || ot?.data?.sucursal || ot?.data?.direccion || client?.direccion || client?.address || '—');
+      const subject = `Seguimiento de pago | Factura ${factura} | ${clientName}`;
 
       const body = [
         `Estimados,`,
         ``,
-        `Junto con saludar, nos dirigimos a ustedes para solicitar información respecto del estado de pago del documento N° ${factura}, asociado a la OT ${ot?.numeroOT || ot?.numero_ot || '—'}.`,
+        `Junto con saludar, nos contactamos desde ECOLUZ para dar seguimiento al estado de pago del documento indicado a continuación, asociado a servicios ya ejecutados para ${clientName}.`,
         ``,
-        `Detalle del documento:`,
-        `- Cliente: ${clientName}`,
-        `- Documento: ${factura}`,
-        `- Monto pendiente: ${formatCLP(saldo)}`,
-        `- Días transcurridos desde el ingreso de la factura: ${dias !== null && dias !== undefined ? dias + ' día(s)' : 'sin fecha registrada'}`,
+        `Antecedentes de la gestión:`,
+        `- Mandante / Cliente: ${clientName}`,
+        `- Cotización: ${numeroCotizacion}`,
+        `- Orden de Trabajo: ${numeroOT}`,
+        `- Obra / Servicio: ${obra}`,
+        `- Sucursal / Dirección: ${sucursal}`,
+        `- OC: ${oc}`,
+        `- HES: ${hes}`,
+        `- Factura / Documento: ${factura}`,
+        `- Saldo pendiente: ${formatCLP(saldo)}`,
+        `- Antigüedad del documento: ${dias !== null && dias !== undefined ? dias + ' día(s)' : 'sin fecha registrada'}`,
+        respuesta ? `- Último compromiso informado: ${respuesta}` : ``,
         ``,
-        `Agradeceremos nos puedan indicar en qué fecha tendríamos respuesta o confirmación de pago.`,
-        `En caso de que este documento ya haya sido pagado, les solicitamos por favor compartir el comprobante correspondiente para actualizar nuestro sistema interno.`,
-        respuesta ? `Según nuestro último registro, la fecha comprometida es: ${respuesta}.` : ``,
+        `Agradeceremos nos puedan confirmar el estado del proceso de pago y, de ser posible, la fecha estimada de abono.`,
+        `En caso de que el pago ya se encuentre realizado, les solicitamos por favor remitir el comprobante correspondiente para regularizar nuestros registros.`,
         ``,
         `Quedamos atentos a sus comentarios.`,
         ``,
-        `Saludos cordiales.`
+        `Saludos cordiales,`,
+        `Área de Administración y Finanzas`,
+        `ECOLUZ`
       ].filter(Boolean).join('\n');
 
       return { email, subject, body };
@@ -10363,15 +10472,16 @@ async function savePagoFinal(otId, btn) {
           <div class="flex items-start justify-between gap-4 mb-6">
             <div>
               <h2 class="text-2xl font-bold">Correo de cobranza</h2>
-              <p class="text-sm text-slate-500 mt-1">Revisa el texto antes de enviarlo.</p>
+              <p class="text-sm text-slate-500 mt-1">El sistema preparará el mensaje y lo abrirá en la aplicación de correo configurada en tu equipo.</p>
             </div>
             <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
           </div>
 
           <div class="grid grid-cols-1 gap-4">
-            <div>
-              <label class="block text-sm font-semibold mb-2">Para</label>
-              <input id="cobMailTo" type="text" value="${escapeHtml(draft.email || '')}" placeholder="correo@cliente.com" class="w-full px-4 py-3 border rounded-2xl">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="text-sm font-semibold text-slate-700">Destinatario</div>
+              <div class="text-sm text-slate-600 mt-1">Se completará manualmente en tu aplicación de correo.</div>
+              <p class="text-xs text-slate-500 mt-2">Al presionar <strong>Abrir en correo</strong>, se abrirá Outlook, Gmail o la app configurada en tu equipo con el asunto y el mensaje listos. Solo tendrás que escribir el destinatario, adjuntar archivos y enviar.</p>
             </div>
             <div>
               <label class="block text-sm font-semibold mb-2">Asunto</label>
@@ -10379,12 +10489,13 @@ async function savePagoFinal(otId, btn) {
             </div>
             <div>
               <label class="block text-sm font-semibold mb-2">Mensaje</label>
-              <textarea id="cobMailBody" rows="12" class="w-full px-4 py-3 border rounded-2xl">${escapeHtml(draft.body)}</textarea>
+              <textarea id="cobMailBody" rows="14" class="w-full px-4 py-3 border rounded-2xl">${escapeHtml(draft.body)}</textarea>
             </div>
           </div>
 
           <div class="flex flex-wrap gap-3 mt-6">
-            <button onclick="sendCobranzaMailto()" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-bold">Abrir correo</button>
+            <button onclick="sendCobranzaMailto()" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-bold">Abrir en correo</button>
+            <button onclick="copyTextToClipboard(document.getElementById('cobMailSubject')?.value || '')" class="px-5 py-3 rounded-2xl border font-bold">Copiar asunto</button>
             <button onclick="copyTextToClipboard(document.getElementById('cobMailBody')?.value || '')" class="px-5 py-3 rounded-2xl border font-bold">Copiar mensaje</button>
             <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-bold">Cerrar</button>
           </div>
@@ -10394,11 +10505,104 @@ async function savePagoFinal(otId, btn) {
     }
 
     function sendCobranzaMailto(){
-      const to = document.getElementById('cobMailTo')?.value || '';
       const subject = document.getElementById('cobMailSubject')?.value || '';
       const body = document.getElementById('cobMailBody')?.value || '';
-      const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.location.href = href;
+      const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+      const outlookUrl = 'https://outlook.office.com/mail/deeplink/compose?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+
+      const popup = window.open('about:blank', '_blank');
+      if(!popup){
+        alert('El navegador bloqueó la nueva pestaña. Permite ventanas emergentes para este sitio e inténtalo nuevamente.');
+        return;
+      }
+
+      const d = popup.document;
+      d.open();
+      d.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Correo de cobranza listo</title></head><body></body></html>');
+      d.close();
+
+      const style = d.createElement('style');
+      style.textContent = 'body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f7f6;color:#0f172a}.wrap{max-width:980px;margin:0 auto;padding:32px 20px 48px}.card{background:#fff;border:1px solid #dbe5df;border-radius:18px;box-shadow:0 10px 25px rgba(15,23,42,.06);overflow:hidden}.hero{padding:24px 24px 18px;background:linear-gradient(135deg,#6ea51e,#567f18);color:#fff}.hero h1{margin:0;font-size:28px;line-height:1.2}.hero p{margin:10px 0 0;opacity:.95}.body{padding:24px}.label{font-size:13px;font-weight:700;color:#475569;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.04em}.field{border:1px solid #dbe5df;border-radius:14px;background:#fff;padding:14px 16px}.message{min-height:260px;line-height:1.6;white-space:pre-wrap}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}.btn{appearance:none;border:none;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn.primary{background:#6ea51e;color:#fff}.btn.secondary{background:#fff;color:#0f172a;border:1px solid #dbe5df}.note{font-size:14px;color:#475569;background:#f8fafc;border:1px dashed #dbe5df;border-radius:14px;padding:14px 16px}';
+      d.head.appendChild(style);
+
+      const wrap = d.createElement('div');
+      wrap.className = 'wrap';
+      const card = d.createElement('div');
+      card.className = 'card';
+      wrap.appendChild(card);
+
+      const hero = d.createElement('div');
+      hero.className = 'hero';
+      const h1 = d.createElement('h1');
+      h1.textContent = 'Correo de cobranza listo';
+      const p = d.createElement('p');
+      p.textContent = 'Completa el destinatario en Gmail u Outlook Web, adjunta los archivos y envía.';
+      hero.appendChild(h1);
+      hero.appendChild(p);
+      card.appendChild(hero);
+
+      const bodyWrap = d.createElement('div');
+      bodyWrap.className = 'body';
+      card.appendChild(bodyWrap);
+
+      const actions = d.createElement('div');
+      actions.className = 'actions';
+      bodyWrap.appendChild(actions);
+
+      const gmailLink = d.createElement('a');
+      gmailLink.className = 'btn primary';
+      gmailLink.href = gmailUrl;
+      gmailLink.target = '_blank';
+      gmailLink.rel = 'noopener noreferrer';
+      gmailLink.textContent = 'Abrir Gmail';
+      actions.appendChild(gmailLink);
+
+      const outlookLink = d.createElement('a');
+      outlookLink.className = 'btn secondary';
+      outlookLink.href = outlookUrl;
+      outlookLink.target = '_blank';
+      outlookLink.rel = 'noopener noreferrer';
+      outlookLink.textContent = 'Abrir Outlook Web';
+      actions.appendChild(outlookLink);
+
+      const copySubject = d.createElement('button');
+      copySubject.type = 'button';
+      copySubject.className = 'btn secondary';
+      copySubject.textContent = 'Copiar asunto';
+      copySubject.onclick = function(){ try{ popup.navigator.clipboard.writeText(subject); }catch(e){} };
+      actions.appendChild(copySubject);
+
+      const copyBody = d.createElement('button');
+      copyBody.type = 'button';
+      copyBody.className = 'btn secondary';
+      copyBody.textContent = 'Copiar mensaje';
+      copyBody.onclick = function(){ try{ popup.navigator.clipboard.writeText(body); }catch(e){} };
+      actions.appendChild(copyBody);
+
+      const note = d.createElement('div');
+      note.className = 'note';
+      note.textContent = 'Esta pestaña no envía correos por sí sola. Desde aquí puedes abrir Gmail u Outlook Web con el asunto y el mensaje ya cargados.';
+      bodyWrap.appendChild(note);
+
+      const subjLabel = d.createElement('div');
+      subjLabel.className = 'label';
+      subjLabel.textContent = 'Asunto';
+      bodyWrap.appendChild(subjLabel);
+      const subjField = d.createElement('div');
+      subjField.className = 'field';
+      subjField.textContent = subject;
+      bodyWrap.appendChild(subjField);
+
+      const msgLabel = d.createElement('div');
+      msgLabel.className = 'label';
+      msgLabel.textContent = 'Mensaje';
+      bodyWrap.appendChild(msgLabel);
+      const msgField = d.createElement('div');
+      msgField.className = 'field message';
+      msgField.textContent = body;
+      bodyWrap.appendChild(msgField);
+
+      d.body.appendChild(wrap);
     }
 
     window.openCobranzaEmailDraft = openCobranzaEmailDraft;
