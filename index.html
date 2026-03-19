@@ -1238,8 +1238,10 @@ const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bHVldmRkZnVscXBzemtkb3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NDkxODUsImV4cCI6MjA4NzEyNTE4NX0.1dD4TWlCY-KGJABFFPSy6MBJu__6J85xvEf1FXA84eU";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.supabaseClient = supabaseClient;
 
     let currentUser = null;
+    window.currentUser = null;
     let currentUserDisplayName = null;
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1293,6 +1295,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
         }
 
         currentUser = data?.user || null;
+        window.currentUser = currentUser;
         currentUserDisplayName =
           (currentUser?.user_metadata && (currentUser.user_metadata.name || currentUser.user_metadata.full_name)) ||
           formatShortName(currentUser?.email || email);
@@ -1336,6 +1339,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
           sharedSyncChannel = null;
         }
         await supabaseClient.auth.signOut();
+        window.currentUser = null;
       } catch (e) {
         console.error('Error cerrando sesión:', e);
       }
@@ -1344,6 +1348,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
 
     let clients = [], quotes = [], ots = [], visitas = [], requerimientos = [], reqs = [];
+    window.quotes = quotes;
     let maintenancePrograms = [];
     let recycleBinItems = [];
     let clientsById = new Map();
@@ -5856,6 +5861,80 @@ function renderQuoteSendCell(q){
     </div>
   `;
 }
+
+
+window.registrarEnvio = async function registrarEnvio(quoteId, via){
+  try{
+    if(!quoteId){
+      alert('No se encontró el ID de la cotización.');
+      return;
+    }
+
+    const viaRaw = String(via || '').toLowerCase().trim();
+    const isWsp = viaRaw.includes('whats') || viaRaw === 'wsp';
+    const viaLabel = isWsp ? 'WhatsApp' : 'Correo';
+    const nowIso = new Date().toISOString();
+
+    const actor =
+      currentUserDisplayName ||
+      currentUser?.user_metadata?.name ||
+      currentUser?.user_metadata?.full_name ||
+      currentUser?.email ||
+      'Usuario';
+
+    const list = Array.isArray(window.quotes) ? window.quotes : (Array.isArray(quotes) ? quotes : []);
+    const quote = list.find(q => String(q.id) === String(quoteId));
+    if(!quote){
+      alert('No se encontró la cotización.');
+      return;
+    }
+
+    const oldData = (quote && quote.data) ? quote.data : {};
+    const newData = {
+      ...oldData,
+      envio_via: viaLabel,
+      fecha_envio: nowIso,
+      ejecutor_envio: actor + ' (' + (isWsp ? 'WhatsApp' : 'Email') + ')',
+      ejecutor_envio_simple: actor
+    };
+
+    const payload = {
+      enviado_por_wsp: !!isWsp,
+      enviado_por_correo: !isWsp,
+      fecha_envio: nowIso,
+      ejecutor_envio: actor + ' (' + (isWsp ? 'WhatsApp' : 'Email') + ')',
+      data: newData
+    };
+
+    const { error } = await supabaseClient
+      .from('quotes')
+      .update(payload)
+      .eq('id', quoteId);
+
+    if(error) throw error;
+
+    quote.enviado_por_wsp = !!isWsp;
+    quote.enviado_por_correo = !isWsp;
+    quote.fecha_envio = nowIso;
+    quote.ejecutor_envio = actor + ' (' + (isWsp ? 'WhatsApp' : 'Email') + ')';
+    quote.data = newData;
+
+    window.quotes = list;
+
+    if(typeof loadQuotes === 'function'){
+      await loadQuotes();
+    }else if(typeof renderQuotes === 'function'){
+      renderQuotes();
+    }
+
+    if(typeof updateDashboard === 'function') updateDashboard();
+
+    alert('Envío registrado por ' + viaLabel + '.');
+  }catch(err){
+    console.error('Error al registrar envío:', err);
+    alert('No se pudo registrar el envío.');
+  }
+};
 
 function showQuoteMoreOptions(quoteId){
   const q = (quotes || []).find(x => String(x.id) === String(quoteId));
