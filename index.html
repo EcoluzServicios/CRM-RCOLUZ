@@ -13,6 +13,16 @@ function formatDDMMYY(value){
   return `${dd}-${mm}-${yy}`;
 }
 
+function getPreferredQuoteDate(q){
+  if(!q) return '';
+  return q.fecha || q.fecha_documento || q.fecha_cotizacion || q.data?.fecha || q.data?.fechaDocumento || q.data?.fechaCotizacion || q.created_at || '';
+}
+
+function getPreferredOTDate(o){
+  if(!o) return '';
+  return o.fecha || o.fecha_documento || o.data?.fecha || o.data?.fechaDocumento || o.created_at || '';
+}
+
 // ===== OT: estado de trabajo + facturación (UI amigable) =====
 function normalizeOTTrabajoEstado(v){
   const s = String(v||'').toLowerCase().replace(/-/g,'_').trim();
@@ -5511,7 +5521,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         descripcion: r.descripcion || '',
         obra: r.obra || r.descripcion || 'Sin descripción',
         items: Array.isArray(r.items) ? r.items : [],
-        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0, 10) : todayISO()),
+        fecha: r.fecha || r.data?.fecha || r.data?.fechaDocumento || r.data?.fechaCotizacion || (r.created_at ? String(r.created_at).slice(0, 10) : todayISO()),
         estado: (r.estado || 'pendiente').toLowerCase(),
         tipo_servicio: r.tipo_servicio || '',
         enviado_por_correo: !!r.enviado_por_correo,
@@ -5562,7 +5572,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         guia_despacho: r.guia_despacho || data.guia_despacho || '',
         estado: (r.estado || data.estado || 'en_curso').toLowerCase(),
         pago_estado: (r.pago_estado || '').toLowerCase(),
-        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+        fecha: r.fecha || data.fecha || data.fechaDocumento || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
         monto: Number((data.monto ?? r.monto) || 0),
         abonos: Array.isArray(data.abonos) ? data.abonos : [],
         fechaPago: data.fechaPago || null,
@@ -5765,7 +5775,7 @@ function quoteMatchesFilters(q){
     q.estado || q.status || q.data?.estado,
     montoTxt,
     montoCL,
-    getSearchDateVariants(q.created_at || q.fecha || q.data?.fecha || q.updated_at || ''),
+    getSearchDateVariants(getPreferredQuoteDate(q) || q.updated_at || ''),
     q.createdByName || q.createdBy || q.created_by_name || q.created_by_email
   ], qFree);
 }
@@ -6071,7 +6081,7 @@ function renderQuotes() {
       <td class="p-4 font-semibold">${escapeHtml(safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—')}</td>
       <td class="p-4 font-bold text-blue-700 text-center">$${monto.toLocaleString('es-CL')}</td>
       <td class="p-4 text-sm text-gray-600 text-center">${escapeHtml(formatShortName(q.createdByName || q.createdByEmail || q.createdBy || q.created_by_name || '—'))}</td>
-      <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(q.created_at || q.fecha || q.data?.fecha || ''))}</td>
+      <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(getPreferredQuoteDate(q)))}</td>
       <td class="p-4 align-middle">${renderQuoteSendCell(q)}</td>
       <td class="p-4 text-center">${actions}</td>
     `;
@@ -9434,7 +9444,7 @@ function renderQuotes() {
           <td class="p-4 font-semibold">${escapeHtml(safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—')}</td>
           <td class="p-4 font-bold text-blue-700 text-center">$${monto.toLocaleString('es-CL')}</td>
           <td class="p-4 text-sm text-gray-600 text-center">${escapeHtml(formatShortName(q.createdByName || q.createdByEmail || q.createdBy || q.created_by_name || '—'))}</td>
-          <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(q.created_at || q.fecha || q.data?.fecha || ''))}</td>
+          <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(getPreferredQuoteDate(q)))}</td>
           <td class="p-4 align-middle">${renderQuoteSendCell(q)}</td>
           <td class="p-4 text-center">${actions}</td>`;
         return { tr, st };
@@ -9530,7 +9540,7 @@ function showNewOTFromQuoteModal(quoteId){
 }
 
 // ================= ÓRDENES DE TRABAJO =================
-    function showNewOTManualModal() {
+    function showNewOTManualModal(prefill = {}) {
       
   try {
 let clientOptions = '<option value="">Selecciona cliente</option>';
@@ -9549,6 +9559,11 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           <h2 class="text-2xl font-bold mb-6 text-blue-900">Nueva OT Manual</h2>
           <div class="space-y-4">
             <div><label class="block text-sm font-medium">N° OT *</label>${otNumHTML}</div>
+            <div>
+              <label class="block text-sm font-medium">Fecha de la OT</label>
+              <input id="mOtFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl">
+              <p class="text-xs text-slate-500 mt-1">Si estás ingresando un documento antiguo, aquí puedes dejar la fecha real del documento.</p>
+            </div>
             
             <div class="mb-3 flex gap-4 bg-white p-2 rounded-xl border border-gray-200">
                 <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
@@ -9610,6 +9625,26 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
       document.getElementById('modal').classList.remove('hidden');
       window.initAttachmentManager('ot', []);
 
+      try {
+        if (prefill && typeof prefill === 'object') {
+          const elClient = document.getElementById('mOtClient');
+          const elDesc = document.getElementById('mOtDesc');
+          const elOC = document.getElementById('mOtOC');
+          const elHES = document.getElementById('mOtHES');
+          const elFecha = document.getElementById('mOtFecha');
+          const elNeto = document.getElementById('mOtNeto');
+          const elTotal = document.getElementById('mOtTotal');
+
+          if (elClient && prefill.clientId) elClient.value = String(prefill.clientId);
+          if (elDesc && prefill.descripcion) elDesc.value = String(prefill.descripcion);
+          if (elOC && prefill.oc) elOC.value = String(prefill.oc);
+          if (elHES && prefill.hes) elHES.value = String(prefill.hes);
+          if (elFecha && prefill.fecha) elFecha.value = String(prefill.fecha);
+          if (elNeto && Number(prefill.neto || 0) > 0) elNeto.value = Number(prefill.neto || 0);
+          if (elTotal && Number(prefill.total || 0) > 0) elTotal.value = Number(prefill.total || 0);
+        }
+      } catch(e) { console.warn('No se pudo aplicar prefill OT', e); }
+
       try{ bindFolioToggles(); }catch(e){}
       try{ syncNewOTManualAmounts('neto'); }catch(e){}
       try{ toggleNewOTManualAmountFields(); }catch(e){}
@@ -9619,6 +9654,11 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
       alert("Error al abrir formulario de OT.");
   }
 }
+
+window.showNewOTManualModal = showNewOTManualModal;
+window.showNewOTModal = function(prefill = {}) {
+  return showNewOTManualModal(prefill || {});
+};
 
     async function saveNewOTManual(btn) {
       if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
@@ -9682,7 +9722,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
         estado: 'pendiente',
         pago_estado: 'pendiente_facturar',
-        fecha: todayISO(),
+        fecha: document.getElementById('mOtFecha')?.value || todayISO(),
         created_by: currentUser?.id || null,
         created_by_email: currentUser?.email || '',
         created_by_name: currentUserDisplayName || 'Admin',
@@ -9702,7 +9742,8 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
           attachments: otAttachments,
           abonos: [],
-          createdBy: currentUserDisplayName || 'Admin'
+          createdBy: currentUserDisplayName || 'Admin',
+          fecha: document.getElementById('mOtFecha')?.value || todayISO()
         }
       };
 
@@ -9787,7 +9828,8 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           descripcion: q.obra || q.descripcion || '',
           monto: q.monto || 0,
           abonos: [],
-          createdBy: currentUserDisplayName || 'Admin'
+          createdBy: currentUserDisplayName || 'Admin',
+          fecha: document.getElementById('mOtFecha')?.value || todayISO()
         }
       };
 
@@ -13083,7 +13125,7 @@ function otMatchesFilters(o){
     normalizeOTCobroEstado(o),
     montoTxt,
     montoCL,
-    getSearchDateVariants(o.created_at || o.fecha || o.data?.fecha || ''),
+    getSearchDateVariants(getPreferredOTDate(o) || ''),
     o.createdByName || o.createdBy || o.created_by_name || o.created_by_email
   ], otSearchFree);
 }
@@ -13129,8 +13171,8 @@ function renderOTs() {
     const na = parseInt(String(a.numero_ot || a.numeroOT || '').replace(/\D/g,''), 10) || 0;
     const nb = parseInt(String(b.numero_ot || b.numeroOT || '').replace(/\D/g,''), 10) || 0;
     if(nb !== na) return nb - na;
-    const da = new Date(a.created_at || a.fecha || 0).getTime() || 0;
-    const db = new Date(b.created_at || b.fecha || 0).getTime() || 0;
+    const da = new Date(getPreferredOTDate(a) || 0).getTime() || 0;
+    const db = new Date(getPreferredOTDate(b) || 0).getTime() || 0;
     return db - da;
   }).filter(otMatchesSearch);
 
@@ -13143,7 +13185,7 @@ function renderOTs() {
     const tr = document.createElement('tr');
     tr.className = 'border-t hover:bg-gray-50';
     tr.innerHTML = `
-      <td class="p-4">${formatDDMMYY(o.created_at || o.fecha || '')}</td>
+      <td class="p-4">${formatDDMMYY(getPreferredOTDate(o))}</td>
       <td class="p-4">${o.numeroCotizacion || '-'}</td>
       <td class="p-4 font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
       <td class="p-4">${o.clientName || '-'}</td>
@@ -14997,7 +15039,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="p-4">${clientCellHTML(q, bucket)}</td>
         <td class="p-4 font-bold text-blue-700 text-center">$${monto.toLocaleString('es-CL')}</td>
         <td class="p-4 text-sm text-gray-600 text-center">${escapeHtml(formatShortName(q.createdByName || q.createdByEmail || q.createdBy || q.created_by_name || '—'))}</td>
-        <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(q.created_at || q.fecha || q.data?.fecha || ''))}</td>
+        <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(getPreferredQuoteDate(q)))}</td>
         <td class="p-4 align-middle">${estadoCell}</td>
         <td class="p-4 text-center">${quoteActionsHTML(q, bucket)}</td>`;
       tb.appendChild(tr);
