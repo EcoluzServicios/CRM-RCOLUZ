@@ -30,6 +30,27 @@ function getPreferredOTDate(o){
   return o.fecha || o.fecha_documento || o.data?.fecha || o.data?.fechaDocumento || o.created_at || '';
 }
 
+function getEffectiveOTTrabajoEstado(o){
+  if(!o) return 'pendiente';
+  const data = o.data || {};
+  const linkedQuote = (window.quotes || []).find(q => String(q.id || '') === String(o.quoteId || o.quote_id || ''));
+  const linkedQuoteState = linkedQuote
+    ? (typeof window.getQuoteNormalizedState === 'function'
+        ? window.getQuoteNormalizedState(linkedQuote)
+        : String(linkedQuote.estado || linkedQuote.data?.estado || '').toLowerCase().trim())
+    : '';
+
+  if([
+    String(data.estado_cotizacion_vinculada || '').toLowerCase().trim(),
+    String(data.quote_sync_status || '').toLowerCase().trim(),
+    String(linkedQuoteState || '').toLowerCase().trim()
+  ].includes('rechazada')) return 'cancelada';
+
+  if(data.cancelada_por_cotizacion) return 'cancelada';
+
+  return normalizeOTTrabajoEstado(o.estado || data.estado || 'pendiente');
+}
+
 // ===== OT: estado de trabajo + facturación (UI amigable) =====
 function normalizeOTTrabajoEstado(v){
   const s = String(v||'').toLowerCase().replace(/-/g,'_').trim();
@@ -37,6 +58,7 @@ function normalizeOTTrabajoEstado(v){
   if(s === 'realizada' || s === 'realizado') return 'realizada';
   if(s === 'finalizado' || s === 'finalizada') return 'realizada';
   if(s === 'cerrada' || s === 'cerrado' || s === 'terminada' || s === 'terminado') return 'realizada';
+  if(['cancelada','cancelado','anulada','anulado','rechazada','rechazado'].includes(s)) return 'cancelada';
   if(s === 'pagado') return 'realizada'; // compatibilidad con registros antiguos
   if(s === 'pendiente') return 'pendiente';
   return 'pendiente';
@@ -96,6 +118,7 @@ function normalizeOTCobroEstado(o){
     ''
   ).toLowerCase().replace(/-/g,'_').trim();
 
+  if(normalizeOTTrabajoEstado(o?.estado) === 'cancelada' || ['cancelada','cancelado','anulada','anulado','rechazada','rechazado'].includes(raw)) return 'cancelada';
   if(['pagado','pagada','paid'].includes(raw) || isOTPagada(o)) return 'pagado';
 
   if([
@@ -111,6 +134,7 @@ function normalizeOTCobroEstado(o){
 
 function prettyOTCobroEstado(o){
   const s = normalizeOTCobroEstado(o);
+  if(s === 'cancelada') return 'Cancelada';
   if(s === 'pendiente_facturar') return 'Pendiente de facturar';
   if(s === 'pendiente_pago') return 'Pendiente de pago';
   if(s === 'pagado') return 'Pagado';
@@ -118,7 +142,7 @@ function prettyOTCobroEstado(o){
 }
 
 function isOTDashboardPendientePago(o){
-  return normalizeOTTrabajoEstado(o?.estado) === 'realizada' && normalizeOTCobroEstado(o) !== 'pagado';
+  return getEffectiveOTTrabajoEstado(o) === 'realizada' && normalizeOTCobroEstado(o) !== 'pagado';
 }
 
 function getOTDashboardDocumentoBadgeText(o){
@@ -130,10 +154,11 @@ function getOTDashboardDocumentoBadgeText(o){
 }
 
 function badgeOTTrabajoEstado(v){
-  const s = normalizeOTTrabajoEstado(v);
+  const s = (v && typeof v === 'object') ? getEffectiveOTTrabajoEstado(v) : normalizeOTTrabajoEstado(v);
   if(s === 'pendiente') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>';
   if(s === 'en_curso') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">En curso</span>';
   if(s === 'realizada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Realizada</span>';
+  if(s === 'cancelada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Cancelada</span>';
   return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">'+ (v || '—') +'</span>';
 }
 
@@ -143,6 +168,11 @@ function badgeOTCobro(o){
   const esc = (v) => (typeof escapeHtml === 'function' ? escapeHtml(v) : String(v));
   const id = (o && o.id) ? String(o.id) : '';
   const docLabel = getDocumentoLabelOT(o).toUpperCase();
+  if(getEffectiveOTTrabajoEstado(o) === 'cancelada' || normalizeOTCobroEstado(o) === 'cancelada'){
+    return `<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200" title="OT cancelada por estado de cotización">
+      <i class="fa-solid fa-ban text-rose-600"></i> CANCELADA
+    </span>`;
+  }
   if(!fac){
     return `<button onclick="handleOTFacturaPagoClick('${id}')" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200" title="Click para registrar documento">
       <i class="fa-solid fa-file-invoice text-slate-500"></i> SIN DOCUMENTO
@@ -161,6 +191,7 @@ function badgeOTCobro(o){
 function handleOTFacturaPagoClick(otId){
   const ot = (ots || []).find(o => String(o.id) === String(otId));
   if(!ot) return alert('OT no encontrada');
+  if(normalizeOTTrabajoEstado(ot?.estado) === 'cancelada') return alert('Esta OT quedó cancelada porque la cotización vinculada fue rechazada.');
   const fac = getFacturaNumeroOT(ot);
   if(!fac) return promptRegistrarFactura(otId);
   if(!isOTPagada(ot)) return promptRegistrarPago(otId);
@@ -870,6 +901,16 @@ function toggleEditOTFacturaField(){
           <div class="relative">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input id="otSearchFree" type="text" placeholder="Busca por OT, cotización, cliente, descripción, OC, HES, documento, monto o fecha" class="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200" oninput="setOTSearch()" autocomplete="off" />
+          </div>
+          <div class="mt-4">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Filtrar por estado del trabajo</label>
+            <div class="flex flex-wrap gap-2" id="otStatusFilters">
+              <button type="button" id="otFilterAll" onclick="setOTStatusFilter('all')" class="px-4 py-2 rounded-xl border border-slate-200 bg-slate-900 text-white font-semibold">Todas</button>
+              <button type="button" id="otFilterPendiente" onclick="setOTStatusFilter('pendiente')" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50">Pendientes</button>
+              <button type="button" id="otFilterEnCurso" onclick="setOTStatusFilter('en_curso')" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50">En curso</button>
+              <button type="button" id="otFilterRealizada" onclick="setOTStatusFilter('realizada')" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50">Finalizadas / realizadas</button>
+              <button type="button" id="otFilterCancelada" onclick="setOTStatusFilter('cancelada')" class="px-4 py-2 rounded-xl border border-rose-200 bg-white text-rose-700 font-semibold hover:bg-rose-50">Canceladas</button>
+            </div>
           </div>
         </div>
 
@@ -2450,6 +2491,7 @@ function getQuoteObraExcel(q){
 
 function getOTTrabajoEstadoExcel(ot){
   const s = normalizeOTTrabajoEstado(ot?.estado);
+  if(s === 'cancelada') return 'Cancelada';
   if(s === 'realizada') return 'Realizada';
   if(s === 'en_curso') return 'En curso';
   return 'Pendiente';
@@ -3444,7 +3486,7 @@ async function loadData() {
             id: ot.id,
             title: `OT ${ot.numeroOT || ot.numero_ot || 'S/N'}`,
             subtitle: ot.clientName || 'Sin cliente',
-            meta: normalizeOTTrabajoEstado(ot.estado) === 'en_curso' ? 'En curso' : (normalizeOTTrabajoEstado(ot.estado) === 'realizada' ? 'Realizada' : 'Pendiente'),
+            meta: getEffectiveOTTrabajoEstado(ot) === 'cancelada' ? 'Cancelada' : (getEffectiveOTTrabajoEstado(ot) === 'en_curso' ? 'En curso' : (getEffectiveOTTrabajoEstado(ot) === 'realizada' ? 'Realizada' : 'Pendiente')),
             amount: formatMoneySafe(ot.monto || ot.total || ot.data?.total || 0),
             action: () => {
               closeModal();
@@ -5546,6 +5588,8 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         descripcion: r.descripcion || '',
         obra: r.obra || r.descripcion || 'Sin descripción',
         items: Array.isArray(r.items) ? r.items : [],
+        sucursal: r.sucursal || r.branch || r.data?.sucursal || r.data?.sucursal_direccion || r.data?.direccion_sucursal || '',
+        direccion: r.direccion || r.address || r.data?.direccion || r.data?.address || '',
         fecha: r.fecha || r.data?.fecha || r.data?.fechaDocumento || r.data?.fechaCotizacion || (r.created_at ? String(r.created_at).slice(0, 10) : todayISO()),
         estado: (r.estado || 'pendiente').toLowerCase(),
         tipo_servicio: r.tipo_servicio || '',
@@ -5592,11 +5636,13 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         numeroCotizacion: (quotes.find(q => String(q.id) === String(r.quote_id))?.numeroCotizacion) || data.numeroCotizacion || '',
         numeroOT: r.numero_ot || data.numeroOT || 'S/N',
         descripcion: r.descripcion || data.descripcion || '',
+        sucursal: r.sucursal || data.sucursal || data.sucursal_direccion || data.direccion_sucursal || '',
+        direccion: r.direccion || r.address || data.direccion || data.address || '',
         oc: r.oc || data.oc || '',
         hes: r.hes || data.hes || '',
         guia_despacho: r.guia_despacho || data.guia_despacho || '',
-        estado: (r.estado || data.estado || 'en_curso').toLowerCase(),
-        pago_estado: (r.pago_estado || '').toLowerCase(),
+        estado: (((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || '')) && (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))) : String(((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))?.estado || '').toLowerCase())) === 'rechazada') || data.cancelada_por_cotizacion || String(data.estado_cotizacion_vinculada || '').toLowerCase() === 'rechazada' ? 'cancelada' : (r.estado || data.estado || 'en_curso')).toLowerCase(),
+        pago_estado: ((((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || '')) && (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))) : String(((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))?.estado || '').toLowerCase())) === 'rechazada') || data.cancelada_por_cotizacion || String(data.estado_cotizacion_vinculada || '').toLowerCase() === 'rechazada') ? 'cancelada' : (r.pago_estado || '')).toLowerCase(),
         fecha: r.fecha || data.fecha || data.fechaDocumento || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
         monto: Number((data.monto ?? r.monto) || 0),
         abonos: Array.isArray(data.abonos) ? data.abonos : [],
@@ -9229,6 +9275,10 @@ async function saveQuoteFollowup(quoteId, btn){
     const { error } = await supabaseClient.from('quotes').update(payload).eq('id', quoteId);
     if(error) throw error;
 
+    if(typeof syncLinkedOTsWithQuoteStatus === 'function'){
+      await syncLinkedOTsWithQuoteStatus(quoteId, estado);
+    }
+
     await loadData();
     try{ renderQuotes(); }catch(e){}
     try{ renderMandantes(); }catch(e){}
@@ -9884,11 +9934,21 @@ function promptRegistrarFactura(otId){
   const ot = ots.find(o => String(o.id) === String(otId));
   const docTipo = getDocumentoTipoOT(ot) === 'boleta' ? 'boleta' : 'factura';
   const numeroActual = getFacturaNumeroOT(ot) || '';
+  const estadoTrabajo = normalizeOTTrabajoEstado(ot?.estado || 'pendiente');
   const html = `
     <div class="p-8">
       <h2 class="text-2xl font-bold mb-2">Registrar documento tributario</h2>
-      <p class="text-sm text-gray-500 mb-6">Puedes registrar boleta o factura. Luego se habilita el pago.</p>
+      <p class="text-sm text-gray-500 mb-6">Primero indica el estado del trabajo. Luego puedes seguir con la facturación.</p>
       <div class="space-y-4">
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <label class="text-sm font-semibold text-gray-700">Estado del trabajo</label>
+          <select id="otTrabajoEstadoFactura" class="w-full px-3 py-2 border rounded-xl mt-2">
+            <option value="pendiente" ${estadoTrabajo==='pendiente'?'selected':''}>Pendiente</option>
+            <option value="en_curso" ${estadoTrabajo==='en_curso'?'selected':''}>En curso</option>
+            <option value="realizada" ${estadoTrabajo==='realizada'?'selected':''}>Realizado</option>
+          </select>
+          <p class="text-xs text-slate-500 mt-2">Este estado quedará guardado en la OT junto con el documento.</p>
+        </div>
         <div>
           <label class="text-sm font-semibold text-gray-700">Tipo de documento</label>
           <select id="facturaTipo" class="w-full px-3 py-2 border rounded-xl">
@@ -9918,6 +9978,7 @@ async function saveFacturaOT(otId, btn){
   const documentoTipo = (document.getElementById('facturaTipo')?.value || 'factura').trim().toLowerCase();
   const factura = (document.getElementById('facturaNumero')?.value || '').trim();
   const fechaEnvio = (document.getElementById('facturaEnviadaFecha')?.value || '').trim() || todayISO();
+  const estadoTrabajo = normalizeOTTrabajoEstado(document.getElementById('otTrabajoEstadoFactura')?.value || 'pendiente');
   const docLabel = documentoTipo === 'boleta' ? 'boleta' : 'factura';
   if(!factura){
     alert(`Debes ingresar el N° de ${docLabel}.`);
@@ -9927,6 +9988,8 @@ async function saveFacturaOT(otId, btn){
   const ot = ots.find(o => String(o.id) === String(otId));
   if(!ot) { alert("OT no encontrada"); if(btn){btn.disabled=false;btn.innerText="Guardar documento";} return; }
   if(!ot.data) ot.data = {};
+  ot.estado = estadoTrabajo;
+  ot.data.estado = estadoTrabajo;
   ot.data.facturaNumero = factura;
   ot.data.documentoTipo = documentoTipo;
   ot.data.facturaEnviadaFecha = fechaEnvio;
@@ -9934,6 +9997,7 @@ async function saveFacturaOT(otId, btn){
 
   let error = null;
   const updateTry = await supabaseClient.from('ots').update({
+    estado: estadoTrabajo,
     data: ot.data,
     factura_num: factura,
     documento_tipo: documentoTipo,
@@ -9945,7 +10009,7 @@ async function saveFacturaOT(otId, btn){
   error = updateTry.error;
 
   if(error && String(error.message||'').toLowerCase().includes('column')){
-    const fallback = await supabaseClient.from('ots').update({ data: ot.data, pago_estado: 'facturado' }).eq('id', otId);
+    const fallback = await supabaseClient.from('ots').update({ estado: estadoTrabajo, data: ot.data, pago_estado: 'facturado' }).eq('id', otId);
     error = fallback.error;
     if(!error){
       alert('Guardé el documento, pero faltan columnas opcionales en Supabase para notificaciones y tipo de documento. Si quieres, te paso el SQL.');
@@ -10952,6 +11016,7 @@ async function savePagoFinal(otId, btn) {
       const rows = (ots || [])
         .filter(ot => Number(ot.monto || ot.total || ot.data?.total || 0) > 0)
         .filter(ot => normalizeOTTrabajoEstado(ot.estado) === 'realizada')
+        .filter(ot => normalizeOTCobroEstado(ot) !== 'pagado')
         .filter(ot => {
           const numero = String(ot.numeroOT || ot.numero_ot || '').toLowerCase();
           const cliente = String(ot.clientName || ot.razonSocial || '').toLowerCase();
@@ -11036,13 +11101,13 @@ async function savePagoFinal(otId, btn) {
       activeRows.sort((a,b) => Number(b.sortDays || -1) - Number(a.sortDays || -1));
 
       if(!activeRows.length) {
-        tbody.innerHTML = getAbonoEmptyRow('No hay pendientes de cobro para ese criterio.');
+        tbody.innerHTML = getAbonoEmptyRow('No hay trabajos pendientes de cobro para ese criterio.');
       } else {
         activeRows.forEach(item => tbody.appendChild(item.tr));
       }
 
       if(!closedRows.length) {
-        tbodyClosed.innerHTML = getAbonoEmptyRow('Aún no hay OTs con abonos registrados para ese criterio.');
+        tbodyClosed.innerHTML = getAbonoEmptyRow('No hay OTs realizadas pendientes con abonos para ese criterio.');
       } else {
         closedRows.forEach(tr => tbodyClosed.appendChild(tr));
       }
@@ -11057,6 +11122,7 @@ async function savePagoFinal(otId, btn) {
     function showNuevoAbonoSelector() {
       const candidatos = (ots || [])
         .filter(ot => normalizeOTTrabajoEstado(ot.estado) === 'realizada')
+        .filter(ot => normalizeOTCobroEstado(ot) !== 'pagado')
         .filter(ot => Number(ot.monto || ot.total || ot.data?.total || 0) > 0)
         .sort((a, b) => {
           const na = Number(a.numeroOT || a.numero_ot || 0) || 0;
@@ -11142,6 +11208,7 @@ window.showNuevoAbonoSelector = showNuevoAbonoSelector;
 function showRegistrarAbono(otId) {
       const ot = (ots || []).find(o => String(o.id) === String(otId));
       if(!ot) return alert('OT no encontrada');
+      if(normalizeOTCobroEstado(ot) === 'pagado') return alert('Esta OT ya está pagada y ya no forma parte del sistema de abonos.');
 
       const html = `
         <div class="p-8">
@@ -13073,6 +13140,12 @@ function showOTDescripcion(otId){
   }).join('');
 
   const tot = (q && (q.total ?? q.monto ?? (q.data && (q.data.total || q.data.monto)))) || null;
+  const sucursalDireccion = safeText(
+    ot?.sucursal || ot?.direccion ||
+    (q && (q.sucursal || q.direccion || (q.data && (q.data.sucursal || q.data.sucursal_direccion || q.data.direccion_sucursal || q.data.direccion || q.data.address)))) ||
+    ((clients || []).find(c => String(c.id) === String(ot.clientId))?.direccion) ||
+    ''
+  );
 
   const html = `
     <div class="p-8">
@@ -13092,6 +13165,9 @@ function showOTDescripcion(otId){
           <div><span class="text-slate-500">OC:</span> <span class="font-semibold">${escapeHtml(ot.oc||'-')}</span></div>
           <div><span class="text-slate-500">Documento:</span> <span class="font-semibold">${escapeHtml((getDocumentoLabelOT(ot) !== "Documento" ? getDocumentoLabelOT(ot) + " " : "") + (getFacturaNumeroOT(ot) || "-")) }</span></div>
           <div><span class="text-slate-500">Guía:</span> <span class="font-semibold">${escapeHtml(ot.guia_despacho || '-')}</span></div>
+          <div><span class="text-slate-500">Estado trabajo:</span> <span class="font-semibold">${badgeOTTrabajoEstado(ot)}</span></div>
+          <div><span class="text-slate-500">Estado cobro:</span> <span class="font-semibold">${badgeOTCobro(ot)}</span></div>
+          <div class="col-span-2"><span class="text-slate-500">Sucursal / Dirección:</span> <span class="font-semibold">${escapeHtml(sucursalDireccion || '-')}</span></div>
         </div>
 
         <div class="mt-4">
@@ -13131,11 +13207,46 @@ function showOTDescripcion(otId){
 }
 
 let otSearchFree = '';
+let otStatusFilter = 'all';
+
+function applyOTStatusFilterButtons(){
+  const config = [
+    ['otFilterAll', 'all'],
+    ['otFilterPendiente', 'pendiente'],
+    ['otFilterEnCurso', 'en_curso'],
+    ['otFilterRealizada', 'realizada'],
+    ['otFilterCancelada', 'cancelada']
+  ];
+  config.forEach(([id, value]) => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    const active = otStatusFilter === value;
+    btn.className = active
+      ? 'px-4 py-2 rounded-xl border border-slate-900 bg-slate-900 text-white font-semibold'
+      : 'px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50';
+  });
+}
+
+function setOTStatusFilter(value){
+  otStatusFilter = String(value || 'all');
+  applyOTStatusFilterButtons();
+  renderOTs();
+}
 
 function otMatchesFilters(o){
   const monto = Number(o.monto || o.total || o.data?.total || 0);
   const montoTxt = String(monto || '');
   const montoCL = String(monto || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const trabajoEstado = getEffectiveOTTrabajoEstado(o);
+  const statusOk = (
+    otStatusFilter === 'all' ||
+    (otStatusFilter === 'pendiente' && trabajoEstado === 'pendiente') ||
+    (otStatusFilter === 'en_curso' && trabajoEstado === 'en_curso') ||
+    (otStatusFilter === 'realizada' && trabajoEstado === 'realizada') ||
+    (otStatusFilter === 'cancelada' && trabajoEstado === 'cancelada')
+  );
+
+  if(!statusOk) return false;
 
   return freeSearchIncludes([
     o.numero_ot || o.numeroOT,
@@ -13146,7 +13257,7 @@ function otMatchesFilters(o){
     o.hes,
     o.guia_despacho || o.guiaDespacho,
     getFacturaNumeroOT(o),
-    normalizeOTTrabajoEstado(o.estado),
+    trabajoEstado,
     normalizeOTCobroEstado(o),
     montoTxt,
     montoCL,
@@ -13223,7 +13334,7 @@ function renderOTs() {
       <td class="p-4">${o.hes || '-'}</td>
       <td class="p-4">${o.guia_despacho || '-'}</td>
       <td class="p-4">${formatShortName(o.createdByName || o.createdByEmail || '')}</td>
-      <td class="p-4">${badgeOTTrabajoEstado(o.estado)}</td>
+      <td class="p-4">${badgeOTTrabajoEstado(o)}</td>
       <td class="p-4">${badgeOTCobro(o)}</td>
       <td class="p-4 text-center">${btnPDF}</td>
       <td class="p-4">
@@ -13239,7 +13350,7 @@ function renderOTs() {
       </td>
     `;
 
-    const trabajoCerrado = ['realizada','finalizada'].includes(normalizeOTTrabajoEstado(o.estado));
+    const trabajoCerrado = ['realizada','finalizada','cancelada'].includes(getEffectiveOTTrabajoEstado(o));
     const pagada = isOTPagada(o);
     if (trabajoCerrado && pagada) {
       closedRows.push(tr);
@@ -13261,6 +13372,7 @@ function renderOTs() {
   }
 
   setTimeout(() => {
+    try{ if(typeof applyOTStatusFilterButtons==='function') applyOTStatusFilterButtons(); }catch(e){}
     try{ if(typeof applyOTsActive==='function') applyOTsActive(); }catch(e){}
     try{ if(typeof applyOTsClosed==='function') applyOTsClosed(); }catch(e){}
   }, 0);
@@ -13370,7 +13482,7 @@ function openEditOT(otId){
         <div>
           <label class="text-sm text-gray-600">Estado del trabajo</label>
           <select id="eOtEstado" class="w-full px-3 py-2 border rounded-xl">
-            ${[['pendiente','Pendiente'],['en_curso','En curso'],['realizada','Realizada']].map(([v,l]) => `<option value="${v}" ${normalizeOTTrabajoEstado(o.estado)===v?'selected':''}>${l}</option>`).join('')}
+            ${[['pendiente','Pendiente'],['en_curso','En curso'],['realizada','Realizada'],['cancelada','Cancelada']].map(([v,l]) => `<option value="${v}" ${getEffectiveOTTrabajoEstado(o)===v?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div>
@@ -15088,7 +15200,86 @@ document.addEventListener('DOMContentLoaded', () => {
     try { applyRejectedQuotes(); } catch(e) {}
   };
 
-  async function persistQuoteHistoricalData(quoteId, extra, silent){
+  
+  async function syncLinkedOTsWithQuoteStatus(quoteId, quoteEstado){
+    const estado = normState(quoteEstado || '');
+    const linkedOTs = (window.ots || []).filter(o => String(o.quoteId || o.quote_id || '') === String(quoteId));
+    if(!linkedOTs.length) return;
+
+    const shouldCancel = ['rechazada'].includes(estado);
+    const shouldRestore = ['pendiente','aceptada'].includes(estado);
+
+    for(const ot of linkedOTs){
+      const otData = Object.assign({}, ot.data || {});
+      const currentTrabajo = normalizeOTTrabajoEstado(ot.estado || otData.estado || 'pendiente');
+      const currentCobro = normalizeOTCobroEstado(ot);
+
+      if(shouldCancel){
+        if(currentTrabajo === 'cancelada' && otData.cancelada_por_cotizacion){
+          const keepData = Object.assign({}, otData, {
+            estado_cotizacion_vinculada: estado,
+            quote_sync_status: estado,
+            quote_status_sync_at: new Date().toISOString()
+          });
+          const { error: keepErr } = await supabaseClient.from('ots').update({ data: keepData }).eq('id', ot.id);
+          if(keepErr) throw keepErr;
+          continue;
+        }
+
+        const nextData = Object.assign({}, otData, {
+          estado: 'cancelada',
+          cancelada_por_cotizacion: true,
+          quote_sync_status: estado,
+          estado_cotizacion_vinculada: estado,
+          quote_status_sync_at: new Date().toISOString(),
+          estado_previo_por_cotizacion: otData.estado_previo_por_cotizacion || currentTrabajo,
+          cobro_estado_previo_por_cotizacion: otData.cobro_estado_previo_por_cotizacion || currentCobro
+        });
+
+        const payload = {
+          estado: 'cancelada',
+          data: nextData,
+          cobro_estado: 'cancelada',
+          pago_estado: 'cancelada'
+        };
+        const { error: otErr } = await supabaseClient.from('ots').update(payload).eq('id', ot.id);
+        if(otErr) throw otErr;
+        continue;
+      }
+
+      if(shouldRestore && otData.cancelada_por_cotizacion){
+        const restoreEstado = normalizeOTTrabajoEstado(otData.estado_previo_por_cotizacion || 'pendiente');
+        const restoreCobro = String(otData.cobro_estado_previo_por_cotizacion || '').trim().toLowerCase() || (getFacturaNumeroOT(ot) ? 'pendiente_pago' : 'pendiente_facturar');
+        delete otData.cancelada_por_cotizacion;
+        delete otData.estado_previo_por_cotizacion;
+        delete otData.cobro_estado_previo_por_cotizacion;
+        otData.estado = restoreEstado;
+        otData.estado_cotizacion_vinculada = estado;
+        otData.quote_sync_status = estado;
+        otData.quote_status_sync_at = new Date().toISOString();
+
+        const payload = {
+          estado: restoreEstado,
+          data: otData,
+          cobro_estado: restoreCobro,
+          pago_estado: restoreCobro
+        };
+        const { error: otErr } = await supabaseClient.from('ots').update(payload).eq('id', ot.id);
+        if(otErr) throw otErr;
+        continue;
+      }
+
+      const keepData = Object.assign({}, otData, {
+        estado_cotizacion_vinculada: estado,
+        quote_sync_status: estado,
+        quote_status_sync_at: new Date().toISOString()
+      });
+      const { error: otErr } = await supabaseClient.from('ots').update({ data: keepData }).eq('id', ot.id);
+      if(otErr) throw otErr;
+    }
+  }
+
+async function persistQuoteHistoricalData(quoteId, extra, silent){
     const q = (window.quotes || []).find(x => String(x.id) === String(quoteId));
     if(!q) return false;
     const d = Object.assign({}, q.data || {});
@@ -15119,6 +15310,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    await syncLinkedOTsWithQuoteStatus(quoteId, estado);
     await loadData();
     try{ renderQuotes(); }catch(e){}
     if(!silent && typeof toastInfo === 'function'){
