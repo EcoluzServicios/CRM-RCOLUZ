@@ -385,6 +385,7 @@ function toggleEditOTFacturaField(){
         <button onclick="showView('mandantes')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-mandantes"><i class="fas fa-building"></i> <span class="sidebar-label">Mandantes</span></button>
         <button onclick="showView('quotes')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-quotes"><i class="fas fa-file-invoice"></i> <span class="sidebar-label">Cotizaciones</span></button>
         <button onclick="showView('ots')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-ots"><i class="fas fa-tools"></i> <span class="sidebar-label">Órdenes de Trabajo</span></button>
+        <button onclick="showView('reports')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-reports"><i class="fas fa-file-lines"></i> <span class="sidebar-label">Informes</span></button>
         <button onclick="showView('abonos')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-abonos"><i class="fas fa-hand-holding-dollar"></i> <span class="sidebar-label">Abonos & Cobranza</span></button>
         <button onclick="showView('visitas')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-visitas"><i class="fas fa-helmet-safety"></i> <span class="sidebar-label">Visitas Técnicas</span></button>
         <button onclick="showView('reqs')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-reqs"><i class="fas fa-clipboard-list"></i> <span class="sidebar-label">Requerimientos</span></button>
@@ -937,6 +938,72 @@ function toggleEditOTFacturaField(){
         </div>
     </div>
 
+
+
+<div id="view-reports" class="hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div>
+            <h1 class="text-3xl font-bold">Informes técnicos</h1>
+            <p class="text-sm text-slate-500 mt-1">Genera informes profesionales con detalle por equipo, gráficos, evidencias y PDF listo para entregar al cliente.</p>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <button onclick="showNewReportModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo informe</span></button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+          <div class="bg-white rounded-3xl shadow p-5">
+            <p class="text-sm text-gray-500">Informes</p>
+            <p id="reportsCount" class="text-3xl font-black text-blue-700 mt-1">0</p>
+          </div>
+          <div class="bg-white rounded-3xl shadow p-5">
+            <p class="text-sm text-gray-500">Equipos revisados</p>
+            <p id="reportsEquiposCount" class="text-3xl font-black text-slate-800 mt-1">0</p>
+          </div>
+          <div class="bg-white rounded-3xl shadow p-5">
+            <p class="text-sm text-gray-500">Operativos</p>
+            <p id="reportsOperativosCount" class="text-3xl font-black text-emerald-700 mt-1">0</p>
+          </div>
+          <div class="bg-white rounded-3xl shadow p-5">
+            <p class="text-sm text-gray-500">Con observación</p>
+            <p id="reportsObservacionCount" class="text-3xl font-black text-amber-700 mt-1">0</p>
+          </div>
+          <div class="bg-white rounded-3xl shadow p-5">
+            <p class="text-sm text-gray-500">No operativos</p>
+            <p id="reportsNoOperativosCount" class="text-3xl font-black text-rose-700 mt-1">0</p>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Buscar informe</label>
+          <div class="relative">
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="reportSearch" oninput="renderReports()" placeholder="Busca por informe, cliente, OT, tipo de servicio, observaciones o técnico..." class="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="p-4 text-left">Fecha</th>
+                  <th class="p-4 text-left">N° Informe</th>
+                  <th class="p-4 text-left">Cliente</th>
+                  <th class="p-4 text-left">N° OT</th>
+                  <th class="p-4 text-left">Tipo</th>
+                  <th class="p-4 text-left">Equipos</th>
+                  <th class="p-4 text-left">Estado general</th>
+                  <th class="p-4 text-center">PDF</th>
+                  <th class="p-4 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="reportsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
 <div id="view-abonos" class="hidden">
         <div class="mb-8">
           <h1 class="text-3xl font-bold">Abonos &amp; Cobranza</h1>
@@ -1406,7 +1473,13 @@ window.supabaseClient = supabaseClient;
 
 
     let clients = [], quotes = [], ots = [], visitas = [], requerimientos = [], reqs = [];
+    let reports = [];
     window.quotes = quotes;
+    window.reports = reports;
+    let reportStorageMode = 'supabase';
+    const REPORTS_TABLE = 'informes';
+    const REPORTS_LOCAL_KEY = 'ecoluz_reports_local_v1';
+    window.currentReportAttachments = [];
     let maintenancePrograms = [];
     let recycleBinItems = [];
     let clientsById = new Map();
@@ -5733,6 +5806,23 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
       data: r.data || {}
     }));
 
+    // ================= INFORMES =================
+    try {
+      const { data: repData, error: repErr } = await supabaseClient
+        .from(REPORTS_TABLE)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (repErr) throw repErr;
+      reports = (repData || []).map(mapReportRowToModel);
+      reportStorageMode = 'supabase';
+    } catch (repLoadErr) {
+      console.warn('Informes no disponibles en Supabase, se usará almacenamiento local:', repLoadErr?.message || repLoadErr);
+      reports = getLocalReportsRaw().map(mapReportRowToModel);
+      reportStorageMode = 'local';
+    }
+    window.reports = reports;
+    window.reportStorageMode = reportStorageMode;
+
     await loadMaintenancePrograms();
 
     // Exponer a window (para helpers/paginación)
@@ -5740,6 +5830,8 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     window.ots = ots;
     window.visitas = visitas;
     window.reqs = reqs;
+    window.reports = reports;
+    window.reportStorageMode = reportStorageMode;
     window.maintenancePrograms = maintenancePrograms;
     try { renderVisitas(); } catch(e) {}
     window.clients = clients;
@@ -6077,6 +6169,55 @@ function quoteHasLinkedOT(q){
 
 window.quoteHasLinkedOT = quoteHasLinkedOT;
 
+function getQuoteListReference(q) {
+  if (!q || typeof q !== 'object') return '';
+
+  const clean = (v) => {
+    const s = safeText(v).replace(/\s+/g, ' ').trim();
+    if (!s) return '';
+    const lower = s.toLowerCase();
+    if (['sin descripción','sin descripcion','n/a','na','-','—','sin detalle','sin referencia'].includes(lower)) return '';
+    return s;
+  };
+
+  const tipo = clean(typeof getQuoteServiceType === 'function' ? getQuoteServiceType(q) : (q.tipo_servicio || q.data?.tipo_servicio || ''));
+
+  const itemRef = Array.isArray(q.items)
+    ? q.items
+        .map(it => clean(it?.descripcion || it?.detalle || it?.nombre || it?.item || it?.equipo || it?.tipo || ''))
+        .find(Boolean) || ''
+    : '';
+
+  const equipo =
+    itemRef ||
+    clean(q.equipo) ||
+    clean(q.data?.equipo) ||
+    clean(q.obra) ||
+    clean(q.descripcion) ||
+    clean(q.data?.obra) ||
+    clean(q.data?.descripcion) ||
+    clean(q.data?.descripcion_trabajo);
+
+  const sucursal =
+    clean(q.sucursal) ||
+    clean(q.data?.sucursal) ||
+    clean(q.nombreSucursal) ||
+    clean(q.data?.nombreSucursal) ||
+    clean(q.direccion) ||
+    clean(q.data?.direccion);
+
+  const parts = [];
+  if (tipo) parts.push(tipo);
+  if (equipo && !parts.some(p => p.toLowerCase() === equipo.toLowerCase())) parts.push(equipo);
+  if (sucursal && !parts.some(p => p.toLowerCase() === sucursal.toLowerCase())) parts.push(sucursal);
+
+  let ref = parts.filter(Boolean).join(' · ');
+  if (!ref) return '';
+  if (ref.length > 120) ref = ref.slice(0, 117).trimEnd() + '...';
+  return ref;
+}
+window.getQuoteListReference = getQuoteListReference;
+
 function renderQuotes() {
   const tbPending = document.getElementById('pendingQuotesTable');
   const tbAccepted = document.getElementById('acceptedQuotesTable');
@@ -6146,10 +6287,15 @@ function renderQuotes() {
     }
 
     const monto = Number(q.monto || q.total || q.data?.total || q.data?.monto || 0);
+    const clientLabel = safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—';
+    const quoteReference = getQuoteListReference(q);
 
     tr.innerHTML = `
       <td class="p-4">${escapeHtml(q.numeroCotizacion || q.numero || q.folio || q.id || '')}</td>
-      <td class="p-4 font-semibold">${escapeHtml(safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—')}</td>
+      <td class="p-4">
+        <div class="font-semibold text-slate-900">${escapeHtml(clientLabel)}</div>
+        ${quoteReference ? `<div class="mt-1 text-sm text-slate-500 leading-snug">${escapeHtml(quoteReference)}</div>` : ''}
+      </td>
       <td class="p-4 font-bold text-blue-700 text-center">$${monto.toLocaleString('es-CL')}</td>
       <td class="p-4 text-sm text-gray-600 text-center">${escapeHtml(formatShortName(q.createdByName || q.createdByEmail || q.createdBy || q.created_by_name || '—'))}</td>
       <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(getPreferredQuoteDate(q)))}</td>
@@ -7072,11 +7218,1131 @@ window.renderQuotes = renderQuotes;
     window.goToCurrentMaintenanceYear = goToCurrentMaintenanceYear;
 
 
+    // ================= INFORMES =================
+    function reportNumberValue(value){
+      return parseInt(String(value || '').replace(/\D/g,''), 10) || 0;
+    }
+
+    function getNextReportNumber(){
+      const BASE = 1001;
+      const maxNum = (reports || []).reduce((acc, rep) => Math.max(acc, reportNumberValue(rep?.numeroInforme || rep?.numero_informe)), BASE - 1);
+      return `INF-${String(Math.max(BASE, maxNum + 1)).padStart(4,'0')}`;
+    }
+
+    function normalizeReportServiceType(value){
+      const s = String(value || '').toLowerCase().trim();
+      if(!s) return '';
+      if(s.includes('mant')) return 'mantencion';
+      if(s.includes('instal')) return 'instalacion';
+      if(s.includes('sumin')) return 'suministro';
+      if(s.includes('frio')) return 'camara_frio';
+      if(s.includes('congel')) return 'camara_congelado';
+      return s.replace(/\s+/g,'_');
+    }
+
+    function getReportServiceLabel(value){
+      const map = {
+        mantencion: 'Mantención',
+        instalacion: 'Instalación',
+        suministro: 'Suministro',
+        camara_frio: 'Cámara de frío',
+        camara_congelado: 'Cámara de congelado',
+        otro: 'Otro'
+      };
+      return map[normalizeReportServiceType(value)] || (value ? String(value) : 'Sin definir');
+    }
+
+    function normalizeReportEquipment(item){
+      const eq = item || {};
+      return {
+        area: String(eq.area || eq.ubicacion || '').trim(),
+        tipoEquipo: String(eq.tipoEquipo || eq.tipo || '').trim(),
+        marcaModelo: String(eq.marcaModelo || eq.marca || '').trim(),
+        btu: String(eq.btu || '').trim(),
+        trabajoRealizado: String(eq.trabajoRealizado || eq.trabajo || '').trim(),
+        detalleMantencion: String(eq.detalleMantencion || eq.detalle || '').trim(),
+        observaciones: String(eq.observaciones || '').trim(),
+        sugerencias: String(eq.sugerencias || '').trim(),
+        estadoFinal: String(eq.estadoFinal || 'operativo').trim(),
+        candidatoBTU: String(eq.candidatoBTU || 'no').trim()
+      };
+    }
+
+    function normalizeReportEquipmentArray(arr){
+      if(!Array.isArray(arr)) return [];
+      return arr.map(normalizeReportEquipment).filter(eq => [eq.area, eq.tipoEquipo, eq.marcaModelo, eq.trabajoRealizado, eq.detalleMantencion, eq.observaciones, eq.sugerencias].some(Boolean));
+    }
+
+    function normalizeReportEvidenceArray(arr){
+      if(!Array.isArray(arr)) return [];
+      return arr.map(a => ({
+        id: String(a.id || ('rep_' + Date.now() + '_' + Math.random().toString(36).slice(2,8))),
+        name: String(a.name || a.filename || 'Evidencia'),
+        size: Number(a.size || 0),
+        mimeType: String(a.mimeType || a.type || 'image/png'),
+        category: String(a.category || 'general'),
+        caption: String(a.caption || ''),
+        dataUrl: String(a.dataUrl || a.data_url || ''),
+        createdAt: String(a.createdAt || a.created_at || todayISO())
+      })).filter(a => a.name && a.dataUrl);
+    }
+
+    function getLocalReportsRaw(){
+      try {
+        const raw = localStorage.getItem(REPORTS_LOCAL_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn('No se pudieron leer informes locales:', e);
+        return [];
+      }
+    }
+
+    function setLocalReportsRaw(items){
+      localStorage.setItem(REPORTS_LOCAL_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+    }
+
+    function getLinkedOTForReport(report){
+      if(!report) return null;
+      const otId = String(report.otId || report.ot_id || report.data?.otId || report.data?.ot_id || '').trim();
+      if(otId) {
+        const byId = (ots || []).find(o => String(o.id) === otId);
+        if(byId) return byId;
+      }
+      const num = String(report.numeroOT || report.data?.numeroOT || '').trim();
+      if(num){
+        return (ots || []).find(o => String(o.numeroOT || o.numero_ot || '').trim() === num) || null;
+      }
+      return null;
+    }
+
+    function getLinkedQuoteForReport(report){
+      const linkedOT = getLinkedOTForReport(report);
+      if(linkedOT) return getLinkedQuoteForOT(linkedOT);
+      const qid = String(report.quoteId || report.quote_id || report.data?.quoteId || report.data?.quote_id || '').trim();
+      if(qid) return (quotes || []).find(q => String(q.id) === qid) || null;
+      return null;
+    }
+
+    function getReportOperationalSummary(report){
+      const data = report?.data || {};
+      const equipments = normalizeReportEquipmentArray(data.equipos || data.equipment || report?.equipos || []);
+      let operativos = 0, noOperativos = 0, observacion = 0;
+      equipments.forEach(eq => {
+        const st = String(eq.estadoFinal || '').toLowerCase().trim();
+        if(st === 'no_operativo') noOperativos += 1;
+        else if(st === 'operativo_observacion') observacion += 1;
+        else operativos += 1;
+      });
+      return {
+        total: Number(report?.totalEquipos || report?.total_equipos || equipments.length || 0),
+        operativos: Number(report?.equiposOperativos || report?.equipos_operativos || operativos || 0),
+        noOperativos: Number(report?.equiposNoOperativos || report?.equipos_no_operativos || noOperativos || 0),
+        observacion: Number(report?.equiposObservacion || report?.equipos_con_observacion || observacion || 0)
+      };
+    }
+
+    function getReportGeneralState(report){
+      const summary = getReportOperationalSummary(report);
+      if(summary.total <= 0) return 'Sin equipos';
+      if(summary.noOperativos >= summary.total) return 'No operativo';
+      if(summary.noOperativos > 0 || summary.observacion > 0) return 'Operativo parcial';
+      return 'Operativo';
+    }
+
+    function getReportStateBadge(report){
+      const label = getReportGeneralState(report);
+      if(label === 'Operativo') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Operativo</span>';
+      if(label === 'Operativo parcial') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Operativo parcial</span>';
+      if(label === 'No operativo') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">No operativo</span>';
+      return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">Sin equipos</span>';
+    }
+
+    function getEquipmentStateLabel(value){
+      const st = String(value || '').trim().toLowerCase();
+      if(st === 'operativo_observacion') return 'Operativo con observación';
+      if(st === 'no_operativo') return 'No operativo';
+      if(st === 'operativo') return 'Operativo';
+      return 'No informado';
+    }
+
+    function getEquipmentStateBadge(value){
+      const st = String(value || '').trim().toLowerCase();
+      if(st === 'operativo') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Operativo</span>';
+      if(st === 'operativo_observacion') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Operativo con observación</span>';
+      if(st === 'no_operativo') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">No operativo</span>';
+      return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">No informado</span>';
+    }
+
+    function mapReportRowToModel(row){
+      const data = row?.data || {};
+      const linkedOT = (ots || []).find(o => String(o.id) === String(row?.ot_id || data.otId || data.ot_id || '')) || null;
+      const linkedClient = (clients || []).find(c => String(c.id) === String(row?.client_id || data.clientId || data.client_id || linkedOT?.clientId || '')) || null;
+      const linkedQuote = linkedOT ? getLinkedQuoteForOT(linkedOT) : ((quotes || []).find(q => String(q.id) === String(row?.quote_id || data.quoteId || data.quote_id || '')) || null);
+      return {
+        id: row.id,
+        numeroInforme: row.numero_informe || row.numeroInforme || data.numeroInforme || getNextReportNumber(),
+        fecha: row.fecha || data.fecha || (row.created_at ? String(row.created_at).slice(0,10) : todayISO()),
+        clientId: row.client_id || data.clientId || data.client_id || linkedClient?.id || linkedOT?.clientId || null,
+        clientName: row.client_name || data.clientName || linkedClient?.name || linkedOT?.clientName || 'Cliente no encontrado',
+        clientRut: row.client_rut || data.clientRut || linkedClient?.rut || linkedOT?.clientRut || '',
+        otId: row.ot_id || data.otId || data.ot_id || linkedOT?.id || null,
+        quoteId: row.quote_id || data.quoteId || data.quote_id || linkedQuote?.id || linkedOT?.quoteId || null,
+        numeroOT: row.numero_ot || data.numeroOT || linkedOT?.numeroOT || linkedOT?.numero_ot || '',
+        numeroCotizacion: row.numero_cotizacion || data.numeroCotizacion || linkedQuote?.numeroCotizacion || linkedOT?.numeroCotizacion || '',
+        tipoServicio: row.tipo_servicio || data.tipoServicio || data.tipo_servicio || linkedQuote?.tipo_servicio || '',
+        titulo: row.titulo || data.titulo || `Informe técnico ${row.numero_informe || row.numeroInforme || data.numeroInforme || ''}`.trim(),
+        tecnicoResponsable: row.tecnico_responsable || data.tecnicoResponsable || row.created_by_name || currentUserDisplayName || 'ECOLUZ',
+        direccion: row.direccion || data.direccion || linkedOT?.direccion || linkedOT?.sucursal || linkedQuote?.direccion || linkedQuote?.sucursal || '',
+        resumenEjecutivo: row.resumen_ejecutivo || data.resumenEjecutivo || '',
+        detalleGeneral: row.detalle_general || data.detalleGeneral || '',
+        observacionesGenerales: row.observaciones_generales || data.observacionesGenerales || '',
+        sugerenciasMejora: row.sugerencias_mejora || data.sugerenciasMejora || '',
+        totalEquipos: Number(row.total_equipos || data.totalEquipos || normalizeReportEquipmentArray(data.equipos || []).length || 0),
+        equiposOperativos: Number(row.equipos_operativos || data.equiposOperativos || 0),
+        equiposNoOperativos: Number(row.equipos_no_operativos || data.equiposNoOperativos || 0),
+        equiposObservacion: Number(row.equipos_con_observacion || data.equiposObservacion || 0),
+        estadoGeneral: row.estado_general || data.estadoGeneral || '',
+        evidencias: normalizeReportEvidenceArray(data.evidencias || row.evidencias || []),
+        equipos: normalizeReportEquipmentArray(data.equipos || row.equipos || []),
+        createdByName: row.created_by_name || data.createdByName || formatShortName(row.created_by_email || '') || '—',
+        createdByEmail: row.created_by_email || data.createdByEmail || '',
+        created_at: row.created_at || null,
+        source: row.source || 'supabase',
+        data: Object.assign({}, data, {
+          evidencias: normalizeReportEvidenceArray(data.evidencias || row.evidencias || []),
+          equipos: normalizeReportEquipmentArray(data.equipos || row.equipos || [])
+        })
+      };
+    }
+
+    function getLatestReportForOT(otId){
+      const list = (reports || []).filter(r => String(r.otId || r.ot_id || r.data?.otId || '') === String(otId));
+      return list.sort((a,b) => {
+        const nb = reportNumberValue(b.numeroInforme);
+        const na = reportNumberValue(a.numeroInforme);
+        if(nb !== na) return nb - na;
+        return new Date(b.created_at || b.fecha || 0).getTime() - new Date(a.created_at || a.fecha || 0).getTime();
+      })[0] || null;
+    }
+
+    function renderReportEvidenceList(){
+      const box = document.getElementById('reportEvidenceList');
+      const count = document.getElementById('reportEvidenceCount');
+      if(!box) return;
+      const items = window.currentReportAttachments || [];
+      if(count) count.textContent = `${items.length} evidencia(s)`;
+      if(!items.length){
+        box.innerHTML = '<div class="text-sm text-slate-500 bg-white border border-dashed border-slate-200 rounded-xl p-4">No hay evidencias cargadas todavía.</div>';
+        return;
+      }
+      box.innerHTML = items.map(att => `
+        <div class="flex items-center gap-3 bg-white border rounded-2xl p-3">
+          <div class="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden border shrink-0">${String(att.mimeType || '').startsWith('image/') ? `<img src="${att.dataUrl}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center text-xl">📎</div>'}</div>
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-slate-800 truncate">${escapeHtml(att.name || 'Evidencia')}</div>
+            <div class="text-xs text-slate-500 mt-1">${escapeHtml(att.category || 'general')} · ${formatAttachmentSize(att.size || 0)}</div>
+          </div>
+          <button onclick="removeReportEvidenceItem('${att.id}')" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    function handleReportEvidenceInputChange(){
+      const input = document.getElementById('reportEvidenceInput');
+      const category = document.getElementById('reportEvidenceType')?.value || 'general';
+      if(!input || !input.files || !input.files.length) return;
+      const files = Array.from(input.files);
+      const readers = files.map(file => new Promise((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve({
+          id: 'rep_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          name: file.name,
+          size: file.size,
+          mimeType: file.type || 'image/png',
+          category,
+          dataUrl: fr.result,
+          createdAt: new Date().toISOString()
+        });
+        fr.onerror = () => resolve(null);
+        fr.readAsDataURL(file);
+      }));
+      Promise.all(readers).then(items => {
+        window.currentReportAttachments = (window.currentReportAttachments || []).concat(items.filter(Boolean));
+        renderReportEvidenceList();
+      });
+      input.value = '';
+    }
+
+    function removeReportEvidenceItem(id){
+      window.currentReportAttachments = (window.currentReportAttachments || []).filter(x => String(x.id) !== String(id));
+      renderReportEvidenceList();
+    }
+
+    function getReportEquipmentRowHTML(eq = {}, idx = 0){
+      const item = normalizeReportEquipment(eq);
+      return `
+        <div class="border border-slate-200 rounded-2xl p-4 bg-white" data-report-eq-row>
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <div class="font-black text-slate-800">Equipo ${idx + 1}</div>
+            <button type="button" onclick="removeReportEquipmentRow(this)" class="text-rose-600 hover:text-rose-800 text-sm font-semibold"><i class="fa-solid fa-trash mr-1"></i>Quitar</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Ubicación / área <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+              <input data-field="area" value="${escapeHtml(item.area)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Sala de ventas / Cámara 1">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Tipo de equipo</label>
+              <input data-field="tipoEquipo" value="${escapeHtml(item.tipoEquipo)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Split muro / Cassette">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Marca / modelo <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+              <input data-field="marcaModelo" value="${escapeHtml(item.marcaModelo)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Midea / modelo no informado">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">BTU <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+              <input data-field="btu" value="${escapeHtml(item.btu)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: 18000">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Estado final</label>
+              <select data-field="estadoFinal" class="w-full px-3 py-3 border rounded-xl">
+                <option value="operativo" ${item.estadoFinal==='operativo'?'selected':''}>Operativo</option>
+                <option value="operativo_observacion" ${item.estadoFinal==='operativo_observacion'?'selected':''}>Operativo con observación</option>
+                <option value="no_operativo" ${item.estadoFinal==='no_operativo'?'selected':''}>No operativo</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">¿Candidato BTU?</label>
+              <select data-field="candidatoBTU" class="w-full px-3 py-3 border rounded-xl">
+                <option value="no" ${item.candidatoBTU==='no'?'selected':''}>No</option>
+                <option value="si" ${item.candidatoBTU==='si'?'selected':''}>Sí</option>
+                <option value="evaluar" ${item.candidatoBTU==='evaluar'?'selected':''}>Evaluar</option>
+              </select>
+            </div>
+            <div class="md:col-span-2 xl:col-span-3">
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Trabajo realizado</label>
+              <textarea data-field="trabajoRealizado" rows="2" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Limpieza de serpentín, revisión eléctrica, lavado de filtros, prueba de operación">${escapeHtml(item.trabajoRealizado)}</textarea>
+            </div>
+            <div class="md:col-span-2 xl:col-span-3">
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Detalle de mantención / limpieza</label>
+              <textarea data-field="detalleMantencion" rows="2" class="w-full px-3 py-3 border rounded-xl" placeholder="Describe qué se limpió, qué se revisó o qué se ajustó">${escapeHtml(item.detalleMantencion)}</textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observaciones</label>
+              <textarea data-field="observaciones" rows="3" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: bandeja con suciedad, aislación dañada, fuga probable">${escapeHtml(item.observaciones)}</textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Sugerencias de mejora</label>
+              <textarea data-field="sugerencias" rows="3" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: programar mantención trimestral, evaluar recambio, mejorar drenaje">${escapeHtml(item.sugerencias)}</textarea>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReportEquipmentRows(items){
+      const box = document.getElementById('reportEquipments');
+      if(!box) return;
+      const list = Array.isArray(items) && items.length ? items : [{}];
+      box.innerHTML = list.map((eq, idx) => getReportEquipmentRowHTML(eq, idx)).join('');
+    }
+
+    function addReportEquipmentRow(prefill = {}){
+      const box = document.getElementById('reportEquipments');
+      if(!box) return;
+      const count = box.querySelectorAll('[data-report-eq-row]').length;
+      box.insertAdjacentHTML('beforeend', getReportEquipmentRowHTML(prefill, count));
+    }
+
+    function removeReportEquipmentRow(btn){
+      const row = btn?.closest('[data-report-eq-row]');
+      if(row) row.remove();
+      const box = document.getElementById('reportEquipments');
+      if(box && !box.querySelector('[data-report-eq-row]')){
+        addReportEquipmentRow({});
+      }
+      const rows = Array.from(document.querySelectorAll('#reportEquipments [data-report-eq-row]'));
+      rows.forEach((r, idx) => {
+        const label = r.querySelector('.font-black');
+        if(label) label.textContent = 'Equipo ' + (idx + 1);
+      });
+    }
+
+    function collectReportEquipmentsFromForm(){
+      return Array.from(document.querySelectorAll('#reportEquipments [data-report-eq-row]')).map(row => {
+        const get = field => String(row.querySelector(`[data-field="${field}"]`)?.value || '').trim();
+        return normalizeReportEquipment({
+          area: get('area'),
+          tipoEquipo: get('tipoEquipo'),
+          marcaModelo: get('marcaModelo'),
+          btu: get('btu'),
+          trabajoRealizado: get('trabajoRealizado'),
+          detalleMantencion: get('detalleMantencion'),
+          observaciones: get('observaciones'),
+          sugerencias: get('sugerencias'),
+          estadoFinal: get('estadoFinal') || 'operativo',
+          candidatoBTU: get('candidatoBTU') || 'no'
+        });
+      }).filter(eq => [eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, eq.trabajoRealizado, eq.detalleMantencion, eq.observaciones, eq.sugerencias].some(Boolean));
+    }
+
+    function getReportFromForm(reportId = null){
+      const otId = String(document.getElementById('rOT')?.value || '').trim();
+      const linkedOT = otId ? ((ots || []).find(o => String(o.id) === otId) || null) : null;
+      const linkedQuote = linkedOT ? getLinkedQuoteForOT(linkedOT) : null;
+      const clientId = String(document.getElementById('rClient')?.value || linkedOT?.clientId || '').trim() || null;
+      const client = clientId ? ((clients || []).find(c => String(c.id) === clientId) || null) : null;
+      const equipments = collectReportEquipmentsFromForm();
+      const summary = (() => {
+        let operativos = 0, observacion = 0, noOperativos = 0;
+        equipments.forEach(eq => {
+          if(eq.estadoFinal === 'no_operativo') noOperativos += 1;
+          else if(eq.estadoFinal === 'operativo_observacion') observacion += 1;
+          else operativos += 1;
+        });
+        return { total: equipments.length, operativos, observacion, noOperativos };
+      })();
+      const payloadData = {
+        numeroInforme: String(document.getElementById('rNumero')?.value || '').trim() || getNextReportNumber(),
+        fecha: document.getElementById('rFecha')?.value || todayISO(),
+        clientId,
+        clientName: client?.name || linkedOT?.clientName || '',
+        clientRut: client?.rut || linkedOT?.clientRut || '',
+        otId: linkedOT?.id || otId || null,
+        quoteId: linkedQuote?.id || linkedOT?.quoteId || null,
+        numeroOT: linkedOT?.numeroOT || linkedOT?.numero_ot || '',
+        numeroCotizacion: linkedQuote?.numeroCotizacion || linkedOT?.numeroCotizacion || '',
+        tipoServicio: normalizeReportServiceType(document.getElementById('rTipoServicio')?.value || linkedQuote?.tipo_servicio || 'otro') || 'otro',
+        titulo: String(document.getElementById('rTitulo')?.value || '').trim() || `Informe técnico ${linkedOT?.numeroOT || linkedOT?.numero_ot || ''}`.trim(),
+        tecnicoResponsable: String(document.getElementById('rTecnico')?.value || currentUserDisplayName || '').trim(),
+        direccion: String(document.getElementById('rDireccion')?.value || '').trim(),
+        detalleGeneral: String(document.getElementById('rDetalleGeneral')?.value || '').trim(),
+        resumenEjecutivo: String(document.getElementById('rResumen')?.value || '').trim(),
+        observacionesGenerales: String(document.getElementById('rObservaciones')?.value || '').trim(),
+        sugerenciasMejora: String(document.getElementById('rSugerencias')?.value || '').trim(),
+        totalEquipos: summary.total,
+        equiposOperativos: summary.operativos,
+        equiposObservacion: summary.observacion,
+        equiposNoOperativos: summary.noOperativos,
+        estadoGeneral: summary.total ? (summary.noOperativos >= summary.total ? 'No operativo' : ((summary.noOperativos > 0 || summary.observacion > 0) ? 'Operativo parcial' : 'Operativo')) : 'Sin equipos',
+        evidencias: normalizeReportEvidenceArray(window.currentReportAttachments || []),
+        equipos: equipments
+      };
+      return {
+        id: reportId,
+        ...payloadData,
+        data: {
+          ...payloadData,
+          evidencias: payloadData.evidencias,
+          equipos: payloadData.equipos,
+          createdByName: currentUserDisplayName || 'Usuario',
+          createdByEmail: currentUser?.email || ''
+        }
+      };
+    }
+
+    function populateReportOTFields(){
+      const otId = String(document.getElementById('rOT')?.value || '').trim();
+      const linkedOT = otId ? (ots || []).find(o => String(o.id) === otId) : null;
+      const linkedQuote = linkedOT ? getLinkedQuoteForOT(linkedOT) : null;
+      const clientSel = document.getElementById('rClient');
+      const tipoSel = document.getElementById('rTipoServicio');
+      const direccion = document.getElementById('rDireccion');
+      const titulo = document.getElementById('rTitulo');
+      const detalleGeneral = document.getElementById('rDetalleGeneral');
+      if(linkedOT){
+        if(clientSel && linkedOT.clientId) clientSel.value = linkedOT.clientId;
+        if(tipoSel && !tipoSel.value) tipoSel.value = normalizeReportServiceType(linkedQuote?.tipo_servicio || 'mantencion') || 'mantencion';
+        if(direccion && !direccion.value) direccion.value = linkedOT.direccion || linkedOT.sucursal || linkedQuote?.direccion || linkedQuote?.sucursal || '';
+        if(titulo && !titulo.value) titulo.value = `Informe técnico OT ${linkedOT.numeroOT || linkedOT.numero_ot || ''}`.trim();
+        if(detalleGeneral && !detalleGeneral.value) detalleGeneral.value = linkedOT.descripcion || linkedQuote?.obra || linkedQuote?.descripcion || '';
+      }
+    }
+
+    function showNewReportModal(prefill = {}){
+      const report = prefill && prefill.id ? (reports || []).find(r => String(r.id) === String(prefill.id)) : null;
+      const linkedOTId = String(prefill.otId || report?.otId || '').trim();
+      const linkedOT = linkedOTId ? (ots || []).find(o => String(o.id) === linkedOTId) : null;
+      const linkedQuote = report ? getLinkedQuoteForReport(report) : (linkedOT ? getLinkedQuoteForOT(linkedOT) : null);
+      const numero = report?.numeroInforme || getNextReportNumber();
+      const fecha = report?.fecha || todayISO();
+      const selectedClientId = report?.clientId || linkedOT?.clientId || '';
+      const reportType = normalizeReportServiceType(report?.tipoServicio || linkedQuote?.tipo_servicio || prefill.tipoServicio || 'mantencion') || 'mantencion';
+      const title = report?.titulo || `Informe técnico ${linkedOT?.numeroOT || linkedOT?.numero_ot || ''}`.trim();
+      const equipments = report?.equipos?.length ? report.equipos : [];
+      window.currentReportAttachments = normalizeReportEvidenceArray(report?.evidencias || report?.data?.evidencias || []);
+
+      const otOptions = ['<option value="">Sin OT vinculada</option>'].concat((ots || []).map(ot => {
+        const selected = String(ot.id) === linkedOTId ? 'selected' : '';
+        const quoteTxt = ot.numeroCotizacion ? ` · Cot. ${ot.numeroCotizacion}` : '';
+        return `<option value="${ot.id}" ${selected}>OT ${escapeHtml(String(ot.numeroOT || ot.numero_ot || 'S/N'))} · ${escapeHtml(ot.clientName || 'Cliente')}${quoteTxt}</option>`;
+      })).join('');
+
+      const clientOptions = ['<option value="">Selecciona cliente</option>'].concat((clients || []).map(c => {
+        const selected = String(c.id) === String(selectedClientId) ? 'selected' : '';
+        return `<option value="${c.id}" ${selected}>${escapeHtml(c.name || 'Sin nombre')} · ${escapeHtml(c.rut || 'Sin RUT')}</option>`;
+      })).join('');
+
+      openModal(`
+        <div class="p-6 sm:p-8">
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900">${report ? 'Editar informe técnico' : 'Nuevo informe técnico'}</h2>
+              <p class="text-sm text-slate-500 mt-1">Captura el detalle del trabajo, resumen ejecutivo, estado de equipos y evidencias para generar un informe profesional.</p>
+            </div>
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">N° informe</label>
+              <input id="rNumero" value="${escapeHtml(numero)}" class="w-full px-3 py-3 border rounded-xl bg-slate-50" readonly>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Fecha</label>
+              <input id="rFecha" type="date" value="${escapeHtml(fecha)}" class="w-full px-3 py-3 border rounded-xl">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">OT asociada</label>
+              <select id="rOT" onchange="populateReportOTFields()" class="w-full px-3 py-3 border rounded-xl">${otOptions}</select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Cliente</label>
+              <select id="rClient" class="w-full px-3 py-3 border rounded-xl">${clientOptions}</select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Tipo de servicio</label>
+              <select id="rTipoServicio" class="w-full px-3 py-3 border rounded-xl">
+                <option value="mantencion" ${reportType==='mantencion'?'selected':''}>Mantención</option>
+                <option value="instalacion" ${reportType==='instalacion'?'selected':''}>Instalación</option>
+                <option value="suministro" ${reportType==='suministro'?'selected':''}>Suministro</option>
+                <option value="camara_frio" ${reportType==='camara_frio'?'selected':''}>Cámara de frío</option>
+                <option value="camara_congelado" ${reportType==='camara_congelado'?'selected':''}>Cámara de congelado</option>
+                <option value="otro" ${reportType==='otro'?'selected':''}>Otro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Técnico responsable</label>
+              <input id="rTecnico" value="${escapeHtml(report?.tecnicoResponsable || currentUserDisplayName || 'ECOLUZ')}" class="w-full px-3 py-3 border rounded-xl">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Título del informe</label>
+              <input id="rTitulo" value="${escapeHtml(title)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Informe técnico de mantención preventiva">
+            </div>
+            <div class="md:col-span-2 xl:col-span-4">
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Sucursal / dirección</label>
+              <input id="rDireccion" value="${escapeHtml(report?.direccion || linkedOT?.direccion || linkedOT?.sucursal || linkedQuote?.direccion || linkedQuote?.sucursal || '')}" class="w-full px-3 py-3 border rounded-xl" placeholder="Dirección donde se realizó el trabajo">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Detalle general del trabajo</label>
+              <textarea id="rDetalleGeneral" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Resume qué trabajo se realizó, alcance y contexto">${escapeHtml(report?.detalleGeneral || linkedOT?.descripcion || linkedQuote?.obra || '')}</textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Resumen ejecutivo</label>
+              <textarea id="rResumen" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Resumen ejecutivo listo para entregar al cliente">${escapeHtml(report?.resumenEjecutivo || '')}</textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observaciones generales</label>
+              <textarea id="rObservaciones" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Detalles, hallazgos o alertas detectadas">${escapeHtml(report?.observacionesGenerales || '')}</textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Sugerencias de mejora</label>
+              <textarea id="rSugerencias" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Recomendaciones técnicas, correctivas o preventivas">${escapeHtml(report?.sugerenciasMejora || '')}</textarea>
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <div class="flex items-center justify-between gap-4 mb-3">
+              <div>
+                <h3 class="text-lg font-black text-slate-800">Detalle por equipos</h3>
+                <p class="text-sm text-slate-500">Agrega cada equipo revisado, su estado final, observaciones y sugerencias.</p>
+              </div>
+              <button type="button" onclick="addReportEquipmentRow()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-plus mr-2"></i>Agregar equipo</button>
+            </div>
+            <div id="reportEquipments" class="space-y-4"></div>
+          </div>
+
+          <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Evidencias fotográficas</h3>
+                  <span id="reportEvidenceCount" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">0 evidencia(s)</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Sube imágenes de antes y después, fallas, pruebas o cualquier respaldo visual.</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-end">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tipo de evidencia</label>
+                <select id="reportEvidenceType" class="w-full px-3 py-3 border rounded-xl bg-white">
+                  <option value="general">General</option>
+                  <option value="antes">Antes</option>
+                  <option value="despues">Después</option>
+                  <option value="falla">Falla encontrada</option>
+                  <option value="placa">Placa / datos</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Archivo</label>
+                <input id="reportEvidenceInput" type="file" accept="image/*" multiple class="w-full px-3 py-3 border rounded-xl bg-white" onchange="handleReportEvidenceInputChange()">
+              </div>
+            </div>
+            <div id="reportEvidenceList" class="mt-4 space-y-3"></div>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <button onclick="saveReport('${report?.id || ''}')" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-bold">Guardar informe</button>
+            ${report ? `<button onclick="previewReport('${report.id}')" class="px-5 py-3 rounded-2xl border font-bold hover:bg-gray-50">Vista previa</button>` : ''}
+            <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-bold hover:bg-gray-50">Cancelar</button>
+          </div>
+        </div>
+      `);
+      renderReportEquipmentRows(equipments);
+      renderReportEvidenceList();
+      populateReportOTFields();
+    }
+
+    async function saveReport(reportId){
+      try {
+        const model = getReportFromForm(reportId || null);
+        if(!model.clientId){
+          alert('Selecciona un cliente o una OT asociada para el informe.');
+          return;
+        }
+        if(!model.titulo){
+          alert('Ingresa un título para el informe.');
+          return;
+        }
+
+        const payload = {
+          numero_informe: model.numeroInforme,
+          fecha: model.fecha,
+          client_id: model.clientId,
+          client_name: model.clientName,
+          client_rut: model.clientRut,
+          ot_id: model.otId,
+          quote_id: model.quoteId,
+          numero_ot: model.numeroOT,
+          numero_cotizacion: model.numeroCotizacion,
+          tipo_servicio: model.tipoServicio,
+          titulo: model.titulo,
+          tecnico_responsable: model.tecnicoResponsable,
+          direccion: model.direccion,
+          resumen_ejecutivo: model.resumenEjecutivo,
+          detalle_general: model.detalleGeneral,
+          observaciones_generales: model.observacionesGenerales,
+          sugerencias_mejora: model.sugerenciasMejora,
+          total_equipos: model.totalEquipos,
+          equipos_operativos: model.equiposOperativos,
+          equipos_no_operativos: model.equiposNoOperativos,
+          equipos_con_observacion: model.equiposObservacion,
+          estado_general: model.estadoGeneral,
+          created_by: currentUser?.id || null,
+          created_by_email: currentUser?.email || '',
+          created_by_name: currentUserDisplayName || 'Usuario',
+          data: model.data
+        };
+
+        let savedMode = 'supabase';
+        if(reportStorageMode === 'supabase' && !(String(reportId || '').startsWith('local_report_'))){
+          try {
+            if(reportId){
+              const { error } = await supabaseClient.from(REPORTS_TABLE).update(payload).eq('id', reportId);
+              if(error) throw error;
+            } else {
+              const { error } = await supabaseClient.from(REPORTS_TABLE).insert([payload]);
+              if(error) throw error;
+            }
+          } catch (err) {
+            console.warn('No se pudo guardar el informe en Supabase, se usará modo local:', err?.message || err);
+            savedMode = 'local';
+            reportStorageMode = 'local';
+          }
+        } else {
+          savedMode = 'local';
+        }
+
+        if(savedMode === 'local'){
+          const localRows = getLocalReportsRaw();
+          const id = reportId || ('local_report_' + Date.now());
+          const row = Object.assign({}, payload, {
+            id,
+            created_at: reportId ? (localRows.find(x => String(x.id) === String(id))?.created_at || new Date().toISOString()) : new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            source: 'local'
+          });
+          const idx = localRows.findIndex(x => String(x.id) === String(id));
+          if(idx >= 0) localRows[idx] = row;
+          else localRows.unshift(row);
+          setLocalReportsRaw(localRows);
+        }
+
+        await loadData();
+        renderReports();
+        closeModal();
+        toastInfo(savedMode === 'supabase' ? 'Informe guardado correctamente ✅' : 'Informe guardado en modo local ✅');
+      } catch (err) {
+        console.error('saveReport error:', err);
+        alert('No se pudo guardar el informe: ' + (err?.message || err));
+      }
+    }
+
+    async function deleteReport(reportId){
+      const rep = (reports || []).find(r => String(r.id) === String(reportId));
+      if(!rep) return;
+      if(!confirm(`¿Eliminar el informe ${rep.numeroInforme || ''}?`)) return;
+      try {
+        if(String(reportId).startsWith('local_report_') || reportStorageMode === 'local'){
+          const rows = getLocalReportsRaw().filter(x => String(x.id) !== String(reportId));
+          setLocalReportsRaw(rows);
+        } else {
+          const { error } = await supabaseClient.from(REPORTS_TABLE).delete().eq('id', reportId);
+          if(error) throw error;
+        }
+        await loadData();
+        renderReports();
+      } catch(err){
+        console.error(err);
+        alert('No se pudo eliminar el informe: ' + (err?.message || err));
+      }
+    }
+
+    function getReportSearchHaystack(report){
+      return [
+        report.numeroInforme,
+        report.clientName,
+        report.clientRut,
+        report.numeroOT,
+        report.numeroCotizacion,
+        report.titulo,
+        report.tipoServicio,
+        report.tecnicoResponsable,
+        report.detalleGeneral,
+        report.resumenEjecutivo,
+        report.observacionesGenerales,
+        report.sugerenciasMejora,
+        report.direccion,
+        report.fecha
+      ].map(v => normalizeText(v)).join(' ');
+    }
+
+    function renderReports(){
+      const tbody = document.getElementById('reportsTable');
+      if(!tbody) return;
+      const q = normalizeText(document.getElementById('reportSearch')?.value || '');
+      const list = (reports || []).filter(r => !q || getReportSearchHaystack(r).includes(q)).sort((a,b) => {
+        const nb = reportNumberValue(b.numeroInforme);
+        const na = reportNumberValue(a.numeroInforme);
+        if(nb !== na) return nb - na;
+        return new Date(b.created_at || b.fecha || 0).getTime() - new Date(a.created_at || a.fecha || 0).getTime();
+      });
+
+      const totals = list.reduce((acc, rep) => {
+        const s = getReportOperationalSummary(rep);
+        acc.reports += 1;
+        acc.total += s.total;
+        acc.operativos += s.operativos;
+        acc.observacion += s.observacion;
+        acc.noOperativos += s.noOperativos;
+        return acc;
+      }, { reports: 0, total: 0, operativos: 0, observacion: 0, noOperativos: 0 });
+
+      const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
+      setText('reportsCount', totals.reports);
+      setText('reportsEquiposCount', totals.total);
+      setText('reportsOperativosCount', totals.operativos);
+      setText('reportsObservacionCount', totals.observacion);
+      setText('reportsNoOperativosCount', totals.noOperativos);
+
+      if(!list.length){
+        tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-500">No hay informes para mostrar.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(rep => {
+        const s = getReportOperationalSummary(rep);
+        return `
+          <tr class="border-t hover:bg-slate-50">
+            <td class="p-4">${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))}</td>
+            <td class="p-4 font-bold text-slate-800">${escapeHtml(rep.numeroInforme || 'S/N')}</td>
+            <td class="p-4">
+              <div class="font-semibold text-slate-800">${escapeHtml(rep.clientName || 'Cliente')}</div>
+              <div class="text-xs text-slate-500 mt-1">${escapeHtml(rep.clientRut || '')}</div>
+            </td>
+            <td class="p-4">${escapeHtml(rep.numeroOT || '—')}</td>
+            <td class="p-4">${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</td>
+            <td class="p-4 text-sm text-slate-600">${s.total} total · ${s.operativos} ok · ${s.observacion} obs · ${s.noOperativos} no ok</td>
+            <td class="p-4">${getReportStateBadge(rep)}</td>
+            <td class="p-4 text-center"><button onclick="generateReportPDF('${rep.id}')" class="text-brand hover:opacity-80" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button></td>
+            <td class="p-4">
+              <div class="flex items-center justify-center gap-3">
+                <button onclick="previewReport('${rep.id}')" class="text-slate-600 hover:text-slate-900" title="Vista previa"><i class="fa-solid fa-eye text-lg"></i></button>
+                <button onclick="showNewReportModal({id:'${rep.id}'})" class="text-brand hover:opacity-80" title="Editar informe"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
+                <button onclick="deleteReport('${rep.id}')" class="text-rose-600 hover:text-rose-800" title="Eliminar informe"><i class="fa-solid fa-trash text-lg"></i></button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function previewReport(reportId){
+      const rep = (reports || []).find(r => String(r.id) === String(reportId));
+      if(!rep){ alert('Informe no encontrado'); return; }
+      const s = getReportOperationalSummary(rep);
+      const equipments = normalizeReportEquipmentArray(rep.equipos || rep.data?.equipos || []);
+      const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || []);
+      const eqRows = equipments.length ? equipments.map((eq, idx) => {
+        const refParts = [eq.area, eq.marcaModelo, eq.btu ? `${eq.btu} BTU` : ''].filter(Boolean);
+        const serviceText = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
+        const notesText = [eq.observaciones, eq.sugerencias ? `Sugerencia: ${eq.sugerencias}` : ''].filter(Boolean).join('\n');
+        return `
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+              <div>
+                <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Equipo ${idx + 1}</div>
+                <div class="text-lg font-bold text-slate-800 mt-1">${escapeHtml(eq.tipoEquipo || 'Equipo intervenido')}</div>
+                <div class="text-sm text-slate-500 mt-1">${escapeHtml(refParts.join(' · ') || 'Referencia técnica no informada')}</div>
+              </div>
+              <div>${getEquipmentStateBadge(eq.estadoFinal)}</div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Servicio realizado</div>
+                <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(serviceText || 'Sin detalle ingresado.')}</div>
+              </div>
+              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observaciones y recomendaciones</div>
+                <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(notesText || 'Sin observaciones ni sugerencias registradas.')}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') : '<div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">No hay equipos cargados.</div>';
+      const evidenceHtml = evidencias.length ? evidencias.slice(0,6).map(ev => `<div class="border rounded-2xl overflow-hidden bg-white"><img src="${ev.dataUrl}" class="w-full h-40 object-cover"><div class="p-3 text-xs text-slate-600">${escapeHtml(ev.category || 'general')} · ${escapeHtml(ev.name || '')}</div></div>`).join('') : '<div class="text-sm text-slate-500">No hay evidencias cargadas.</div>';
+      openModal(`
+        <div class="p-6 sm:p-8">
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900">${escapeHtml(rep.titulo || rep.numeroInforme || 'Informe técnico')}</h2>
+              <p class="text-sm text-slate-500 mt-1">${escapeHtml(rep.numeroInforme || '—')} · ${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))} · ${escapeHtml(rep.clientName || 'Cliente')}</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="generateReportPDF('${rep.id}')" class="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700">PDF</button>
+              <button onclick="showNewReportModal({id:'${rep.id}'})" class="px-4 py-2 rounded-xl border font-semibold hover:bg-gray-50">Editar</button>
+              <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Tipo</div><div class="text-lg font-black text-slate-800 mt-1">${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</div></div>
+            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">OT</div><div class="text-lg font-black text-slate-800 mt-1">${escapeHtml(rep.numeroOT || '—')}</div></div>
+            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Técnico</div><div class="text-lg font-black text-slate-800 mt-1">${escapeHtml(rep.tecnicoResponsable || '—')}</div></div>
+            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Estado general</div><div class="mt-2">${getReportStateBadge(rep)}</div></div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100"><div class="text-xs uppercase tracking-wide text-emerald-700 font-black">Operativos</div><div class="text-3xl font-black text-emerald-700 mt-1">${s.operativos}</div></div>
+            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100"><div class="text-xs uppercase tracking-wide text-amber-700 font-black">Con observación</div><div class="text-3xl font-black text-amber-700 mt-1">${s.observacion}</div></div>
+            <div class="bg-rose-50 rounded-2xl p-4 border border-rose-100"><div class="text-xs uppercase tracking-wide text-rose-700 font-black">No operativos</div><div class="text-3xl font-black text-rose-700 mt-1">${s.noOperativos}</div></div>
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200"><div class="text-xs uppercase tracking-wide text-slate-600 font-black">Equipos revisados</div><div class="text-3xl font-black text-slate-800 mt-1">${s.total}</div></div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+            <div class="border rounded-2xl p-4 bg-white">
+              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Detalle general</div>
+              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.detalleGeneral || 'Sin detalle general')}</div>
+            </div>
+            <div class="border rounded-2xl p-4 bg-white">
+              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Resumen ejecutivo</div>
+              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.resumenEjecutivo || 'Sin resumen ejecutivo')}</div>
+            </div>
+            <div class="border rounded-2xl p-4 bg-white">
+              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Observaciones generales</div>
+              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.observacionesGenerales || 'Sin observaciones')}</div>
+            </div>
+            <div class="border rounded-2xl p-4 bg-white">
+              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Sugerencias de mejora</div>
+              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.sugerenciasMejora || 'Sin sugerencias')}</div>
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <h3 class="text-lg font-black text-slate-800">Detalle por equipos</h3>
+              <div class="text-sm text-slate-500">${equipments.length} registrado(s)</div>
+            </div>
+            <div class="space-y-4">${eqRows}</div>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-black text-slate-800 mb-3">Evidencias</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">${evidenceHtml}</div>
+          </div>
+        </div>
+      `);
+    }
+
+    function buildReportChartDataUrl(report){
+      try {
+        const summary = getReportOperationalSummary(report);
+        const canvas = document.createElement('canvas');
+        canvas.width = 900;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        if(!ctx) return null;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText('Estado de equipos', 40, 42);
+        const data = [
+          { label: 'Operativos', value: summary.operativos, color: '#16a34a' },
+          { label: 'Con observación', value: summary.observacion, color: '#d97706' },
+          { label: 'No operativos', value: summary.noOperativos, color: '#dc2626' }
+        ];
+        const max = Math.max(1, ...data.map(d => d.value));
+        const baseY = 300;
+        const chartHeight = 200;
+        const barWidth = 160;
+        const gap = 80;
+        const startX = 90;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(60, 60);
+        ctx.lineTo(60, baseY);
+        ctx.lineTo(canvas.width - 40, baseY);
+        ctx.stroke();
+        data.forEach((item, idx) => {
+          const x = startX + idx * (barWidth + gap);
+          const h = (item.value / max) * chartHeight;
+          const y = baseY - h;
+          ctx.fillStyle = item.color;
+          ctx.fillRect(x, y, barWidth, h);
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 28px Arial';
+          ctx.fillText(String(item.value), x + barWidth / 2 - 10, y - 14);
+          ctx.font = 'bold 18px Arial';
+          const lines = item.label === 'Con observación' ? ['Con', 'observación'] : [item.label];
+          lines.forEach((line, lineIdx) => ctx.fillText(line, x + 10, baseY + 28 + (lineIdx * 22)));
+        });
+        return canvas.toDataURL('image/png');
+      } catch (e) {
+        console.warn('No se pudo generar gráfico del informe:', e);
+        return null;
+      }
+    }
+
+    async function generateReportPDF(reportId){
+      try {
+        const rep = (reports || []).find(r => String(r.id) === String(reportId));
+        if(!rep){ alert('Informe no encontrado'); return; }
+        if(!window.jspdf || !window.jspdf.jsPDF){ alert('No se pudo cargar la librería PDF'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 12;
+        const green = [133,175,40];
+        const lightGreen = [245,249,236];
+        const dark = [15,23,42];
+        const summary = getReportOperationalSummary(rep);
+        const equipments = normalizeReportEquipmentArray(rep.equipos || rep.data?.equipos || []);
+        const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || []);
+
+        await addLogoToPdf(doc);
+        doc.setDrawColor(...green);
+        doc.setLineWidth(0.6);
+        doc.line(margin, 24, pageWidth - margin, 24);
+        doc.setTextColor(...dark);
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(16);
+        doc.text('Informe técnico de servicio', margin, 31);
+        doc.setFontSize(9);
+        doc.setTextColor(100,116,139);
+        doc.text(`N° ${rep.numeroInforme || '—'}`, pageWidth - margin, 31, { align:'right' });
+
+        let y = 38;
+        doc.setTextColor(...dark);
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(13);
+        doc.text(rep.titulo || 'Informe técnico', margin, y);
+        y += 6;
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9.5);
+        doc.text(`Cliente: ${rep.clientName || '—'}`, margin, y);
+        doc.text(`Fecha: ${formatDDMMYY(rep.fecha || rep.created_at)}`, pageWidth - margin, y, { align:'right' });
+        y += 5;
+        doc.text(`OT: ${rep.numeroOT || '—'}    Cotización: ${rep.numeroCotizacion || '—'}`, margin, y);
+        doc.text(`Tipo: ${getReportServiceLabel(rep.tipoServicio)}`, pageWidth - margin, y, { align:'right' });
+        y += 5;
+        doc.text(`Dirección: ${rep.direccion || '—'}`, margin, y);
+        y += 5;
+        doc.text(`Técnico responsable: ${rep.tecnicoResponsable || '—'}`, margin, y);
+
+        y += 5;
+        doc.autoTable({
+          startY: y,
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          styles: { fontSize: 9, cellPadding: 2.8, textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
+          headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle: 'bold' },
+          body: [
+            ['Equipos revisados', String(summary.total), 'Estado general', getReportGeneralState(rep)],
+            ['Operativos', String(summary.operativos), 'Con observación', String(summary.observacion)],
+            ['No operativos', String(summary.noOperativos), 'Técnico responsable', rep.tecnicoResponsable || '—']
+          ],
+          columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+
+        const resumenText = rep.resumenEjecutivo || rep.detalleGeneral || 'Sin resumen ejecutivo.';
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11.5);
+        doc.text('Resumen ejecutivo', margin, y);
+        y += 4;
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9.4);
+        const splitResumen = doc.splitTextToSize(resumenText, pageWidth - (margin * 2));
+        doc.text(splitResumen, margin, y);
+        y += splitResumen.length * 4.4 + 3;
+
+        const chartDataUrl = buildReportChartDataUrl(rep);
+        if(chartDataUrl){
+          doc.addImage(chartDataUrl, 'PNG', margin, y, pageWidth - (margin * 2), 62);
+          y += 68;
+        }
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11.5);
+        doc.text('Detalle por equipos', margin, y);
+        y += 3;
+        doc.autoTable({
+          startY: y + 1,
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          head: [['Equipo / referencia', 'Servicio ejecutado', 'Estado', 'Observaciones y recomendaciones']],
+          body: equipments.length ? equipments.map(eq => {
+            const reference = [eq.tipoEquipo, eq.area ? `Ubicación: ${eq.area}` : '', eq.marcaModelo ? `Marca / modelo: ${eq.marcaModelo}` : '', eq.btu ? `Capacidad: ${eq.btu} BTU` : ''].filter(Boolean).join('\n');
+            const service = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
+            const notes = [eq.observaciones, eq.sugerencias ? 'Sugerencia: ' + eq.sugerencias : '', eq.candidatoBTU && eq.candidatoBTU !== 'no' ? 'Candidato BTU: ' + eq.candidatoBTU : ''].filter(Boolean).join('\n');
+            return [
+              reference || 'Equipo intervenido sin referencia detallada',
+              service || 'Sin detalle ingresado.',
+              getEquipmentStateLabel(eq.estadoFinal),
+              notes || 'Sin observaciones registradas.'
+            ];
+          }) : [['Sin equipos registrados', '—', '—', '—']],
+          styles: { fontSize: 8, cellPadding: 2.2, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
+          headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
+          alternateRowStyles: { fillColor: [250,251,252] },
+          columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 54 }, 2: { cellWidth: 24 }, 3: { cellWidth: 58 } }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+
+        const ensureSpace = (heightNeeded) => {
+          const pageHeight = doc.internal.pageSize.getHeight();
+          if(y + heightNeeded > pageHeight - 14){
+            doc.addPage();
+            y = 16;
+          }
+        };
+
+        ensureSpace(36);
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11.5);
+        doc.text('Observaciones generales', margin, y);
+        y += 4;
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9.4);
+        const obsText = doc.splitTextToSize(rep.observacionesGenerales || 'Sin observaciones generales.', pageWidth - (margin * 2));
+        doc.text(obsText, margin, y);
+        y += obsText.length * 4.4 + 4;
+
+        ensureSpace(36);
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11.5);
+        doc.text('Sugerencias de mejora', margin, y);
+        y += 4;
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9.4);
+        const sugText = doc.splitTextToSize(rep.sugerenciasMejora || 'Sin sugerencias de mejora.', pageWidth - (margin * 2));
+        doc.text(sugText, margin, y);
+        y += sugText.length * 4.4 + 4;
+
+        if(evidencias.length){
+          ensureSpace(80);
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(11.5);
+          doc.text('Evidencias fotográficas', margin, y);
+          y += 5;
+          const cols = 2;
+          const imgW = 86;
+          const imgH = 52;
+          evidencias.slice(0,4).forEach((ev, idx) => {
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const x = margin + col * (imgW + 8);
+            const yy = y + row * (imgH + 14);
+            if(row > 0 && yy + imgH > doc.internal.pageSize.getHeight() - 16){
+              doc.addPage();
+              y = 16;
+            }
+            try {
+              doc.addImage(ev.dataUrl, 'JPEG', x, yy, imgW, imgH);
+              doc.setFontSize(8);
+              doc.setTextColor(...dark);
+              doc.text(`${ev.category || 'general'} · ${ev.name || ''}`.slice(0,60), x, yy + imgH + 4);
+            } catch(e) {
+              // ignore broken image
+            }
+          });
+        }
+
+        const pages = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pages; i++){
+          doc.setPage(i);
+          const h = doc.internal.pageSize.getHeight();
+          doc.setDrawColor(220,226,232);
+          doc.line(margin, h - 10, pageWidth - margin, h - 10);
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(8);
+          doc.setTextColor(100,116,139);
+          doc.text('ECOLUZ · Informe técnico de servicio', margin, h - 5.5);
+          doc.text(`Página ${i} de ${pages}`, pageWidth - margin, h - 5.5, { align:'right' });
+        }
+
+        const fileName = `Informe_${String(rep.numeroInforme || 'sin_numero').replace(/[^\\w-]+/g,'_')}.pdf`;
+        doc.save(fileName);
+      } catch(err){
+        console.error('generateReportPDF error:', err);
+        alert('No se pudo generar el PDF del informe: ' + (err?.message || err));
+      }
+    }
+
+    window.showNewReportModal = showNewReportModal;
+    window.saveReport = saveReport;
+    window.previewReport = previewReport;
+    window.generateReportPDF = generateReportPDF;
+    window.renderReports = renderReports;
+    window.populateReportOTFields = populateReportOTFields;
+    window.addReportEquipmentRow = addReportEquipmentRow;
+    window.removeReportEquipmentRow = removeReportEquipmentRow;
+    window.handleReportEvidenceInputChange = handleReportEvidenceInputChange;
+    window.removeReportEvidenceItem = removeReportEvidenceItem;
+    window.deleteReport = deleteReport;
+
+
     // ================= NAVEGACIÓN =================
     
 function showView(view) {
   // Normalizar nombres de vistas (evita pantallas en blanco por alias)
-  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', mandantes:'mandantes', quotes:'quotes', ots:'ots', dashboard:'dashboard', calendario:'calendar', calendar:'calendar', maintenance:'maintenance', mantenciones:'maintenance', programa:'maintenance', trash:'trash', papelera:'trash' };
+  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', mandantes:'mandantes', quotes:'quotes', ots:'ots', reports:'reports', informes:'reports', dashboard:'dashboard', calendario:'calendar', calendar:'calendar', maintenance:'maintenance', mantenciones:'maintenance', programa:'maintenance', trash:'trash', papelera:'trash' };
   view = alias[view] || view;
   window.currentMainView = view;
   try { updateTopbarSearchButton(view); } catch(e){}
@@ -7113,7 +8379,7 @@ function showView(view) {
   // Top title
   const t = document.getElementById('topbarTitle');
   if (t) {
-    const map = {dashboard:'Dashboard', calendar:'Calendario', maintenance:'Programa de mantención', clients:'Clientes', mandantes:'Mandantes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', payments:'Abonos & Cobranza', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos & Cobranza', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', trash:'Papelera', papelera:'Papelera'};
+    const map = {dashboard:'Dashboard', calendar:'Calendario', maintenance:'Programa de mantención', clients:'Clientes', mandantes:'Mandantes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', reports:'Informes', informes:'Informes', payments:'Abonos & Cobranza', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos & Cobranza', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', trash:'Papelera', papelera:'Papelera'};
     t.textContent = map[view] || '';
   }
 // Apply pagination when entering certain views
@@ -7147,6 +8413,9 @@ function showView(view) {
       if (typeof renderOTs === 'function') renderOTs();
     } catch(e){}
     setTimeout(() => { try { applyOTsActive(); applyOTsClosed(); } catch(e){} }, 0);
+  }
+  if (view === 'reports') {
+    try { if (typeof renderReports === 'function') renderReports(); } catch(e){ console.error(e); }
   }
   if (view === 'abonos') {
     try { abonosPage = 1; abonosClosedPage = 1; } catch(e){}
@@ -7542,6 +8811,7 @@ function renderAll() {
       try { populateVTClients(); } catch(e) {}
   renderQuotes();
   renderOTs();
+  renderReports();
   renderAbonos();
   renderVisitas();
   renderReqs();
@@ -9024,7 +10294,7 @@ const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
         }
 
         const doc = await buildQuotePDFDoc(quoteId);
-        const blobUrl = doc.output('bloburl');
+        const blobUrl = (location.protocol === 'file:') ? doc.output('datauristring') : doc.output('bloburl');
 
         const existing = document.getElementById('quotePreviewModal');
         if(existing) existing.remove();
@@ -9514,9 +10784,15 @@ function renderQuotes() {
         }
 
         const monto = Number(q.monto || q.total || q.data?.total || q.data?.monto || 0);
+        const clientLabel = safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—';
+        const quoteReference = (typeof getQuoteListReference === 'function') ? getQuoteListReference(q) : '';
+
         tr.innerHTML = `
           <td class="p-4">${escapeHtml(q.numeroCotizacion || q.numero || q.folio || q.id || '')}</td>
-          <td class="p-4 font-semibold">${escapeHtml(safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—')}</td>
+          <td class="p-4">
+            <div class="font-semibold text-slate-900">${escapeHtml(clientLabel)}</div>
+            ${quoteReference ? `<div class="mt-1 text-sm text-slate-500 leading-snug">${escapeHtml(quoteReference)}</div>` : ''}
+          </td>
           <td class="p-4 font-bold text-blue-700 text-center">$${monto.toLocaleString('es-CL')}</td>
           <td class="p-4 text-sm text-gray-600 text-center">${escapeHtml(formatShortName(q.createdByName || q.createdByEmail || q.createdBy || q.created_by_name || '—'))}</td>
           <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(getPreferredQuoteDate(q)))}</td>
@@ -12660,7 +13936,7 @@ async function saveNewReq() {
     async function previewOT(otId){
       try{
         const doc = await buildOTPDFDoc(otId);
-        const blobUrl = doc.output('bloburl');
+        const blobUrl = (location.protocol === 'file:') ? doc.output('datauristring') : doc.output('bloburl');
 
         const existing = document.getElementById('otPreviewModal');
         if(existing) existing.remove();
@@ -13341,6 +14617,9 @@ function renderOTs() {
         <div class="flex items-center justify-end gap-3">
           <button onclick="programCalendarFromOT('${o.id}')" class="text-indigo-600 hover:text-indigo-800" title="Programar en calendario">
             <i class="fa-solid fa-calendar-plus text-lg"></i>
+          </button>
+          <button onclick="(() => { const rep = getLatestReportForOT('${o.id}'); if(rep) previewReport(rep.id); else showNewReportModal({ otId:'${o.id}' }); })()" class="text-cyan-700 hover:text-cyan-900" title="Crear o ver informe">
+            <i class="fa-solid fa-file-lines text-lg"></i>
           </button>
           <button onclick="openOTLibro('${o.id}')" class="text-slate-600 hover:text-slate-900" title="Bitácora (Documento / Envío / Pago)">
             <i class="fa-solid fa-book-open text-lg"></i>
@@ -15105,13 +16384,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function clientCellHTML(q, bucket){
     const name = escapeHtml(safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—');
-    if(bucket !== 'historica') return `<div class="font-semibold">${name}</div>`;
+    const ref = (typeof getQuoteListReference === 'function') ? getQuoteListReference(q) : '';
+    if(bucket !== 'historica'){
+      return `
+        <div class="font-semibold text-slate-900">${name}</div>
+        ${ref ? `<div class="mt-1 text-xs text-slate-500 leading-snug">${escapeHtml(ref)}</div>` : ''}
+      `;
+    }
     const st = window.getQuoteNormalizedState(q);
     const d = q?.data || {};
     const note = st === 'reemplazada'
       ? (qSafe(d.reemplazada_por_numero || d.reemplazadaPorNumero) ? `Reemplazada por ${escapeHtml(qSafe(d.reemplazada_por_numero || d.reemplazadaPorNumero))}` : 'Reemplazada por una nueva cotización')
       : (qSafe(d.fecha_vencimiento || d.fechaVencimiento) ? `Venció el ${escapeHtml(formatDDMMYY(qSafe(d.fecha_vencimiento || d.fechaVencimiento)))}` : 'Cotización vencida');
-    return `<div class="font-semibold">${name}</div><div class="text-xs text-slate-500 mt-1">${note}</div>`;
+    return `
+      <div class="font-semibold text-slate-900">${name}</div>
+      ${ref ? `<div class="mt-1 text-xs text-slate-500 leading-snug">${escapeHtml(ref)}</div>` : ''}
+      <div class="mt-1 text-xs text-amber-700 leading-snug">${note}</div>
+    `;
   }
 
   function quoteActionsHTML(q, bucket){
@@ -15614,6 +16903,7 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
       </div>
     </div>
   </div>
+
 
 </body>
 </html>
