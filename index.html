@@ -169,22 +169,28 @@ function badgeOTCobro(o){
   const id = (o && o.id) ? String(o.id) : '';
   const docLabel = getDocumentoLabelOT(o).toUpperCase();
   if(getEffectiveOTTrabajoEstado(o) === 'cancelada' || normalizeOTCobroEstado(o) === 'cancelada'){
-    return `<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200" title="OT cancelada por estado de cotización">
-      <i class="fa-solid fa-ban text-rose-600"></i> CANCELADA
+    return `<span class="ot-doc-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200" title="OT cancelada por estado de cotización">
+      <i class="fa-solid fa-ban text-rose-600"></i>
+      <span class="ot-doc-text">CANCELADA</span>
     </span>`;
   }
   if(!fac){
-    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200" title="Click para registrar documento">
-      <i class="fa-solid fa-file-invoice text-slate-500"></i> SIN DOCUMENTO
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200" title="Click para registrar documento">
+      <i class="fa-solid fa-file-invoice text-slate-500"></i>
+      <span class="ot-doc-text">SIN DOCUMENTO</span>
     </button>`;
   }
   if(!pagada){
-    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100" title="Click para registrar pago">
-      <i class="fa-solid fa-receipt text-indigo-600"></i> ${docLabel} N° ${esc(fac)} <span class="text-indigo-500 font-semibold">SIN PAGO</span>
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100" title="${docLabel} N° ${esc(fac)} · Sin pago">
+      <i class="fa-solid fa-receipt text-indigo-600"></i>
+      <span class="ot-doc-text">${docLabel} N° ${esc(fac)}</span>
+      <span class="ot-doc-status text-indigo-500 font-semibold">SIN PAGO</span>
     </button>`;
   }
-  return `<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${docLabel} pagada">
-    <i class="fa-solid fa-circle-check text-emerald-600"></i> ${docLabel} N° ${esc(fac)} PAGADA
+  return `<span class="ot-doc-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${docLabel} pagada">
+    <i class="fa-solid fa-circle-check text-emerald-600"></i>
+    <span class="ot-doc-text">${docLabel} N° ${esc(fac)}</span>
+    <span class="ot-doc-status">PAGADA</span>
   </span>`;
 }
 
@@ -225,14 +231,50 @@ function toggleEditOTFacturaField(){
     
     
     /* FIX: eliminar espacio entre columnas (sidebar + contenido) */
-    #app:not(.hidden) { display: grid; grid-template-columns: auto 1fr; }
-    #sidebar { width: 260px !important; }
+    #app:not(.hidden) { display: grid; grid-template-columns: auto 1fr; height: 100vh; overflow: hidden; }
+    #sidebar { width: 260px !important; height: 100vh; position: sticky; top: 0; align-self: start; overflow: hidden !important; }
     #sidebar.collapsed { width: 72px !important; }
-    #mainContent { width: 100% !important; min-width: 0 !important; padding: 24px !important; margin-left: 0 !important; }
+    #mainContent { width: 100% !important; min-width: 0 !important; height: 100vh !important; overflow-y: auto !important; overflow-x: hidden !important; padding: 24px !important; margin-left: 0 !important; }
 #mainContent { width: 100% !important; min-width: 0 !important; padding: 24px !important; margin-left: 0 !important; }
     #mainContent [id^="view-"] { width: 100% !important; max-width: 1600px; margin: 0 auto; }
     #mainContent table { width: 100% !important; }
-.nav-active { background-color: #1e40af; color: white; }
+.nav-active { background-color: #e8f0ff; color: #1f2937; }
+    .nav-btn{ color:#111827; }
+    .nav-btn i{ width:1.15rem; text-align:center; color:#111827; font-size:1rem; flex-shrink:0; }
+    #sidebar nav .nav-btn{ border:1px solid transparent; }
+    #sidebar nav .nav-btn.nav-active{ font-weight:700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.55); }
+    #sidebar nav .nav-btn.nav-active i,
+    #sidebar nav .nav-btn.nav-active .sidebar-label{ color: var(--section-color, #1d4ed8); }
+    #btn-dashboard{ --section-color:#1d4ed8; --section-bg:#e8f0ff; }
+    #btn-calendar{ --section-color:#0f766e; --section-bg:#ecfdf5; }
+    #btn-clients{ --section-color:#4338ca; --section-bg:#eef2ff; }
+    #btn-mandantes{ --section-color:#92400e; --section-bg:#fff7ed; }
+    #btn-quotes{ --section-color:#b45309; --section-bg:#fffbeb; }
+    #btn-ots{ --section-color:#166534; --section-bg:#f0fdf4; }
+    #btn-reports{ --section-color:#7c3aed; --section-bg:#f5f3ff; }
+    #btn-abonos{ --section-color:#0369a1; --section-bg:#f0f9ff; }
+    #btn-visitas{ --section-color:#be123c; --section-bg:#fff1f2; }
+    #btn-reqs{ --section-color:#475569; --section-bg:#f8fafc; }
+    #btn-maintenance{ --section-color:#0f766e; --section-bg:#ecfeff; }
+    #btn-trash{ --section-color:#dc2626; --section-bg:#fef2f2; }
+    #sidebar nav .nav-btn.nav-active{ background: var(--section-bg, #e8f0ff); color:#111827; }
+    .sidebar-secondary-btn{ width:100%; text-align:left; padding:.6rem .85rem; border-radius:.9rem; display:flex; align-items:center; gap:.6rem; justify-content:flex-start; border:1px solid #e5e7eb; background:rgba(255,255,255,.75); font-size:.95rem; color:#475569; transition:background-color .15s ease, border-color .15s ease, color .15s ease; }
+    .sidebar-secondary-btn:hover{ background:#fff; border-color:#d1d5db; }
+    .sidebar-secondary-btn i{ font-size:.78rem; width:.9rem; text-align:center; }
+    .sidebar-secondary-btn.logout{ color:#dc2626; margin-top:auto; }
+    .sidebar-secondary-btn.logout:hover{ background:#fef2f2; border-color:#fecaca; }
+    .sidebar-mini-link{ width:100%; display:flex; align-items:center; justify-content:flex-start; gap:.45rem; padding:.28rem .2rem; border:none; background:transparent; font-size:.84rem; color:#64748b; transition:color .15s ease, opacity .15s ease; }
+    .sidebar-mini-link:hover{ color:#334155; opacity:1; }
+    .sidebar-mini-link i{ font-size:.72rem; width:.8rem; text-align:center; opacity:.9; }
+    .sidebar-mini-link .sidebar-label{ font-size:.84rem; }
+    .sidebar-tools{ display:flex; flex-direction:column; gap:.25rem; margin-top:.45rem; padding-left:.2rem; }
+    .sidebar-tools-collapsible{ border:1px solid #e5e7eb; border-radius:1rem; background:rgba(255,255,255,.72); padding:.35rem .45rem; }
+    .sidebar-tools-toggle{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.35rem .25rem; border:none; background:transparent; color:#64748b; font-size:.84rem; font-weight:600; }
+    .sidebar-tools-toggle:hover{ color:#334155; }
+    .sidebar-tools-toggle > span > i{ font-size:.78rem; width:.9rem; text-align:center; }
+    .sidebar-tools-chevron{ font-size:.72rem; transition:transform .18s ease; }
+    .sidebar-tools-collapsible.open .sidebar-tools-chevron{ transform:rotate(180deg); }
+    .sidebar-tools .section-label{ font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin:.15rem 0 .2rem; padding-left:.15rem; }
     .brand-logo { height: 48px; width: auto; object-fit: contain; }
     .brand-logo-sm { height: 36px; width: auto; object-fit: contain; }
 
@@ -291,11 +333,145 @@ function toggleEditOTFacturaField(){
 .sidebar.collapsed .p-6{ padding: 16px !important; }
 .sidebar.collapsed .p-6 .flex{ justify-content:center; }
 
+#sidebar > .p-6,
+#sidebar > .p-4.border-t{
+  flex: 0 0 auto;
+}
+#sidebar > nav{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148,163,184,.85) transparent;
+}
+#sidebar > nav::-webkit-scrollbar{
+  width: 8px;
+}
+#sidebar > nav::-webkit-scrollbar-track{
+  background: transparent;
+}
+#sidebar > nav::-webkit-scrollbar-thumb{
+  background: rgba(148,163,184,.85);
+  border-radius: 999px;
+}
+#sidebar > nav::-webkit-scrollbar-thumb:hover{
+  background: rgba(100,116,139,.95);
+}
 
-    :root{--brand-green:#85af28;}
+
+    :root{--brand-green:#85af28; --ui-accent:#85af28; --ui-accent-soft:#eef6df; --ui-bg:#f3f4f6; --ui-bg-secondary:#eef2f7; --ui-surface:#ffffff; --ui-surface-strong:#f8fafc; --ui-text:#0f172a; --ui-muted:#64748b; --ui-border:#dbe3ef; --ui-login-bg:linear-gradient(135deg,#0f172a 0%, #1e3a5f 55%, #355f1c 100%);}
     .bg-brand{background:var(--brand-green)!important;}
     .text-brand{color:var(--brand-green)!important;}
     .border-brand{border-color:var(--brand-green)!important;}
+    body{background:var(--ui-bg); color:var(--ui-text); transition:background-color .22s ease,color .22s ease;}
+    #app{background:var(--ui-bg); color:var(--ui-text);}
+    #loginScreen{background:var(--ui-login-bg)!important; transition:background .22s ease;}
+    #loginScreen > div{background:var(--ui-surface)!important; color:var(--ui-text)!important; border:1px solid var(--ui-border);}
+    #sidebar{background:var(--ui-surface)!important; border-right:1px solid var(--ui-border)!important; color:var(--ui-text)!important;}
+    #mainContent{background:var(--ui-bg-secondary)!important; color:var(--ui-text)!important;}
+    #modalContent{background:var(--ui-surface)!important; color:var(--ui-text)!important;}
+    .sidebar-tools-collapsible{border-color:var(--ui-border)!important; background:var(--ui-surface-strong)!important;}
+    .sidebar-secondary-btn{border-color:var(--ui-border)!important; background:var(--ui-surface-strong)!important; color:var(--ui-muted)!important;}
+    .sidebar-secondary-btn:hover{background:var(--ui-surface)!important; border-color:var(--ui-border)!important;}
+    .sidebar-mini-link, .sidebar-tools-toggle{color:var(--ui-muted)!important;}
+    .sidebar-mini-link:hover, .sidebar-tools-toggle:hover{color:var(--ui-text)!important;}
+    .nav-btn{color:var(--ui-text)!important;}
+    .nav-btn i{color:var(--ui-text)!important;}
+    .nav-btn:hover{background:var(--ui-surface-strong)!important;}
+    .bg-white, .bg-gray-50, .bg-slate-50{background-color:var(--ui-surface)!important;}
+    .text-gray-900, .text-gray-800, .text-slate-900, .text-slate-800{color:var(--ui-text)!important;}
+    .text-gray-700, .text-gray-600, .text-gray-500, .text-slate-700, .text-slate-600, .text-slate-500{color:var(--ui-muted)!important;}
+    .border, .border-t, .border-b, .border-l, .border-r, .border-gray-100, .border-gray-200, .border-slate-200, .border-slate-100{border-color:var(--ui-border)!important;}
+    .shadow, .shadow-lg, .shadow-xl, .shadow-2xl{box-shadow:0 14px 34px rgba(15,23,42,.10)!important;}
+    .bg-blue-600, .bg-blue-700, .hover\:bg-blue-700:hover, .hover\:bg-blue-600:hover{background-color:var(--ui-accent)!important;}
+    .text-blue-600, .text-blue-700, .text-blue-800, .text-blue-900{color:var(--ui-accent)!important;}
+    .border-blue-200, .border-blue-300, .border-blue-500, .border-blue-600, .ring-blue-200{border-color:var(--ui-accent)!important;}
+    .bg-blue-50, .hover\:bg-blue-50:hover{background-color:var(--ui-accent-soft)!important;}
+    .appearance-chip{display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .65rem; border-radius:999px; border:1px solid var(--ui-border); background:var(--ui-surface-strong); color:var(--ui-muted); font-size:.82rem; font-weight:600;}
+    .appearance-preview{border:1px solid var(--ui-border); border-radius:1rem; overflow:hidden; background:var(--ui-surface);}
+    .appearance-preview-head{padding:.9rem 1rem; background:var(--ui-surface-strong); border-bottom:1px solid var(--ui-border); display:flex; align-items:center; justify-content:space-between;}
+    .appearance-preview-body{padding:1rem; background:var(--ui-bg-secondary);}
+    .appearance-preview-card{border:1px solid var(--ui-border); border-radius:.9rem; background:var(--ui-surface); padding:.85rem;}
+    body[data-ui-color-mode="dark"] .shadow, body[data-ui-color-mode="dark"] .shadow-lg, body[data-ui-color-mode="dark"] .shadow-xl, body[data-ui-color-mode="dark"] .shadow-2xl{box-shadow:0 16px 38px rgba(0,0,0,.34)!important;}
+
+    /* ===== FIX CONTRASTE APARIENCIA ===== */
+    table thead th, table thead td{color:var(--ui-text)!important; font-weight:700!important;}
+    .bg-gray-100, .bg-gray-50, .bg-slate-50, .bg-amber-50, .bg-emerald-50, .bg-red-50, .bg-rose-50, .bg-indigo-50, .bg-blue-50{color:var(--ui-text)!important;}
+    .bg-amber-50, .bg-emerald-50, .bg-red-50, .bg-rose-50, .bg-indigo-50, .bg-blue-50{background-color:color-mix(in srgb, var(--ui-surface) 88%, var(--ui-accent) 12%)!important;}
+    body[data-ui-color-mode="dark"] .bg-gray-100,
+    body[data-ui-color-mode="dark"] .bg-gray-50,
+    body[data-ui-color-mode="dark"] .bg-slate-50,
+    body[data-ui-color-mode="dark"] .bg-amber-50,
+    body[data-ui-color-mode="dark"] .bg-emerald-50,
+    body[data-ui-color-mode="dark"] .bg-red-50,
+    body[data-ui-color-mode="dark"] .bg-rose-50,
+    body[data-ui-color-mode="dark"] .bg-indigo-50,
+    body[data-ui-color-mode="dark"] .bg-blue-50{background-color:color-mix(in srgb, var(--ui-surface) 92%, white 8%)!important;}
+    body[data-ui-color-mode="dark"] .text-white{color:#f8fafc!important;}
+    body[data-ui-color-mode="dark"] .text-blue-100, body[data-ui-color-mode="dark"] .text-slate-300, body[data-ui-color-mode="dark"] .text-slate-400{color:#cbd5e1!important;}
+    body[data-ui-color-mode="dark"] input::placeholder, body[data-ui-color-mode="dark"] textarea::placeholder{color:#94a3b8!important;}
+    body[data-ui-color-mode="dark"]{color-scheme:dark;}
+    body[data-ui-color-mode="dark"] .bg-white,
+    body[data-ui-color-mode="dark"] .bg-gray-50,
+    body[data-ui-color-mode="dark"] .bg-slate-50,
+    body[data-ui-color-mode="dark"] .bg-gray-100,
+    body[data-ui-color-mode="dark"] .bg-slate-100{background-color:var(--ui-surface)!important; color:var(--ui-text)!important;}
+    body[data-ui-color-mode="dark"] table,
+    body[data-ui-color-mode="dark"] .ot-table,
+    body[data-ui-color-mode="dark"] .appearance-preview,
+    body[data-ui-color-mode="dark"] .appearance-preview-card{background-color:var(--ui-surface)!important; color:var(--ui-text)!important; border-color:var(--ui-border)!important;}
+    body[data-ui-color-mode="dark"] table thead,
+    body[data-ui-color-mode="dark"] table thead tr,
+    body[data-ui-color-mode="dark"] table thead th,
+    body[data-ui-color-mode="dark"] table thead td,
+    body[data-ui-color-mode="dark"] .sticky.top-0.bg-emerald-50,
+    body[data-ui-color-mode="dark"] .sticky.top-0.bg-amber-50{background-color:var(--ui-table-head)!important; color:var(--ui-text)!important; border-color:var(--ui-border)!important;}
+    body[data-ui-color-mode="dark"] table tbody tr{background-color:var(--ui-surface)!important; color:var(--ui-text)!important;}
+    body[data-ui-color-mode="dark"] table tbody tr:hover{background-color:var(--ui-surface-alt)!important;}
+    body[data-ui-color-mode="dark"] input,
+    body[data-ui-color-mode="dark"] select,
+    body[data-ui-color-mode="dark"] textarea{background-color:var(--ui-input-bg)!important; color:var(--ui-text)!important; border-color:var(--ui-border)!important;}
+    body[data-ui-color-mode="dark"] .border,
+    body[data-ui-color-mode="dark"] .border-slate-100,
+    body[data-ui-color-mode="dark"] .border-slate-200,
+    body[data-ui-color-mode="dark"] .border-slate-300,
+    body[data-ui-color-mode="dark"] .border-gray-100,
+    body[data-ui-color-mode="dark"] .border-gray-200,
+    body[data-ui-color-mode="dark"] .border-amber-100,
+    body[data-ui-color-mode="dark"] .border-amber-200,
+    body[data-ui-color-mode="dark"] .border-emerald-100,
+    body[data-ui-color-mode="dark"] .border-emerald-200,
+    body[data-ui-color-mode="dark"] .border-red-100,
+    body[data-ui-color-mode="dark"] .border-red-200,
+    body[data-ui-color-mode="dark"] .border-rose-100,
+    body[data-ui-color-mode="dark"] .border-rose-200,
+    body[data-ui-color-mode="dark"] .border-indigo-100,
+    body[data-ui-color-mode="dark"] .border-indigo-200{border-color:var(--ui-border)!important;}
+    body[data-ui-color-mode="dark"] .text-gray-400,
+    body[data-ui-color-mode="dark"] .text-gray-500,
+    body[data-ui-color-mode="dark"] .text-gray-600,
+    body[data-ui-color-mode="dark"] .text-slate-500,
+    body[data-ui-color-mode="dark"] .text-slate-600,
+    body[data-ui-color-mode="dark"] .text-slate-700{color:var(--ui-muted)!important;}
+    body[data-ui-color-mode="dark"] .text-slate-800,
+    body[data-ui-color-mode="dark"] .text-slate-900,
+    body[data-ui-color-mode="dark"] .text-gray-800,
+    body[data-ui-color-mode="dark"] .text-gray-900{color:var(--ui-text)!important;}
+    body[data-ui-color-mode="dark"] .bg-amber-50,
+    body[data-ui-color-mode="dark"] .bg-emerald-50,
+    body[data-ui-color-mode="dark"] .bg-red-50,
+    body[data-ui-color-mode="dark"] .bg-rose-50,
+    body[data-ui-color-mode="dark"] .bg-indigo-50,
+    body[data-ui-color-mode="dark"] .bg-blue-50{background-color:var(--ui-card-muted)!important;}
+    body[data-ui-color-mode="dark"] .text-amber-700{color:#fbbf24!important;}
+    body[data-ui-color-mode="dark"] .text-emerald-700{color:#4ade80!important;}
+    body[data-ui-color-mode="dark"] .text-red-700,
+    body[data-ui-color-mode="dark"] .text-rose-700{color:#fb7185!important;}
+    body[data-ui-color-mode="dark"] .text-indigo-700,
+    body[data-ui-color-mode="dark"] .text-blue-700{color:#93c5fd!important;}
+
 
 #topbarTitle{display:none !important;}
 
@@ -314,6 +490,151 @@ function toggleEditOTFacturaField(){
   width: 100% !important;
 }
 
+
+
+/* ===== OTs: tabla resumida en dos niveles ===== */
+#view-ots table{ table-layout: fixed; width:100%; }
+#view-ots table thead th,
+#view-ots table tbody td{ padding-left: 10px; padding-right: 10px; }
+#view-ots table thead th{
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-size: 12.5px;
+  line-height: 1.15;
+}
+#view-ots table tbody td{
+  padding-top: 8px;
+  padding-bottom: 8px;
+  vertical-align: middle;
+}
+#view-ots table thead th:nth-child(1){ width: 84px; }
+#view-ots table thead th:nth-child(2){ width: 92px; }
+#view-ots table thead th:nth-child(3){ width: auto; }
+#view-ots table thead th:nth-child(4){ width: 180px; }
+#view-ots table thead th:nth-child(5){ width: 150px; text-align:center; }
+#view-ots table thead th:nth-child(6){ width: 190px; text-align:center; }
+#view-ots table thead th:nth-child(7){ width: 98px; text-align:center; }
+#view-ots table tbody td:nth-child(5),
+#view-ots table tbody td:nth-child(6),
+#view-ots table tbody td:nth-child(7){ text-align:center; }
+#view-ots table tbody tr.ot-main-row td{ border-bottom: 0; padding-bottom: 2px; }
+#view-ots table tbody tr.ot-main-row td:last-child{ vertical-align: top; }
+#view-ots .ot-client-name{
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+#view-ots .ot-ref-stack{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+#view-ots .ot-ref-item{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  min-width:0;
+  font-size:11.5px;
+  line-height:1.15;
+  color:#475569;
+}
+#view-ots .ot-ref-label{
+  flex:0 0 auto;
+  font-weight:700;
+  color:#334155;
+}
+#view-ots .ot-ref-value{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#view-ots .ot-state-stack{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+#view-ots .ot-cobro-mini{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  line-height:1;
+  border:1px solid transparent;
+  white-space:nowrap;
+}
+#view-ots .ot-cobro-mini--empty{ background:#f8fafc; color:#64748b; border-color:#e2e8f0; }
+#view-ots .ot-cobro-mini--pending{ background:#eef2ff; color:#4338ca; border-color:#c7d2fe; }
+#view-ots .ot-cobro-mini--paid{ background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+#view-ots .ot-cobro-mini--cancelled{ background:#fff1f2; color:#be123c; border-color:#fecdd3; }
+#view-ots .ot-doc-cell{ width:100%; display:flex; justify-content:center; }
+#view-ots .ot-doc-chip{
+  max-width: 100%;
+  min-width: 0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+}
+#view-ots .ot-doc-chip .ot-doc-chip-text{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#view-ots .ot-doc-chip--empty{ background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+#view-ots .ot-doc-chip--pending{ background:#eef2ff; color:#4338ca; border-color:#c7d2fe; }
+#view-ots .ot-doc-chip--paid{ background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+#view-ots .ot-doc-chip--cancelled{ background:#fff1f2; color:#be123c; border-color:#fecdd3; }
+#view-ots .ot-detail-row td{
+  padding-top: 0;
+  padding-bottom: 8px;
+  border-top: 0;
+  background: transparent;
+}
+#view-ots .ot-detail-spacer,
+#view-ots .ot-detail-actions{ padding-top:0; padding-bottom:8px; }
+#view-ots .ot-detail-band{
+  display:block;
+  width:100%;
+  color:#64748b;
+  font-size:11.5px;
+  line-height:1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#view-ots .ot-actions-bar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}
+#view-ots .ot-actions-bar > *{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
 </style>
 
 <style id="ecoluz-brand-overrides">
@@ -393,22 +714,34 @@ function toggleEditOTFacturaField(){
         <button onclick="showView('trash')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-trash"><i class="fas fa-trash-can-arrow-up"></i> <span class="sidebar-label">Papelera</span></button>
       </nav>
 
-      <div class="p-4 border-t">
-        <button onclick="toggleAutoMode()" id="btn-auto-mode" class="nav-btn w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-2 text-sm transition-colors border">
-           <i class="fas fa-lock text-gray-400"></i> <span class="sidebar-label text-gray-500">Activar Automático</span>
-        </button>
-        <button onclick="showChangePasswordModal()" class="w-full text-left py-2 px-3 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 mb-4 text-sm transition-colors border">
-           <i class="fas fa-key text-blue-600"></i> <span class="sidebar-label text-gray-600 font-medium">Cambiar Contraseña</span>
-        </button>
-        <button onclick="logout()" class="w-full text-red-600 hover:bg-red-50 py-3 rounded-xl flex items-center gap-2 justify-center"><i class="fas fa-sign-out-alt"></i> <span class="sidebar-label">Cerrar sesión</span></button>        <button onclick="generatePendientesPDF()" class="w-full mt-3 bg-white/70 hover:bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm flex items-center justify-center gap-2" title="PDF Pendientes">
-          <i class="fa-solid fa-file-pdf text-red-600"></i> <span class="sidebar-label">Pendientes (PDF)</span>
-        </button>
-
-        <button onclick="generateRealizadosPorMesPDF()" class="w-full mt-2 bg-white/70 hover:bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm flex items-center justify-center gap-2" title="PDF Trabajos realizados por mes">
-          <i class="fa-solid fa-calendar-check text-emerald-700"></i> <span class="sidebar-label">Realizados por mes (PDF)</span>
-        </button>
-
-        <button onclick="exportData()" class="w-full text-xs text-gray-500 mt-4"><span class="sidebar-label">Exportar datos (JSON)</span></button>
+      <div class="p-4 border-t flex flex-col gap-3">
+        <div class="sidebar-tools-collapsible">
+          <button type="button" class="sidebar-tools-toggle" id="sidebarToolsToggle" onclick="toggleSidebarTools()" aria-expanded="false">
+            <span class="flex items-center gap-2"><i class="fas fa-screwdriver-wrench"></i> <span class="sidebar-label">Herramientas</span></span>
+            <i class="fas fa-chevron-down sidebar-tools-chevron"></i>
+          </button>
+          <div class="sidebar-tools hidden" id="sidebarToolsPanel">
+            <button onclick="toggleAutoMode()" id="btn-auto-mode" class="sidebar-mini-link">
+               <i class="fas fa-lock"></i> <span class="sidebar-label">Activar Automático</span>
+            </button>
+            <button onclick="showAppearanceModal()" class="sidebar-mini-link" title="Apariencia">
+               <i class="fas fa-palette"></i> <span class="sidebar-label">Apariencia</span>
+            </button>
+            <button onclick="showChangePasswordModal()" class="sidebar-mini-link">
+               <i class="fas fa-key"></i> <span class="sidebar-label">Cambiar Contraseña</span>
+            </button>
+            <button onclick="generatePendientesPDF()" class="sidebar-mini-link" title="PDF Pendientes">
+              <i class="fa-solid fa-file-pdf"></i> <span class="sidebar-label">Pendientes (PDF)</span>
+            </button>
+            <button onclick="generateRealizadosPorMesPDF()" class="sidebar-mini-link" title="PDF Trabajos realizados por mes">
+              <i class="fa-solid fa-calendar-check"></i> <span class="sidebar-label">Realizados por mes (PDF)</span>
+            </button>
+            <button onclick="exportData()" class="sidebar-mini-link" title="Respaldo y exportación">
+              <i class="fa-solid fa-download"></i> <span class="sidebar-label">Respaldo y exportación</span>
+            </button>
+          </div>
+        </div>
+        <button onclick="logout()" class="sidebar-secondary-btn logout"><i class="fas fa-sign-out-alt"></i> <span class="sidebar-label">Cerrar sesión</span></button>
       </div>
     </div>
 
@@ -662,7 +995,7 @@ function toggleEditOTFacturaField(){
           </div>
         </div>
 
-        <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+        <table class="w-full bg-white rounded-3xl shadow overflow-hidden ot-table">
           <thead class="bg-gray-100">
             <tr>
               <th class="p-4 text-left">RUT</th><th class="p-4 text-left">Nombre</th><th class="p-4 text-left">Tipo</th><th class="p-4 text-center">Acciones</th>
@@ -828,7 +1161,7 @@ function toggleEditOTFacturaField(){
 
         <div class="mb-10">
   <h2 class="text-2xl font-bold mb-4 text-amber-700">Cotizaciones Pendientes</h2>
-  <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
+  <table class="w-full bg-white rounded-3xl shadow overflow-hidden ot-table">
     <thead class="bg-amber-50">
       <tr>
         <th class="p-4 text-left">N° Cotización</th>
@@ -919,7 +1252,7 @@ function toggleEditOTFacturaField(){
           <h2 class="text-2xl font-bold text-amber-700 mb-4">OT en curso / pendientes de pago</h2>
           <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
             <thead class="bg-amber-50">
-              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° Cotización</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-left">OC</th><th class="p-4 text-left">HES</th><th class="p-4 text-left">Guía</th><th class="p-4 text-left">Creado por</th><th class="p-4 text-left">Estado</th><th class="p-4 text-left">Documento</th><th class="p-4 text-center">PDF</th><th class="p-4 text-center">Acciones</th></tr>
+              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">OC / HES / Guía</th><th class="p-4 text-center">Estado</th><th class="p-4 text-center">Documento</th><th class="p-4 text-center">Acciones</th></tr>
             </thead>
             <tbody id="otsActiveTable"></tbody>
           </table>
@@ -930,7 +1263,7 @@ function toggleEditOTFacturaField(){
           <h2 class="text-2xl font-bold text-emerald-700 mb-4">OT realizadas / finalizadas y pagadas</h2>
           <table class="w-full bg-white rounded-3xl shadow overflow-hidden">
             <thead class="bg-emerald-50">
-              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° Cotización</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-left">OC</th><th class="p-4 text-left">HES</th><th class="p-4 text-left">Guía</th><th class="p-4 text-left">Creado por</th><th class="p-4 text-left">Estado</th><th class="p-4 text-left">Documento</th><th class="p-4 text-center">PDF</th><th class="p-4 text-center">Acciones</th></tr>
+              <tr><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">N° OT</th><th class="p-4 text-left">Cliente</th><th class="p-4 text-left">OC / HES / Guía</th><th class="p-4 text-center">Estado</th><th class="p-4 text-center">Documento</th><th class="p-4 text-center">Acciones</th></tr>
             </thead>
             <tbody id="otsClosedTable"></tbody>
           </table>
@@ -1370,6 +1703,7 @@ window.supabaseClient = supabaseClient;
     let currentUserDisplayName = null;
 
     document.addEventListener('DOMContentLoaded', () => {
+      try { applySavedAppearance(); } catch(e) { console.warn('No se pudo aplicar apariencia inicial', e); }
       const btn = document.getElementById('loginButton');
       if (btn && !btn.dataset.boundLogin) {
         btn.dataset.boundLogin = '1';
@@ -1437,6 +1771,8 @@ window.supabaseClient = supabaseClient;
         const welcomeName = document.getElementById('welcomeName');
         if(welcomeName) welcomeName.textContent = currentUserDisplayName;
 
+        try { applySavedAppearance(); } catch(e) { console.warn('No se pudo aplicar apariencia de usuario', e); }
+
         await loadData();
         renderAll();
         showView('dashboard');
@@ -1492,6 +1828,7 @@ window.supabaseClient = supabaseClient;
     let maintenanceProgramYear = new Date().getFullYear();
     // Cuando creas una OT desde una cotización aceptada (documentos antiguos)
     let pendingQuoteToLinkOT = null; 
+    let pendingMaintenanceToLinkOT = null; 
     let isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
 
     window.LOGO_FILE = "logo ecoluz.png";
@@ -1831,10 +2168,10 @@ document.getElementById('modal').classList.remove('hidden');
         const btn = document.getElementById('btn-auto-mode');
         if(!btn) return;
         if(isAutoMode) {
-            btn.innerHTML = '<i class="fas fa-lock-open text-emerald-600"></i> <span class="sidebar-label text-emerald-600 font-bold">Num. Automática: ON</span>';
+            btn.innerHTML = '<i class="fas fa-lock-open"></i> <span class="sidebar-label">Num. Automática: ON</span>'; btn.className = 'sidebar-mini-link';
             btn.classList.add('bg-emerald-50', 'border-emerald-200');
         } else {
-            btn.innerHTML = '<i class="fas fa-lock text-gray-400"></i> <span class="sidebar-label text-gray-500">Activar Automático</span>';
+            btn.innerHTML = '<i class="fas fa-lock"></i> <span class="sidebar-label">Activar Automático</span>'; btn.className = 'sidebar-mini-link';
             btn.classList.remove('bg-emerald-50', 'border-emerald-200');
         }
     }
@@ -2074,7 +2411,7 @@ function renderMandanteOTCards(list, containerId){
           </div>
           <div class="flex flex-wrap gap-2 mt-4">
             ${linkedQuote ? `
-              <button onclick="previewQuote('${linkedQuote.id}')" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Visualizar cotización</button>
+              <button onclick="previewQuote('${linkedQuote.id}')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200">Visualizar cotización</button>
               <button onclick="editQuote('${linkedQuote.id}')" class="px-4 py-2 rounded-xl bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-50">Editar cotización</button>
             ` : `
               <span class="text-sm text-slate-500">No hay cotización para visualizar.</span>
@@ -4816,7 +5153,7 @@ async function renderTrash(){
   }
   tbody.innerHTML = recycleBinItems.map(item => `
     <tr class="border-t hover:bg-gray-50">
-      <td class="p-4">${getRecycleBadge(item)}</td>
+      <td class="p-3">${getRecycleBadge(item)}</td>
       <td class="p-4">${escapeHtml(getRecycleDisplayName(item))}</td>
       <td class="p-4">${escapeHtml(item.deleted_by_name || 'Usuario')}</td>
       <td class="p-4">${escapeHtml(formatDDMMYY(item.deleted_at || ''))}</td>
@@ -6180,40 +6517,21 @@ function getQuoteListReference(q) {
     return s;
   };
 
-  const tipo = clean(typeof getQuoteServiceType === 'function' ? getQuoteServiceType(q) : (q.tipo_servicio || q.data?.tipo_servicio || ''));
-
-  const itemRef = Array.isArray(q.items)
-    ? q.items
-        .map(it => clean(it?.descripcion || it?.detalle || it?.nombre || it?.item || it?.equipo || it?.tipo || ''))
-        .find(Boolean) || ''
-    : '';
-
-  const equipo =
-    itemRef ||
-    clean(q.equipo) ||
-    clean(q.data?.equipo) ||
+  const obra =
     clean(q.obra) ||
-    clean(q.descripcion) ||
     clean(q.data?.obra) ||
+    clean(q.descripcion) ||
     clean(q.data?.descripcion) ||
-    clean(q.data?.descripcion_trabajo);
+    clean(q.data?.descripcion_trabajo) ||
+    (Array.isArray(q.items)
+      ? q.items
+          .map(it => clean(it?.descripcion || it?.detalle || it?.nombre || it?.item || ''))
+          .find(Boolean) || ''
+      : '');
 
-  const sucursal =
-    clean(q.sucursal) ||
-    clean(q.data?.sucursal) ||
-    clean(q.nombreSucursal) ||
-    clean(q.data?.nombreSucursal) ||
-    clean(q.direccion) ||
-    clean(q.data?.direccion);
-
-  const parts = [];
-  if (tipo) parts.push(tipo);
-  if (equipo && !parts.some(p => p.toLowerCase() === equipo.toLowerCase())) parts.push(equipo);
-  if (sucursal && !parts.some(p => p.toLowerCase() === sucursal.toLowerCase())) parts.push(sucursal);
-
-  let ref = parts.filter(Boolean).join(' · ');
+  let ref = obra || '';
   if (!ref) return '';
-  if (ref.length > 120) ref = ref.slice(0, 117).trimEnd() + '...';
+  if (ref.length > 140) ref = ref.slice(0, 137).trimEnd() + '...';
   return ref;
 }
 window.getQuoteListReference = getQuoteListReference;
@@ -6430,6 +6748,45 @@ window.renderQuotes = renderQuotes;
       return sucursal ? `${empresa} - ${sucursal}` : empresa;
     }
 
+
+    function getMaintenanceLinkDataFromOT(ot){
+      const data = ot?.data || {};
+      return {
+        programId: String(data.maintenanceProgramId || data.maintenance_program_id || data.programaMantencionId || data.program_id || '').trim(),
+        month: Number(data.maintenanceMonth || data.maintenance_month || data.programMonth || 0),
+        year: Number(data.maintenanceYear || data.maintenance_year || data.programYear || 0)
+      };
+    }
+
+    function getMaintenanceLinkedOT(programId, month, year){
+      const pid = String(programId || '').trim();
+      const mm = Number(month || 0);
+      const yy = Number(year || maintenanceProgramYear || new Date().getFullYear());
+      if(!pid || !mm) return null;
+      return (ots || []).find(ot => {
+        const link = getMaintenanceLinkDataFromOT(ot);
+        return String(link.programId) === pid && Number(link.month) === mm && Number(link.year || yy) === yy;
+      }) || null;
+    }
+
+    function getSuggestedMaintenanceMonthForOT(program){
+      const dueMonths = getMaintenanceDueMonths(program || {});
+      if(!dueMonths.length) return 1;
+      const year = Number(program?.programYear || maintenanceProgramYear || new Date().getFullYear());
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+
+      const pendingWithoutOT = dueMonths.filter(m => !isMaintenanceCompletedInMonth(program, m) && !getMaintenanceLinkedOT(program?.id, m, year));
+      if(year === currentYear){
+        const currentOrFuture = pendingWithoutOT.find(m => m >= currentMonth);
+        if(currentOrFuture) return currentOrFuture;
+        const overdue = pendingWithoutOT[pendingWithoutOT.length - 1];
+        if(overdue) return overdue;
+      }
+      return pendingWithoutOT[0] || dueMonths[0];
+    }
+
     function normalizeMaintenancePrograms(){
       if(!Array.isArray(maintenancePrograms)) maintenancePrograms = [];
       maintenancePrograms = maintenancePrograms.map(p => ({
@@ -6637,13 +6994,13 @@ window.renderQuotes = renderQuotes;
                   <i class="fas ${String(p.status) === 'vigente' ? 'fa-pause' : 'fa-play'}"></i>
                 </button>
                 <button
-                  onclick="sendMaintenanceMonthToCalendar('${p.id}', ${Math.min(...dueMonths)})"
+                  onclick="sendMaintenanceMonthToCalendar('${p.id}', ${getSuggestedMaintenanceMonthForOT(p)})"
                   title="Calendario"
                   class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
                   <i class="fas fa-calendar-days"></i>
                 </button>
                 <button
-                  onclick="createOTFromMaintenance('${p.id}', ${Math.min(...dueMonths)})"
+                  onclick="createOTFromMaintenance('${p.id}', ${getSuggestedMaintenanceMonthForOT(p)})"
                   title="Crear OT"
                   class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
                   <i class="fas fa-screwdriver-wrench"></i>
@@ -6659,12 +7016,17 @@ window.renderQuotes = renderQuotes;
             ${Array.from({length:12}, (_,i) => i+1).map(month => {
               const state = getMaintenanceCellState(p, month);
               const isDue = dueMonths.includes(month);
-              const label = state === 'done' ? '<i class="fas fa-check"></i>' : (state === 'overdue' ? '!' : '<i class="fas fa-ellipsis text-xs"></i>');
+              const linkedOT = getMaintenanceLinkedOT(p.id, month, p.programYear);
+              const label = state === 'done'
+                ? '<i class="fas fa-check"></i>'
+                : (linkedOT ? '<i class="fas fa-screwdriver-wrench text-xs"></i>' : (state === 'overdue' ? '!' : '<i class="fas fa-ellipsis text-xs"></i>'));
               const title = !isDue
                 ? 'No aplica'
                 : (state === 'done'
                     ? `Realizada en ${getMaintenanceMonthName(month)}`
-                    : `Clic para ver opciones de ${getMaintenanceMonthName(month)}`);
+                    : (linkedOT
+                        ? `OT ${linkedOT.numeroOT || linkedOT.numero_ot || ''} vinculada a ${getMaintenanceMonthName(month)}`
+                        : `Clic para ver opciones de ${getMaintenanceMonthName(month)}`));
               return `
                 <td class="p-2">
                   <button
@@ -6835,28 +7197,43 @@ window.renderQuotes = renderQuotes;
           return;
         }
 
+        const linkedOT = getMaintenanceLinkedOT(program.id, month, program.programYear);
+        if(linkedOT){
+          toastInfo(`Ya existe la OT ${linkedOT.numeroOT || linkedOT.numero_ot || ''} para ${getMaintenanceMonthName(month)}.`);
+          if(typeof previewOT === 'function') previewOT(linkedOT.id);
+          return;
+        }
+
         const payload = getMaintenanceProgramMonthPayload(program, month);
-        const cliente = (clients || []).find(c => String(c.id) === String(program.clientId || ''));
+        pendingMaintenanceToLinkOT = {
+          programId: String(program.id || ''),
+          month: Number(month),
+          year: Number(program.programYear || maintenanceProgramYear || new Date().getFullYear()),
+          title: payload.title,
+          notes: payload.notes,
+          serviceType: program.serviceType || 'Mantención preventiva',
+          siteName: program.siteName || '',
+          clientId: program.clientId || '',
+          clientName: program.clientName || ''
+        };
+
+        const otPrefill = {
+          clientId: program.clientId || '',
+          clientName: program.clientName || '',
+          descripcion: payload.title,
+          fecha: todayISO(),
+          maintenanceProgramId: program.id,
+          maintenanceMonth: Number(month),
+          maintenanceYear: Number(program.programYear || maintenanceProgramYear || new Date().getFullYear())
+        };
 
         if(typeof showNewOTManualModal === 'function'){
-          showNewOTManualModal({
-            clientId: program.clientId || '',
-            clientName: program.clientName || '',
-            descripcion: payload.title,
-            notes: payload.notes,
-            responsable: program.responsible || ''
-          });
+          showNewOTManualModal(otPrefill);
           return;
         }
 
         if(typeof showNewOTModal === 'function'){
-          showNewOTModal({
-            clientId: program.clientId || '',
-            clientName: program.clientName || '',
-            descripcion: payload.title,
-            notes: payload.notes,
-            responsable: program.responsible || ''
-          });
+          showNewOTModal(otPrefill);
           return;
         }
 
@@ -6873,6 +7250,8 @@ window.renderQuotes = renderQuotes;
       const monthLabel = getMaintenanceMonthName(month);
       const isDone = isMaintenanceCompletedInMonth(program, month);
       const history = getMaintenanceHistoryForMonth(program, month);
+      const linkedOT = getMaintenanceLinkedOT(program.id, month, program.programYear);
+      const paymentState = linkedOT ? getPagoEstadoBadge(linkedOT.pago_estado || linkedOT.cobro_estado || 'pendiente_facturar') : '';
 
       openModal(`
         <div class="p-6 sm:p-8">
@@ -6883,6 +7262,13 @@ window.renderQuotes = renderQuotes;
             </div>
             <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
           </div>
+
+          ${linkedOT ? `
+            <div class="mb-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
+              <div class="font-semibold">OT vinculada a este mes</div>
+              <div class="mt-1">OT ${escapeHtml(String(linkedOT.numeroOT || linkedOT.numero_ot || '—'))} · ${escapeHtml(linkedOT.estado || 'pendiente')}</div>
+              <div class="mt-2 flex flex-wrap items-center gap-2">${paymentState}</div>
+            </div>` : ``}
 
           ${history ? `
             <div class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
@@ -6899,9 +7285,9 @@ window.renderQuotes = renderQuotes;
             <button onclick="sendMaintenanceMonthToCalendar('${program.id}', ${month}); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
               <i class="fas fa-calendar-days mr-2 text-blue-600"></i>Enviar al calendario
             </button>
-            <button onclick="createOTFromMaintenance('${program.id}', ${month}); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
-              <i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde este mes
-            </button>
+            ${linkedOT
+              ? `<button onclick="previewOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-eye mr-2 text-slate-700"></i>Abrir OT vinculada</button>`
+              : `<button onclick="createOTFromMaintenance('${program.id}', ${month}); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde este mes</button>`}
           </div>
         </div>
       `);
@@ -6962,6 +7348,7 @@ window.renderQuotes = renderQuotes;
       const program = getMaintenanceProgramById(programId);
       if(!program) return;
       const existing = getMaintenanceHistoryForMonth(program, month);
+      const linkedOT = getMaintenanceLinkedOT(program.id, month, program.programYear);
       const monthLabel = getMaintenanceMonthName(month);
 
       openModal(`
@@ -6981,7 +7368,7 @@ window.renderQuotes = renderQuotes;
             </div>
             <div>
               <label class="block text-sm font-semibold text-slate-700 mb-2">OT asociada</label>
-              <input id="maintDoneOT" type="text" value="${escapeHtml(existing?.otNumber || '')}" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: OT 2886">
+              <input id="maintDoneOT" type="text" value="${escapeHtml(existing?.otNumber || linkedOT?.numeroOT || linkedOT?.numero_ot || '')}" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: OT 2886">
             </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-semibold text-slate-700 mb-2">Observación</label>
@@ -8856,7 +9243,7 @@ function renderClients() {
 
   filtered.forEach(client => {
     const tr = document.createElement('tr'); 
-    tr.className = 'border-t hover:bg-gray-50';
+    tr.className = 'ot-main-row border-t hover:bg-gray-50';
     tr.innerHTML = `
       <td class="p-4">${escapeHtml(client.rut || '')}</td>
       <td class="p-4 font-medium">${escapeHtml(client.name || '—')}</td>
@@ -10996,6 +11383,23 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
         }
       } catch(e) { console.warn('No se pudo aplicar prefill OT', e); }
 
+      try {
+        const maintenanceLink = pendingMaintenanceToLinkOT;
+        if (maintenanceLink) {
+          const box = document.createElement('div');
+          box.className = 'mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm';
+          box.innerHTML = `<div class="font-bold text-violet-900 mb-1">OT vinculada a programa de mantención</div>
+                           <div class="text-violet-800">${escapeHtml(maintenanceLink.clientName || 'Cliente')} · ${escapeHtml(getMaintenanceMonthName(maintenanceLink.month))} ${escapeHtml(String(maintenanceLink.year || ''))}</div>
+                           <div class="text-violet-700 text-xs mt-1">Esta OT quedará enlazada al programa y no permitirá duplicados para ese mismo mes.</div>`;
+          const modalRoot = document.getElementById('modalContent');
+          const container = modalRoot ? modalRoot.querySelector('.p-8') : null;
+          const heading = container ? container.querySelector('h2') : null;
+          if (container && heading) {
+            container.insertBefore(box, heading.nextSibling);
+          }
+        }
+      } catch(e) { console.warn('No se pudo pintar banner de mantención', e); }
+
       try{ bindFolioToggles(); }catch(e){}
       try{ syncNewOTManualAmounts('neto'); }catch(e){}
       try{ toggleNewOTManualAmountFields(); }catch(e){}
@@ -11018,6 +11422,17 @@ window.showNewOTModal = function(prefill = {}) {
       const numeroOT = document.getElementById('mOtNum').value.trim();
       const desc = document.getElementById('mOtDesc').value.trim();
       const linkedQuote = pendingQuoteToLinkOT ? (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT)) : null;
+      const linkedMaintenance = pendingMaintenanceToLinkOT ? Object.assign({}, pendingMaintenanceToLinkOT) : null;
+      if(linkedMaintenance){
+        const existingMaintenanceOT = getMaintenanceLinkedOT(linkedMaintenance.programId, linkedMaintenance.month, linkedMaintenance.year);
+        if(existingMaintenanceOT){
+          if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
+          closeModal();
+          toastInfo(`Ya existe la OT ${existingMaintenanceOT.numeroOT || existingMaintenanceOT.numero_ot || ''} para esa mantención.`);
+          if(typeof previewOT === 'function') previewOT(existingMaintenanceOT.id);
+          return;
+        }
+      }
       const manualFin = {
         neto: otMoneyToNumber(document.getElementById('mOtNeto')?.value || 0),
         iva: otMoneyToNumber(document.getElementById('mOtIva')?.value || 0),
@@ -11094,7 +11509,16 @@ window.showNewOTModal = function(prefill = {}) {
           attachments: otAttachments,
           abonos: [],
           createdBy: currentUserDisplayName || 'Admin',
-          fecha: document.getElementById('mOtFecha')?.value || todayISO()
+          fecha: document.getElementById('mOtFecha')?.value || todayISO(),
+          maintenanceProgramId: linkedMaintenance?.programId || '',
+          maintenance_program_id: linkedMaintenance?.programId || '',
+          maintenanceMonth: Number(linkedMaintenance?.month || 0),
+          maintenance_month: Number(linkedMaintenance?.month || 0),
+          maintenanceYear: Number(linkedMaintenance?.year || 0),
+          maintenance_year: Number(linkedMaintenance?.year || 0),
+          maintenanceProgramTitle: linkedMaintenance?.title || '',
+          maintenanceServiceType: linkedMaintenance?.serviceType || '',
+          maintenanceSiteName: linkedMaintenance?.siteName || ''
         }
       };
 
@@ -11140,9 +11564,21 @@ window.showNewOTModal = function(prefill = {}) {
       await loadData();
       try { renderOTs(); } catch(e){}
       try { renderQuotes(); } catch(e){}
+      try { renderMaintenancePrograms(); } catch(e){}
+      try {
+        if(linkedMaintenance && typeof appendEntityHistory === 'function'){
+          await appendEntityHistory('ots', inserted?.id, {
+            type:'maintenance_link',
+            title:'OT vinculada a programa de mantención',
+            detail:`Programa: ${linkedMaintenance.clientName || client.name || 'Cliente'}
+Mes: ${getMaintenanceMonthName(linkedMaintenance.month)} ${linkedMaintenance.year || ''}`
+          });
+        }
+      } catch(e) { console.warn('No se pudo registrar historial de mantención en OT', e); }
       pendingQuoteToLinkOT = null;
+      pendingMaintenanceToLinkOT = null;
       closeModal();
-      toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
+      toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}` + (linkedMaintenance ? ' · vinculada a mantención' : ''));
     }
 
     async function convertToOT(quoteId) {
@@ -13235,7 +13671,7 @@ async function setVisitaEstado(id, estado) {
         const resumen = detalle.length > 60 ? detalle.slice(0, 60) + '…' : detalle;
 
         const tr = document.createElement('tr');
-        tr.className = 'border-t hover:bg-gray-50';
+        tr.className = 'ot-main-row border-t hover:bg-gray-50';
         tr.innerHTML = `
           <td class="p-4 whitespace-nowrap">${r.fecha || ''}</td>
           <td class="p-4 font-medium">${escapeHtml(r.nombre || '')}</td>
@@ -14559,7 +14995,7 @@ function otMatchesSearch(o){
 }
 
 function makeOTEmptyRow(msg){
-  return `<tr class="border-t"><td colspan="13" class="p-8 text-center text-slate-500">${msg}</td></tr>`;
+  return `<tr class="border-t"><td colspan="6" class="p-8 text-center text-slate-500">${msg}</td></tr>`;
 }
 
 let quotesVisibleCount = 10;
@@ -14568,6 +15004,92 @@ function loadMoreQuotes(){
   renderQuotes();
 }
 
+
+function getOTListReference(o){
+  const linkedQuote = (window.quotes || []).find(q => String(q.id || '') === String(o?.quoteId || o?.quote_id || o?.data?.quoteId || o?.data?.quote_id || ''));
+  const raw = [
+    safeText(o?.descripcion),
+    safeText(o?.data?.descripcion),
+    safeText(linkedQuote?.obra),
+    safeText(linkedQuote?.descripcion),
+    safeText(o?.sucursal),
+    safeText(o?.direccion)
+  ].find(Boolean) || '';
+
+  return String(raw || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[•\-–—\s]+/, '')
+    .trim()
+    .slice(0, 140);
+}
+
+function otClientCellHTML(o){
+  const rawName = safeText(o?.clientName) || '—';
+  const name = escapeHtml(rawName);
+  return `
+    <div class="min-w-0 max-w-full">
+      <div class="ot-client-name" title="${escapeHtml(rawName)}">${name}</div>
+    </div>`;
+}
+
+function getOTCompactDocumentHTML(o){
+  const esc = (v) => (typeof escapeHtml === 'function' ? escapeHtml(v) : String(v));
+  const id = (o && o.id) ? String(o.id) : '';
+  const fac = getFacturaNumeroOT(o);
+  const docLabel = getDocumentoLabelOT(o);
+  const trabajoCancelado = getEffectiveOTTrabajoEstado(o) === 'cancelada' || normalizeOTCobroEstado(o) === 'cancelada';
+  if(trabajoCancelado){
+    return `<span class="ot-doc-chip ot-doc-chip--cancelled" title="OT cancelada"><i class="fa-solid fa-ban"></i><span class="ot-doc-chip-text">Cancelada</span></span>`;
+  }
+  if(!fac){
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-chip ot-doc-chip--empty" title="Registrar documento"><i class="fa-solid fa-file-invoice"></i><span class="ot-doc-chip-text">Sin documento</span></button>`;
+  }
+  const label = `${esc(docLabel)} ${esc(fac)}`;
+  if(isOTPagada(o)){
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-chip ot-doc-chip--paid" title="${esc(docLabel)} N° ${esc(fac)} pagada"><i class="fa-solid fa-circle-check"></i><span class="ot-doc-chip-text">${label}</span></button>`;
+  }
+  return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-chip ot-doc-chip--pending" title="${esc(docLabel)} N° ${esc(fac)} · Pendiente de pago"><i class="fa-solid fa-receipt"></i><span class="ot-doc-chip-text">${label}</span></button>`;
+}
+
+function getOTReferenceStackHTML(o){
+  const esc = (v) => escapeHtml(safeText(v || '—'));
+  return `
+    <div class="ot-ref-stack">
+      <div class="ot-ref-item"><span class="ot-ref-label">OC:</span><span class="ot-ref-value" title="${esc(o?.oc || '—')}">${esc(o?.oc || '—')}</span></div>
+      <div class="ot-ref-item"><span class="ot-ref-label">HES:</span><span class="ot-ref-value" title="${esc(o?.hes || '—')}">${esc(o?.hes || '—')}</span></div>
+      <div class="ot-ref-item"><span class="ot-ref-label">Guía:</span><span class="ot-ref-value" title="${esc(o?.guia_despacho || '—')}">${esc(o?.guia_despacho || '—')}</span></div>
+    </div>`;
+}
+
+function getOTCobroMiniHTML(o){
+  const s = normalizeOTCobroEstado(o);
+  if(s === 'cancelada') return '<span class="ot-cobro-mini ot-cobro-mini--cancelled">Cancelada</span>';
+  if(s === 'pendiente_facturar') return '<span class="ot-cobro-mini ot-cobro-mini--empty">Sin documento</span>';
+  if(s === 'pendiente_pago') return '<span class="ot-cobro-mini ot-cobro-mini--pending">Pendiente de pago</span>';
+  if(s === 'pagado') return '<span class="ot-cobro-mini ot-cobro-mini--paid">Pagada</span>';
+  return '<span class="ot-cobro-mini ot-cobro-mini--empty">—</span>';
+}
+
+function getOTSecondaryLine(o){
+  const parts = [];
+  const ref = safeText(getOTListReference(o) || '');
+  if(ref) parts.push(ref);
+  if(o?.numeroCotizacion) parts.push(`Cot: ${safeText(o.numeroCotizacion)}`);
+  return parts.join(' · ').trim();
+}
+
+function otWideDescriptionRowHTML(o){
+  const refRaw = safeText(getOTSecondaryLine(o) || '');
+  if(!refRaw) return '';
+  const ref = escapeHtml(refRaw);
+  return `
+    <tr class="ot-detail-row bg-white">
+      <td class="ot-detail-spacer"></td>
+      <td class="ot-detail-spacer"></td>
+      <td colspan="4"><div class="ot-detail-band" title="${ref}">${ref}</div></td>
+      <td class="ot-detail-actions"></td>
+    </tr>`;
+}
 
 function renderOTs() {
   const tbodyActive = document.getElementById('otsActiveTable');
@@ -14592,50 +15114,36 @@ function renderOTs() {
   const closedRows = [];
 
   ordered.forEach(o => {
-    const btnPDF = `<div class="flex items-center justify-center gap-3"><button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900" title="Previsualizar OT"><i class="fa-solid fa-eye text-lg"></i></button><button onclick="generateOTPDF('${o.id}')" class="text-brand hover:opacity-80" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button></div>`;
-    const btnEdit = `<button onclick="editOT('${o.id}')" class="text-brand hover:opacity-80" title="Editar OT"><i class="fa-solid fa-pen-to-square text-lg"></i></button>`;
+    const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT"><i class="fa-solid fa-eye text-lg"></i></button>`;
+    const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
+    const groupId = `ot-${String(o.id || '')}`;
     const tr = document.createElement('tr');
-    tr.className = 'border-t hover:bg-gray-50';
+    tr.className = 'ot-main-row border-t hover:bg-gray-50';
+    tr.setAttribute('data-page-group', groupId);
     tr.innerHTML = `
-      <td class="p-4">${formatDDMMYY(getPreferredOTDate(o))}</td>
-      <td class="p-4">${o.numeroCotizacion || '-'}</td>
-      <td class="p-4 font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
-      <td class="p-4">${o.clientName || '-'}</td>
-      <td class="p-4 text-center">
-        <button onclick="showOTDescripcion('${o.id}')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200" title="Ver detalle (obra + ítems)">
-          <i class="fa-solid fa-align-left text-slate-700"></i>
-        </button>
-      </td>
-      <td class="p-4">${o.oc || '-'}</td>
-      <td class="p-4">${o.hes || '-'}</td>
-      <td class="p-4">${o.guia_despacho || '-'}</td>
-      <td class="p-4">${formatShortName(o.createdByName || o.createdByEmail || '')}</td>
-      <td class="p-4">${badgeOTTrabajoEstado(o)}</td>
-      <td class="p-4">${badgeOTCobro(o)}</td>
-      <td class="p-4 text-center">${btnPDF}</td>
-      <td class="p-4">
-        <div class="flex items-center justify-end gap-3">
-          <button onclick="programCalendarFromOT('${o.id}')" class="text-indigo-600 hover:text-indigo-800" title="Programar en calendario">
-            <i class="fa-solid fa-calendar-plus text-lg"></i>
-          </button>
-          <button onclick="(() => { const rep = getLatestReportForOT('${o.id}'); if(rep) previewReport(rep.id); else showNewReportModal({ otId:'${o.id}' }); })()" class="text-cyan-700 hover:text-cyan-900" title="Crear o ver informe">
-            <i class="fa-solid fa-file-lines text-lg"></i>
-          </button>
-          <button onclick="openOTLibro('${o.id}')" class="text-slate-600 hover:text-slate-900" title="Bitácora (Documento / Envío / Pago)">
-            <i class="fa-solid fa-book-open text-lg"></i>
-          </button>
-          ${btnEdit}
-        </div>
-      </td>
+      <td class="p-3 text-sm">${formatDDMMYY(getPreferredOTDate(o))}</td>
+      <td class="p-3 text-sm font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
+      <td class="p-3 text-sm">${otClientCellHTML(o)}</td>
+      <td class="p-3 text-sm">${getOTReferenceStackHTML(o)}</td>
+      <td class="p-3 text-sm text-center"><div class="ot-state-stack">${badgeOTTrabajoEstado(o)}${getOTCobroMiniHTML(o)}</div></td>
+      <td class="p-3 text-sm text-center"><div class="ot-doc-cell">${getOTCompactDocumentHTML(o)}</div></td>
+      <td class="p-3 text-center"><div class="ot-actions-bar">${btnView}${btnMore}</div></td>
     `;
+
+    const descHtml = otWideDescriptionRowHTML(o);
+    const detalle = descHtml ? (() => {
+      const tmp = document.createElement('tbody');
+      tmp.innerHTML = descHtml.trim();
+      const row = tmp.firstElementChild;
+      if(row) row.setAttribute('data-page-group', groupId);
+      return row;
+    })() : null;
 
     const trabajoCerrado = ['realizada','finalizada','cancelada'].includes(getEffectiveOTTrabajoEstado(o));
     const pagada = isOTPagada(o);
-    if (trabajoCerrado && pagada) {
-      closedRows.push(tr);
-    } else {
-      activeRows.push(tr);
-    }
+    const targetRows = (trabajoCerrado && pagada) ? closedRows : activeRows;
+    targetRows.push(tr);
+    if(detalle) targetRows.push(detalle);
   });
 
   if (!activeRows.length) {
@@ -14657,6 +15165,35 @@ function renderOTs() {
   }, 0);
 
 }
+
+function showOTMoreOptions(otId){
+  const o = (window.ots || []).find(x => String(x.id) === String(otId));
+  if(!o){ alert('No se encontró la OT.'); return; }
+  const report = (typeof getLatestReportForOT === 'function') ? getLatestReportForOT(otId) : null;
+  const reportLabel = report ? 'Ver informe' : 'Crear informe';
+  const reportAction = report ? `previewReport('${report.id}'); closeModal();` : `showNewReportModal({ otId:'${otId}' }); closeModal();`;
+
+  openModal(`
+    <div class="p-6 sm:p-7">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-black">Opciones de OT</h2>
+          <p class="text-sm text-gray-500 mt-1">OT ${escapeHtml(String(o.numero_ot || o.numeroOT || 'S/N'))} · ${escapeHtml(safeText(o.clientName) || 'Cliente')}</p>
+        </div>
+        <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3">
+        <button onclick="previewOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-regular fa-eye mr-2 text-sky-700"></i> Ver OT</button>
+        <button onclick="generateOTPDF('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF</button>
+        <button onclick="editOT('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar OT</button>
+        <button onclick="programCalendarFromOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-calendar-plus mr-2 text-indigo-700"></i> Programar en calendario</button>
+        <button onclick="${reportAction}" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-lines mr-2 text-cyan-700"></i> ${reportLabel}</button>
+        <button onclick="openOTLibro('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-book-open mr-2 text-slate-700"></i> Bitácora de documento / envío / pago</button>
+      </div>
+    </div>`);
+}
+window.showOTMoreOptions = showOTMoreOptions;
 
 // Crear cotización desde una OT manual (vincula quote_id al guardar)
 function createQuoteFromOT(otId){
@@ -14788,6 +15325,7 @@ function openEditOT(otId){
 
       </div>
       <div class="flex flex-wrap gap-4 pt-6">
+        <button type="button" onclick="deleteOT('${otId}', { fromEdit: true })" class="md:w-auto bg-rose-50 text-rose-700 py-3 px-5 rounded-xl font-bold border border-rose-200 hover:bg-rose-100">Eliminar OT</button>
         <button type="button" onclick="programCalendarFromOT('${otId}')" class="flex-1 min-w-[180px] bg-indigo-50 text-indigo-700 py-3 rounded-xl font-bold border border-indigo-200 hover:bg-indigo-100">Programar en calendario</button>
         <button type="button" onclick="previewOT('${otId}')" class="flex-1 min-w-[180px] bg-slate-100 text-slate-700 py-3 rounded-xl font-bold">Previsualizar</button>
         <button onclick="saveEditOT('${otId}', this)" class="flex-1 min-w-[180px] bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button>
@@ -14937,6 +15475,69 @@ window.editOT = function(otId){
         alert('No se pudo generar el PDF de trabajos realizados por mes. Revisa la consola (F12).');
       }
     }
+
+async function deleteOT(otId, opts = {}){
+  try{
+    const ot = (ots || []).find(x => String(x.id) === String(otId));
+    if(!ot){
+      alert('No se encontró la OT.');
+      return;
+    }
+
+    const linkedReports = (reports || []).filter(r => String(r.otId || r.ot_id || r.data?.otId || r.data?.ot_id || '') === String(otId));
+    if(linkedReports.length){
+      alert('No puedes eliminar esta OT porque tiene informe(s) vinculados. Primero elimina o desvincula el informe asociado.');
+      return;
+    }
+
+    const abonos = (typeof getOTAbonos === 'function') ? getOTAbonos(ot) : (Array.isArray(ot?.data?.abonos) ? ot.data.abonos : []);
+    const calendarRefs = (Array.isArray(calendarEvents) ? calendarEvents : []).filter(ev => String(ev?.otId || '') === String(otId));
+
+    const folio = ot.numeroOT || ot.numero_ot || 'S/N';
+    const cliente = ot.clientName || ot.razonSocial || 'cliente';
+
+    let msg = `¿Enviar a papelera la OT ${folio} de ${cliente}?`;
+    if(abonos.length){
+      msg += `\n\nEsta OT tiene ${abonos.length} abono(s) registrado(s), que también dejarán de verse al eliminar la OT.`;
+    }
+    if(calendarRefs.length){
+      msg += `\nTambién hay ${calendarRefs.length} evento(s) de calendario relacionados que seguirán existiendo por separado.`;
+    }
+
+    if(!confirm(msg)) return;
+
+    try{
+      if(typeof window.moveRecordToRecycleBin === 'function'){
+        await window.moveRecordToRecycleBin({
+          entityType: 'ot',
+          sourceTable: 'ots',
+          recordId: ot.id,
+          payload: window.sanitizeRecyclePayload ? window.sanitizeRecyclePayload({ entity_type: 'ot', payload: ot }) : { entity_type: 'ot', payload: ot },
+          displayName: `OT ${folio} · ${cliente}`
+        });
+      }
+    }catch(recycleErr){
+      console.warn('No se pudo enviar OT a papelera, se intentará eliminar igual.', recycleErr);
+    }
+
+    const { error } = await supabaseClient.from('ots').delete().eq('id', otId);
+    if(error) throw error;
+
+    if(opts && opts.fromEdit){
+      try{ closeModal(); }catch(e){}
+    }
+
+    await loadData();
+    try{ renderOTs(); }catch(e){}
+    try{ renderMaintenancePrograms(); }catch(e){}
+    try{ renderTrash(); }catch(e){}
+    toastInfo('OT enviada a papelera ✅');
+  }catch(err){
+    console.error('deleteOT error:', err);
+    alert('Error al enviar OT a papelera: ' + (err?.message || err));
+  }
+}
+
 
 async function saveEditOT(otId, btn){
   try{
@@ -15399,7 +16000,7 @@ function openModal(html) {
   content.scrollTop = 0;
 }
 
-function closeModal() { try{ pendingQuoteToLinkOT = null; }catch(e){} document.getElementById('modal').classList.add('hidden'); }
+function closeModal() { try{ pendingQuoteToLinkOT = null; }catch(e){} try{ pendingMaintenanceToLinkOT = null; }catch(e){} document.getElementById('modal').classList.add('hidden'); }
 
     setTimeout(() => { if(!currentUser) document.getElementById('loginScreen').classList.remove('hidden'); }, 500);
    function actualizarDashboardInteligente() {
@@ -15959,15 +16560,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbody = document.getElementById(tbodyId);
     if(!tbody) return {page:1, total:1, totalItems:0, from:0, to:0};
     const rows = Array.from(tbody.children).filter(el => el && el.tagName === 'TR');
-    const totalItems = rows.length;
+    const groups = [];
+    const seen = new Set();
+
+    rows.forEach((tr, i) => {
+      const gid = tr.getAttribute('data-page-group');
+      if(!gid){
+        groups.push({ key:`row-${i}`, rows:[tr] });
+        return;
+      }
+      if(seen.has(gid)){
+        const g = groups.find(x => x.key === gid);
+        if(g) g.rows.push(tr);
+        return;
+      }
+      seen.add(gid);
+      groups.push({ key:gid, rows:[tr] });
+    });
+
+    const totalItems = groups.length;
     const pageSize = PAGE_SIZES[tbodyId] || 30;
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
     const p = clamp(page, 1, totalPages);
     const start = (p - 1) * pageSize;
     const end = start + pageSize;
-    rows.forEach((tr, i) => {
-      tr.style.display = (i >= start && i < end) ? '' : 'none';
+
+    groups.forEach((group, i) => {
+      const visible = (i >= start && i < end);
+      group.rows.forEach(tr => { tr.style.display = visible ? '' : 'none'; });
     });
+
     const from = totalItems === 0 ? 0 : (start + 1);
     const to = totalItems === 0 ? 0 : Math.min(end, totalItems);
     return {page:p, total:totalPages, totalItems, from, to};
@@ -16405,10 +17027,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function quoteActionsHTML(q, bucket){
     const st = window.getQuoteNormalizedState(q);
+    const viewBtn = `<button onclick="previewQuote('${q.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver cotización"><i class="fa-solid fa-eye text-lg"></i></button>`;
     if(bucket === 'aceptada'){
       const hasOT = typeof quoteHasLinkedOT === 'function' ? quoteHasLinkedOT(q) : false;
       return `
         <div class="flex items-center justify-center gap-3 flex-wrap">
+          ${viewBtn}
           ${hasOT
             ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>`
             : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
@@ -16416,10 +17040,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
     }
     if(bucket === 'rechazada' || bucket === 'historica'){
-      return `<div class="flex items-center justify-center gap-5"><button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button></div>`;
+      return `<div class="flex items-center justify-center gap-5">${viewBtn}<button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button></div>`;
     }
     return `
       <div class="flex items-center justify-center gap-5">
+        ${viewBtn}
         <button onclick="acceptQuote('${q.id}')" class="text-green-600 hover:text-green-800" title="Aceptar"><i class="fas fa-check text-2xl"></i></button>
         <button onclick="rejectQuote('${q.id}')" class="text-red-600 hover:text-red-800" title="Rechazar"><i class="fas fa-times text-2xl"></i></button>
         <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fas fa-ellipsis-v text-2xl"></i></button>
@@ -16691,6 +17316,7 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
         </div>
 
         <div class="grid grid-cols-1 gap-3">
+          <button onclick="previewQuote('${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-eye mr-2 text-slate-700"></i> Ver cotización</button>
           <button onclick="editQuote('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar cotización</button>
           <button onclick="generateQuotePDF('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF</button>
           ${['aceptada'].includes(qState) && !quoteHasLinkedOT(q) ? `<button onclick="showNewOTFromQuoteModal('${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-screwdriver-wrench mr-2 text-emerald-700"></i> Crear OT</button>` : ``}
@@ -16904,6 +17530,1787 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
     </div>
   </div>
 
+
+
+<script>
+(function(){
+  const CRM_HISTORY_KEY = 'crm_history';
+
+  function crmEsc(v){
+    if(typeof window.escapeHtml === 'function') return window.escapeHtml(v == null ? '' : String(v));
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function crmUser(){
+    return window.currentUserDisplayName || window.currentUser?.email || 'Usuario';
+  }
+  function crmNowISO(){ return new Date().toISOString(); }
+  function crmTodayISO(){ return new Date().toISOString().slice(0,10); }
+  function crmFmtDate(v){
+    try{ return typeof formatDDMMYY === 'function' ? formatDDMMYY(v) : String(v || ''); }catch(e){ return String(v || ''); }
+  }
+  function crmNormalizeKey(v){
+    return String(v || '').trim().toUpperCase().replace(/\s+/g,' ');
+  }
+  function getEntityCollection(table){
+    if(table === 'quotes') return window.quotes || [];
+    if(table === 'ots') return window.ots || [];
+    return [];
+  }
+  function getEntityRecord(table, id){
+    return getEntityCollection(table).find(x => String(x.id) === String(id));
+  }
+  function getQuoteNumber(q){
+    return String(q?.numeroCotizacion || q?.numero || q?.folio || q?.data?.numeroCotizacion || 'S/N').trim();
+  }
+  function getOTNumber(ot){
+    return String(ot?.numero_ot || ot?.numeroOT || ot?.data?.numeroOT || 'S/N').trim();
+  }
+  function getEntityLabel(table, rec){
+    if(!rec) return 'Registro';
+    if(table === 'quotes') return `Cotización ${getQuoteNumber(rec)}`;
+    if(table === 'ots') return `OT ${getOTNumber(rec)}`;
+    return 'Registro';
+  }
+  function getEntityClient(rec){
+    return rec?.clientName || rec?.razonSocial || rec?.nombreCliente || rec?.data?.clientName || rec?.data?.razonSocial || 'Cliente';
+  }
+  function getEntityHistory(table, id){
+    const rec = getEntityRecord(table, id);
+    const data = rec?.data || {};
+    const hist = Array.isArray(data[CRM_HISTORY_KEY]) ? data[CRM_HISTORY_KEY].slice() : [];
+    return hist.sort((a,b) => new Date(b.at || 0) - new Date(a.at || 0));
+  }
+  async function appendEntityHistory(table, id, entry){
+    try{
+      const rec = getEntityRecord(table, id);
+      if(!rec) return false;
+      const nextData = Object.assign({}, rec.data || {});
+      const hist = Array.isArray(nextData[CRM_HISTORY_KEY]) ? nextData[CRM_HISTORY_KEY].slice() : [];
+      const item = {
+        id: 'h_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+        at: crmNowISO(),
+        by: crmUser(),
+        type: entry?.type || 'accion',
+        title: entry?.title || 'Actualización',
+        detail: entry?.detail || '',
+        meta: entry?.meta || {}
+      };
+      hist.push(item);
+      nextData[CRM_HISTORY_KEY] = hist.slice(-120);
+      const { error } = await window.supabaseClient.from(table).update({ data: nextData }).eq('id', id);
+      if(error) throw error;
+      rec.data = nextData;
+      return true;
+    }catch(err){
+      console.error('No se pudo guardar historial', err);
+      return false;
+    }
+  }
+
+  function quoteStateBadgeHTML(q){
+    const s = (typeof window.getQuoteNormalizedState === 'function') ? window.getQuoteNormalizedState(q) : String(q?.estado || 'pendiente').toLowerCase();
+    if(s === 'aceptada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aceptada</span>';
+    if(s === 'rechazada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">Rechazada</span>';
+    if(s === 'vencida') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Vencida</span>';
+    if(s === 'reemplazada') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Reemplazada</span>';
+    return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>';
+  }
+  function otHistorySummaryHTML(ot){
+    const trabajo = typeof window.badgeOTTrabajoEstado === 'function' ? window.badgeOTTrabajoEstado(ot) : '';
+    const cobro = typeof window.getCobranzaBadgeOT === 'function' ? window.getCobranzaBadgeOT(ot) : '';
+    return `<div class="flex flex-wrap gap-2">${trabajo}${cobro}</div>`;
+  }
+
+  window.showCRMHistoryModal = function(table, id){
+    const rec = getEntityRecord(table, id);
+    if(!rec){
+      alert('No se encontró el registro.');
+      return;
+    }
+    const history = getEntityHistory(table, id);
+    const rows = history.length
+      ? history.map(item => `
+          <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div class="font-black text-slate-800">${crmEsc(item.title || 'Actualización')}</div>
+              <div class="text-xs text-slate-500">${crmEsc(crmFmtDate(item.at))}</div>
+            </div>
+            ${item.detail ? `<div class="text-sm text-slate-700 whitespace-pre-wrap">${crmEsc(item.detail)}</div>` : ''}
+            <div class="mt-2 text-xs text-slate-500">Por: ${crmEsc(item.by || 'Usuario')}</div>
+          </div>
+        `).join('')
+      : '<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">Aún no hay historial guardado para este registro.</div>';
+
+    const badgeBlock = table === 'quotes' ? quoteStateBadgeHTML(rec) : otHistorySummaryHTML(rec);
+    const number = table === 'quotes' ? getQuoteNumber(rec) : getOTNumber(rec);
+
+    if(typeof window.openModal === 'function'){
+      window.openModal(`
+        <div class="p-6 sm:p-7 max-h-[85vh] overflow-y-auto">
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900">Historial</h2>
+              <p class="text-sm text-slate-500 mt-1">${crmEsc(getEntityLabel(table, rec))} · ${crmEsc(getEntityClient(rec))}</p>
+            </div>
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button>
+          </div>
+          <div class="mb-5 flex flex-wrap items-center gap-3">
+            <div class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-700 border border-slate-200">${crmEsc(number)}</div>
+            ${badgeBlock}
+          </div>
+          <div class="space-y-3">${rows}</div>
+        </div>
+      `);
+    }
+  };
+
+  function ensureCompactStyles(){
+    if(document.getElementById('crm-package1-style')) return;
+    const style = document.createElement('style');
+    style.id = 'crm-package1-style';
+    style.textContent = `
+      .crm-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:18px 0 24px;}
+      .crm-summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:16px 18px;box-shadow:0 8px 20px rgba(15,23,42,.05);}
+      .crm-summary-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;}
+      .crm-summary-value{font-size:30px;font-weight:900;line-height:1;margin-top:8px;color:#0f172a;}
+      .crm-summary-help{font-size:12px;color:#64748b;margin-top:8px;}
+      .crm-preview-chip-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+      .crm-soft-button{padding:10px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;color:#334155;font-weight:700;}
+      .crm-soft-button:hover{background:#f1f5f9;}
+      .crm-cobranza-warning{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid transparent;}
+      .crm-cobranza-warning--ok{background:#ecfdf5;color:#047857;border-color:#a7f3d0;}
+      .crm-cobranza-warning--mid{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+      .crm-cobranza-warning--late{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function ensureSummaryContainers(){
+    ensureCompactStyles();
+    const quoteView = document.getElementById('view-quotes');
+    if(quoteView && !document.getElementById('quotesSummaryGrid')){
+      const anchor = quoteView.querySelector('.mb-10');
+      const wrap = document.createElement('div');
+      wrap.id = 'quotesSummaryGrid';
+      wrap.className = 'crm-summary-grid';
+      anchor?.parentNode?.insertBefore(wrap, anchor);
+    }
+    const otView = document.getElementById('view-ots');
+    if(otView && !document.getElementById('otsSummaryGrid')){
+      const anchor = otView.querySelector('.mb-10');
+      const wrap = document.createElement('div');
+      wrap.id = 'otsSummaryGrid';
+      wrap.className = 'crm-summary-grid';
+      anchor?.parentNode?.insertBefore(wrap, anchor);
+    }
+    const abonosView = document.getElementById('view-abonos');
+    if(abonosView && !document.getElementById('abonosSummaryGrid')){
+      const searchBlock = abonosView.querySelector('.mb-12');
+      const wrap = document.createElement('div');
+      wrap.id = 'abonosSummaryGrid';
+      wrap.className = 'crm-summary-grid';
+      searchBlock?.parentNode?.insertBefore(wrap, searchBlock);
+    }
+  }
+
+  function cardHTML(label, value, help, tone){
+    const colors = {
+      amber: 'color:#b45309;', emerald: 'color:#047857;', rose:'color:#be123c;', blue:'color:#1d4ed8;', slate:'color:#0f172a;', indigo:'color:#4338ca;'
+    };
+    return `<div class="crm-summary-card"><div class="crm-summary-label">${crmEsc(label)}</div><div class="crm-summary-value" style="${colors[tone]||colors.slate}">${crmEsc(String(value))}</div>${help ? `<div class="crm-summary-help">${crmEsc(help)}</div>` : ''}</div>`;
+  }
+
+  function renderSummaryCards(){
+    ensureSummaryContainers();
+    const qWrap = document.getElementById('quotesSummaryGrid');
+    if(qWrap){
+      const list = window.quotes || [];
+      const pending = list.filter(q => (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState(q) : String(q.estado||'').toLowerCase()) === 'pendiente').length;
+      const accepted = list.filter(q => (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState(q) : String(q.estado||'').toLowerCase()) === 'aceptada').length;
+      const rejected = list.filter(q => (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState(q) : String(q.estado||'').toLowerCase()) === 'rechazada').length;
+      const historic = list.filter(q => ['vencida','reemplazada'].includes(typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState(q) : String(q.estado||'').toLowerCase())).length;
+      qWrap.innerHTML = [
+        cardHTML('Pendientes', pending, 'Cotizaciones por responder', 'amber'),
+        cardHTML('Aceptadas', accepted, 'Listas para pasar a OT', 'emerald'),
+        cardHTML('Rechazadas', rejected, 'No seguir trabajando', 'rose'),
+        cardHTML('Históricas', historic, 'Vencidas o reemplazadas', 'indigo')
+      ].join('');
+    }
+    const otWrap = document.getElementById('otsSummaryGrid');
+    if(otWrap){
+      const list = window.ots || [];
+      const pend = list.filter(o => (typeof window.getEffectiveOTTrabajoEstado === 'function' ? window.getEffectiveOTTrabajoEstado(o) : window.normalizeOTTrabajoEstado(o.estado)) === 'pendiente').length;
+      const curso = list.filter(o => (typeof window.getEffectiveOTTrabajoEstado === 'function' ? window.getEffectiveOTTrabajoEstado(o) : window.normalizeOTTrabajoEstado(o.estado)) === 'en_curso').length;
+      const real = list.filter(o => (typeof window.getEffectiveOTTrabajoEstado === 'function' ? window.getEffectiveOTTrabajoEstado(o) : window.normalizeOTTrabajoEstado(o.estado)) === 'realizada').length;
+      const cancel = list.filter(o => (typeof window.getEffectiveOTTrabajoEstado === 'function' ? window.getEffectiveOTTrabajoEstado(o) : window.normalizeOTTrabajoEstado(o.estado)) === 'cancelada').length;
+      otWrap.innerHTML = [
+        cardHTML('Pendientes', pend, 'Trabajos aún sin iniciar', 'amber'),
+        cardHTML('En curso', curso, 'Trabajos abiertos', 'blue'),
+        cardHTML('Realizadas', real, 'Trabajos terminados', 'emerald'),
+        cardHTML('Canceladas', cancel, 'OT vinculadas a cotización rechazada o anuladas', 'rose')
+      ].join('');
+    }
+    const abWrap = document.getElementById('abonosSummaryGrid');
+    if(abWrap){
+      const list = window.ots || [];
+      const realizadas = list.filter(ot => typeof window.normalizeOTTrabajoEstado === 'function' ? window.normalizeOTTrabajoEstado(ot.estado) === 'realizada' : false);
+      const sinDoc = realizadas.filter(ot => (typeof window.normalizeOTCobroEstado === 'function' ? window.normalizeOTCobroEstado(ot) : '') === 'pendiente_facturar');
+      const pendientePago = realizadas.filter(ot => (typeof window.normalizeOTCobroEstado === 'function' ? window.normalizeOTCobroEstado(ot) : '') === 'pendiente_pago');
+      const pagadas = realizadas.filter(ot => (typeof window.normalizeOTCobroEstado === 'function' ? window.normalizeOTCobroEstado(ot) : '') === 'pagado');
+      const saldoPendiente = pendientePago.reduce((sum, ot) => {
+        const abonos = typeof window.getOTAbonos === 'function' ? window.getOTAbonos(ot) : [];
+        const abonado = (abonos || []).reduce((acc, a) => acc + (Number(a?.monto) || 0), 0);
+        const total = Number(ot.monto || ot.total || ot.data?.total || 0);
+        return sum + Math.max(total - abonado, 0);
+      }, 0);
+      abWrap.innerHTML = [
+        cardHTML('Sin documento', sinDoc.length, 'OT realizada aún sin factura o boleta', 'amber'),
+        cardHTML('Pendientes de pago', pendientePago.length, 'Con documento emitido y saldo pendiente', 'rose'),
+        cardHTML('Pagadas', pagadas.length, 'Cobros ya cerrados', 'emerald'),
+        cardHTML('Saldo por cobrar', typeof window.formatCLP === 'function' ? window.formatCLP(saldoPendiente) : saldoPendiente, 'Monto total aún por cobrar', 'blue')
+      ].join('');
+    }
+  }
+
+  function duplicateQuoteNumber(folio, currentId){
+    const key = crmNormalizeKey(folio);
+    if(!key || key === 'S/N') return null;
+    return (window.quotes || []).find(q => crmNormalizeKey(getQuoteNumber(q)) === key && String(q.id) !== String(currentId || '')) || null;
+  }
+  function duplicateOTNumber(num, currentId){
+    const key = crmNormalizeKey(num);
+    if(!key) return null;
+    return (window.ots || []).find(o => crmNormalizeKey(getOTNumber(o)) === key && String(o.id) !== String(currentId || '')) || null;
+  }
+  function countQuoteItems(){
+    let count = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+      const d = row.querySelector('.item-desc')?.value?.trim();
+      const c = parseFloat(row.querySelector('.item-cant')?.value || 0) || 0;
+      if(d && c > 0) count += 1;
+    });
+    return count;
+  }
+  function validateQuoteForm(currentId){
+    const isNewClientBlockVisible = !document.getElementById('newClientDiv')?.classList.contains('hidden');
+    const selectedClientId = document.getElementById('qClient')?.value || '';
+    const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
+    const obra = (document.getElementById('qObra')?.value || '').trim();
+    if(isNewClientBlockVisible){
+      const newName = (document.getElementById('newCName')?.value || '').trim();
+      if(!newName) throw new Error('Debes ingresar el nombre del cliente nuevo.');
+    } else if(!selectedClientId){
+      throw new Error('Debes seleccionar un cliente.');
+    }
+    if(!obra) throw new Error('Debes ingresar una obra o referencia para la cotización.');
+    if(countQuoteItems() <= 0) throw new Error('Debes agregar al menos un ítem válido en la cotización.');
+    const dup = duplicateQuoteNumber(folio, currentId);
+    if(dup) throw new Error(`Ya existe la cotización N° ${getQuoteNumber(dup)} para ${getEntityClient(dup)}.`);
+  }
+  function validateOTForm(currentId){
+    const numero = (document.getElementById('mOtNum')?.value || document.getElementById('eOtNumero')?.value || '').trim();
+    const desc = (document.getElementById('mOtDesc')?.value || document.getElementById('eOtDesc')?.value || '').trim();
+    if(!numero) throw new Error('Debes ingresar el número de la OT.');
+    if(!desc) throw new Error('Debes ingresar la descripción del trabajo.');
+    const dup = duplicateOTNumber(numero, currentId);
+    if(dup) throw new Error(`Ya existe la OT ${getOTNumber(dup)} para ${getEntityClient(dup)}.`);
+  }
+
+  function afterDelay(fn){ setTimeout(fn, 120); }
+
+  const origRenderQuotes = window.renderQuotes;
+  if(typeof origRenderQuotes === 'function'){
+    window.renderQuotes = function(){
+      const r = origRenderQuotes.apply(this, arguments);
+      afterDelay(renderSummaryCards);
+      return r;
+    };
+    try{ renderQuotes = window.renderQuotes; }catch(e){}
+  }
+  const origRenderOTs = window.renderOTs;
+  if(typeof origRenderOTs === 'function'){
+    window.renderOTs = function(){
+      const r = origRenderOTs.apply(this, arguments);
+      afterDelay(renderSummaryCards);
+      return r;
+    };
+    try{ renderOTs = window.renderOTs; }catch(e){}
+  }
+  const origRenderAbonos = window.renderAbonos;
+  if(typeof origRenderAbonos === 'function'){
+    window.renderAbonos = async function(){
+      const r = await origRenderAbonos.apply(this, arguments);
+      try{
+        const rows = document.querySelectorAll('#abonosTable tr');
+        rows.forEach(tr => {
+          const daysText = tr.children?.[5]?.innerText?.trim() || '';
+          const n = parseInt(daysText.replace(/\D/g,''), 10) || 0;
+          const cell = tr.children?.[5];
+          if(!cell || !daysText) return;
+          let cls = 'crm-cobranza-warning crm-cobranza-warning--ok';
+          if(n >= 31) cls = 'crm-cobranza-warning crm-cobranza-warning--late';
+          else if(n >= 15) cls = 'crm-cobranza-warning crm-cobranza-warning--mid';
+          cell.innerHTML = `<span class="${cls}">${crmEsc(daysText)}</span>`;
+        });
+      }catch(err){ console.error(err); }
+      afterDelay(renderSummaryCards);
+      return r;
+    };
+    try{ renderAbonos = window.renderAbonos; }catch(e){}
+  }
+
+  const origPreviewQuote = window.previewQuote;
+  if(typeof origPreviewQuote === 'function'){
+    window.previewQuote = async function(quoteId){
+      const r = await origPreviewQuote.apply(this, arguments);
+      afterDelay(() => {
+        const modal = document.getElementById('quotePreviewModal');
+        if(!modal || modal.querySelector('.crm-history-preview-btn')) return;
+        const header = modal.querySelector('.flex.items-center.gap-2');
+        const infoBox = modal.querySelector('.text-slate-500.text-sm')?.parentElement;
+        const q = getEntityRecord('quotes', quoteId);
+        if(header){
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'crm-soft-button crm-history-preview-btn';
+          btn.textContent = 'Historial';
+          btn.onclick = () => window.showCRMHistoryModal('quotes', quoteId);
+          header.insertBefore(btn, header.firstChild);
+        }
+        if(infoBox && q && !infoBox.querySelector('.crm-preview-chip-wrap')){
+          const chips = document.createElement('div');
+          chips.className = 'crm-preview-chip-wrap';
+          chips.innerHTML = quoteStateBadgeHTML(q);
+          infoBox.appendChild(chips);
+        }
+      });
+      return r;
+    };
+    try{ previewQuote = window.previewQuote; }catch(e){}
+  }
+
+  const origPreviewOT = window.previewOT;
+  if(typeof origPreviewOT === 'function'){
+    window.previewOT = async function(otId){
+      const r = await origPreviewOT.apply(this, arguments);
+      afterDelay(() => {
+        const modal = document.getElementById('otPreviewModal');
+        if(!modal || modal.querySelector('.crm-history-preview-btn')) return;
+        const header = modal.querySelector('.flex.items-center.gap-2');
+        const infoBox = modal.querySelector('.text-slate-500.text-sm')?.parentElement;
+        const ot = getEntityRecord('ots', otId);
+        if(header){
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'crm-soft-button crm-history-preview-btn';
+          btn.textContent = 'Historial';
+          btn.onclick = () => window.showCRMHistoryModal('ots', otId);
+          header.insertBefore(btn, header.firstChild);
+        }
+        if(infoBox && ot && !infoBox.querySelector('.crm-preview-chip-wrap')){
+          const chips = document.createElement('div');
+          chips.className = 'crm-preview-chip-wrap';
+          chips.innerHTML = otHistorySummaryHTML(ot);
+          infoBox.appendChild(chips);
+        }
+      });
+      return r;
+    };
+    try{ previewOT = window.previewOT; }catch(e){}
+  }
+
+  const origShowQuoteMoreOptions = window.showQuoteMoreOptions;
+  if(typeof origShowQuoteMoreOptions === 'function'){
+    window.showQuoteMoreOptions = function(quoteId){
+      const r = origShowQuoteMoreOptions.apply(this, arguments);
+      afterDelay(() => {
+        const grid = document.querySelector('#modalContent .grid.grid-cols-1.gap-3');
+        if(!grid || grid.querySelector('.crm-history-option')) return;
+        const btn = document.createElement('button');
+        btn.className = 'crm-history-option w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold';
+        btn.innerHTML = '<i class="fa-solid fa-clock-rotate-left mr-2 text-slate-700"></i> Ver historial';
+        btn.onclick = () => { window.showCRMHistoryModal('quotes', quoteId); };
+        grid.appendChild(btn);
+      });
+      return r;
+    };
+    try{ showQuoteMoreOptions = window.showQuoteMoreOptions; }catch(e){}
+  }
+  const origShowOTMoreOptions = window.showOTMoreOptions;
+  if(typeof origShowOTMoreOptions === 'function'){
+    window.showOTMoreOptions = function(otId){
+      const r = origShowOTMoreOptions.apply(this, arguments);
+      afterDelay(() => {
+        const grid = document.querySelector('#modalContent .grid.grid-cols-1.gap-3');
+        if(!grid || grid.querySelector('.crm-history-option')) return;
+        const btn = document.createElement('button');
+        btn.className = 'crm-history-option w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold';
+        btn.innerHTML = '<i class="fa-solid fa-clock-rotate-left mr-2 text-slate-700"></i> Ver historial';
+        btn.onclick = () => { window.showCRMHistoryModal('ots', otId); };
+        grid.appendChild(btn);
+      });
+      return r;
+    };
+    try{ showOTMoreOptions = window.showOTMoreOptions; }catch(e){}
+  }
+
+  const origSaveNewQuote = window.saveNewQuote;
+  if(typeof origSaveNewQuote === 'function'){
+    window.saveNewQuote = async function(btn){
+      try{ validateQuoteForm(); }catch(err){ alert(err.message || err); if(btn){ btn.disabled = false; btn.innerText = 'GUARDAR COTIZACIÓN'; } return; }
+      const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
+      const obra = (document.getElementById('qObra')?.value || '').trim();
+      const beforeIds = new Set((window.quotes || []).map(q => String(q.id)));
+      const r = await origSaveNewQuote.apply(this, arguments);
+      const created = (window.quotes || []).find(q => !beforeIds.has(String(q.id)) && crmNormalizeKey(getQuoteNumber(q)) === crmNormalizeKey(folio))
+        || (window.quotes || []).slice().reverse().find(q => crmNormalizeKey(getQuoteNumber(q)) === crmNormalizeKey(folio));
+      if(created){
+        await appendEntityHistory('quotes', created.id, { type:'create', title:'Cotización creada', detail:`Se registró la cotización ${getQuoteNumber(created)} para ${getEntityClient(created)}.\nObra: ${obra || '—'}` });
+        await window.loadData();
+        try{ window.renderQuotes(); }catch(e){}
+      }
+      return r;
+    };
+    try{ saveNewQuote = window.saveNewQuote; }catch(e){}
+  }
+
+  const origSaveUpdatedQuote2 = window.saveUpdatedQuote;
+  if(typeof origSaveUpdatedQuote2 === 'function'){
+    window.saveUpdatedQuote = async function(quoteId, btn){
+      try{ validateQuoteForm(quoteId); }catch(err){ alert(err.message || err); if(btn){ btn.disabled = false; btn.innerText = 'Guardar cambios'; } return; }
+      const obra = (document.getElementById('qObra')?.value || '').trim();
+      const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
+      const r = await origSaveUpdatedQuote2.apply(this, arguments);
+      await appendEntityHistory('quotes', quoteId, { type:'update', title:'Cotización actualizada', detail:`Se actualizaron datos de la cotización ${folio}.\nObra: ${obra || '—'}` });
+      await window.loadData();
+      try{ window.renderQuotes(); }catch(e){}
+      return r;
+    };
+    try{ saveUpdatedQuote = window.saveUpdatedQuote; }catch(e){}
+  }
+
+  const origSetQuoteStatus = window.setQuoteStatus;
+  if(typeof origSetQuoteStatus === 'function'){
+    window.setQuoteStatus = async function(quoteId, status, silent){
+      const q = getEntityRecord('quotes', quoteId);
+      const prev = q ? (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState(q) : String(q.estado || 'pendiente').toLowerCase()) : '';
+      const r = await origSetQuoteStatus.apply(this, arguments);
+      const labelMap = { pendiente:'Pendiente', aceptada:'Aceptada', rechazada:'Rechazada', vencida:'Vencida', reemplazada:'Reemplazada' };
+      await appendEntityHistory('quotes', quoteId, { type:'status', title:'Cambio de estado', detail:`Estado anterior: ${labelMap[prev] || prev || '—'}\nEstado nuevo: ${labelMap[String(status||'').toLowerCase()] || status || '—'}` });
+      await window.loadData();
+      try{ window.renderQuotes(); }catch(e){}
+      return r;
+    };
+    try{ setQuoteStatus = window.setQuoteStatus; }catch(e){}
+    window.acceptQuote = function(quoteId){ return window.setQuoteStatus(quoteId, 'aceptada'); };
+    window.rejectQuote = function(quoteId){ return window.setQuoteStatus(quoteId, 'rechazada'); };
+  }
+
+  const origSaveNewOTManual = window.saveNewOTManual;
+  if(typeof origSaveNewOTManual === 'function'){
+    window.saveNewOTManual = async function(btn){
+      try{ validateOTForm(); }catch(err){ alert(err.message || err); if(btn){ btn.disabled = false; btn.innerText = 'Guardar OT'; } return; }
+      const numero = (document.getElementById('mOtNum')?.value || '').trim();
+      const desc = (document.getElementById('mOtDesc')?.value || '').trim();
+      const beforeIds = new Set((window.ots || []).map(o => String(o.id)));
+      const r = await origSaveNewOTManual.apply(this, arguments);
+      const created = (window.ots || []).find(o => !beforeIds.has(String(o.id)) && crmNormalizeKey(getOTNumber(o)) === crmNormalizeKey(numero))
+        || (window.ots || []).slice().reverse().find(o => crmNormalizeKey(getOTNumber(o)) === crmNormalizeKey(numero));
+      if(created){
+        await appendEntityHistory('ots', created.id, { type:'create', title:'OT creada', detail:`Se creó la OT ${getOTNumber(created)} para ${getEntityClient(created)}.\nTrabajo: ${desc || '—'}` });
+        await window.loadData();
+        try{ window.renderOTs(); }catch(e){}
+      }
+      return r;
+    };
+    try{ saveNewOTManual = window.saveNewOTManual; }catch(e){}
+  }
+
+  const origSaveEditOT = window.saveEditOT;
+  if(typeof origSaveEditOT === 'function'){
+    window.saveEditOT = async function(otId, btn){
+      try{ validateOTForm(otId); }catch(err){ alert(err.message || err); if(btn){ btn.disabled = false; btn.innerText = 'Guardar'; } return; }
+      const numero = (document.getElementById('eOtNumero')?.value || '').trim();
+      const estado = (document.getElementById('eOtEstado')?.value || '').trim();
+      const cobro = (document.getElementById('eOtCobro')?.value || '').trim();
+      const r = await origSaveEditOT.apply(this, arguments);
+      await appendEntityHistory('ots', otId, { type:'update', title:'OT actualizada', detail:`Se actualizaron datos de la OT ${numero || 'S/N'}.\nEstado trabajo: ${estado || '—'}\nEstado cobro: ${cobro || '—'}` });
+      await window.loadData();
+      try{ window.renderOTs(); }catch(e){}
+      return r;
+    };
+    try{ saveEditOT = window.saveEditOT; }catch(e){}
+  }
+
+  const origGuardarAbono = window.guardarAbono;
+  if(typeof origGuardarAbono === 'function'){
+    window.guardarAbono = async function(otId, btn){
+      const monto = Number(document.getElementById('abonoMonto')?.value || 0) || 0;
+      const fecha = document.getElementById('abonoFecha')?.value || crmTodayISO();
+      const metodo = document.getElementById('abonoMetodo')?.value || 'Transferencia';
+      const r = await origGuardarAbono.apply(this, arguments);
+      const ot = getEntityRecord('ots', otId);
+      const estadoCobro = ot && typeof window.prettyOTCobroEstado === 'function' ? window.prettyOTCobroEstado(ot) : '—';
+      await appendEntityHistory('ots', otId, { type:'payment', title: (ot && typeof window.normalizeOTCobroEstado === 'function' && window.normalizeOTCobroEstado(ot) === 'pagado') ? 'Pago completado' : 'Abono registrado', detail:`Monto: ${typeof window.formatCLP === 'function' ? window.formatCLP(monto) : monto}\nFecha: ${crmFmtDate(fecha)}\nMétodo: ${metodo}\nEstado de cobro: ${estadoCobro}` });
+      await window.loadData();
+      try{ window.renderAbonos(); }catch(e){}
+      try{ window.renderOTs(); }catch(e){}
+      return r;
+    };
+    try{ guardarAbono = window.guardarAbono; }catch(e){}
+  }
+
+  const origActualizarAbono = window.actualizarAbono;
+  if(typeof origActualizarAbono === 'function'){
+    window.actualizarAbono = async function(otId, index, btn){
+      const monto = Number(document.getElementById('editAbonoMonto')?.value || 0) || 0;
+      const fecha = document.getElementById('editAbonoFecha')?.value || crmTodayISO();
+      const metodo = document.getElementById('editAbonoMetodo')?.value || 'Transferencia';
+      const r = await origActualizarAbono.apply(this, arguments);
+      await appendEntityHistory('ots', otId, { type:'payment', title:'Abono actualizado', detail:`Se modificó un abono.\nMonto: ${typeof window.formatCLP === 'function' ? window.formatCLP(monto) : monto}\nFecha: ${crmFmtDate(fecha)}\nMétodo: ${metodo}` });
+      await window.loadData();
+      try{ window.renderAbonos(); }catch(e){}
+      return r;
+    };
+    try{ actualizarAbono = window.actualizarAbono; }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      try{ ensureSummaryContainers(); }catch(e){ console.error(e); }
+      try{ renderSummaryCards(); }catch(e){ console.error(e); }
+    }, 400);
+  });
+})();
+</script>
+
+<script>
+
+(function(){
+  const esc = (v) => {
+    try { return (typeof escapeHtml === 'function') ? escapeHtml(v == null ? '' : String(v)) : String(v == null ? '' : v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    catch(e){ return String(v == null ? '' : v); }
+  };
+  const safe = (v) => (v == null ? '' : String(v)).trim();
+  const fmtDate = (v) => {
+    try { return (typeof formatDDMMYY === 'function') ? formatDDMMYY(v) : safe(v); }
+    catch(e){ return safe(v); }
+  };
+  const money = (v) => {
+    try { return (typeof formatCLP === 'function') ? formatCLP(v || 0) : ('$' + Number(v || 0).toLocaleString('es-CL')); }
+    catch(e){ return '$' + Number(v || 0).toLocaleString('es-CL'); }
+  };
+  const norm = (v) => safe(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,'_');
+  const after = (fn, t=120) => setTimeout(fn, t);
+
+  function getQuoteId(q){ return String(q?.id || ''); }
+  function getOTId(o){ return String(o?.id || ''); }
+  function getReportId(r){ return String(r?.id || ''); }
+  function quoteNumber(q){ return safe(q?.numeroCotizacion || q?.numero || 'S/N'); }
+  function otNumber(o){ return safe(o?.numero_ot || o?.numeroOT || 'S/N'); }
+  function reportNumber(r){ return safe(r?.numeroInforme || r?.titulo || 'Informe'); }
+  function getQuoteCreatedISO(q){ return safe(q?.fecha || q?.created_at || q?.data?.fecha || ''); }
+  function daysSince(value){
+    try{
+      if(!value) return 0;
+      const d = new Date(value);
+      if(isNaN(d.getTime())) return 0;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      d.setHours(0,0,0,0);
+      return Math.max(0, Math.round((today - d) / 86400000));
+    }catch(e){ return 0; }
+  }
+
+  function getLinkedOTsForQuote(quoteId){
+    const qid = String(quoteId || '').trim();
+    if(!qid) return [];
+    return (window.ots || []).filter(o => String(o?.quoteId || o?.quote_id || o?.data?.quoteId || o?.data?.quote_id || '').trim() === qid);
+  }
+  function getLinkedQuoteForOT2(ot){
+    if(!ot) return null;
+    const qid = String(ot?.quoteId || ot?.quote_id || ot?.data?.quoteId || ot?.data?.quote_id || '').trim();
+    if(qid) return (window.quotes || []).find(q => String(q?.id || '') === qid) || null;
+    const qnum = safe(ot?.numeroCotizacion || ot?.data?.numeroCotizacion || '');
+    return qnum ? ((window.quotes || []).find(q => safe(q?.numeroCotizacion || q?.numero || '') === qnum) || null) : null;
+  }
+  function getLinkedReportsForOT2(otId){
+    const oid = String(otId || '').trim();
+    if(!oid) return [];
+    return (window.reports || []).filter(r => String(r?.otId || r?.ot_id || r?.data?.otId || r?.data?.ot_id || '').trim() === oid);
+  }
+  function getLinkedReportsForQuote2(quoteId){
+    const qid = String(quoteId || '').trim();
+    const direct = (window.reports || []).filter(r => String(r?.quoteId || r?.quote_id || r?.data?.quoteId || r?.data?.quote_id || '').trim() === qid);
+    const viaOT = getLinkedOTsForQuote(qid).flatMap(o => getLinkedReportsForOT2(getOTId(o)));
+    const map = new Map();
+    [...direct, ...viaOT].forEach(r => map.set(getReportId(r), r));
+    return Array.from(map.values());
+  }
+  function getPrimaryOTForQuote(quote){
+    const list = getLinkedOTsForQuote(getQuoteId(quote)).slice().sort((a,b)=>{
+      const na = parseInt(String(a?.numero_ot || a?.numeroOT || '').replace(/\D/g,''),10) || 0;
+      const nb = parseInt(String(b?.numero_ot || b?.numeroOT || '').replace(/\D/g,''),10) || 0;
+      return nb - na;
+    });
+    return list[0] || null;
+  }
+  function getPrimaryReportForOT2(ot){
+    const list = getLinkedReportsForOT2(getOTId(ot)).slice().sort((a,b)=>{
+      const da = new Date(a?.fecha || a?.created_at || 0).getTime() || 0;
+      const db = new Date(b?.fecha || b?.created_at || 0).getTime() || 0;
+      return db - da;
+    });
+    return list[0] || null;
+  }
+  function getPrimaryReportForQuote2(q){
+    const list = getLinkedReportsForQuote2(getQuoteId(q)).slice().sort((a,b)=>{
+      const da = new Date(a?.fecha || a?.created_at || 0).getTime() || 0;
+      const db = new Date(b?.fecha || b?.created_at || 0).getTime() || 0;
+      return db - da;
+    });
+    return list[0] || null;
+  }
+  function getCobroLabelForOT(ot){
+    try { return (typeof prettyOTCobroEstado === 'function') ? prettyOTCobroEstado(ot) : safe(ot?.pago_estado || ot?.cobro_estado || '—'); }
+    catch(e){ return safe(ot?.pago_estado || ot?.cobro_estado || '—'); }
+  }
+  function getTrabajoLabelForOT(ot){
+    try {
+      const st = (typeof getEffectiveOTTrabajoEstado === 'function') ? getEffectiveOTTrabajoEstado(ot) : norm(ot?.estado || '');
+      const map = { pendiente:'Pendiente', en_curso:'En curso', realizada:'Realizada', finalizada:'Realizada', cancelada:'Cancelada' };
+      return map[st] || safe(ot?.estado || '—');
+    } catch(e){ return safe(ot?.estado || '—'); }
+  }
+
+  function ensureAlertsWrap(){
+    const dash = document.getElementById('view-dashboard');
+    if(!dash) return null;
+    let wrap = document.getElementById('crmInternalAlertsWrap');
+    if(wrap) return wrap;
+    wrap = document.createElement('div');
+    wrap.id = 'crmInternalAlertsWrap';
+    wrap.className = 'mb-12';
+    const anchor = document.getElementById('dashboardMaintenanceWrap') || dash.querySelector('#dashboardIntelligenceWrap') || dash.lastElementChild;
+    if(anchor) dash.insertBefore(wrap, anchor);
+    else dash.appendChild(wrap);
+    return wrap;
+  }
+
+  function buildInternalAlerts(){
+    const quotes = window.quotes || [];
+    const ots = window.ots || [];
+    const alerts = {
+      quotes_old_pending: quotes.filter(q => {
+        const st = (typeof window.getQuoteNormalizedState === 'function') ? window.getQuoteNormalizedState(q) : norm(q?.estado || '');
+        return st === 'pendiente' && daysSince(getQuoteCreatedISO(q)) >= 7;
+      }),
+      ots_done_no_doc: ots.filter(o => {
+        const trabajo = (typeof getEffectiveOTTrabajoEstado === 'function') ? getEffectiveOTTrabajoEstado(o) : norm(o?.estado || '');
+        const cobro = (typeof normalizeOTCobroEstado === 'function') ? normalizeOTCobroEstado(o) : norm(o?.pago_estado || o?.cobro_estado || '');
+        return ['realizada','finalizada'].includes(trabajo) && cobro === 'pendiente_facturar';
+      }),
+      ots_pending_payment: ots.filter(o => {
+        const cobro = (typeof normalizeOTCobroEstado === 'function') ? normalizeOTCobroEstado(o) : norm(o?.pago_estado || o?.cobro_estado || '');
+        return cobro === 'pendiente_pago' || cobro === 'facturado';
+      }),
+      ots_no_report: ots.filter(o => {
+        const trabajo = (typeof getEffectiveOTTrabajoEstado === 'function') ? getEffectiveOTTrabajoEstado(o) : norm(o?.estado || '');
+        if(!['realizada','finalizada','en_curso'].includes(trabajo)) return false;
+        if(trabajo === 'cancelada') return false;
+        return getLinkedReportsForOT2(getOTId(o)).length === 0;
+      })
+    };
+    alerts.total = Object.values(alerts).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+    return alerts;
+  }
+
+  function alertCardHTML(type, title, subtitle, count, tone){
+    const toneMap = {
+      amber: ['bg-amber-50','border-amber-200','text-amber-800','text-amber-600'],
+      rose: ['bg-rose-50','border-rose-200','text-rose-800','text-rose-600'],
+      blue: ['bg-sky-50','border-sky-200','text-sky-800','text-sky-600'],
+      slate: ['bg-slate-50','border-slate-200','text-slate-800','text-slate-600']
+    };
+    const [bg,border,text,num] = toneMap[tone] || toneMap.slate;
+    return `<button onclick="showCRMInternalAlertModal('${type}')" class="text-left rounded-3xl border ${border} ${bg} p-5 hover:shadow-md transition">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-sm font-bold ${text}">${esc(title)}</div>
+          <div class="text-xs text-slate-500 mt-1 leading-relaxed">${esc(subtitle)}</div>
+        </div>
+        <div class="text-3xl font-black ${num}">${count}</div>
+      </div>
+      <div class="text-xs text-slate-400 mt-3">Click para ver detalle</div>
+    </button>`;
+  }
+
+  function renderInternalAlerts(){
+    const wrap = ensureAlertsWrap();
+    if(!wrap) return;
+    const data = buildInternalAlerts();
+    wrap.innerHTML = `
+      <div class="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-2xl font-black text-slate-800">Alertas internas</h2>
+          <p class="text-sm text-slate-500">Para no perder cotizaciones, informes ni cobros pendientes.</p>
+        </div>
+        <div class="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-sm font-semibold text-slate-700">Total alertas: ${data.total}</div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        ${alertCardHTML('quotes_old_pending','Cotizaciones por revisar','Pendientes hace 7 días o más.', data.quotes_old_pending.length, 'amber')}
+        ${alertCardHTML('ots_done_no_doc','OT realizadas sin documento','Trabajos terminados que aún no tienen factura o boleta.', data.ots_done_no_doc.length, 'rose')}
+        ${alertCardHTML('ots_pending_payment','Cobros pendientes','OT con documento pero sin pago confirmado.', data.ots_pending_payment.length, 'blue')}
+        ${alertCardHTML('ots_no_report','OT sin informe','Trabajos sin informe técnico asociado.', data.ots_no_report.length, 'slate')}
+      </div>`;
+  }
+
+  function alertRowsHTML(type, rows){
+    if(!rows.length) return '<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-slate-500">No hay registros en esta alerta.</div>';
+    return rows.map((row, idx) => `<div class="rounded-2xl border border-slate-200 bg-white p-4 mb-3">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-slate-400 font-black">${idx + 1}</div>
+          <div class="text-base font-black text-slate-800">${row.title}</div>
+          <div class="text-sm text-slate-500 mt-1">${row.subtitle || ''}</div>
+          ${row.meta ? `<div class="text-xs text-slate-400 mt-2">${row.meta}</div>` : ''}
+        </div>
+        <div class="flex flex-wrap gap-2">${row.actions || ''}</div>
+      </div>
+    </div>`).join('');
+  }
+
+  window.showCRMInternalAlertModal = function(type){
+    const data = buildInternalAlerts();
+    const map = {
+      quotes_old_pending: {
+        title: 'Cotizaciones pendientes por revisar',
+        rows: data.quotes_old_pending.map(q => ({
+          title: `Cotización ${esc(quoteNumber(q))} · ${esc(safe(q?.clientName || q?.razonSocial || 'Cliente'))}`,
+          subtitle: esc(safe(q?.obra || q?.descripcion || q?.data?.obra || 'Sin obra registrada')),
+          meta: `Fecha: ${esc(fmtDate(getQuoteCreatedISO(q)) || '—')} · Días: ${daysSince(getQuoteCreatedISO(q))}`,
+          actions: `
+            <button onclick="previewQuote('${getQuoteId(q)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Ver cotización</button>
+            ${getPrimaryOTForQuote(q) ? `<button onclick="previewOT('${getOTId(getPrimaryOTForQuote(q))}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Abrir OT</button>` : ''}
+          `
+        }))
+      },
+      ots_done_no_doc: {
+        title: 'OT realizadas sin documento',
+        rows: data.ots_done_no_doc.map(o => ({
+          title: `OT ${esc(otNumber(o))} · ${esc(safe(o?.clientName || 'Cliente'))}`,
+          subtitle: esc(safe(o?.descripcion || 'Sin descripción')),
+          meta: `Estado trabajo: ${esc(getTrabajoLabelForOT(o))} · Documento: Sin documento`,
+          actions: `
+            <button onclick="previewOT('${getOTId(o)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Ver OT</button>
+            <button onclick="handleOTFacturaPagoClick('${getOTId(o)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Registrar documento</button>
+          `
+        }))
+      },
+      ots_pending_payment: {
+        title: 'OT con cobro pendiente',
+        rows: data.ots_pending_payment.map(o => ({
+          title: `OT ${esc(otNumber(o))} · ${esc(safe(o?.clientName || 'Cliente'))}`,
+          subtitle: `${esc(getDocumentoLabelOT(o) || 'Documento')} ${esc(getFacturaNumeroOT(o) || '—')} · ${esc(getCobroLabelForOT(o))}`,
+          meta: `Obra: ${esc(safe(o?.descripcion || '—'))}`,
+          actions: `
+            <button onclick="previewOT('${getOTId(o)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Ver OT</button>
+            <button onclick="goToCobranzaForOT('${getOTId(o)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Ir a cobranza</button>
+          `
+        }))
+      },
+      ots_no_report: {
+        title: 'OT sin informe asociado',
+        rows: data.ots_no_report.map(o => ({
+          title: `OT ${esc(otNumber(o))} · ${esc(safe(o?.clientName || 'Cliente'))}`,
+          subtitle: esc(safe(o?.descripcion || 'Sin descripción')),
+          meta: `Estado trabajo: ${esc(getTrabajoLabelForOT(o))}`,
+          actions: `
+            <button onclick="previewOT('${getOTId(o)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Ver OT</button>
+            <button onclick="showNewReportModal({ otId:'${getOTId(o)}' }); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Crear informe</button>
+          `
+        }))
+      }
+    };
+    const conf = map[type] || { title:'Alerta', rows:[] };
+    openModal(`
+      <div class="p-6 sm:p-8">
+        <div class="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900">${conf.title}</h2>
+            <p class="text-sm text-slate-500 mt-1">Registros detectados automáticamente por el sistema.</p>
+          </div>
+          <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
+        </div>
+        <div>${alertRowsHTML(type, conf.rows)}</div>
+      </div>
+    `);
+  };
+
+  window.goToCobranzaForOT = function(otId){
+    const ot = (window.ots || []).find(o => getOTId(o) === String(otId));
+    if(typeof showView === 'function') showView('abonos');
+    after(() => {
+      const input = document.getElementById('abonosSearch');
+      if(input){
+        input.value = ot ? (otNumber(ot) || safe(ot?.clientName || '')) : String(otId || '');
+        try { if(typeof renderAbonos === 'function') renderAbonos(); } catch(e){}
+      }
+    }, 180);
+  };
+
+  function relationChip(label, value, tone='slate'){
+    const map = {
+      emerald:'bg-emerald-50 border-emerald-200 text-emerald-700',
+      amber:'bg-amber-50 border-amber-200 text-amber-700',
+      blue:'bg-sky-50 border-sky-200 text-sky-700',
+      violet:'bg-violet-50 border-violet-200 text-violet-700',
+      slate:'bg-slate-50 border-slate-200 text-slate-700'
+    };
+    return `<div class="rounded-2xl border ${map[tone] || map.slate} px-3 py-2 text-sm"><span class="font-bold">${esc(label)}:</span> ${esc(value)}</div>`;
+  }
+
+  function injectQuoteRelations(quoteId){
+    const modal = document.getElementById('quotePreviewModal');
+    if(!modal || modal.querySelector('.crm-relations-strip')) return;
+    const q = (window.quotes || []).find(x => String(x?.id || '') === String(quoteId));
+    if(!q) return;
+    const linkedOT = getPrimaryOTForQuote(q);
+    const linkedRep = getPrimaryReportForQuote2(q);
+    const cobro = linkedOT ? getCobroLabelForOT(linkedOT) : 'Sin OT';
+    const strip = document.createElement('div');
+    strip.className = 'crm-relations-strip px-6 py-3 border-b border-slate-200 bg-slate-50';
+    strip.innerHTML = `
+      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 flex-1">
+          ${relationChip('OT vinculada', linkedOT ? otNumber(linkedOT) : 'No creada', linkedOT ? 'blue' : 'amber')}
+          ${relationChip('Informe', linkedRep ? reportNumber(linkedRep) : 'Sin informe', linkedRep ? 'emerald' : 'amber')}
+          ${relationChip('Cobranza', cobro, linkedOT && (typeof normalizeOTCobroEstado === 'function') && normalizeOTCobroEstado(linkedOT) === 'pagado' ? 'emerald' : (linkedOT ? 'violet' : 'slate'))}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          ${linkedOT ? `<button onclick="previewOT('${getOTId(linkedOT)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Abrir OT</button>` : ''}
+          ${linkedRep ? `<button onclick="previewReport('${getReportId(linkedRep)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Abrir informe</button>` : ''}
+          ${linkedOT ? `<button onclick="goToCobranzaForOT('${getOTId(linkedOT)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Ver cobranza</button>` : ''}
+        </div>
+      </div>`;
+    const body = modal.querySelector('.flex-1');
+    if(body && body.parentElement) body.parentElement.insertBefore(strip, body);
+  }
+
+  function injectOTRelations(otId){
+    const modal = document.getElementById('otPreviewModal');
+    if(!modal || modal.querySelector('.crm-relations-strip')) return;
+    const ot = (window.ots || []).find(x => String(x?.id || '') === String(otId));
+    if(!ot) return;
+    const linkedQ = getLinkedQuoteForOT2(ot);
+    const linkedRep = getPrimaryReportForOT2(ot);
+    const strip = document.createElement('div');
+    strip.className = 'crm-relations-strip px-6 py-3 border-b border-slate-200 bg-slate-50';
+    strip.innerHTML = `
+      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-2 flex-1">
+          ${relationChip('Cotización', linkedQ ? quoteNumber(linkedQ) : 'OT manual', linkedQ ? 'blue' : 'slate')}
+          ${relationChip('Informe', linkedRep ? reportNumber(linkedRep) : 'Sin informe', linkedRep ? 'emerald' : 'amber')}
+          ${relationChip('Trabajo', getTrabajoLabelForOT(ot), 'slate')}
+          ${relationChip('Cobranza', getCobroLabelForOT(ot), (typeof normalizeOTCobroEstado === 'function') && normalizeOTCobroEstado(ot) === 'pagado' ? 'emerald' : 'violet')}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          ${linkedQ ? `<button onclick="previewQuote('${getQuoteId(linkedQ)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Abrir cotización</button>` : ''}
+          ${linkedRep ? `<button onclick="previewReport('${getReportId(linkedRep)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Abrir informe</button>` : `<button onclick="showNewReportModal({ otId:'${getOTId(ot)}' })" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Crear informe</button>`}
+          <button onclick="goToCobranzaForOT('${getOTId(ot)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Ver cobranza</button>
+        </div>
+      </div>`;
+    const body = modal.querySelector('.flex-1');
+    if(body && body.parentElement) body.parentElement.insertBefore(strip, body);
+  }
+
+  function injectReportRelations(reportId){
+    const content = document.getElementById('modalContent');
+    if(!content || content.querySelector('.crm-report-relations')) return;
+    const rep = (window.reports || []).find(r => String(r?.id || '') === String(reportId));
+    if(!rep) return;
+    const ot = (window.ots || []).find(o => String(o?.id || '') === String(rep?.otId || rep?.ot_id || rep?.data?.otId || rep?.data?.ot_id || '')) || null;
+    const q = ot ? getLinkedQuoteForOT2(ot) : ((window.quotes || []).find(x => String(x?.id || '') === String(rep?.quoteId || rep?.quote_id || rep?.data?.quoteId || rep?.data?.quote_id || '')) || null);
+    const firstGrid = content.querySelector('.grid.grid-cols-1.md\:grid-cols-4.gap-4.mb-6');
+    if(!firstGrid) return;
+    const box = document.createElement('div');
+    box.className = 'crm-report-relations mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-4';
+    box.innerHTML = `
+      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 flex-1">
+          ${relationChip('OT', ot ? otNumber(ot) : (rep?.numeroOT || '—'), ot ? 'blue' : 'slate')}
+          ${relationChip('Cotización', q ? quoteNumber(q) : 'Sin cotización', q ? 'violet' : 'slate')}
+          ${relationChip('Cobranza', ot ? getCobroLabelForOT(ot) : 'No asociada', ot && (typeof normalizeOTCobroEstado === 'function') && normalizeOTCobroEstado(ot) === 'pagado' ? 'emerald' : 'amber')}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          ${ot ? `<button onclick="previewOT('${getOTId(ot)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Abrir OT</button>` : ''}
+          ${q ? `<button onclick="previewQuote('${getQuoteId(q)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Abrir cotización</button>` : ''}
+          ${ot ? `<button onclick="goToCobranzaForOT('${getOTId(ot)}')" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Ver cobranza</button>` : ''}
+        </div>
+      </div>`;
+    firstGrid.parentElement.insertBefore(box, firstGrid);
+  }
+
+  const origPreviewQuoteP2 = window.previewQuote;
+  if(typeof origPreviewQuoteP2 === 'function'){
+    window.previewQuote = async function(quoteId){
+      const r = await origPreviewQuoteP2.apply(this, arguments);
+      after(() => injectQuoteRelations(quoteId), 120);
+      return r;
+    };
+    try { previewQuote = window.previewQuote; } catch(e){}
+  }
+  const origPreviewOTP2 = window.previewOT;
+  if(typeof origPreviewOTP2 === 'function'){
+    window.previewOT = async function(otId){
+      const r = await origPreviewOTP2.apply(this, arguments);
+      after(() => injectOTRelations(otId), 120);
+      return r;
+    };
+    try { previewOT = window.previewOT; } catch(e){}
+  }
+  const origPreviewReportP2 = window.previewReport;
+  if(typeof origPreviewReportP2 === 'function'){
+    window.previewReport = function(reportId){
+      const r = origPreviewReportP2.apply(this, arguments);
+      after(() => injectReportRelations(reportId), 120);
+      return r;
+    };
+    try { previewReport = window.previewReport; } catch(e){}
+  }
+
+  const origShowQuoteMoreOptionsP2 = window.showQuoteMoreOptions;
+  if(typeof origShowQuoteMoreOptionsP2 === 'function'){
+    window.showQuoteMoreOptions = function(quoteId){
+      const r = origShowQuoteMoreOptionsP2.apply(this, arguments);
+      after(() => {
+        const grid = document.querySelector('#modalContent .grid.grid-cols-1.gap-3');
+        if(!grid || grid.querySelector('.crm-p2-rel')) return;
+        const q = (window.quotes || []).find(x => String(x?.id || '') === String(quoteId));
+        const linkedOT = q ? getPrimaryOTForQuote(q) : null;
+        const linkedRep = q ? getPrimaryReportForQuote2(q) : null;
+        const frag = document.createElement('div');
+        frag.className = 'crm-p2-rel grid grid-cols-1 gap-3';
+        frag.innerHTML = `
+          ${linkedOT ? `<button onclick="previewOT('${getOTId(linkedOT)}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-screwdriver-wrench mr-2 text-slate-700"></i> Abrir OT vinculada</button>` : ''}
+          ${linkedRep ? `<button onclick="previewReport('${getReportId(linkedRep)}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-lines mr-2 text-slate-700"></i> Ver informe asociado</button>` : ''}
+          ${linkedOT ? `<button onclick="goToCobranzaForOT('${getOTId(linkedOT)}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-hand-holding-dollar mr-2 text-slate-700"></i> Ver cobranza</button>` : ''}
+        `;
+        if(frag.innerHTML.trim()) grid.appendChild(frag);
+      }, 100);
+      return r;
+    };
+    try { showQuoteMoreOptions = window.showQuoteMoreOptions; } catch(e){}
+  }
+
+  const origShowOTMoreOptionsP2 = window.showOTMoreOptions;
+  if(typeof origShowOTMoreOptionsP2 === 'function'){
+    window.showOTMoreOptions = function(otId){
+      const r = origShowOTMoreOptionsP2.apply(this, arguments);
+      after(() => {
+        const grid = document.querySelector('#modalContent .grid.grid-cols-1.gap-3');
+        if(!grid || grid.querySelector('.crm-p2-rel')) return;
+        const ot = (window.ots || []).find(x => String(x?.id || '') === String(otId));
+        const linkedQ = ot ? getLinkedQuoteForOT2(ot) : null;
+        const btnWrap = document.createElement('div');
+        btnWrap.className = 'crm-p2-rel grid grid-cols-1 gap-3';
+        btnWrap.innerHTML = `
+          ${linkedQ ? `<button onclick="previewQuote('${getQuoteId(linkedQ)}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-invoice mr-2 text-slate-700"></i> Abrir cotización vinculada</button>` : ''}
+          <button onclick="goToCobranzaForOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-hand-holding-dollar mr-2 text-slate-700"></i> Ver cobranza</button>
+        `;
+        grid.appendChild(btnWrap);
+      }, 100);
+      return r;
+    };
+    try { showOTMoreOptions = window.showOTMoreOptions; } catch(e){}
+  }
+
+  const origRenderDashboardP2 = window.renderDashboard;
+  if(typeof origRenderDashboardP2 === 'function'){
+    window.renderDashboard = function(){
+      const r = origRenderDashboardP2.apply(this, arguments);
+      after(renderInternalAlerts, 80);
+      return r;
+    };
+    try { renderDashboard = window.renderDashboard; } catch(e){}
+  }
+
+  const origLoadDataP2 = window.loadData;
+  if(typeof origLoadDataP2 === 'function'){
+    window.loadData = async function(){
+      const r = await origLoadDataP2.apply(this, arguments);
+      after(() => { try{ renderInternalAlerts(); }catch(e){ console.error(e); } }, 120);
+      return r;
+    };
+    try { loadData = window.loadData; } catch(e){}
+  }
+
+  const origShowViewP2 = window.showView;
+  if(typeof origShowViewP2 === 'function'){
+    window.showView = function(view){
+      const r = origShowViewP2.apply(this, arguments);
+      if(String(view) === 'dashboard') after(renderInternalAlerts, 120);
+      return r;
+    };
+    try { showView = window.showView; } catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){ after(() => { try{ renderInternalAlerts(); }catch(e){ console.error(e); } }, 500); });
+})();
+
+
+// ================= AJUSTE FINAL: SIN ALERTAS + RESPALDO/EXPORTACIÓN + PDFS MÁS UNIFORMES =================
+(function(){
+  const GREEN = [133,175,40];
+  const DARK = [15,23,42];
+
+  function esc(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  function removeInternalAlertsUI(){
+    const wrap = document.getElementById('crmInternalAlertsWrap');
+    if(wrap) wrap.remove();
+  }
+
+  window.ensureAlertsWrap = function(){ removeInternalAlertsUI(); return null; };
+  window.renderInternalAlerts = function(){ removeInternalAlertsUI(); return null; };
+  try { ensureAlertsWrap = window.ensureAlertsWrap; } catch(e){}
+  try { renderInternalAlerts = window.renderInternalAlerts; } catch(e){}
+
+  function triggerDownload(filename, content, mime){
+    const blob = new Blob([content], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 400);
+  }
+
+  function toCSV(rows){
+    if(!rows || !rows.length) return 'Sin datos\n';
+    const headers = Array.from(rows.reduce((set, row) => {
+      Object.keys(row || {}).forEach(k => set.add(k));
+      return set;
+    }, new Set()));
+    const clean = (value) => {
+      const str = String(value == null ? '' : value).replace(/\r?\n|\r/g, ' ').trim();
+      return '"' + str.replace(/"/g, '""') + '"';
+    };
+    return [
+      headers.map(clean).join(','),
+      ...rows.map(row => headers.map(h => clean(row[h])).join(','))
+    ].join('\n');
+  }
+
+  function getBackupPayload(){
+    return {
+      exportado_en: new Date().toISOString(),
+      version: 'v232',
+      clients: window.clients || [],
+      quotes: window.quotes || [],
+      ots: window.ots || [],
+      reports: window.reports || [],
+      visitas: window.visitas || [],
+      requerimientos: window.reqs || window.requirements || [],
+      papelera: window.trashItems || []
+    };
+  }
+
+  function flatClientsRows(){
+    return (window.clients || []).map(c => ({
+      id: c.id || '',
+      nombre: c.name || c.nombre || '',
+      rut: c.rut || '',
+      tipo: c.tipo || c.type || '',
+      contacto: c.contacto || c.contact || c.data?.contacto || '',
+      telefono: c.telefono || c.phone || c.data?.telefono || '',
+      email: c.email || c.data?.email || '',
+      direccion: c.direccion || c.address || c.data?.direccion || '',
+      creado_por: c.created_by_name || c.createdByName || c.created_by_email || c.createdByEmail || '',
+      creado_en: c.created_at || c.fecha || ''
+    }));
+  }
+
+  function flatQuotesRows(){
+    return (window.quotes || []).map(q => ({
+      id: q.id || '',
+      numero_cotizacion: q.numeroCotizacion || q.numero || '',
+      fecha: q.fecha || q.created_at || '',
+      cliente: q.clientName || q.razonSocial || q.nombreCliente || '',
+      rut: q.rut || '',
+      obra: q.obra || q.descripcion || q.data?.obra || '',
+      estado: q.estado || '',
+      tipo_servicio: q.tipo_servicio || q.tipoServicio || q.data?.tipo_servicio || '',
+      total: q.monto || q.total || q.data?.total || '',
+      items: Array.isArray(q.items) ? q.items.length : 0,
+      creado_por: q.createdByName || q.created_by_name || q.createdByEmail || q.created_by_email || ''
+    }));
+  }
+
+  function flatOTRows(){
+    return (window.ots || []).map(o => ({
+      id: o.id || '',
+      numero_ot: o.numeroOT || o.numero_ot || '',
+      fecha: o.fecha || o.created_at || '',
+      cliente: o.clientName || '',
+      rut: o.clientRut || '',
+      descripcion: o.descripcion || o.data?.descripcion || '',
+      estado_trabajo: (typeof window.getTrabajoLabelForOT === 'function') ? window.getTrabajoLabelForOT(o) : (o.estado || ''),
+      estado_cobro: (typeof window.getCobroLabelForOT === 'function') ? window.getCobroLabelForOT(o) : (o.pago_estado || o.cobro_estado || ''),
+      documento: (typeof window.getDocumentoLabelOT === 'function') ? window.getDocumentoLabelOT(o) : (o.documento_tipo || ''),
+      numero_documento: (typeof window.getFacturaNumeroOT === 'function') ? window.getFacturaNumeroOT(o) : (o.factura_num || o.documento_numero || ''),
+      oc: o.oc || '',
+      hes: o.hes || '',
+      guia_despacho: o.guia_despacho || '',
+      monto: o.monto || o.total || o.data?.total || ''
+    }));
+  }
+
+  function flatReportsRows(){
+    return (window.reports || []).map(r => {
+      const eq = Array.isArray(r.equipos) ? r.equipos : (Array.isArray(r.data?.equipos) ? r.data.equipos : []);
+      return {
+        id: r.id || '',
+        numero_informe: r.numeroInforme || r.numero_informe || '',
+        fecha: r.fecha || r.created_at || '',
+        cliente: r.clientName || '',
+        numero_ot: r.numeroOT || r.otNumero || '',
+        numero_cotizacion: r.numeroCotizacion || '',
+        tipo_servicio: r.tipoServicio || r.tipo_servicio || '',
+        estado_general: (typeof window.getReportGeneralState === 'function') ? window.getReportGeneralState(r) : (r.estadoGeneral || ''),
+        equipos: eq.length,
+        tecnico_responsable: r.tecnicoResponsable || '',
+        titulo: r.titulo || ''
+      };
+    });
+  }
+
+  function flatCobranzaRows(){
+    const rows = [];
+    (window.ots || []).forEach(o => {
+      const abonos = (typeof window.getOTAbonos === 'function') ? window.getOTAbonos(o) : (Array.isArray(o.abonos) ? o.abonos : []);
+      const total = Number(o.monto || o.total || o.data?.total || 0) || 0;
+      const abonado = abonos.reduce((acc, a) => acc + Number(a?.monto || 0), 0);
+      const saldo = Math.max(0, total - abonado);
+      rows.push({
+        numero_ot: o.numeroOT || o.numero_ot || '',
+        cliente: o.clientName || '',
+        documento: (typeof window.getDocumentoLabelOT === 'function') ? window.getDocumentoLabelOT(o) : (o.documento_tipo || ''),
+        numero_documento: (typeof window.getFacturaNumeroOT === 'function') ? window.getFacturaNumeroOT(o) : (o.factura_num || o.documento_numero || ''),
+        estado_cobro: (typeof window.getCobroLabelForOT === 'function') ? window.getCobroLabelForOT(o) : (o.pago_estado || o.cobro_estado || ''),
+        fecha_documento: o.fechaFactura || o.fecha_factura || o.data?.fechaFactura || '',
+        monto_total: total,
+        abonado: abonado,
+        saldo_pendiente: saldo,
+        pago_completo: (typeof window.isOTPagada === 'function') ? (window.isOTPagada(o) ? 'Sí' : 'No') : (saldo <= 0 ? 'Sí' : 'No')
+      });
+      abonos.forEach((a, idx) => rows.push({
+        numero_ot: o.numeroOT || o.numero_ot || '',
+        cliente: o.clientName || '',
+        documento: 'ABONO',
+        numero_documento: idx + 1,
+        estado_cobro: 'Abono registrado',
+        fecha_documento: a.fecha || '',
+        monto_total: '',
+        abonado: a.monto || 0,
+        saldo_pendiente: Math.max(0, saldo),
+        pago_completo: ''
+      }));
+    });
+    return rows;
+  }
+
+  window.exportFullBackupJSON = function(){
+    triggerDownload('ecoluz-backup-completo.json', JSON.stringify(getBackupPayload(), null, 2), 'application/json');
+  };
+  window.exportClientsCSV = function(){ triggerDownload('ecoluz-clientes.csv', toCSV(flatClientsRows()), 'text/csv;charset=utf-8;'); };
+  window.exportQuotesCSV = function(){ triggerDownload('ecoluz-cotizaciones.csv', toCSV(flatQuotesRows()), 'text/csv;charset=utf-8;'); };
+  window.exportOTsCSV = function(){ triggerDownload('ecoluz-ordenes-trabajo.csv', toCSV(flatOTRows()), 'text/csv;charset=utf-8;'); };
+  window.exportReportsCSV = function(){ triggerDownload('ecoluz-informes.csv', toCSV(flatReportsRows()), 'text/csv;charset=utf-8;'); };
+  window.exportCobranzaCSV = function(){ triggerDownload('ecoluz-cobranza.csv', toCSV(flatCobranzaRows()), 'text/csv;charset=utf-8;'); };
+
+  window.openBackupExportModal = function(){
+    if(typeof openModal !== 'function'){
+      window.exportFullBackupJSON();
+      return;
+    }
+    openModal(`
+      <div class="p-6 sm:p-8 max-w-3xl mx-auto">
+        <div class="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900">Respaldo y exportación</h2>
+            <p class="text-sm text-slate-500 mt-1">Descarga un respaldo completo o exporta áreas específicas para Excel.</p>
+          </div>
+          <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">Cerrar</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button onclick="exportFullBackupJSON()" class="text-left rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-5">
+            <div class="font-black text-slate-800">Respaldo completo</div>
+            <div class="text-sm text-slate-500 mt-1">JSON con clientes, cotizaciones, OTs, informes, visitas y papelera.</div>
+          </button>
+          <button onclick="exportClientsCSV()" class="text-left rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-5">
+            <div class="font-black text-slate-800">Clientes</div>
+            <div class="text-sm text-slate-500 mt-1">Listado limpio para Excel o respaldo administrativo.</div>
+          </button>
+          <button onclick="exportQuotesCSV()" class="text-left rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-5">
+            <div class="font-black text-slate-800">Cotizaciones</div>
+            <div class="text-sm text-slate-500 mt-1">N° de cotización, cliente, obra, estado y monto.</div>
+          </button>
+          <button onclick="exportOTsCSV()" class="text-left rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-5">
+            <div class="font-black text-slate-800">Órdenes de trabajo</div>
+            <div class="text-sm text-slate-500 mt-1">OT, cliente, descripción, estados, documento, OC, HES y guía.</div>
+          </button>
+          <button onclick="exportReportsCSV()" class="text-left rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-5">
+            <div class="font-black text-slate-800">Informes</div>
+            <div class="text-sm text-slate-500 mt-1">Resumen de informes técnicos y cantidad de equipos.</div>
+          </button>
+          <button onclick="exportCobranzaCSV()" class="text-left rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-5">
+            <div class="font-black text-slate-800">Cobranza</div>
+            <div class="text-sm text-slate-500 mt-1">Documentos, estado de cobro, abonos y saldo pendiente.</div>
+          </button>
+        </div>
+      </div>
+    `);
+  };
+
+  window.exportData = function(){ window.openBackupExportModal(); };
+  try { exportData = window.exportData; } catch(e){}
+
+  function updateExportButtonLabel(){
+    const btn = Array.from(document.querySelectorAll('button')).find(b => /Exportar datos|Respaldo y exportación/i.test(b.textContent || ''));
+    if(btn){
+      btn.classList.remove('text-xs');
+      btn.classList.add('text-sm','py-2','rounded-xl','hover:bg-gray-50');
+      btn.innerHTML = '<i class="fa-solid fa-download"></i> <span class="sidebar-label">Respaldo y exportación</span>'; btn.className = 'sidebar-mini-link';
+      btn.title = 'Respaldo y exportación';
+    }
+  }
+
+  const originalAddCompanyHeaderRight = window.addCompanyHeaderRight;
+  window.addCompanyHeaderRight = async function(doc){
+    try {
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.setDrawColor(...GREEN);
+      doc.setLineWidth(0.35);
+      doc.line(12, 34, pageWidth - 12, 34);
+      doc.setTextColor(...DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11.5);
+      doc.text('ECOLUZ SERVICIOS LIMITADA', pageWidth - 12, 13, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(100,116,139);
+      doc.text('21 de Mayo #1223, Iquique', pageWidth - 12, 18, { align: 'right' });
+      doc.text('contacto@ecoluzservicios.cl', pageWidth - 12, 22, { align: 'right' });
+      doc.text('www.ecoluzservicios.cl · +56 9 3698 3772', pageWidth - 12, 26, { align: 'right' });
+    } catch(err){
+      if(typeof originalAddCompanyHeaderRight === 'function') return originalAddCompanyHeaderRight(doc);
+    }
+  };
+  try { addCompanyHeaderRight = window.addCompanyHeaderRight; } catch(e){}
+
+  function finalizePdfBranding(doc, label){
+    if(!doc || typeof doc.getNumberOfPages !== 'function') return doc;
+    const pageCount = doc.getNumberOfPages();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    for(let i = 1; i <= pageCount; i++){
+      doc.setPage(i);
+      doc.setDrawColor(226,232,240);
+      doc.setLineWidth(0.2);
+      doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100,116,139);
+      doc.text(`ECOLUZ · ${label || 'Documento'} · Página ${i} de ${pageCount}`, 12, pageHeight - 7.2);
+      doc.text(new Date().toLocaleDateString('es-CL'), pageWidth - 12, pageHeight - 7.2, { align:'right' });
+    }
+    return doc;
+  }
+
+  const originalBuildQuotePDFDoc = window.buildQuotePDFDoc;
+  if(typeof originalBuildQuotePDFDoc === 'function'){
+    window.buildQuotePDFDoc = async function(){
+      const doc = await originalBuildQuotePDFDoc.apply(this, arguments);
+      return finalizePdfBranding(doc, 'Cotización');
+    };
+    try { buildQuotePDFDoc = window.buildQuotePDFDoc; } catch(e){}
+  }
+
+  const originalBuildOTPDFDoc = window.buildOTPDFDoc;
+  if(typeof originalBuildOTPDFDoc === 'function'){
+    window.buildOTPDFDoc = async function(){
+      const doc = await originalBuildOTPDFDoc.apply(this, arguments);
+      return finalizePdfBranding(doc, 'Orden de trabajo');
+    };
+    try { buildOTPDFDoc = window.buildOTPDFDoc; } catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    removeInternalAlertsUI();
+    updateExportButtonLabel();
+  });
+
+  setTimeout(() => {
+    removeInternalAlertsUI();
+    updateExportButtonLabel();
+  }, 600);
+})();
+
+</script>
+
+
+<!-- ================= PATCH FINAL: quitar alertas del dashboard + logo robusto en PDFs ================= -->
+<script>
+(function(){
+  function removeDashboardAlerts(){
+    try {
+      const wrap = document.getElementById('crmInternalAlertsWrap');
+      if (wrap) wrap.remove();
+      const view = document.getElementById('view-dashboard');
+      if (view) {
+        view.querySelectorAll('[data-crm-alerts="1"]').forEach(el => el.remove());
+      }
+    } catch(e){ console.warn('No se pudieron limpiar alertas del dashboard:', e); }
+  }
+
+  function afterCleanup(){
+    removeDashboardAlerts();
+    setTimeout(removeDashboardAlerts, 60);
+    setTimeout(removeDashboardAlerts, 180);
+    setTimeout(removeDashboardAlerts, 420);
+  }
+
+  window.ensureAlertsWrap = function(){ removeDashboardAlerts(); return null; };
+  window.renderInternalAlerts = function(){ removeDashboardAlerts(); return null; };
+
+  const patchSync = (name) => {
+    const fn = window[name];
+    if (typeof fn !== 'function' || fn.__crmNoAlertsPatched) return;
+    window[name] = function(){
+      const r = fn.apply(this, arguments);
+      afterCleanup();
+      return r;
+    };
+    window[name].__crmNoAlertsPatched = true;
+  };
+
+  const patchAsync = (name) => {
+    const fn = window[name];
+    if (typeof fn !== 'function' || fn.__crmNoAlertsPatched) return;
+    window[name] = async function(){
+      const r = await fn.apply(this, arguments);
+      afterCleanup();
+      return r;
+    };
+    window[name].__crmNoAlertsPatched = true;
+  };
+
+  patchSync('renderDashboard');
+  patchSync('showView');
+  patchAsync('loadData');
+
+  document.addEventListener('DOMContentLoaded', function(){
+    afterCleanup();
+    try {
+      const obs = new MutationObserver(() => removeDashboardAlerts());
+      obs.observe(document.documentElement, { childList:true, subtree:true });
+      window.__crmAlertsObserver = obs;
+    } catch(e){}
+  });
+})();
+
+(function(){
+  async function trySrcToDataUrl(src){
+    return await new Promise((resolve) => {
+      try {
+        if (!src) return resolve(null);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width || 1;
+            canvas.height = img.naturalHeight || img.height || 1;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (err) { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = src;
+      } catch (e) { resolve(null); }
+    });
+  }
+
+  window.loadLogoDataUrl = async function(){
+    try {
+      if (window.ECOLUZ_LOGO_DATAURL) return window.ECOLUZ_LOGO_DATAURL;
+
+      const selectors = [
+        'img.brand-logo',
+        'img.brand-logo-sm',
+        'img[alt*="ECOLUZ"]',
+        'img[src*="logo ecoluz"]'
+      ];
+      for (const sel of selectors) {
+        const img = document.querySelector(sel);
+        if (img && img.src) {
+          const fromDom = await trySrcToDataUrl(img.src);
+          if (fromDom) {
+            window.ECOLUZ_LOGO_DATAURL = fromDom;
+            return fromDom;
+          }
+        }
+      }
+
+      const candidates = [
+        window.LOGO_FILE,
+        'logo ecoluz.png',
+        './logo ecoluz.png',
+        './logo-ecoluz.png'
+      ].filter(Boolean);
+
+      for (const src of candidates) {
+        const d = await trySrcToDataUrl(src);
+        if (d) {
+          window.ECOLUZ_LOGO_DATAURL = d;
+          return d;
+        }
+      }
+      return null;
+    } catch(e){
+      return null;
+    }
+  };
+
+  window.addLogoToPdf = async function(doc){
+    try {
+      const dUrl = await window.loadLogoDataUrl();
+      if (dUrl) doc.addImage(dUrl, 'PNG', 14, 10, 42, 14);
+    } catch(e){ /* sin logo si falla */ }
+  };
+})();
+
+
+const DEFAULT_APPEARANCE = Object.freeze({
+  mode: 'auto',
+  accent: '#85af28',
+  lightBg: '#f3f4f6',
+  darkBg: '#0f172a'
+});
+let currentAppearance = { ...DEFAULT_APPEARANCE };
+const appearanceMedia = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+function normalizeHexColor(value, fallback){
+  const hex = String(value || '').trim();
+  if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)){
+    if(hex.length === 4){
+      return '#' + hex.slice(1).split('').map(ch => ch + ch).join('').toLowerCase();
+    }
+    return hex.toLowerCase();
+  }
+  return fallback;
+}
+function hexToRgb(hex){
+  const safe = normalizeHexColor(hex, '#000000').slice(1);
+  return {
+    r: parseInt(safe.slice(0,2), 16),
+    g: parseInt(safe.slice(2,4), 16),
+    b: parseInt(safe.slice(4,6), 16)
+  };
+}
+function rgbToHex(r,g,b){
+  return '#' + [r,g,b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function blendHex(base, mix, ratio){
+  const a = hexToRgb(base), b = hexToRgb(mix), t = Math.max(0, Math.min(1, Number(ratio) || 0));
+  return rgbToHex(
+    a.r + (b.r - a.r) * t,
+    a.g + (b.g - a.g) * t,
+    a.b + (b.b - a.b) * t
+  );
+}
+function relativeLuminance(hex){
+  const {r,g,b} = hexToRgb(hex);
+  const f = (v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+function normalizeAppearancePrefs(raw){
+  const prefs = raw && typeof raw === 'object' ? raw : {};
+  return {
+    mode: ['light','dark','auto'].includes(String(prefs.mode || '').toLowerCase()) ? String(prefs.mode).toLowerCase() : DEFAULT_APPEARANCE.mode,
+    accent: normalizeHexColor(prefs.accent, DEFAULT_APPEARANCE.accent),
+    lightBg: normalizeHexColor(prefs.lightBg, DEFAULT_APPEARANCE.lightBg),
+    darkBg: normalizeHexColor(prefs.darkBg, DEFAULT_APPEARANCE.darkBg)
+  };
+}
+function getAppearanceStorageKey(){
+  const email = String(currentUser?.email || window.currentUser?.email || 'guest').trim().toLowerCase();
+  return `ecoluz_appearance_${email || 'guest'}`;
+}
+function readAppearancePrefs(){
+  try {
+    const raw = localStorage.getItem(getAppearanceStorageKey());
+    if(raw) return normalizeAppearancePrefs(JSON.parse(raw));
+  } catch(e){}
+  return { ...DEFAULT_APPEARANCE };
+}
+function persistAppearancePrefs(prefs){
+  try { localStorage.setItem(getAppearanceStorageKey(), JSON.stringify(normalizeAppearancePrefs(prefs))); } catch(e){}
+}
+function getResolvedAppearanceMode(mode){
+  if(mode === 'auto') return appearanceMedia && appearanceMedia.matches ? 'dark' : 'light';
+  return mode === 'dark' ? 'dark' : 'light';
+}
+function buildLoginGradient(accent, bg, resolvedMode){
+  const deep = resolvedMode === 'dark' ? blendHex(bg, '#000000', 0.26) : blendHex(accent, '#0f172a', 0.78);
+  const mid = resolvedMode === 'dark' ? blendHex(accent, bg, 0.68) : blendHex(accent, '#ffffff', 0.28);
+  const end = resolvedMode === 'dark' ? blendHex(bg, '#1e293b', 0.18) : blendHex(bg, '#ffffff', 0.15);
+  return `linear-gradient(135deg, ${deep} 0%, ${mid} 52%, ${end} 100%)`;
+}
+function applyAppearance(prefs, {persist=true, updateControls=true} = {}){
+  const safe = normalizeAppearancePrefs(prefs);
+  const resolvedMode = getResolvedAppearanceMode(safe.mode);
+  const normalizedDarkBg = resolvedMode === 'dark' && relativeLuminance(safe.darkBg) > 0.11
+    ? blendHex(safe.darkBg, '#0f172a', 0.58)
+    : safe.darkBg;
+  const bgBase = resolvedMode === 'dark' ? normalizedDarkBg : safe.lightBg;
+  const surface = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.06) : '#ffffff';
+  const surfaceStrong = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.10) : blendHex(bgBase, '#ffffff', 0.62);
+  const surfaceAlt = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.14) : blendHex(bgBase, '#000000', 0.03);
+  const tableHead = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.12) : blendHex(bgBase, '#ffffff', 0.56);
+  const cardMuted = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.08) : blendHex(bgBase, safe.accent, 0.08);
+  const inputBg = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.04) : '#ffffff';
+  const bgSecondary = resolvedMode === 'dark' ? blendHex(bgBase, '#000000', 0.08) : blendHex(bgBase, '#ffffff', 0.18);
+  const text = resolvedMode === 'dark' ? '#e5eef8' : '#0f172a';
+  const muted = resolvedMode === 'dark' ? '#9fb0c6' : '#64748b';
+  const border = resolvedMode === 'dark' ? blendHex(bgBase, '#ffffff', 0.16) : '#dbe3ef';
+  const accentSoft = resolvedMode === 'dark' ? blendHex(safe.accent, bgBase, 0.76) : blendHex(safe.accent, '#ffffff', 0.84);
+  const root = document.documentElement;
+  root.style.setProperty('--brand-green', safe.accent);
+  root.style.setProperty('--ui-accent', safe.accent);
+  root.style.setProperty('--ui-accent-soft', accentSoft);
+  root.style.setProperty('--ui-bg', bgBase);
+  root.style.setProperty('--ui-bg-secondary', bgSecondary);
+  root.style.setProperty('--ui-surface', surface);
+  root.style.setProperty('--ui-surface-strong', surfaceStrong);
+  root.style.setProperty('--ui-surface-alt', surfaceAlt);
+  root.style.setProperty('--ui-table-head', tableHead);
+  root.style.setProperty('--ui-card-muted', cardMuted);
+  root.style.setProperty('--ui-input-bg', inputBg);
+  root.style.setProperty('--ui-text', text);
+  root.style.setProperty('--ui-muted', muted);
+  root.style.setProperty('--ui-border', border);
+  root.style.setProperty('--ui-login-bg', buildLoginGradient(safe.accent, bgBase, resolvedMode));
+  document.body.dataset.uiColorMode = resolvedMode;
+  root.dataset.uiColorMode = resolvedMode;
+  currentAppearance = { ...safe };
+  if(persist) persistAppearancePrefs(currentAppearance);
+  if(updateControls) syncAppearanceModalControls();
+  updateAppearancePreview();
+}
+function applySavedAppearance(){
+  applyAppearance(readAppearancePrefs(), {persist:false, updateControls:true});
+}
+function syncAppearanceModalControls(){
+  const modeEl = document.getElementById('appearanceMode');
+  const accentEl = document.getElementById('appearanceAccent');
+  const lightEl = document.getElementById('appearanceLightBg');
+  const darkEl = document.getElementById('appearanceDarkBg');
+  if(modeEl) modeEl.value = currentAppearance.mode;
+  if(accentEl) accentEl.value = currentAppearance.accent;
+  if(lightEl) lightEl.value = currentAppearance.lightBg;
+  if(darkEl) darkEl.value = currentAppearance.darkBg;
+  const accentHex = document.getElementById('appearanceAccentHex');
+  const lightHex = document.getElementById('appearanceLightBgHex');
+  const darkHex = document.getElementById('appearanceDarkBgHex');
+  if(accentHex) accentHex.value = currentAppearance.accent;
+  if(lightHex) lightHex.value = currentAppearance.lightBg;
+  if(darkHex) darkHex.value = currentAppearance.darkBg;
+}
+function getAppearanceFormPrefs(){
+  return normalizeAppearancePrefs({
+    mode: document.getElementById('appearanceMode')?.value || currentAppearance.mode,
+    accent: document.getElementById('appearanceAccentHex')?.value || document.getElementById('appearanceAccent')?.value || currentAppearance.accent,
+    lightBg: document.getElementById('appearanceLightBgHex')?.value || document.getElementById('appearanceLightBg')?.value || currentAppearance.lightBg,
+    darkBg: document.getElementById('appearanceDarkBgHex')?.value || document.getElementById('appearanceDarkBg')?.value || currentAppearance.darkBg
+  });
+}
+function handleAppearanceFieldSync(sourceId, targetId){
+  const source = document.getElementById(sourceId);
+  const target = document.getElementById(targetId);
+  if(!source || !target) return;
+  target.value = normalizeHexColor(source.value, target.value || source.value);
+  previewAppearanceFromModal();
+}
+function previewAppearanceFromModal(){
+  const modal = document.getElementById('appearanceMode');
+  if(!modal) return;
+  applyAppearance(getAppearanceFormPrefs(), {persist:false, updateControls:false});
+}
+function saveAppearanceSettings(){
+  applyAppearance(getAppearanceFormPrefs(), {persist:true, updateControls:true});
+  closeModal();
+}
+function resetAppearanceSettings(){
+  applyAppearance({ ...DEFAULT_APPEARANCE }, {persist:false, updateControls:true});
+  syncAppearanceModalControls();
+}
+function updateAppearancePreview(){
+  const chips = document.querySelectorAll('[data-appearance-chip="accent"]');
+  chips.forEach(el => { el.style.background = 'var(--ui-accent-soft)'; el.style.color = 'var(--ui-accent)'; el.style.borderColor = 'var(--ui-border)'; });
+  const accentDot = document.getElementById('appearanceAccentDot');
+  const lightDot = document.getElementById('appearanceLightDot');
+  const darkDot = document.getElementById('appearanceDarkDot');
+  if(accentDot) accentDot.style.background = currentAppearance.accent;
+  if(lightDot) lightDot.style.background = currentAppearance.lightBg;
+  if(darkDot) darkDot.style.background = currentAppearance.darkBg;
+  const modeLabel = document.getElementById('appearanceResolvedMode');
+  if(modeLabel) modeLabel.textContent = getResolvedAppearanceMode(currentAppearance.mode) === 'dark' ? 'Oscuro activo' : 'Claro activo';
+}
+function showAppearanceModal(){
+  const html = `
+    <div class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black text-slate-900 flex items-center gap-3"><i class="fas fa-palette text-brand"></i> Apariencia</h2>
+          <p class="text-sm text-slate-500 mt-1">Cada usuario puede guardar su propio estilo: modo claro, oscuro o automático, color principal y fondo.</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_.9fr] gap-6">
+        <div class="space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold mb-2 text-slate-700">Modo</label>
+              <select id="appearanceMode" class="w-full border rounded-xl px-4 py-3 bg-white" onchange="previewAppearanceFromModal()">
+                <option value="auto">Automático</option>
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+              </select>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 pt-7">
+              <span class="appearance-chip"><span class="w-2.5 h-2.5 rounded-full" id="appearanceAccentDot"></span> Color principal</span>
+              <span class="appearance-chip"><span class="w-2.5 h-2.5 rounded-full" id="appearanceLightDot"></span> Fondo claro</span>
+              <span class="appearance-chip"><span class="w-2.5 h-2.5 rounded-full" id="appearanceDarkDot"></span> Fondo oscuro</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold mb-2 text-slate-700">Color principal</label>
+              <div class="flex items-center gap-3">
+                <input id="appearanceAccent" type="color" class="h-12 w-16 rounded-xl border p-1 bg-white" onchange="handleAppearanceFieldSync('appearanceAccent','appearanceAccentHex')">
+                <input id="appearanceAccentHex" type="text" class="flex-1 border rounded-xl px-3 py-3 bg-white uppercase" maxlength="7" placeholder="#85AF28" oninput="handleAppearanceFieldSync('appearanceAccentHex','appearanceAccent')">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2 text-slate-700">Fondo claro</label>
+              <div class="flex items-center gap-3">
+                <input id="appearanceLightBg" type="color" class="h-12 w-16 rounded-xl border p-1 bg-white" onchange="handleAppearanceFieldSync('appearanceLightBg','appearanceLightBgHex')">
+                <input id="appearanceLightBgHex" type="text" class="flex-1 border rounded-xl px-3 py-3 bg-white uppercase" maxlength="7" placeholder="#F3F4F6" oninput="handleAppearanceFieldSync('appearanceLightBgHex','appearanceLightBg')">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2 text-slate-700">Fondo oscuro</label>
+              <div class="flex items-center gap-3">
+                <input id="appearanceDarkBg" type="color" class="h-12 w-16 rounded-xl border p-1 bg-white" onchange="handleAppearanceFieldSync('appearanceDarkBg','appearanceDarkBgHex')">
+                <input id="appearanceDarkBgHex" type="text" class="flex-1 border rounded-xl px-3 py-3 bg-white uppercase" maxlength="7" placeholder="#0F172A" oninput="handleAppearanceFieldSync('appearanceDarkBgHex','appearanceDarkBg')">
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border p-4 bg-slate-50">
+            <p class="text-sm font-semibold text-slate-700 mb-3">Combinaciones rápidas</p>
+            <div class="flex flex-wrap gap-2">
+              <button class="appearance-chip" onclick='applyAppearance({mode: document.getElementById("appearanceMode")?.value || "auto", accent:"#85af28", lightBg:"#f3f4f6", darkBg:"#0f172a"}, {persist:false, updateControls:true})'>Corporativo</button>
+              <button class="appearance-chip" onclick='applyAppearance({mode: document.getElementById("appearanceMode")?.value || "auto", accent:"#2563eb", lightBg:"#eef4ff", darkBg:"#0b1220"}, {persist:false, updateControls:true})'>Azul</button>
+              <button class="appearance-chip" onclick='applyAppearance({mode: document.getElementById("appearanceMode")?.value || "auto", accent:"#7c3aed", lightBg:"#f6f3ff", darkBg:"#140f22"}, {persist:false, updateControls:true})'>Violeta</button>
+              <button class="appearance-chip" onclick='applyAppearance({mode: document.getElementById("appearanceMode")?.value || "auto", accent:"#ea580c", lightBg:"#fff7ed", darkBg:"#1c0f08"}, {persist:false, updateControls:true})'>Cobre</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="appearance-preview">
+            <div class="appearance-preview-head">
+              <div>
+                <div class="text-sm font-bold text-slate-900">Vista previa</div>
+                <div class="text-xs text-slate-500">Se aplica al menú, fondo y botones principales.</div>
+              </div>
+              <span class="appearance-chip" data-appearance-chip="accent"><i class="fas fa-circle"></i> <span id="appearanceResolvedMode">Claro activo</span></span>
+            </div>
+            <div class="appearance-preview-body space-y-3">
+              <div class="appearance-preview-card">
+                <div class="flex items-center justify-between mb-2">
+                  <strong class="text-sm text-slate-900">Dashboard</strong>
+                  <span class="text-xs text-slate-500">Acción principal</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" class="px-3 py-2 rounded-xl text-white text-sm font-semibold bg-blue-600">Guardar</button>
+                  <button type="button" class="px-3 py-2 rounded-xl text-sm border bg-white">Secundario</button>
+                </div>
+              </div>
+              <div class="appearance-preview-card">
+                <div class="text-sm font-semibold text-slate-900 mb-1">Tarjeta</div>
+                <p class="text-xs text-slate-500">Los fondos y textos se adaptan automáticamente para que no queden ilegibles.</p>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-2xl border p-4 bg-slate-50 text-sm text-slate-500">
+            <p><strong class="text-slate-700">Consejo:</strong> si quieres usar el logo transparente nuevo, lo ideal es dejarlo como <code>logo ecoluz.png</code> en la misma carpeta del HTML. En modo oscuro se va a ver mejor.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 sm:justify-between pt-2">
+        <button onclick="resetAppearanceSettings()" class="px-4 py-3 rounded-xl border text-slate-700 bg-white hover:bg-slate-50">Restablecer estilo corporativo</button>
+        <div class="flex gap-3">
+          <button onclick="closeModal(); applySavedAppearance();" class="px-4 py-3 rounded-xl border bg-white hover:bg-slate-50">Cancelar</button>
+          <button onclick="saveAppearanceSettings()" class="px-5 py-3 rounded-xl text-white bg-blue-600 hover:bg-blue-700 font-semibold">Guardar apariencia</button>
+        </div>
+      </div>
+    </div>`;
+  openModal(html);
+  syncAppearanceModalControls();
+  updateAppearancePreview();
+}
+if(appearanceMedia && typeof appearanceMedia.addEventListener === 'function'){
+  appearanceMedia.addEventListener('change', () => {
+    if((currentAppearance.mode || 'auto') === 'auto') applyAppearance(currentAppearance, {persist:false, updateControls:true});
+  });
+}
+function toggleSidebarTools(forceOpen = null){
+  const wrap = document.getElementById('sidebarToolsToggle')?.closest('.sidebar-tools-collapsible');
+  const panel = document.getElementById('sidebarToolsPanel');
+  const toggle = document.getElementById('sidebarToolsToggle');
+  if(!wrap || !panel || !toggle) return;
+  const shouldOpen = forceOpen === null ? panel.classList.contains('hidden') : !!forceOpen;
+  panel.classList.toggle('hidden', !shouldOpen);
+  wrap.classList.toggle('open', shouldOpen);
+  toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+</script>
 
 </body>
 </html>
