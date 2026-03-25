@@ -2317,6 +2317,28 @@ function getNextOTNumber() {
     return String(next);
 }
 
+
+function parseOTNumberParts(value){
+  const raw = String(value ?? '').trim();
+  const mainMatch = raw.match(/^(\d+)/);
+  const main = parseInt(mainMatch?.[1] || '0', 10) || 0;
+  const suffixMatch = raw.match(/(?:_|-)(\d+)$/);
+  const suffix = parseInt(suffixMatch?.[1] || '0', 10) || 0;
+  const hasSuffix = !!suffixMatch;
+  return { raw, main, suffix, hasSuffix };
+}
+
+function compareOTNumberDesc(a, b){
+  const pa = parseOTNumberParts((a && typeof a === 'object') ? (a.numero_ot || a.numeroOT || a.data?.numeroOT || '') : a);
+  const pb = parseOTNumberParts((b && typeof b === 'object') ? (b.numero_ot || b.numeroOT || b.data?.numeroOT || '') : b);
+
+  if(pb.main !== pa.main) return pb.main - pa.main;
+  if(pa.hasSuffix !== pb.hasSuffix) return pa.hasSuffix ? -1 : 1;
+  if(pb.suffix !== pa.suffix) return pb.suffix - pa.suffix;
+  return String(pb.raw || '').localeCompare(String(pa.raw || ''), 'es', { numeric:true, sensitivity:'base' });
+}
+
+
     // ================= EFECTOS (CHAYA Y SONIDO) =================
     function celebrarPago({ ot = null, monto = null, metodo = null, fecha = null, factura = null } = {}) {
       const metaParts = [];
@@ -4622,7 +4644,7 @@ function openGlobalSearchResult(type, id){
       )).join('');
     }
     function getCalendarOTOptions(selectedId=''){
-      const options = ['<option value="">Sin OT asociada</option>'].concat((ots || []).slice().sort((a,b)=>Number(b.numeroOT||b.numero_ot||0)-Number(a.numeroOT||a.numero_ot||0)).map(o =>
+      const options = ['<option value="">Sin OT asociada</option>'].concat((ots || []).slice().sort((a,b)=>compareOTNumberDesc(a,b)).map(o =>
         `<option value="${o.id}" ${String(selectedId)===String(o.id)?'selected':''}>OT ${escapeHtml(String(o.numeroOT || o.numero_ot || 'S/N'))} · ${escapeHtml(o.clientName || 'Sin cliente')}</option>`
       ));
       return options.join('');
@@ -5872,7 +5894,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Archivo</label>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Imágenes para PDF (temporales)</label>
               <input id="${prefix}AttachInput" type="file" multiple class="w-full px-3 py-3 border rounded-xl bg-white"
                      onchange="handleAttachmentInputChange('${target}')">
               <p class="text-[11px] text-slate-400 mt-1">Los adjuntos se guardan dentro del registro. Usa archivos livianos, idealmente menores a 2.5 MB.</p>
@@ -6196,19 +6218,19 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     reqs = requerimientos; // alias para compatibilidad con UI antigua
 
 
-    // Ordenar OTs por N° OT (prioriza serie 2xxx/3xxx primero) — nuevas arriba
+    // Ordenar OTs por N° OT respetando duplicados manuales (ej: 2525_01 sobre 2525)
     ots.sort((a,b) => {
-      const getNum = (x) => parseInt(String((x?.numeroOT ?? x?.numero_ot ?? '')).replace(/\D/g,''), 10) || 0;
-      const na = getNum(a);
-      const nb = getNum(b);
+      const pa = parseOTNumberParts(a?.numeroOT ?? a?.numero_ot ?? '');
+      const pb = parseOTNumberParts(b?.numeroOT ?? b?.numero_ot ?? '');
 
-      // Si existen OT antiguas con otra serie (ej. 4xxx), se dejan al final para no “romper” la secuencia 2xxx.
-      const rank = (n) => (n >= 2000 && n < 4000) ? 0 : 1; // 0 = serie principal (2xxx/3xxx), 1 = otras
-      const ra = rank(na);
-      const rb = rank(nb);
+      // Si existen OT antiguas con otra serie (ej. 4xxx), se dejan al final para no “romper” la secuencia 2xxx/3xxx.
+      const rank = (n) => (n >= 2000 && n < 4000) ? 0 : 1;
+      const ra = rank(pa.main);
+      const rb = rank(pb.main);
       if (ra !== rb) return ra - rb;
 
-      if (nb !== na) return nb - na;
+      const cmp = compareOTNumberDesc(a, b);
+      if (cmp !== 0) return cmp;
 
       const da = new Date(a.created_at || 0).getTime() || 0;
       const db = new Date(b.created_at || 0).getTime() || 0;
@@ -7925,7 +7947,7 @@ window.renderQuotes = renderQuotes;
       const items = window.currentReportAttachments || [];
       if(count) count.textContent = `${items.length} evidencia(s)`;
       if(!items.length){
-        box.innerHTML = '<div class="text-sm text-slate-500 bg-white border border-dashed border-slate-200 rounded-xl p-4">No hay evidencias cargadas todavía.</div>';
+        box.innerHTML = '<div class="text-sm text-slate-500 bg-white border border-dashed border-slate-200 rounded-xl p-4">No hay imágenes temporales cargadas todavía. Puedes adjuntar todas las que necesites para este PDF; no se guardarán en el sistema.</div>';
         return;
       }
       box.innerHTML = items.map(att => `
@@ -8095,6 +8117,7 @@ window.renderQuotes = renderQuotes;
         });
         return { total: equipments.length, operativos, observacion, noOperativos };
       })();
+      const tempEvidencias = normalizeReportEvidenceArray(window.currentReportAttachments || []);
       const payloadData = {
         numeroInforme: String(document.getElementById('rNumero')?.value || '').trim() || getNextReportNumber(),
         fecha: document.getElementById('rFecha')?.value || todayISO(),
@@ -8118,15 +8141,15 @@ window.renderQuotes = renderQuotes;
         equiposObservacion: summary.observacion,
         equiposNoOperativos: summary.noOperativos,
         estadoGeneral: summary.total ? (summary.noOperativos >= summary.total ? 'No operativo' : ((summary.noOperativos > 0 || summary.observacion > 0) ? 'Operativo parcial' : 'Operativo')) : 'Sin equipos',
-        evidencias: normalizeReportEvidenceArray(window.currentReportAttachments || []),
         equipos: equipments
       };
       return {
         id: reportId,
         ...payloadData,
+        evidencias: tempEvidencias,
         data: {
           ...payloadData,
-          evidencias: payloadData.evidencias,
+          evidencia_temporal_count: tempEvidencias.length,
           equipos: payloadData.equipos,
           createdByName: currentUserDisplayName || 'Usuario',
           createdByEmail: currentUser?.email || ''
@@ -8265,7 +8288,7 @@ window.renderQuotes = renderQuotes;
                   <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Evidencias fotográficas</h3>
                   <span id="reportEvidenceCount" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">0 evidencia(s)</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-1">Sube imágenes de antes y después, fallas, pruebas o cualquier respaldo visual.</p>
+                <p class="text-xs text-slate-500 mt-1">Adjunta imágenes de antes y después, fallas, pruebas o cualquier respaldo visual. Estas imágenes son temporales: sirven para la vista previa y el PDF de esta sesión, pero no se guardan dentro del sistema.</p>
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-end">
@@ -8280,7 +8303,7 @@ window.renderQuotes = renderQuotes;
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Archivo</label>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Imágenes para PDF (temporales)</label>
                 <input id="reportEvidenceInput" type="file" accept="image/*" multiple class="w-full px-3 py-3 border rounded-xl bg-white" onchange="handleReportEvidenceInputChange()">
               </div>
             </div>
@@ -8289,6 +8312,7 @@ window.renderQuotes = renderQuotes;
 
           <div class="flex flex-wrap gap-3">
             <button onclick="saveReport('${report?.id || ''}')" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-bold">Guardar informe</button>
+            <button onclick="saveReportAndGeneratePDF('${report?.id || ''}')" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-bold">Guardar y descargar PDF</button>
             ${report ? `<button onclick="previewReport('${report.id}')" class="px-5 py-3 rounded-2xl border font-bold hover:bg-gray-50">Vista previa</button>` : ''}
             <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-bold hover:bg-gray-50">Cancelar</button>
           </div>
@@ -8299,7 +8323,11 @@ window.renderQuotes = renderQuotes;
       populateReportOTFields();
     }
 
-    async function saveReport(reportId){
+    function saveReportAndGeneratePDF(reportId){
+      return saveReport(reportId, { generatePdf: true });
+    }
+
+    async function saveReport(reportId, options = {}){
       try {
         const model = getReportFromForm(reportId || null);
         if(!model.clientId){
@@ -8376,8 +8404,11 @@ window.renderQuotes = renderQuotes;
 
         await loadData();
         renderReports();
+        if(options && options.generatePdf){
+          await generateReportPDF(model);
+        }
         closeModal();
-        toastInfo(savedMode === 'supabase' ? 'Informe guardado correctamente ✅' : 'Informe guardado en modo local ✅');
+        toastInfo(savedMode === 'supabase' ? (options && options.generatePdf ? 'Informe guardado y PDF descargado ✅' : 'Informe guardado correctamente ✅') : (options && options.generatePdf ? 'Informe guardado en modo local y PDF descargado ✅' : 'Informe guardado en modo local ✅'));
       } catch (err) {
         console.error('saveReport error:', err);
         alert('No se pudo guardar el informe: ' + (err?.message || err));
@@ -8631,9 +8662,9 @@ window.renderQuotes = renderQuotes;
       }
     }
 
-    async function generateReportPDF(reportId){
+    async function generateReportPDF(reportRef){
       try {
-        const rep = (reports || []).find(r => String(r.id) === String(reportId));
+        const rep = (reportRef && typeof reportRef === 'object') ? reportRef : (reports || []).find(r => String(r.id) === String(reportRef));
         if(!rep){ alert('Informe no encontrado'); return; }
         if(!window.jspdf || !window.jspdf.jsPDF){ alert('No se pudo cargar la librería PDF'); return; }
         const { jsPDF } = window.jspdf;
@@ -8645,7 +8676,7 @@ window.renderQuotes = renderQuotes;
         const dark = [15,23,42];
         const summary = getReportOperationalSummary(rep);
         const equipments = normalizeReportEquipmentArray(rep.equipos || rep.data?.equipos || []);
-        const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || []);
+        const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || window.currentReportAttachments || []);
 
         await addLogoToPdf(doc);
         doc.setDrawColor(...green);
@@ -8768,30 +8799,60 @@ window.renderQuotes = renderQuotes;
         y += sugText.length * 4.4 + 4;
 
         if(evidencias.length){
-          ensureSpace(80);
-          doc.setFont('helvetica','bold');
-          doc.setFontSize(11.5);
-          doc.text('Evidencias fotográficas', margin, y);
-          y += 5;
+          const pageHeight = doc.internal.pageSize.getHeight();
           const cols = 2;
-          const imgW = 86;
+          const gapX = 8;
+          const gapY = 14;
+          const imgW = (pageWidth - (margin * 2) - gapX) / cols;
           const imgH = 52;
-          evidencias.slice(0,4).forEach((ev, idx) => {
-            const col = idx % cols;
-            const row = Math.floor(idx / cols);
-            const x = margin + col * (imgW + 8);
-            const yy = y + row * (imgH + 14);
-            if(row > 0 && yy + imgH > doc.internal.pageSize.getHeight() - 16){
+          const rowsPerPage = 2;
+          const perPage = cols * rowsPerPage;
+          const addEvidenceHeader = (continued = false) => {
+            doc.setFont('helvetica','bold');
+            doc.setFontSize(11.5);
+            doc.setTextColor(...dark);
+            doc.text(continued ? 'Evidencias fotográficas (continuación)' : 'Evidencias fotográficas', margin, y);
+            y += 5;
+          };
+
+          if(y + 10 > pageHeight - 20){
+            doc.addPage();
+            y = 16;
+          }
+          addEvidenceHeader(false);
+
+          evidencias.forEach((ev, idx) => {
+            if(idx > 0 && idx % perPage === 0){
               doc.addPage();
               y = 16;
+              addEvidenceHeader(true);
             }
+
+            const localIndex = idx % perPage;
+            const col = localIndex % cols;
+            const row = Math.floor(localIndex / cols);
+            const x = margin + col * (imgW + gapX);
+            const yy = y + row * (imgH + gapY);
+
             try {
-              doc.addImage(ev.dataUrl, 'JPEG', x, yy, imgW, imgH);
+              const format = String(ev.mimeType || '').toLowerCase().includes('png') ? 'PNG' : 'JPEG';
+              doc.addImage(ev.dataUrl, format, x, yy, imgW, imgH);
+              doc.setFont('helvetica','normal');
               doc.setFontSize(8);
               doc.setTextColor(...dark);
-              doc.text(`${ev.category || 'general'} · ${ev.name || ''}`.slice(0,60), x, yy + imgH + 4);
+              const caption = `${ev.category || 'general'} · ${ev.name || ''}`.trim();
+              const splitCaption = doc.splitTextToSize(caption || 'Evidencia', imgW);
+              doc.text(splitCaption.slice(0, 2), x, yy + imgH + 4);
             } catch(e) {
-              // ignore broken image
+              try {
+                doc.setDrawColor(220,226,232);
+                doc.setFillColor(248,250,252);
+                doc.roundedRect(x, yy, imgW, imgH, 2, 2, 'FD');
+                doc.setFont('helvetica','normal');
+                doc.setFontSize(8);
+                doc.setTextColor(100,116,139);
+                doc.text('No se pudo cargar esta evidencia', x + 4, yy + 8);
+              } catch(_) {}
             }
           });
         }
@@ -11436,6 +11497,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
                 <select id="otNewType" class="w-full px-3 py-2 border rounded-xl mt-2"><option value="Natural">Natural</option><option value="Empresa">Empresa</option></select>
             </div>
             <div><label class="block text-sm font-medium">Descripción del trabajo realizado *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Mantención correctiva, cambio de repuestos, revisión general..."></textarea></div>
+            <div><label class="block text-sm font-medium">Sucursal / ubicación / dirección</label><input id="mOtDireccion" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Sucursal Iquique · Vivar 1019"></div>
             <div id="mOtManualMontoWrap" class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                 <label class="block text-sm font-semibold text-slate-700">Monto del trabajo</label>
@@ -11481,12 +11543,14 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           const elFecha = document.getElementById('mOtFecha');
           const elNeto = document.getElementById('mOtNeto');
           const elTotal = document.getElementById('mOtTotal');
+          const elDireccion = document.getElementById('mOtDireccion');
 
           if (elClient && prefill.clientId) elClient.value = String(prefill.clientId);
           if (elDesc && prefill.descripcion) elDesc.value = String(prefill.descripcion);
           if (elOC && prefill.oc) elOC.value = String(prefill.oc);
           if (elHES && prefill.hes) elHES.value = String(prefill.hes);
           if (elFecha && prefill.fecha) elFecha.value = String(prefill.fecha);
+          if (elDireccion && (prefill.direccion || prefill.ubicacion || prefill.sucursal)) elDireccion.value = String(prefill.direccion || prefill.ubicacion || prefill.sucursal);
           if (elNeto && Number(prefill.neto || 0) > 0) elNeto.value = Number(prefill.neto || 0);
           if (elTotal && Number(prefill.total || 0) > 0) elTotal.value = Number(prefill.total || 0);
         }
@@ -11510,6 +11574,20 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
       } catch(e) { console.warn('No se pudo pintar banner de mantención', e); }
 
       try{ bindFolioToggles(); }catch(e){}
+      try {
+        const clientSelect = document.getElementById('mOtClient');
+        const direccionInput = document.getElementById('mOtDireccion');
+        const fillClientAddress = () => {
+          if(!direccionInput || String(direccionInput.value || '').trim()) return;
+          const clientId = String(clientSelect?.value || '').trim();
+          if(!clientId) return;
+          const selectedClient = (clients || []).find(c => String(c.id) === clientId);
+          const suggested = selectedClient?.direccion || selectedClient?.address || selectedClient?.data?.direccion || selectedClient?.data?.doreccion || '';
+          if(suggested) direccionInput.value = String(suggested).trim();
+        };
+        if(clientSelect) clientSelect.addEventListener('change', fillClientAddress);
+        fillClientAddress();
+      } catch(e) {}
       try{ syncNewOTManualAmounts('neto'); }catch(e){}
       try{ toggleNewOTManualAmountFields(); }catch(e){}
 
@@ -11575,6 +11653,7 @@ async function goToCreatedOTAndEdit(otId, numeroOT = '') {
       const desc = document.getElementById('mOtDesc').value.trim();
       const linkedQuote = pendingQuoteToLinkOT ? (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT)) : null;
       const linkedMaintenance = pendingMaintenanceToLinkOT ? Object.assign({}, pendingMaintenanceToLinkOT) : null;
+      const otDireccion = String(document.getElementById('mOtDireccion')?.value || '').trim();
       if(linkedMaintenance){
         const existingMaintenanceOT = getMaintenanceLinkedOT(linkedMaintenance.programId, linkedMaintenance.month, linkedMaintenance.year);
         if(existingMaintenanceOT){
@@ -11658,6 +11737,8 @@ async function goToCreatedOTAndEdit(otId, numeroOT = '') {
           oc: document.getElementById('mOtOC').value || '',
           hes: document.getElementById('mOtHES').value || '',
           guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
+          direccion: otDireccion,
+          sucursal: otDireccion,
           attachments: otAttachments,
           abonos: [],
           createdBy: currentUserDisplayName || 'Admin',
@@ -12989,11 +13070,7 @@ async function savePagoFinal(otId, btn) {
         .filter(ot => normalizeOTTrabajoEstado(ot.estado) === 'realizada')
         .filter(ot => normalizeOTCobroEstado(ot) !== 'pagado')
         .filter(ot => Number(ot.monto || ot.total || ot.data?.total || 0) > 0)
-        .sort((a, b) => {
-          const na = Number(a.numeroOT || a.numero_ot || 0) || 0;
-          const nb = Number(b.numeroOT || b.numero_ot || 0) || 0;
-          return nb - na;
-        });
+.sort((a, b) => compareOTNumberDesc(a, b));
 
       if(!candidatos.length){
         alert('No hay OTs realizadas disponibles para registrar abonos.');
@@ -13750,7 +13827,8 @@ function showRegistrarAbono(otId) {
             </div>
           </div>
 
-          <div class="flex gap-3 pt-6">
+          <div class="flex flex-col md:flex-row gap-3 pt-6">
+            <button onclick="deleteReq('${r.id}', { fromView: true })" class="md:w-auto bg-rose-50 text-rose-700 py-3 px-5 rounded-2xl font-bold border border-rose-200 hover:bg-rose-100">Eliminar</button>
             <button onclick="editReq('${r.id}')" class="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-semibold hover:bg-blue-700">Editar</button>
             <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl font-semibold">Cerrar</button>
           </div>
@@ -13808,6 +13886,7 @@ async function setVisitaEstado(id, estado) {
           <div class="flex gap-3 justify-center mb-2">
             <button onclick="viewReq('${r.id}')" class="text-slate-600 hover:text-slate-900" title="Ver"><i class="fa-solid fa-eye text-lg"></i></button>
             <button onclick="editReq('${r.id}')" class="text-blue-700 hover:text-blue-900" title="Editar"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
+            <button onclick="deleteReq('${r.id}', { fromList: true })" class="text-rose-600 hover:text-rose-800" title="Eliminar requerimiento"><i class="fa-solid fa-trash text-lg"></i></button>
           </div>
         `;
 
@@ -14147,9 +14226,12 @@ async function saveNewReq() {
             </div>
           </div>
 
-          <div class="flex justify-end gap-3 mt-6">
-            <button onclick="closeModal()" class="px-5 py-2 rounded-xl border">Cancelar</button>
-            <button onclick="saveEditReq('${r.id}')" class="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold">Guardar cambios</button>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6">
+            <button onclick="deleteReq('${r.id}', { fromEdit: true })" class="md:w-auto bg-rose-50 text-rose-700 py-3 px-5 rounded-xl font-bold border border-rose-200 hover:bg-rose-100">Eliminar requerimiento</button>
+            <div class="flex justify-end gap-3">
+              <button onclick="closeModal()" class="px-5 py-2 rounded-xl border">Cancelar</button>
+              <button onclick="saveEditReq('${r.id}')" class="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold">Guardar cambios</button>
+            </div>
           </div>
         </div>
       `;
@@ -14189,6 +14271,54 @@ async function saveNewReq() {
       if(error) return alert("Error al actualizar requerimiento: " + error.message);
       await loadData();
       showView('reqs');
+    }
+
+    async function deleteReq(reqId, opts = {}) {
+      try {
+        const req = (requerimientos || []).find(x => String(x.id) === String(reqId));
+        if (!req) {
+          alert('No se encontró el requerimiento.');
+          return;
+        }
+
+        const cliente = req.nombre || req.clientName || 'cliente';
+        const fecha = req.fecha || formatDDMMYY(req.created_at) || '';
+        const detalleCorto = String(req.detalle || req.descripcion || '').trim().slice(0, 80);
+        const msg = `¿Enviar a papelera este requerimiento de ${cliente}${fecha ? ' (' + fecha + ')' : ''}?${detalleCorto ? '\n\nDetalle: ' + detalleCorto : ''}`;
+        if (!confirm(msg)) return;
+
+        try {
+          if (typeof window.moveRecordToRecycleBin === 'function') {
+            await window.moveRecordToRecycleBin({
+              entityType: 'requirement',
+              sourceTable: 'requerimientos',
+              recordId: req.id,
+              payload: window.sanitizeRecyclePayload
+                ? window.sanitizeRecyclePayload({ entity_type: 'requirement', payload: req })
+                : { entity_type: 'requirement', payload: req },
+              displayName: `Requerimiento · ${cliente}${fecha ? ' · ' + fecha : ''}`
+            });
+          }
+        } catch (recycleErr) {
+          console.warn('No se pudo enviar requerimiento a papelera, se intentará eliminar igual.', recycleErr);
+        }
+
+        const { error } = await supabaseClient.from('requerimientos').delete().eq('id', reqId);
+        if (error) throw error;
+
+        if (opts && (opts.fromEdit || opts.fromView || opts.fromList)) {
+          try { closeModal(); } catch (e) {}
+        }
+
+        await loadData();
+        try { renderReqs(); } catch (e) {}
+        try { renderTrash(); } catch (e) {}
+        showView('reqs');
+        toastInfo('Requerimiento enviado a papelera ✅');
+      } catch (err) {
+        console.error('deleteReq error:', err);
+        alert('Error al enviar requerimiento a papelera: ' + (err?.message || err));
+      }
     }
 
     async function editVisita(visitaId) {
@@ -15265,9 +15395,8 @@ function renderOTs() {
   tbodyClosed.innerHTML = '';
 
   const ordered = (ots || []).slice().sort((a,b)=>{
-    const na = parseInt(String(a.numero_ot || a.numeroOT || '').replace(/\D/g,''), 10) || 0;
-    const nb = parseInt(String(b.numero_ot || b.numeroOT || '').replace(/\D/g,''), 10) || 0;
-    if(nb !== na) return nb - na;
+    const cmp = compareOTNumberDesc(a, b);
+    if(cmp !== 0) return cmp;
     const da = new Date(getPreferredOTDate(a) || 0).getTime() || 0;
     const db = new Date(getPreferredOTDate(b) || 0).getTime() || 0;
     return db - da;
@@ -15458,6 +15587,10 @@ function openEditOT(otId){
         <div>
           <label class="text-sm text-gray-600">Guía de despacho</label>
           <input id="eOtGuia" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.guia_despacho || '')}" placeholder="Ej: GD-1234">
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-sm text-gray-600">Sucursal / ubicación / dirección</label>
+          <input id="eOtDireccion" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(o.direccion || o.sucursal || o.data?.direccion || o.data?.sucursal || '')}" placeholder="Ej: Sucursal Iquique · Vivar 1019">
         </div>
         <div>
           <label class="text-sm text-gray-600">Estado del trabajo</label>
@@ -15713,6 +15846,7 @@ async function saveEditOT(otId, btn){
     const facturaNum = String(document.getElementById('eOtFacturaNum')?.value ?? '').trim();
     const documentoTipo = String(document.getElementById('eOtDocumentoTipo')?.value || getDocumentoTipoOT(ot) || 'factura').toLowerCase().trim();
     const guiaDespacho = String(document.getElementById('eOtGuia')?.value || '').trim();
+    const direccionOT = String(document.getElementById('eOtDireccion')?.value || '').trim();
     const selectedQuoteId = String(document.getElementById('eOtQuoteId')?.value || '').trim();
     const selectedQuote = selectedQuoteId ? (quotes || []).find(q => String(q.id) === selectedQuoteId) : null;
 
@@ -15756,6 +15890,8 @@ async function saveEditOT(otId, btn){
     }
 
     dataNew.guia_despacho = guiaDespacho;
+    dataNew.direccion = direccionOT;
+    dataNew.sucursal = direccionOT;
     dataNew.pago_estado = cobro;
     dataNew.cobro_estado = cobro;
 
@@ -16031,11 +16167,7 @@ window.showDashDetails = function(kind){
           const estado = normalizeOTTrabajoEstado(o?.estado);
           return estado === 'pendiente' || estado === 'en_curso';
         })
-        .sort((a, b) => {
-          const na = Number(a?.numeroOT || a?.numero_ot || 0) || 0;
-          const nb = Number(b?.numeroOT || b?.numero_ot || 0) || 0;
-          return nb - na;
-        });
+.sort((a, b) => compareOTNumberDesc(a, b));
 
       title = `Órdenes pendientes y en curso (${items.length})`;
       html = items.length
