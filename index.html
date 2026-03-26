@@ -12279,8 +12279,9 @@ window.openLibroAttachment = openLibroAttachment;
 window.downloadLibroAttachment = downloadLibroAttachment;
 
 function openOTLibro(otId){
-  const ot = (ots || []).find(o => String(o.id) === String(otId));
-  if(!ot){ alert('OT no encontrada'); return; }
+  try{
+    const ot = (ots || []).find(o => String(o.id) === String(otId));
+    if(!ot){ alert('OT no encontrada'); return; }
 
   const fac = getFacturaNumeroOT(ot);
   const reg = getFacturaRegistroFechaOT(ot);
@@ -12307,7 +12308,20 @@ function openOTLibro(otId){
   const safe = (typeof escapeHtml==='function') ? escapeHtml : (s)=>String(s||'');
   const facTxt = fac ? `${docLabel} N° ${safe(fac)}` : 'Sin documento';
   const quoteTxt = linkedQuote ? ` · Cotización ${safe(linkedQuote.numeroCotizacion || linkedQuote.numero || 'S/N')}` : '';
-  const attachmentsSection = renderLibroAttachmentsSection(ot);
+  const quoteMonto = Number(linkedQuote?.monto || linkedQuote?.total || linkedQuote?.data?.monto || 0);
+  const otMonto = Number(ot?.monto || ot?.total || ot?.data?.monto || 0);
+  const libroMonto = quoteMonto > 0 ? quoteMonto : otMonto;
+  const libroMontoTxt = libroMonto > 0 ? safe(formatMoneySafe(libroMonto)) : 'No informado';
+  let attachmentsSection = '';
+  try{
+    attachmentsSection = renderLibroAttachmentsSection(ot);
+  }catch(errAttachments){
+    console.error('openOTLibro attachments error:', errAttachments);
+    attachmentsSection = `
+      <div class="mt-6 border rounded-2xl p-5 bg-slate-50">
+        <div class="text-sm text-slate-600">No se pudieron cargar los adjuntos de esta bitácora, pero el resto de la información sí está disponible.</div>
+      </div>`;
+  }
 
   const html = `
     <div class="p-8">
@@ -12315,6 +12329,7 @@ function openOTLibro(otId){
         <div>
           <h2 class="text-2xl font-bold">Bitácora OT</h2>
           <p class="text-sm text-slate-500">OT <span class="font-semibold text-slate-800">${safe(ot.numero_ot || ot.numeroOT || '-')}</span> · ${safe(ot.clientName || '-')} ${quoteTxt}</p>
+          <p class="text-sm text-slate-500 mt-1">Valor del trabajo: <span class="font-semibold text-slate-800">${libroMontoTxt}</span></p>
         </div>
         <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800" title="Cerrar">
           <i class="fa-solid fa-xmark text-2xl"></i>
@@ -12360,6 +12375,10 @@ function openOTLibro(otId){
 
           <div class="space-y-2 text-sm">
             <div class="flex items-center justify-between">
+              <span class="text-slate-600">Valor del trabajo</span>
+              <span class="font-semibold text-slate-900">${libroMontoTxt}</span>
+            </div>
+            <div class="flex items-center justify-between">
               <span class="text-slate-600">Fecha</span>
               <span class="font-semibold text-slate-900">${pagoFecha ? formatDDMMYY(pagoFecha) : '—'}</span>
             </div>
@@ -12381,8 +12400,20 @@ function openOTLibro(otId){
     </div>
   `;
   openModal(html);
+  }catch(err){
+    console.error('openOTLibro error:', err);
+    alert('No se pudo abrir la bitácora de esta OT.');
+  }
+}
+
+function openOTLibroFromMenu(otId){
+  try{ closeModal(); }catch(e){}
+  setTimeout(() => {
+    try{ openOTLibro(otId); }catch(err){ console.error('openOTLibroFromMenu error:', err); }
+  }, 90);
 }
 window.openOTLibro = openOTLibro;
+window.openOTLibroFromMenu = openOTLibroFromMenu;
 
 function promptRegistrarPago(otId) {
   const ot = ots.find(o => String(o.id) === String(otId));
@@ -15456,11 +15487,22 @@ function getOTCobroMiniHTML(o){
   return '<span class="ot-cobro-mini ot-cobro-mini--empty">—</span>';
 }
 
+function getOTWorkValueLabel(o){
+  const linkedQuote = (typeof getLinkedQuoteForOT === 'function') ? getLinkedQuoteForOT(o) : null;
+  const raw = (linkedQuote && linkedQuote.monto != null ? linkedQuote.monto : null)
+    ?? o?.monto ?? o?.data?.monto ?? o?.data?.valorTrabajo ?? o?.valorTrabajo;
+  const num = Number(raw || 0);
+  if(!num) return '';
+  try { return formatCLP(num); } catch(e) { return `$${num}`; }
+}
+
 function getOTSecondaryLine(o){
   const parts = [];
   const ref = safeText(getOTListReference(o) || '');
   if(ref) parts.push(ref);
   if(o?.numeroCotizacion) parts.push(`Cot: ${safeText(o.numeroCotizacion)}`);
+  const valueLabel = getOTWorkValueLabel(o);
+  if(valueLabel) parts.push(`Valor: ${safeText(valueLabel)}`);
   return parts.join(' · ').trim();
 }
 
@@ -15575,7 +15617,7 @@ function showOTMoreOptions(otId){
         <button onclick="editOT('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar OT</button>
         <button onclick="programCalendarFromOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-calendar-plus mr-2 text-indigo-700"></i> Programar en calendario</button>
         <button onclick="${reportAction}" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-lines mr-2 text-cyan-700"></i> ${reportLabel}</button>
-        <button onclick="closeModal(); setTimeout(() => openOTLibro('${otId}'), 60);" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-book-open mr-2 text-slate-700"></i> Bitácora de documento / envío / pago</button>
+        <button onclick="openOTLibroFromMenu('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-book-open mr-2 text-slate-700"></i> Bitácora de documento / envío / pago</button>
       </div>
     </div>`);
 }
