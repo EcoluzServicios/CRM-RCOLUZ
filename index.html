@@ -358,6 +358,51 @@ function toggleEditOTFacturaField(){
 #sidebar > nav::-webkit-scrollbar-track{
   background: transparent;
 }
+
+/* Mandantes: tarjetas más limpias y números sin quiebres feos */
+.mandante-card{ min-width:0; }
+.mandante-card .mandante-title{ line-height:1.04; overflow-wrap:anywhere; }
+.mandante-card .mandante-kpi-grid,
+.mandante-card .mandante-money-grid{ min-width:0; }
+.mandante-card .mandante-kpi-card,
+.mandante-card .mandante-money-card{ min-width:0; }
+.mandante-card .mandante-kpi-label,
+.mandante-card .mandante-money-label{ font-size:.79rem; line-height:1.1; font-weight:700; }
+.mandante-card .mandante-kpi-value,
+.mandante-card .mandante-money-value{
+  font-weight:900;
+  line-height:1.02;
+  letter-spacing:-0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.mandante-card .mandante-kpi-value{ font-size:clamp(1.45rem,1.45vw,1.9rem); white-space:nowrap; }
+.mandante-card .mandante-money-value{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mandante-card .mandante-money-value.is-normal{ font-size:clamp(1.08rem,1.05vw,1.32rem); }
+.mandante-card .mandante-money-value.is-compact{ font-size:clamp(.98rem,.98vw,1.16rem); }
+.mandante-card .mandante-money-value.is-tight{ font-size:clamp(.88rem,.9vw,1rem); }
+.mandante-card .mandante-pill{ display:inline-flex; width:fit-content; max-width:100%; align-self:flex-end; white-space:normal; text-align:right; line-height:1.12; padding:.34rem .75rem; }
+.mandante-card .mandante-footer{ display:flex; flex-wrap:wrap; gap:.45rem .9rem; }
+.mandante-card .mandante-footer span{ white-space:nowrap; }
+#sidebar:not(.collapsed) + #mainContent .mandante-card .mandante-kpi-value{ font-size:clamp(1.22rem,1.12vw,1.58rem); }
+#sidebar:not(.collapsed) + #mainContent .mandante-card .mandante-money-value.is-normal{ font-size:clamp(.98rem,.92vw,1.15rem); }
+#sidebar:not(.collapsed) + #mainContent .mandante-card .mandante-money-value.is-compact{ font-size:clamp(.9rem,.86vw,1.03rem); }
+#sidebar:not(.collapsed) + #mainContent .mandante-card .mandante-money-value.is-tight{ font-size:clamp(.82rem,.8vw,.94rem); }
+#sidebar.collapsed + #mainContent .mandante-card .mandante-kpi-value{ font-size:clamp(1.4rem,1.35vw,1.82rem); }
+#sidebar.collapsed + #mainContent .mandante-card .mandante-money-value.is-normal{ font-size:clamp(1.04rem,1vw,1.26rem); }
+#sidebar.collapsed + #mainContent .mandante-card .mandante-money-value.is-compact{ font-size:clamp(.95rem,.94vw,1.1rem); }
+#sidebar.collapsed + #mainContent .mandante-card .mandante-money-value.is-tight{ font-size:clamp(.86rem,.86vw,1rem); }
+@media (max-width: 1350px){
+  .mandante-card .mandante-kpi-grid,
+  .mandante-card .mandante-money-grid{ gap:.65rem; }
+}
+@media (max-width: 1180px){
+  .mandante-card .mandante-money-card{ padding:.72rem; }
+  .mandante-card .mandante-kpi-value{ font-size:1.3rem; }
+  .mandante-card .mandante-money-value.is-normal{ font-size:1rem; }
+  .mandante-card .mandante-money-value.is-compact{ font-size:.92rem; }
+  .mandante-card .mandante-money-value.is-tight{ font-size:.84rem; }
+}
+
 #sidebar > nav::-webkit-scrollbar-thumb{
   background: rgba(148,163,184,.85);
   border-radius: 999px;
@@ -674,6 +719,84 @@ function toggleEditOTFacturaField(){
   align-items:center;
   justify-content:center;
 }
+
+/* Dashboard KPI cards refined layout */
+.dashboard-kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:1rem;
+  margin-bottom:3rem;
+  align-items:stretch;
+}
+#sidebar:not(.collapsed) + #mainContent .dashboard-kpi-grid{
+  grid-template-columns:repeat(auto-fit,minmax(215px,1fr));
+}
+#sidebar.collapsed + #mainContent .dashboard-kpi-grid{
+  grid-template-columns:repeat(auto-fit,minmax(235px,1fr));
+}
+.dashboard-kpi-card{
+  min-height:150px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:.85rem;
+  padding:1.15rem 1.15rem 1rem;
+  border-radius:1.5rem;
+}
+.dashboard-kpi-title{
+  color:#64748b;
+  font-weight:700;
+  line-height:1.22;
+  text-wrap:pretty;
+  max-width:none;
+  font-size:1rem;
+  min-height:2.45em;
+}
+#sidebar:not(.collapsed) + #mainContent .dashboard-kpi-title{
+  font-size:.98rem;
+}
+#sidebar.collapsed + #mainContent .dashboard-kpi-title{
+  font-size:1.02rem;
+}
+.dashboard-kpi-value{
+  line-height:.95;
+  font-weight:800;
+  letter-spacing:-.03em;
+  font-size:clamp(2rem,1.9vw,2.55rem);
+}
+#sidebar:not(.collapsed) + #mainContent .dashboard-kpi-value{
+  font-size:clamp(1.9rem,1.7vw,2.35rem);
+}
+.dashboard-kpi-note{
+  color:#94a3b8;
+  font-size:.9rem;
+  line-height:1.32;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-height:2.4em;
+}
+@media (max-width: 1280px){
+  #sidebar:not(.collapsed) + #mainContent .dashboard-kpi-grid,
+  .dashboard-kpi-grid{
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  }
+}
+@media (max-width: 980px){
+  .dashboard-kpi-grid,
+  #sidebar:not(.collapsed) + #mainContent .dashboard-kpi-grid,
+  #sidebar.collapsed + #mainContent .dashboard-kpi-grid{
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  }
+  .dashboard-kpi-card{
+    min-height:140px;
+  }
+  .dashboard-kpi-title{
+    min-height:auto;
+  }
+}
+
 </style>
 
 <style id="ecoluz-brand-overrides">
@@ -800,59 +923,59 @@ function toggleEditOTFacturaField(){
 <div id="view-dashboard">
   <h1 class="text-4xl font-bold mb-8">Bienvenido, <span id="welcomeName" class="text-blue-600"></span></h1>
   
-  <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-6 mb-12">
-    <div class="bg-white p-6 rounded-3xl shadow">
-      <p class="text-gray-500 font-medium mb-2">Clientes</p>
-      <p id="dashClients" class="text-4xl font-bold text-blue-600">0</p>
+  <div class="dashboard-kpi-grid">
+    <div class="dashboard-kpi-card bg-white shadow">
+      <p class="dashboard-kpi-title mb-3">Clientes</p>
+      <p id="dashClients" class="dashboard-kpi-value text-blue-600">0</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('quotes_pending')">
-      <p class="text-gray-500 font-medium mb-2">Cotizaciones Pendientes</p>
-      <p id="dashQuotes" class="text-4xl font-bold text-amber-500">0</p>
-      <p class="text-xs text-gray-400 mt-2">Click para ver detalle</p>
+      <p class="dashboard-kpi-title mb-3">Cotizaciones Pendientes</p>
+      <p id="dashQuotes" class="dashboard-kpi-value text-amber-500">0</p>
+      <p class="dashboard-kpi-note mt-3">Click para ver detalle</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('ots_en_curso')">
-      <p class="text-gray-500 font-medium mb-2">Órdenes En Curso</p>
-      <p id="dashOTs" class="text-4xl font-bold text-emerald-600">0</p>
-      <p class="text-xs text-gray-400 mt-2">Click para ver detalle</p>
+      <p class="dashboard-kpi-title mb-3">Órdenes En Curso</p>
+      <p id="dashOTs" class="dashboard-kpi-value text-emerald-600">0</p>
+      <p class="dashboard-kpi-note mt-3">Click para ver detalle</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('deudas')">
-      <p class="text-gray-500 font-medium mb-2">Pendientes de pago</p>
-      <p id="dashDeudas" class="text-4xl font-bold text-red-600">0</p>
-      <p class="text-xs text-gray-400 mt-2">OTs realizadas · sin documento o sin pago</p>
+      <p class="dashboard-kpi-title mb-3">Pendientes de pago</p>
+      <p id="dashDeudas" class="dashboard-kpi-value text-red-600">0</p>
+      <p class="dashboard-kpi-note mt-3">OTs realizadas · sin documento o sin pago</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('visitas_pend')">
-      <p class="text-gray-500 font-medium mb-2">Visitas Técnicas</p>
-      <p id="dashVisitas" class="text-4xl font-bold text-sky-600">0</p>
-      <p class="text-xs text-gray-400 mt-2">Pendientes · click detalle</p>
+      <p class="dashboard-kpi-title mb-3">Visitas Técnicas</p>
+      <p id="dashVisitas" class="dashboard-kpi-value text-sky-600">0</p>
+      <p class="dashboard-kpi-note mt-3">Pendientes · click detalle</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('reqs_pend')">
-      <p class="text-gray-500 font-medium mb-2">Requerimientos</p>
-      <p id="dashReqs" class="text-4xl font-bold text-violet-600">0</p>
-      <p class="text-xs text-gray-400 mt-2">Pendientes · click detalle</p>
+      <p class="dashboard-kpi-title mb-3">Requerimientos</p>
+      <p id="dashReqs" class="dashboard-kpi-value text-violet-600">0</p>
+      <p class="dashboard-kpi-note mt-3">Pendientes · click detalle</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('mantenciones')">
-      <p class="text-gray-500 font-medium mb-2">Mantenciones</p>
-      <p id="dashMantenciones" class="text-4xl font-bold text-cyan-700">0</p>
-      <p class="text-xs text-gray-400 mt-2">Aceptadas/aprobadas · pendientes o en curso</p>
+      <p class="dashboard-kpi-title mb-3">Mantenciones</p>
+      <p id="dashMantenciones" class="dashboard-kpi-value text-cyan-700">0</p>
+      <p class="dashboard-kpi-note mt-3">Aceptadas/aprobadas · pendientes o en curso</p>
     </div>
 
-    <div class="bg-white p-6 rounded-3xl shadow cursor-pointer hover:shadow-md transition"
+    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
          onclick="showDashDetails('suministro_instalacion')">
-      <p class="text-gray-500 font-medium mb-2">Suministros e Instalaciones</p>
-      <p id="dashSuministrosInst" class="text-4xl font-bold text-fuchsia-700">0</p>
-      <p class="text-xs text-gray-400 mt-2">Aceptadas/aprobadas · pendientes o en curso</p>
+      <p class="dashboard-kpi-title mb-3">Suministros e Instalaciones</p>
+      <p id="dashSuministrosInst" class="dashboard-kpi-value text-fuchsia-700">0</p>
+      <p class="dashboard-kpi-note mt-3">Aceptadas/aprobadas · pendientes o en curso</p>
     </div>
   </div>
 
@@ -1331,29 +1454,6 @@ function toggleEditOTFacturaField(){
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Informes</p>
-            <p id="reportsCount" class="text-3xl font-black text-blue-700 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Equipos revisados</p>
-            <p id="reportsEquiposCount" class="text-3xl font-black text-slate-800 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Operativos</p>
-            <p id="reportsOperativosCount" class="text-3xl font-black text-emerald-700 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Con observación</p>
-            <p id="reportsObservacionCount" class="text-3xl font-black text-amber-700 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">No operativos</p>
-            <p id="reportsNoOperativosCount" class="text-3xl font-black text-rose-700 mt-1">0</p>
-          </div>
-        </div>
-
         <div class="mb-6">
           <label class="block text-sm font-semibold text-slate-700 mb-2">Buscar informe</label>
           <div class="relative">
@@ -1510,21 +1610,6 @@ function toggleEditOTFacturaField(){
           <div class="relative">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input id="reqSearchFree" type="text" placeholder="Busca por fecha, cliente, RUT, detalle, estado o creador" class="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200" oninput="renderReqs()" autocomplete="off" />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Pendientes</p>
-            <p id="reqCountPendiente" class="text-3xl font-black text-amber-600 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Realizados</p>
-            <p id="reqCountRealizado" class="text-3xl font-black text-emerald-600 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Cancelados</p>
-            <p id="reqCountCancelado" class="text-3xl font-black text-rose-600 mt-1">0</p>
           </div>
         </div>
 
@@ -2471,6 +2556,13 @@ function formatMoneySafe(v){
   try { return typeof formatCLP === 'function' ? formatCLP(Number(v||0)) : new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0)); }
   catch(e){ return '$' + Number(v||0).toLocaleString('es-CL'); }
 }
+function mandanteMoneyValueClass(value){
+  const txt = formatMoneySafe(value || 0);
+  const len = String(txt || '').replace(/\s+/g,'').length;
+  if(len >= 12) return 'is-tight';
+  if(len >= 10) return 'is-compact';
+  return 'is-normal';
+}
 
 function renderMandanteOTCards(list, containerId){
   const el = document.getElementById(containerId);
@@ -2873,54 +2965,54 @@ function renderMandantes(){
       const fin = getMandanteFinancialSummary(jobs) || {};
 
       cards.push(`
-      <div class="bg-white rounded-3xl shadow p-6 hover:shadow-lg transition-shadow border border-slate-100 cursor-pointer" role="button" tabindex="0" onclick="renderMandanteDetail('${String(client?.id || '')}')" onkeydown="if(event.key==='Enter' || event.key===' '){ event.preventDefault(); renderMandanteDetail('${String(client?.id || '')}'); }">
+      <div class="mandante-card bg-white rounded-3xl shadow p-6 hover:shadow-lg transition-shadow border border-slate-100 cursor-pointer" role="button" tabindex="0" onclick="renderMandanteDetail('${String(client?.id || '')}')" onkeydown="if(event.key==='Enter' || event.key===' '){ event.preventDefault(); renderMandanteDetail('${String(client?.id || '')}'); }">
         <div class="flex items-start justify-between gap-4">
-          <div>
+          <div class="min-w-0 flex-1 pr-1">
             <p class="text-xs uppercase tracking-[0.2em] text-indigo-600 font-black">Mandante</p>
-            <h3 class="text-2xl font-black text-slate-800 mt-1">${escapeHtml(client?.name || 'Sin nombre')}</h3>
+            <h3 class="mandante-title text-2xl font-black text-slate-800 mt-1">${escapeHtml(client?.name || 'Sin nombre')}</h3>
             <p class="text-sm text-gray-500 mt-1">${escapeHtml(client?.rut || 'Sin RUT')}</p>
           </div>
-          <div class="flex flex-col items-end gap-2">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">${jobs.length} trabajo(s)</span>
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">${cotPendientes} cotización(es) pendiente(s)</span>
+          <div class="flex flex-col items-end gap-2 shrink-0 max-w-[38%]">
+            <span class="mandante-pill rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">${jobs.length} trabajo(s)</span>
+            <span class="mandante-pill rounded-full text-[11px] font-semibold bg-orange-50 text-orange-700 border border-orange-200">${cotPendientes} cotización(es) pendiente(s)</span>
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-3 mt-5">
-          <div class="rounded-2xl bg-amber-50 border border-amber-100 p-3 text-center">
-            <p class="text-xs text-amber-700">Pendiente</p>
-            <p class="text-2xl font-black text-amber-700">${pendiente}</p>
+        <div class="mandante-kpi-grid grid grid-cols-3 gap-3 mt-5">
+          <div class="mandante-kpi-card rounded-2xl bg-amber-50 border border-amber-100 p-3 text-center">
+            <p class="mandante-kpi-label text-amber-700">Pendiente</p>
+            <p class="mandante-kpi-value text-amber-700">${pendiente}</p>
           </div>
-          <div class="rounded-2xl bg-cyan-50 border border-cyan-100 p-3 text-center">
-            <p class="text-xs text-cyan-700">En curso</p>
-            <p class="text-2xl font-black text-cyan-700">${enCurso}</p>
+          <div class="mandante-kpi-card rounded-2xl bg-cyan-50 border border-cyan-100 p-3 text-center">
+            <p class="mandante-kpi-label text-cyan-700">En curso</p>
+            <p class="mandante-kpi-value text-cyan-700">${enCurso}</p>
           </div>
-          <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3 text-center">
-            <p class="text-xs text-emerald-700">Realizada</p>
-            <p class="text-2xl font-black text-emerald-700">${realizada}</p>
+          <div class="mandante-kpi-card rounded-2xl bg-emerald-50 border border-emerald-100 p-3 text-center">
+            <p class="mandante-kpi-label text-emerald-700">Realizada</p>
+            <p class="mandante-kpi-value text-emerald-700">${realizada}</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
-          <div class="rounded-2xl bg-blue-50 border border-blue-100 p-3">
-            <p class="text-xs text-blue-700">Facturado</p>
-            <p class="text-lg font-black text-blue-800">${escapeHtml(formatMoneySafe(fin?.montoFacturado || 0))}</p>
+        <div class="mandante-money-grid grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+          <div class="mandante-money-card rounded-2xl bg-blue-50 border border-blue-100 p-3" title="${escapeHtml(formatMoneySafe(fin?.montoFacturado || 0))}">
+            <p class="mandante-money-label text-blue-700">Facturado</p>
+            <p class="mandante-money-value ${mandanteMoneyValueClass(fin?.montoFacturado || 0)} text-blue-800">${escapeHtml(formatMoneySafe(fin?.montoFacturado || 0))}</p>
           </div>
-          <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">
-            <p class="text-xs text-emerald-700">Pagado</p>
-            <p class="text-lg font-black text-emerald-800">${escapeHtml(formatMoneySafe(fin?.montoPagado || 0))}</p>
+          <div class="mandante-money-card rounded-2xl bg-emerald-50 border border-emerald-100 p-3" title="${escapeHtml(formatMoneySafe(fin?.montoPagado || 0))}">
+            <p class="mandante-money-label text-emerald-700">Pagado</p>
+            <p class="mandante-money-value ${mandanteMoneyValueClass(fin?.montoPagado || 0)} text-emerald-800">${escapeHtml(formatMoneySafe(fin?.montoPagado || 0))}</p>
           </div>
-          <div class="rounded-2xl bg-rose-50 border border-rose-100 p-3">
-            <p class="text-xs text-rose-700">Pendiente</p>
-            <p class="text-lg font-black text-rose-800">${escapeHtml(formatMoneySafe(fin?.montoPendiente || 0))}</p>
+          <div class="mandante-money-card rounded-2xl bg-rose-50 border border-rose-100 p-3" title="${escapeHtml(formatMoneySafe(fin?.montoPendiente || 0))}">
+            <p class="mandante-money-label text-rose-700">Pendiente</p>
+            <p class="mandante-money-value ${mandanteMoneyValueClass(fin?.montoPendiente || 0)} text-rose-800">${escapeHtml(formatMoneySafe(fin?.montoPendiente || 0))}</p>
           </div>
         </div>
 
         <div class="mt-5">
-          <div class="text-xs text-gray-500">
-            <span class="font-bold text-amber-700">${Number(fin?.trabajosSinDocumento || 0)}</span> sin documento ·
-            <span class="font-bold text-rose-700">${Number(fin?.trabajosPendientePago || 0)}</span> pendiente(s) de pago ·
-            <span class="font-bold text-emerald-700">${Number(fin?.trabajosPagados || 0)}</span> pagado(s)
+          <div class="mandante-footer text-xs text-gray-500 leading-relaxed">
+            <span><span class="font-bold text-amber-700">${Number(fin?.trabajosSinDocumento || 0)}</span> sin documento</span>
+            <span><span class="font-bold text-rose-700">${Number(fin?.trabajosPendientePago || 0)}</span> pendiente(s) de pago</span>
+            <span><span class="font-bold text-emerald-700">${Number(fin?.trabajosPagados || 0)}</span> pagado(s)</span>
           </div>
         </div>
       </div>
@@ -16027,16 +16119,19 @@ function getSimpleOTCardHTML(ot){
   const numeroCot = ot?.numeroCotizacion || ot?.quoteNumber || ot?.data?.numeroCotizacion || '';
   const cliente = safeText(ot?.clientName || ot?.data?.clientName || 'Cliente');
   const descripcion = getOTDetailDescription(ot);
+  const ingreso = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(ot?.created_at || ot?.fecha || '') : (ot?.created_at || ot?.fecha || '—'));
 
   return `
-    <div class="border rounded-2xl p-5 bg-white">
-      <div class="font-black text-slate-800 text-2xl">OT ${escapeHtml(String(numeroOT))}</div>
-      <div class="text-slate-500 mt-1">${escapeHtml(cliente)}${numeroCot ? ' - Cot. ' + escapeHtml(String(numeroCot)) : ''}</div>
-
-      <div class="mt-4 rounded-2xl bg-slate-50 p-4">
-        <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Trabajo</div>
-        <div class="text-slate-800 text-lg">${escapeHtml(descripcion)}</div>
+    <div class="border rounded-xl p-4 bg-white shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-black text-slate-800 text-xl leading-tight">OT ${escapeHtml(String(numeroOT))}</div>
+          <div class="text-slate-600 text-sm font-semibold mt-1">${escapeHtml(cliente)}</div>
+        </div>
+        ${numeroCot ? `<div class="text-[11px] font-semibold text-slate-500 whitespace-nowrap">Cot. ${escapeHtml(String(numeroCot))}</div>` : ''}
       </div>
+      <div class="mt-3 text-sm leading-6 text-slate-700"><span class="font-semibold text-slate-500">Info:</span> ${escapeHtml(descripcion)}</div>
+      <div class="mt-2 text-xs text-slate-500"><span class="font-semibold">Ingreso sistema:</span> ${escapeHtml(ingreso || '—')}</div>
     </div>
   `;
 }
@@ -16050,21 +16145,21 @@ function getSimpleQuoteCardHTML(q){
     q?.data?.sucursal || q?.data?.sucursal_direccion || q?.data?.direccion_sucursal || q?.data?.direccion || ''
   );
   const estado = safeText(q?.estado || q?.status || q?.data?.estado || 'pendiente');
+  const ingreso = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(q?.created_at || q?.fecha || '') : (q?.created_at || q?.fecha || '—'));
 
   return `
-    <div class="border rounded-2xl p-5 bg-white">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class="font-black text-slate-800 text-2xl">Cot. ${escapeHtml(String(numeroCot))}</div>
-          <div class="text-slate-500 mt-1">${escapeHtml(cliente)}</div>
+    <div class="border rounded-xl p-4 bg-white shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-black text-slate-800 text-xl leading-tight">Cot. ${escapeHtml(String(numeroCot))}</div>
+          <div class="text-slate-600 text-sm font-semibold mt-1">${escapeHtml(cliente)}</div>
         </div>
-        <div class="text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">${escapeHtml(estado)}</div>
+        <div class="text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">${escapeHtml(estado)}</div>
       </div>
-
-      <div class="mt-4 rounded-2xl bg-slate-50 p-4">
-        <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Trabajo</div>
-        <div class="text-slate-800 text-lg">${escapeHtml(descripcion)}</div>
-        ${sucursal ? `<div class="mt-3 text-sm text-slate-500"><span class="font-semibold">Sucursal:</span> ${escapeHtml(sucursal)}</div>` : ''}
+      <div class="mt-3 text-sm leading-6 text-slate-700"><span class="font-semibold text-slate-500">Info:</span> ${escapeHtml(descripcion)}</div>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+        ${sucursal ? `<span><span class="font-semibold">Sucursal:</span> ${escapeHtml(sucursal)}</span>` : ''}
+        <span><span class="font-semibold">Ingreso sistema:</span> ${escapeHtml(ingreso || '—')}</span>
       </div>
     </div>
   `;
@@ -16072,23 +16167,24 @@ function getSimpleQuoteCardHTML(q){
 
 function getSimpleVisitCardHTML(v){
   const cliente = safeText(v?.nombre || v?.clientName || 'Cliente');
-  const fecha = safeText(v?.fecha || v?.created_at || '—');
+  const fecha = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(v?.fecha || v?.created_at || '') : (v?.fecha || v?.created_at || '—'));
   const detalle = safeText(v?.descripcion || v?.data?.descripcion || v?.data?.falla || 'Sin detalle');
   const tecnico = safeText(v?.createdByName || v?.tecnico || v?.data?.tecnico || '—');
+  const ingreso = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(v?.created_at || v?.fecha || '') : (v?.created_at || v?.fecha || '—'));
 
   return `
-    <div class="border rounded-2xl p-5 bg-white">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class="font-black text-slate-800 text-2xl">${escapeHtml(cliente)}</div>
-          <div class="text-slate-500 mt-1">Fecha: ${escapeHtml(fecha)}</div>
+    <div class="border rounded-xl p-4 bg-white shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-black text-slate-800 text-xl leading-tight">${escapeHtml(cliente)}</div>
+          <div class="text-slate-500 text-xs mt-1">Visita: ${escapeHtml(fecha || '—')}</div>
         </div>
-        <div class="text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">Pendiente</div>
+        <div class="text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200 whitespace-nowrap">Pendiente</div>
       </div>
-      <div class="mt-4 rounded-2xl bg-slate-50 p-4">
-        <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Detalle</div>
-        <div class="text-slate-800 text-lg">${escapeHtml(detalle)}</div>
-        <div class="mt-3 text-sm text-slate-500"><span class="font-semibold">Creado por:</span> ${escapeHtml(tecnico)}</div>
+      <div class="mt-3 text-sm leading-6 text-slate-700"><span class="font-semibold text-slate-500">Info:</span> ${escapeHtml(detalle)}</div>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+        <span><span class="font-semibold">Creado por:</span> ${escapeHtml(tecnico)}</span>
+        <span><span class="font-semibold">Ingreso sistema:</span> ${escapeHtml(ingreso || '—')}</span>
       </div>
     </div>
   `;
@@ -16096,23 +16192,24 @@ function getSimpleVisitCardHTML(v){
 
 function getSimpleReqCardHTML(r){
   const cliente = safeText(r?.nombre || r?.clientName || 'Cliente');
-  const fecha = safeText(r?.fecha || r?.created_at || '—');
+  const fecha = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(r?.fecha || r?.created_at || '') : (r?.fecha || r?.created_at || '—'));
   const detalle = safeText(r?.detalle || r?.descripcion || r?.data?.detalle || 'Sin detalle');
   const creador = safeText(r?.createdByName || r?.data?.createdByName || '—');
+  const ingreso = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(r?.created_at || r?.fecha || '') : (r?.created_at || r?.fecha || '—'));
 
   return `
-    <div class="border rounded-2xl p-5 bg-white">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class="font-black text-slate-800 text-2xl">${escapeHtml(cliente)}</div>
-          <div class="text-slate-500 mt-1">Fecha: ${escapeHtml(fecha)}</div>
+    <div class="border rounded-xl p-4 bg-white shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-black text-slate-800 text-xl leading-tight">${escapeHtml(cliente)}</div>
+          <div class="text-slate-500 text-xs mt-1">Fecha: ${escapeHtml(fecha || '—')}</div>
         </div>
-        <div class="text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">Pendiente</div>
+        <div class="text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap">Pendiente</div>
       </div>
-      <div class="mt-4 rounded-2xl bg-slate-50 p-4">
-        <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Requerimiento</div>
-        <div class="text-slate-800 text-lg">${escapeHtml(detalle)}</div>
-        <div class="mt-3 text-sm text-slate-500"><span class="font-semibold">Creado por:</span> ${escapeHtml(creador)}</div>
+      <div class="mt-3 text-sm leading-6 text-slate-700"><span class="font-semibold text-slate-500">Info:</span> ${escapeHtml(detalle)}</div>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+        <span><span class="font-semibold">Creado por:</span> ${escapeHtml(creador)}</span>
+        <span><span class="font-semibold">Ingreso sistema:</span> ${escapeHtml(ingreso || '—')}</span>
       </div>
     </div>
   `;
@@ -16127,24 +16224,22 @@ function getSimpleClassifiedQuoteCardHTML(q, badgeText, badgeClass){
     q?.data?.sucursal || q?.data?.sucursal_direccion || q?.data?.direccion_sucursal || q?.data?.direccion || ''
   );
   const estado = safeText(q?.estado || q?.status || q?.data?.estado || '—');
+  const ingreso = safeText(typeof formatDDMMYY === 'function' ? formatDDMMYY(q?.created_at || q?.fecha || '') : (q?.created_at || q?.fecha || '—'));
 
   return `
-    <div class="border rounded-2xl p-5 bg-white">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class="font-black text-slate-800 text-2xl">Cot. ${escapeHtml(String(numeroCot))}</div>
-          <div class="text-slate-500 mt-1">${escapeHtml(cliente)}</div>
+    <div class="border rounded-xl p-4 bg-white shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-black text-slate-800 text-xl leading-tight">Cot. ${escapeHtml(String(numeroCot))}</div>
+          <div class="text-slate-600 text-sm font-semibold mt-1">${escapeHtml(cliente)}</div>
         </div>
-        <div class="text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full border ${badgeClass}">${escapeHtml(badgeText)}</div>
+        <div class="text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full border whitespace-nowrap ${badgeClass}">${escapeHtml(badgeText)}</div>
       </div>
-
-      <div class="mt-4 rounded-2xl bg-slate-50 p-4 space-y-2">
-        <div>
-          <div class="text-slate-400 font-black uppercase tracking-wide mb-2">Trabajo</div>
-          <div class="text-slate-800 text-lg">${escapeHtml(descripcion)}</div>
-        </div>
-        ${sucursal ? `<div class="text-sm text-slate-500"><span class="font-semibold">Sucursal:</span> ${escapeHtml(sucursal)}</div>` : ''}
-        <div class="text-sm text-slate-500"><span class="font-semibold">Estado:</span> ${escapeHtml(estado)}</div>
+      <div class="mt-3 text-sm leading-6 text-slate-700"><span class="font-semibold text-slate-500">Info:</span> ${escapeHtml(descripcion)}</div>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+        ${sucursal ? `<span><span class="font-semibold">Sucursal:</span> ${escapeHtml(sucursal)}</span>` : ''}
+        <span><span class="font-semibold">Estado:</span> ${escapeHtml(estado)}</span>
+        <span><span class="font-semibold">Ingreso sistema:</span> ${escapeHtml(ingreso || '—')}</span>
       </div>
     </div>
   `;
@@ -17988,22 +18083,6 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
 
   function ensureSummaryContainers(){
     ensureCompactStyles();
-    const quoteView = document.getElementById('view-quotes');
-    if(quoteView && !document.getElementById('quotesSummaryGrid')){
-      const anchor = quoteView.querySelector('.mb-10');
-      const wrap = document.createElement('div');
-      wrap.id = 'quotesSummaryGrid';
-      wrap.className = 'crm-summary-grid';
-      anchor?.parentNode?.insertBefore(wrap, anchor);
-    }
-    const otView = document.getElementById('view-ots');
-    if(otView && !document.getElementById('otsSummaryGrid')){
-      const anchor = otView.querySelector('.mb-10');
-      const wrap = document.createElement('div');
-      wrap.id = 'otsSummaryGrid';
-      wrap.className = 'crm-summary-grid';
-      anchor?.parentNode?.insertBefore(wrap, anchor);
-    }
     const abonosView = document.getElementById('view-abonos');
     if(abonosView && !document.getElementById('abonosSummaryGrid')){
       const searchBlock = abonosView.querySelector('.mb-12');
