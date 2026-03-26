@@ -12382,6 +12382,7 @@ function openOTLibro(otId){
   `;
   openModal(html);
 }
+window.openOTLibro = openOTLibro;
 
 function promptRegistrarPago(otId) {
   const ot = ots.find(o => String(o.id) === String(otId));
@@ -15574,7 +15575,7 @@ function showOTMoreOptions(otId){
         <button onclick="editOT('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar OT</button>
         <button onclick="programCalendarFromOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-calendar-plus mr-2 text-indigo-700"></i> Programar en calendario</button>
         <button onclick="${reportAction}" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-lines mr-2 text-cyan-700"></i> ${reportLabel}</button>
-        <button onclick="openOTLibro('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-book-open mr-2 text-slate-700"></i> Bitácora de documento / envío / pago</button>
+        <button onclick="closeModal(); setTimeout(() => openOTLibro('${otId}'), 60);" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-book-open mr-2 text-slate-700"></i> Bitácora de documento / envío / pago</button>
       </div>
     </div>`);
 }
