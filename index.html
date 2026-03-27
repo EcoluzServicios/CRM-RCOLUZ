@@ -720,80 +720,90 @@ function toggleEditOTFacturaField(){
   justify-content:center;
 }
 
-/* Dashboard KPI cards refined layout */
+/* Dashboard KPI cards grouped layout */
+.dashboard-kpi-section{
+  margin-bottom:.55rem;
+}
+.dashboard-kpi-section-header{
+  display:none;
+}
+.dashboard-kpi-section-title{
+  display:none;
+}
+.dashboard-kpi-section-note{
+  display:none;
+}
 .dashboard-kpi-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:1rem;
-  margin-bottom:3rem;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.65rem;
+  margin-bottom:.8rem;
   align-items:stretch;
 }
-#sidebar:not(.collapsed) + #mainContent .dashboard-kpi-grid{
-  grid-template-columns:repeat(auto-fit,minmax(215px,1fr));
-}
-#sidebar.collapsed + #mainContent .dashboard-kpi-grid{
-  grid-template-columns:repeat(auto-fit,minmax(235px,1fr));
-}
 .dashboard-kpi-card{
-  min-height:150px;
+  min-height:132px;
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
-  gap:.85rem;
-  padding:1.15rem 1.15rem 1rem;
-  border-radius:1.5rem;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  gap:.25rem;
+  padding:.82rem .85rem .78rem;
+  border-radius:1.1rem;
 }
 .dashboard-kpi-title{
   color:#64748b;
   font-weight:700;
-  line-height:1.22;
-  text-wrap:pretty;
-  max-width:none;
-  font-size:1rem;
-  min-height:2.45em;
-}
-#sidebar:not(.collapsed) + #mainContent .dashboard-kpi-title{
-  font-size:.98rem;
-}
-#sidebar.collapsed + #mainContent .dashboard-kpi-title{
-  font-size:1.02rem;
+  line-height:1.15;
+  text-wrap:balance;
+  text-align:center;
+  font-size:.9rem;
+  min-height:auto;
+  width:100%;
+  display:block;
+  overflow:visible;
+  max-width:17ch;
+  margin:0 auto;
 }
 .dashboard-kpi-value{
-  line-height:.95;
-  font-weight:800;
-  letter-spacing:-.03em;
-  font-size:clamp(2rem,1.9vw,2.55rem);
-}
-#sidebar:not(.collapsed) + #mainContent .dashboard-kpi-value{
-  font-size:clamp(1.9rem,1.7vw,2.35rem);
+  line-height:1;
+  font-weight:900;
+  letter-spacing:-.04em;
+  text-align:center;
+  width:100%;
+  font-size:clamp(1.72rem,1.9vw,2.2rem);
+  margin:.02rem 0 .04rem;
 }
 .dashboard-kpi-note{
   color:#94a3b8;
-  font-size:.9rem;
-  line-height:1.32;
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-  min-height:2.4em;
+  font-size:.74rem;
+  line-height:1.28;
+  text-align:center;
+  width:100%;
+  display:block;
+  overflow:visible;
+  min-height:auto;
+  max-width:21ch;
+  margin:0 auto;
 }
-@media (max-width: 1280px){
-  #sidebar:not(.collapsed) + #mainContent .dashboard-kpi-grid,
+@media (max-width: 1500px){
   .dashboard-kpi-grid{
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    grid-template-columns:repeat(3,minmax(0,1fr));
   }
 }
-@media (max-width: 980px){
-  .dashboard-kpi-grid,
-  #sidebar:not(.collapsed) + #mainContent .dashboard-kpi-grid,
-  #sidebar.collapsed + #mainContent .dashboard-kpi-grid{
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+@media (max-width: 1120px){
+  .dashboard-kpi-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
-  .dashboard-kpi-card{
-    min-height:140px;
+}
+@media (max-width: 700px){
+  .dashboard-kpi-section-header{
+    align-items:center;
+    gap:.25rem;
+    text-align:center;
   }
-  .dashboard-kpi-title{
-    min-height:auto;
+  .dashboard-kpi-grid{
+    grid-template-columns:1fr;
   }
 }
 
@@ -923,59 +933,65 @@ function toggleEditOTFacturaField(){
 <div id="view-dashboard">
   <h1 class="text-4xl font-bold mb-8">Bienvenido, <span id="welcomeName" class="text-blue-600"></span></h1>
   
-  <div class="dashboard-kpi-grid">
-    <div class="dashboard-kpi-card bg-white shadow">
-      <p class="dashboard-kpi-title mb-3">Clientes</p>
-      <p id="dashClients" class="dashboard-kpi-value text-blue-600">0</p>
-    </div>
+  <div class="dashboard-kpi-section">
+    <div class="dashboard-kpi-grid">
+      <div class="dashboard-kpi-card bg-white shadow">
+        <p class="dashboard-kpi-title mb-3">Clientes</p>
+        <p id="dashClients" class="dashboard-kpi-value text-blue-600">0</p>
+      </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('quotes_pending')">
-      <p class="dashboard-kpi-title mb-3">Cotizaciones Pendientes</p>
-      <p id="dashQuotes" class="dashboard-kpi-value text-amber-500">0</p>
-      <p class="dashboard-kpi-note mt-3">Click para ver detalle</p>
-    </div>
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('quotes_pending')">
+        <p class="dashboard-kpi-title mb-3">Cotizaciones Pendientes</p>
+        <p id="dashQuotes" class="dashboard-kpi-value text-amber-500">0</p>
+        <p class="dashboard-kpi-note mt-3">Click para ver detalle</p>
+      </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('ots_en_curso')">
-      <p class="dashboard-kpi-title mb-3">Órdenes En Curso</p>
-      <p id="dashOTs" class="dashboard-kpi-value text-emerald-600">0</p>
-      <p class="dashboard-kpi-note mt-3">Click para ver detalle</p>
-    </div>
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('ots_en_curso')">
+        <p class="dashboard-kpi-title mb-3">Órdenes En Curso</p>
+        <p id="dashOTs" class="dashboard-kpi-value text-emerald-600">0</p>
+        <p class="dashboard-kpi-note mt-3">Click para ver detalle</p>
+      </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('deudas')">
-      <p class="dashboard-kpi-title mb-3">Pendientes de pago</p>
-      <p id="dashDeudas" class="dashboard-kpi-value text-red-600">0</p>
-      <p class="dashboard-kpi-note mt-3">OTs realizadas · sin documento o sin pago</p>
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('visitas_pend')">
+        <p class="dashboard-kpi-title mb-3">Visitas Técnicas</p>
+        <p id="dashVisitas" class="dashboard-kpi-value text-sky-600">0</p>
+        <p class="dashboard-kpi-note mt-3">Pendientes · click detalle</p>
+      </div>
     </div>
+  </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('visitas_pend')">
-      <p class="dashboard-kpi-title mb-3">Visitas Técnicas</p>
-      <p id="dashVisitas" class="dashboard-kpi-value text-sky-600">0</p>
-      <p class="dashboard-kpi-note mt-3">Pendientes · click detalle</p>
-    </div>
+  <div class="dashboard-kpi-section">
+    <div class="dashboard-kpi-grid">
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('deudas')">
+        <p class="dashboard-kpi-title mb-3">Pendientes de pago</p>
+        <p id="dashDeudas" class="dashboard-kpi-value text-red-600">0</p>
+        <p class="dashboard-kpi-note mt-3">OTs realizadas · sin documento o sin pago</p>
+      </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('reqs_pend')">
-      <p class="dashboard-kpi-title mb-3">Requerimientos</p>
-      <p id="dashReqs" class="dashboard-kpi-value text-violet-600">0</p>
-      <p class="dashboard-kpi-note mt-3">Pendientes · click detalle</p>
-    </div>
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('reqs_pend')">
+        <p class="dashboard-kpi-title mb-3">Requerimientos</p>
+        <p id="dashReqs" class="dashboard-kpi-value text-violet-600">0</p>
+        <p class="dashboard-kpi-note mt-3">Pendientes · click detalle</p>
+      </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('mantenciones')">
-      <p class="dashboard-kpi-title mb-3">Mantenciones</p>
-      <p id="dashMantenciones" class="dashboard-kpi-value text-cyan-700">0</p>
-      <p class="dashboard-kpi-note mt-3">Aceptadas/aprobadas · pendientes o en curso</p>
-    </div>
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('mantenciones')">
+        <p class="dashboard-kpi-title mb-3">Mantenciones</p>
+        <p id="dashMantenciones" class="dashboard-kpi-value text-cyan-700">0</p>
+        <p class="dashboard-kpi-note mt-3">Aceptadas/aprobadas · pendientes o en curso</p>
+      </div>
 
-    <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
-         onclick="showDashDetails('suministro_instalacion')">
-      <p class="dashboard-kpi-title mb-3">Suministros e Instalaciones</p>
-      <p id="dashSuministrosInst" class="dashboard-kpi-value text-fuchsia-700">0</p>
-      <p class="dashboard-kpi-note mt-3">Aceptadas/aprobadas · pendientes o en curso</p>
+      <div class="dashboard-kpi-card bg-white shadow cursor-pointer hover:shadow-md transition"
+           onclick="showDashDetails('suministro_instalacion')">
+        <p class="dashboard-kpi-title mb-3">Suministros e Instalaciones</p>
+        <p id="dashSuministrosInst" class="dashboard-kpi-value text-fuchsia-700">0</p>
+        <p class="dashboard-kpi-note mt-3">Aceptadas/aprobadas · pendientes o en curso</p>
+      </div>
     </div>
   </div>
 
@@ -13721,6 +13737,120 @@ function showRegistrarAbono(otId) {
       setVal('vtEmailPreview', c.email || (c.data && c.data.email) || '');
     }
 
+
+    function getVisitaEquiposYFalla(v){
+      let eq = "1";
+      let falla = v?.descripcion || '';
+      if (typeof falla === 'string' && falla.startsWith("[Equipos: ")) {
+        const endBracket = falla.indexOf("]");
+        if (endBracket !== -1) {
+          eq = falla.substring(10, endBracket);
+          falla = falla.substring(endBracket + 1).trim();
+        }
+      }
+      return { equipos: safeText(eq || '1') || '1', falla: safeText(falla || v?.descripcion || '') };
+    }
+
+    async function buildVisitaPDFDoc(visitaId){
+      const v = (visitas || []).find(x => String(x.id) === String(visitaId));
+      if(!v) throw new Error('No se encontró la visita técnica.');
+
+      if(!window.jspdf || !window.jspdf.jsPDF){
+        throw new Error('No se pudo cargar la librería PDF');
+      }
+
+      const { equipos, falla } = getVisitaEquiposYFalla(v);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit:'mm', format:'a4' });
+
+      await addLogoToPdf(doc);
+      await addCompanyHeaderRight(doc);
+
+      const margin = 14;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const usableWidth = pageWidth - (margin * 2);
+
+      doc.setDrawColor(133, 175, 40);
+      doc.setLineWidth(0.6);
+      doc.line(margin, 34, pageWidth - margin, 34);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('HOJA DE VISITA TÉCNICA', margin, 42);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(`Fecha visita: ${formatDDMMYY(v.fecha || todayISO())}`, margin, 49);
+      const estadoVisitaPdf = safeText(v.estado || 'pendiente');
+      doc.text(`Estado: ${estadoVisitaPdf.charAt(0).toUpperCase() + estadoVisitaPdf.slice(1).toLowerCase()}`, margin + 60, 49);
+      doc.text(`Equipos: ${equipos}`, margin + 108, 49);
+      doc.text(`Creado por: ${safeText(v.createdByName || '—') || '—'}`, pageWidth - margin, 49, { align:'right' });
+
+      doc.autoTable({
+        startY: 56,
+        theme: 'grid',
+        head: [['Datos del cliente', 'Información']],
+        body: [
+          ['Cliente', safeText(v.nombre) || '-'],
+          ['RUT', safeText(v.rut) || '-'],
+          ['Teléfono', safeText(v.telefono) || '-'],
+          ['Correo', safeText(v.email) || '-'],
+          ['Dirección / sucursal', safeText(v.direccion) || '-']
+        ],
+        styles: { fontSize: 9, cellPadding: 2.6, overflow:'linebreak' },
+        headStyles: { fillColor: [240,240,240], textColor: 30 },
+        columnStyles: { 0: { cellWidth: 46 }, 1: { cellWidth: usableWidth - 46 } },
+        margin: { left: margin, right: margin }
+      });
+
+      let y = (doc.lastAutoTable?.finalY || 56) + 6;
+
+      doc.autoTable({
+        startY: y,
+        theme: 'grid',
+        head: [['Solicitud del cliente / falla reportada']],
+        body: [[safeText(falla) || '-']],
+        styles: { fontSize: 10, cellPadding: 3, overflow:'linebreak', minCellHeight: 18, valign:'top' },
+        headStyles: { fillColor: [240,240,240], textColor: 30 },
+        margin: { left: margin, right: margin }
+      });
+
+      y = (doc.lastAutoTable?.finalY || y) + 8;
+      const blockTitle = 'Observaciones del técnico';
+      const titleGap = 5;
+      const boxTop = y + titleGap;
+      const boxHeight = Math.max(90, pageHeight - boxTop - 18);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(blockTitle, margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Espacio interno para observaciones, diagnóstico, trabajos realizados y recomendaciones.', margin, y + 4.5);
+      doc.setTextColor(0,0,0);
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(margin, boxTop + 2, usableWidth, boxHeight - 2, 3, 3);
+
+      return doc;
+    }
+
+    async function generateVisitaPDF(visitaId){
+      try {
+        const doc = await buildVisitaPDFDoc(visitaId);
+        const v = (visitas || []).find(x => String(x.id) === String(visitaId));
+        const base = safeText(v?.nombre || 'visita').replace(/[^\w\d]+/g, '_').replace(/^_+|_+$/g, '').slice(0,40) || 'visita';
+        const fechaBase = String(v?.fecha || todayISO()).replace(/[^0-9]/g, '').slice(0,8) || String(Date.now());
+        doc.save(`Visita_Tecnica_${base}_${fechaBase}.pdf`);
+      } catch(err) {
+        console.error('Error generando PDF de visita:', err);
+        alert('Error al generar PDF de visita: ' + (err?.message || err));
+      }
+    }
+
     async function renderVisitas() {
       const tbodyPend = document.getElementById('visitasPendientesTable');
       const tbodyReal = document.getElementById('visitasRealizadasTable');
@@ -13749,15 +13879,9 @@ function showRegistrarAbono(otId) {
       ], q));
 
       const makeRow = (v) => {
-        let eq = "1";
-        let falla = v.descripcion || '';
-        if (falla.startsWith("[Equipos: ")) {
-          const endBracket = falla.indexOf("]");
-          if (endBracket !== -1) {
-            eq = falla.substring(10, endBracket);
-            falla = falla.substring(endBracket + 1).trim();
-          }
-        }
+        const visitaData = getVisitaEquiposYFalla(v);
+        const eq = visitaData.equipos;
+        const falla = visitaData.falla;
 
         let btnEstado = '';
         if (String(v.estado || '').trim().toLowerCase() === 'pendiente') {
@@ -13771,6 +13895,7 @@ function showRegistrarAbono(otId) {
         let accionesHTML = `
           <div class="flex gap-3 justify-center mb-2">
             <button onclick="viewVisita('${v.id}')" class="text-slate-600 hover:text-slate-900" title="Ver"><i class="fa-solid fa-eye text-lg"></i></button>
+            <button onclick="generateVisitaPDF('${v.id}')" class="text-emerald-700 hover:text-emerald-900" title="Descargar PDF de visita"><i class="fa-solid fa-file-pdf text-lg"></i></button>
             <button onclick="programCalendarFromVisita('${v.id}')" class="text-indigo-600 hover:text-indigo-800" title="Programar en calendario"><i class="fa-solid fa-calendar-plus text-lg"></i></button>
             <button onclick="editVisita('${v.id}')" class="text-blue-700 hover:text-blue-900" title="Editar Visita"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
           </div>
@@ -13819,15 +13944,9 @@ function showRegistrarAbono(otId) {
           ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">Realizada</span>`
           : `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">Cancelada</span>`;
 
-      let eq = "1";
-      let falla = v.descripcion || '';
-      if (falla.startsWith("[Equipos: ")) {
-        const endBracket = falla.indexOf("]");
-        if (endBracket !== -1) {
-          eq = falla.substring(10, endBracket);
-          falla = falla.substring(endBracket + 1).trim();
-        }
-      }
+      const visitaData = getVisitaEquiposYFalla(v);
+      const eq = visitaData.equipos;
+      const falla = visitaData.falla;
 
       openModal(`
         <div class="p-6 md:p-8">
@@ -13889,7 +14008,8 @@ function showRegistrarAbono(otId) {
             </div>
           </div>
 
-          <div class="flex gap-3 pt-6">
+          <div class="flex flex-col md:flex-row gap-3 pt-6">
+            <button onclick="generateVisitaPDF('${v.id}')" class="md:w-auto bg-emerald-50 text-emerald-700 py-3 px-5 rounded-2xl font-bold border border-emerald-200 hover:bg-emerald-100">Descargar PDF</button>
             <button onclick="createQuoteFromVisita('${v.id}')" class="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-semibold hover:bg-indigo-700">Crear Cotización</button>
             <button onclick="programCalendarFromVisita('${v.id}')" class="flex-1 bg-violet-50 text-violet-700 border border-violet-200 py-3 rounded-2xl font-semibold hover:bg-violet-100">Programar calendario</button>
             <button onclick="editVisita('${v.id}')" class="flex-1 border py-3 rounded-2xl font-semibold">Editar</button>
@@ -18215,7 +18335,8 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
     return count;
   }
   function validateQuoteForm(currentId){
-    const isNewClientBlockVisible = !document.getElementById('newClientDiv')?.classList.contains('hidden');
+    const newClientDivEl = document.getElementById('newClientDiv');
+    const isNewClientBlockVisible = !!newClientDivEl && !newClientDivEl.classList.contains('hidden');
     const selectedClientId = document.getElementById('qClient')?.value || '';
     const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
     const obra = (document.getElementById('qObra')?.value || '').trim();
