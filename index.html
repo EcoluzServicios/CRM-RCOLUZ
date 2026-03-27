@@ -244,6 +244,17 @@ function toggleEditOTFacturaField(){
     #mobileSidebarToggle i{ font-size:1rem; }
     body.sidebar-mobile-mode #mainContent{ margin-left:0 !important; width:100% !important; }
     body.sidebar-mobile-mode{ overflow-x:hidden; }
+    body.sidebar-mobile-mode #app:not(.hidden){ grid-template-columns: 1fr !important; }
+    body.sidebar-mobile-mode #sidebar{ position:fixed !important; left:0; top:0; bottom:0; height:100vh !important; width:min(290px, 86vw) !important; max-width:86vw !important; z-index:60; transform:translateX(-108%); transition:transform .22s ease, width .18s ease; box-shadow:0 18px 50px rgba(15,23,42,.24); }
+    body.sidebar-mobile-mode #sidebar.collapsed{ width:min(290px, 86vw) !important; }
+    body.sidebar-mobile-mode #sidebar.mobile-open{ transform:translateX(0); }
+    body.sidebar-mobile-mode #mainContent{ height:100vh !important; padding:16px !important; }
+    body.sidebar-mobile-mode #mobileSidebarToggle{ display:inline-flex; }
+    body.sidebar-mobile-mode .sidebar .sidebar-label{ opacity:1 !important; max-width:240px !important; }
+    body.sidebar-mobile-mode .sidebar .nav-btn{ justify-content:flex-start !important; }
+    body.sidebar-mobile-mode .sidebar-brand-wrap{ justify-content:flex-start !important; min-height:52px !important; }
+    body.sidebar-mobile-mode .sidebar-brand-logo{ width:170px !important; max-width:100% !important; }
+    body.sidebar-mobile-mode #currentUser{ display:block !important; }
 
     @media (max-width: 1180px){
       #app:not(.hidden){ grid-template-columns: 1fr !important; }
@@ -16793,8 +16804,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+function isTouchLikeDevice(){
+  try {
+    return !!(('ontouchstart' in window) || (navigator && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
+  } catch(_) {
+    return false;
+  }
+}
+
 function isMobileSidebarMode(){
-  return !!(window.matchMedia && (window.matchMedia('(max-width: 1180px)').matches || window.matchMedia('(hover: none) and (pointer: coarse)').matches));
+  if(!window.matchMedia) return false;
+  const narrowViewport = window.matchMedia('(max-width: 1180px)').matches;
+  const tabletTouchViewport = window.matchMedia('(max-width: 1400px)').matches && isTouchLikeDevice();
+  return !!(narrowViewport || tabletTouchViewport);
 }
 
 function openMobileSidebar(){
