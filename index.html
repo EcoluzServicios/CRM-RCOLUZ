@@ -16027,7 +16027,7 @@ function showOTMoreOptions(otId){
   if(!o){ alert('No se encontró la OT.'); return; }
   const report = (typeof getLatestReportForOT === 'function') ? getLatestReportForOT(otId) : null;
   const reportLabel = report ? 'Ver informe' : 'Crear informe';
-  const reportAction = report ? `previewReport('${report.id}'); closeModal();` : `showNewReportModal({ otId:'${otId}' }); closeModal();`;
+  const reportAction = report ? `previewReport('${report.id}')` : `showNewReportModal({ otId:'${otId}' })`;
 
   openModal(`
     <div class="p-6 sm:p-7">
@@ -19277,7 +19277,7 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
           meta: `Estado trabajo: ${esc(getTrabajoLabelForOT(o))}`,
           actions: `
             <button onclick="previewOT('${getOTId(o)}'); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Ver OT</button>
-            <button onclick="showNewReportModal({ otId:'${getOTId(o)}' }); closeModal();" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Crear informe</button>
+            <button onclick="showNewReportModal({ otId:'${getOTId(o)}' })" class="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold">Crear informe</button>
           `
         }))
       }
