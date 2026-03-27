@@ -64,6 +64,18 @@ function normalizeOTTrabajoEstado(v){
   return 'pendiente';
 }
 
+function getOTCobroMode(o){
+  const raw = String(
+    (o && (o.modalidad_cobro || o.modalidadCobro)) ||
+    (o && o.data && (o.data.modalidadCobro || o.data.modalidad_cobro || o.data.cobroMode || o.data.cobro_mode)) ||
+    ''
+  ).toLowerCase().trim();
+  if(['directo','pago_directo','pago directo','neto','pago_neto','pago neto'].includes(raw)) return 'directo';
+  return 'factura';
+}
+function getOTCobroModeLabel(o){
+  return getOTCobroMode(o) === 'directo' ? 'Pago directo / neto' : 'Con factura';
+}
 function getDocumentoTipoOT(o){
   const raw = String(
     (o && (o.documento_tipo || o.documentoTipo)) ||
@@ -117,9 +129,15 @@ function normalizeOTCobroEstado(o){
     (o && o.data && (o.data.cobro_estado || o.data.pago_estado)) ||
     ''
   ).toLowerCase().replace(/-/g,'_').trim();
+  const mode = getOTCobroMode(o);
 
   if(normalizeOTTrabajoEstado(o?.estado) === 'cancelada' || ['cancelada','cancelado','anulada','anulado','rechazada','rechazado'].includes(raw)) return 'cancelada';
   if(['pagado','pagada','paid'].includes(raw) || isOTPagada(o)) return 'pagado';
+
+  if(mode === 'directo'){
+    if(['pendiente_pago','pendiente de pago','por_cobrar','cobrar','pendiente','pendiente_facturar','pendiente de facturar','directo_pendiente'].includes(raw)) return 'pendiente_pago';
+    return 'pendiente_pago';
+  }
 
   if([
     'pendiente_pago','pendiente de pago','por_cobrar','cobrar',
@@ -134,7 +152,12 @@ function normalizeOTCobroEstado(o){
 
 function prettyOTCobroEstado(o){
   const s = normalizeOTCobroEstado(o);
+  const mode = getOTCobroMode(o);
   if(s === 'cancelada') return 'Cancelada';
+  if(mode === 'directo'){
+    if(s === 'pendiente_pago') return 'Pago directo pendiente';
+    if(s === 'pagado') return 'Pago directo pagado';
+  }
   if(s === 'pendiente_facturar') return 'Pendiente de facturar';
   if(s === 'pendiente_pago') return 'Pendiente de pago';
   if(s === 'pagado') return 'Pagado';
@@ -147,6 +170,11 @@ function isOTDashboardPendientePago(o){
 
 function getOTDashboardDocumentoBadgeText(o){
   const s = normalizeOTCobroEstado(o);
+  const mode = getOTCobroMode(o);
+  if(mode === 'directo'){
+    if(s === 'pendiente_pago') return 'Pago directo';
+    if(s === 'pagado') return 'Pago directo pagado';
+  }
   if(s === 'pendiente_facturar') return 'Sin documento';
   if(s === 'pendiente_pago') return 'Sin pago';
   if(s === 'pagado') return 'Pagada';
@@ -168,10 +196,25 @@ function badgeOTCobro(o){
   const esc = (v) => (typeof escapeHtml === 'function' ? escapeHtml(v) : String(v));
   const id = (o && o.id) ? String(o.id) : '';
   const docLabel = getDocumentoLabelOT(o).toUpperCase();
+  const mode = getOTCobroMode(o);
   if(getEffectiveOTTrabajoEstado(o) === 'cancelada' || normalizeOTCobroEstado(o) === 'cancelada'){
     return `<span class="ot-doc-badge semaforo-badge semaforo-cancelada" title="OT cancelada por estado de cotización">
       <i class="fa-solid fa-ban" style="color:inherit"></i>
       <span class="ot-doc-text">CANCELADA</span>
+    </span>`;
+  }
+  if(mode === 'directo'){
+    if(!pagada){
+      return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-badge semaforo-badge semaforo-pendiente-pago" title="Pago directo / neto pendiente">
+        <i class="fa-solid fa-hand-holding-dollar" style="color:inherit"></i>
+        <span class="ot-doc-text">PAGO DIRECTO</span>
+        <span class="ot-doc-status font-semibold">PENDIENTE</span>
+      </button>`;
+    }
+    return `<span class="ot-doc-badge semaforo-badge semaforo-pagada" title="Pago directo / neto pagado">
+      <i class="fa-solid fa-circle-check" style="color:inherit"></i>
+      <span class="ot-doc-text">PAGO DIRECTO</span>
+      <span class="ot-doc-status">PAGADO</span>
     </span>`;
   }
   if(!fac){
@@ -198,17 +241,50 @@ function handleOTFacturaPagoClick(otId){
   const ot = (ots || []).find(o => String(o.id) === String(otId));
   if(!ot) return alert('OT no encontrada');
   if(normalizeOTTrabajoEstado(ot?.estado) === 'cancelada') return alert('Esta OT quedó cancelada porque la cotización vinculada fue rechazada.');
+  if(getOTCobroMode(ot) === 'directo'){
+    if(!isOTPagada(ot)) return promptRegistrarPago(otId);
+    return;
+  }
   const fac = getFacturaNumeroOT(ot);
   if(!fac) return promptRegistrarFactura(otId);
   if(!isOTPagada(ot)) return promptRegistrarPago(otId);
 }
 
+function getOTCobroSelectOptionsHTML(mode, current){
+  const selected = String(current || '').toLowerCase().replace(/-/g,'_').trim();
+  const opts = mode === 'directo'
+    ? [['pendiente_pago','Pago directo pendiente'],['pagado','Pago directo pagado']]
+    : [['pendiente_facturar','Pendiente de facturar'],['pendiente_pago','Pendiente de pago'],['pagado','Pagado']];
+  return opts.map(([v,l]) => `<option value="${v}" ${selected===v?'selected':''}>${l}</option>`).join('');
+}
+
+function toggleNewOTCobroMode(){
+  const mode = String(document.getElementById('mOtCobroMode')?.value || 'factura').toLowerCase().trim();
+  const hint = document.getElementById('mOtCobroModeHint');
+  if(hint){
+    hint.textContent = mode === 'directo'
+      ? 'Usa esta opción cuando el trabajo se cobrará directo por neto, sin factura.'
+      : 'Usa “Con factura” cuando luego registrarás factura o boleta. “Por definir” deja el flujo abierto.';
+  }
+}
 
 function toggleEditOTFacturaField(){
-  const st = String(document.getElementById('eOtCobro')?.value || '').toLowerCase().replace(/-/g,'_').trim();
+  const mode = String(document.getElementById('eOtCobroMode')?.value || 'factura').toLowerCase().trim();
+  const select = document.getElementById('eOtCobro');
   const wrap = document.getElementById('eOtFacturaWrap');
+  if(select){
+    const current = String(select.value || '').toLowerCase().replace(/-/g,'_').trim();
+    const expectedHtml = getOTCobroSelectOptionsHTML(mode, current === 'pendiente_facturar' && mode === 'directo' ? 'pendiente_pago' : current);
+    if(select.dataset.mode !== mode || select.innerHTML !== expectedHtml){
+      select.innerHTML = expectedHtml;
+      if(mode === 'directo' && current === 'pendiente_facturar') select.value = 'pendiente_pago';
+      if(!select.value) select.value = mode === 'directo' ? 'pendiente_pago' : 'pendiente_facturar';
+      select.dataset.mode = mode;
+    }
+  }
   if(!wrap) return;
-  const show = (st === 'pendiente_pago' || st === 'facturado' || st === 'pagado');
+  const st = String(document.getElementById('eOtCobro')?.value || '').toLowerCase().replace(/-/g,'_').trim();
+  const show = mode !== 'directo' && (st === 'pendiente_pago' || st === 'facturado' || st === 'pagado');
   wrap.style.display = show ? 'block' : 'none';
 }
 </script>
@@ -6459,6 +6535,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
         factura_enviada_fecha: r.factura_enviada_fecha || null,
         factura_registro_fecha: r.factura_registro_fecha || null,
         cobro_estado: (r.cobro_estado || '').toLowerCase(),
+        modalidadCobro: data.modalidadCobro || data.modalidad_cobro || 'factura',
         createdByName: r.created_by_name || data.createdBy || formatShortName(r.created_by_email || '') || '—',
         createdByEmail: r.created_by_email || '',
         created_by: r.created_by || null,
@@ -11777,6 +11854,15 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
             </div>
             <div><label class="block text-sm font-medium">Descripción del trabajo realizado *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Mantención correctiva, cambio de repuestos, revisión general..."></textarea></div>
             <div><label class="block text-sm font-medium">Sucursal / ubicación / dirección</label><input id="mOtDireccion" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Sucursal Iquique · Vivar 1019"></div>
+            <div>
+              <label class="block text-sm font-medium">Modalidad de cobro</label>
+              <select id="mOtCobroMode" class="w-full px-3 py-2 border rounded-xl" onchange="toggleNewOTCobroMode()">
+                <option value="factura">Con factura</option>
+                <option value="directo">Pago directo / neto</option>
+                <option value="por_definir">Por definir</option>
+              </select>
+              <p id="mOtCobroModeHint" class="text-xs text-slate-500 mt-1">Usa “Con factura” cuando luego registrarás factura o boleta. “Por definir” deja el flujo abierto.</p>
+            </div>
             <div id="mOtManualMontoWrap" class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                 <label class="block text-sm font-semibold text-slate-700">Monto del trabajo</label>
@@ -11832,6 +11918,10 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
           if (elDireccion && (prefill.direccion || prefill.ubicacion || prefill.sucursal)) elDireccion.value = String(prefill.direccion || prefill.ubicacion || prefill.sucursal);
           if (elNeto && Number(prefill.neto || 0) > 0) elNeto.value = Number(prefill.neto || 0);
           if (elTotal && Number(prefill.total || 0) > 0) elTotal.value = Number(prefill.total || 0);
+          const elCobroMode = document.getElementById('mOtCobroMode');
+          if (elCobroMode && (prefill.modalidadCobro || prefill.modalidad_cobro || prefill.cobroMode)) {
+            elCobroMode.value = String(prefill.modalidadCobro || prefill.modalidad_cobro || prefill.cobroMode);
+          }
         }
       } catch(e) { console.warn('No se pudo aplicar prefill OT', e); }
 
@@ -11853,6 +11943,7 @@ let clientOptions = '<option value="">Selecciona cliente</option>';
       } catch(e) { console.warn('No se pudo pintar banner de mantención', e); }
 
       try{ bindFolioToggles(); }catch(e){}
+      try{ toggleNewOTCobroMode(); }catch(e){}
       try {
         const clientSelect = document.getElementById('mOtClient');
         const direccionInput = document.getElementById('mOtDireccion');
@@ -11987,6 +12078,8 @@ async function goToCreatedOTAndEdit(otId, numeroOT = '') {
 
       
       const otAttachments = window.collectModalAttachments('ot');
+      const cobroMode = String(document.getElementById('mOtCobroMode')?.value || 'factura').toLowerCase().trim();
+      const initialCobroState = (cobroMode === 'directo') ? 'pendiente_pago' : 'pendiente_facturar';
 
       const payload = {
         client_id: client.id,
@@ -11997,7 +12090,7 @@ async function goToCreatedOTAndEdit(otId, numeroOT = '') {
         hes: document.getElementById('mOtHES').value || '',
         guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
         estado: 'pendiente',
-        pago_estado: 'pendiente_facturar',
+        pago_estado: initialCobroState,
         fecha: document.getElementById('mOtFecha')?.value || todayISO(),
         created_by: currentUser?.id || null,
         created_by_email: currentUser?.email || '',
@@ -12020,6 +12113,8 @@ async function goToCreatedOTAndEdit(otId, numeroOT = '') {
           sucursal: otDireccion,
           attachments: otAttachments,
           abonos: [],
+          modalidadCobro: cobroMode === 'por_definir' ? 'factura' : cobroMode,
+          modalidad_cobro: cobroMode === 'por_definir' ? 'factura' : cobroMode,
           createdBy: currentUserDisplayName || 'Admin',
           fecha: document.getElementById('mOtFecha')?.value || todayISO(),
           maintenanceProgramId: linkedMaintenance?.programId || '',
@@ -12127,6 +12222,8 @@ Mes: ${getMaintenanceMonthName(linkedMaintenance.month)} ${linkedMaintenance.yea
           descripcion: q.obra || q.descripcion || '',
           monto: q.monto || 0,
           abonos: [],
+          modalidadCobro: 'factura',
+          modalidad_cobro: 'factura',
           createdBy: currentUserDisplayName || 'Admin',
           fecha: document.getElementById('mOtFecha')?.value || todayISO()
         }
@@ -12157,6 +12254,7 @@ Mes: ${getMaintenanceMonthName(linkedMaintenance.month)} ${linkedMaintenance.yea
 // ================= FACTURA Y PAGO (2 PASOS) =================
 function promptRegistrarFactura(otId){
   const ot = ots.find(o => String(o.id) === String(otId));
+  if(getOTCobroMode(ot) === 'directo') return promptRegistrarPago(otId);
   const docTipo = getDocumentoTipoOT(ot) === 'boleta' ? 'boleta' : 'factura';
   const numeroActual = getFacturaNumeroOT(ot) || '';
   const estadoTrabajo = normalizeOTTrabajoEstado(ot?.estado || 'pendiente');
@@ -12606,17 +12704,21 @@ function promptRegistrarPago(otId) {
   const ot = ots.find(o => String(o.id) === String(otId));
   if(!ot){ alert("OT no encontrada"); return; }
 
+  const modoDirecto = getOTCobroMode(ot) === 'directo';
   const factura = (ot.factura_num || ot.facturaNumero || ot.data?.facturaNumero || '').trim();
   const docLabel = getDocumentoLabelOT(ot);
-  if(!factura){
+  if(!modoDirecto && !factura){
     alert("Primero debes registrar el documento para habilitar el pago.");
     return;
   }
+  const subLabel = modoDirecto
+    ? `Cobro: <span class="font-bold text-emerald-700">Pago directo / neto</span>`
+    : `${docLabel}: <span class="font-bold text-indigo-700">${factura}</span>`;
 
   const html = `
     <div class="p-8">
       <h2 class="text-2xl font-bold mb-2">Registrar Pago</h2>
-      <p class="text-sm text-gray-500 mb-6">${docLabel}: <span class="font-bold text-indigo-700">${factura}</span></p>
+      <p class="text-sm text-gray-500 mb-6">${subLabel}</p>
       <div class="space-y-4">
         <input id="pagoFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl" required>
         <select id="pagoMetodo" class="w-full px-3 py-2 border rounded-xl">
@@ -12647,9 +12749,10 @@ async function savePagoFinal(otId, btn) {
     const ot = ots.find(o => String(o.id) === String(otId));
     if(!ot){ alert("OT no encontrada"); return; }
 
+    const modoDirecto = getOTCobroMode(ot) === 'directo';
     const factura = (ot.factura_num || ot.facturaNumero || ot.data?.facturaNumero || '').trim();
-    const documentoTipo = getDocumentoTipoOT(ot) === 'boleta' ? 'boleta' : 'factura';
-    if(!factura){
+    const documentoTipo = modoDirecto ? 'sin_documento' : (getDocumentoTipoOT(ot) === 'boleta' ? 'boleta' : 'factura');
+    if(!modoDirecto && !factura){
       alert("Primero debes registrar el documento.");
       return;
     }
@@ -12672,9 +12775,19 @@ async function savePagoFinal(otId, btn) {
     ot.data.cobranza_proxima_fecha = '';
     ot.data.cobranza_promesa_pago = '';
 
-    ot.data.facturaNumero = factura;
-    ot.data.documentoTipo = documentoTipo;
-    if(fechaEnvio) ot.data.facturaEnviadaFecha = fechaEnvio;
+    if(!modoDirecto){
+      ot.data.facturaNumero = factura;
+      ot.data.documentoTipo = documentoTipo;
+      if(fechaEnvio) ot.data.facturaEnviadaFecha = fechaEnvio;
+    } else {
+      delete ot.data.facturaNumero;
+      delete ot.data.factura_num;
+      delete ot.data.documentoNumero;
+      delete ot.data.documento_numero;
+      ot.data.documentoTipo = 'sin_documento';
+      ot.data.modalidadCobro = 'directo';
+      ot.data.modalidad_cobro = 'directo';
+    }
     ot.data.fechaPago = toCLDateFromISO(fecha);
     ot.data.fechaPagoISO = fecha;
     ot.data.pagoConfirmado = true;
@@ -12689,10 +12802,16 @@ async function savePagoFinal(otId, btn) {
     };
 
     // Si existen columnas, también las mantenemos consistentes
-    if('factura_num' in (ot||{})) payload.factura_num = factura;
-    if('documento_numero' in (ot||{})) payload.documento_numero = factura;
-    if('documento_tipo' in (ot||{})) payload.documento_tipo = documentoTipo;
-    if(fechaEnvio) payload.factura_enviada_fecha = fechaEnvio;
+    if(!modoDirecto){
+      if('factura_num' in (ot||{})) payload.factura_num = factura;
+      if('documento_numero' in (ot||{})) payload.documento_numero = factura;
+      if('documento_tipo' in (ot||{})) payload.documento_tipo = documentoTipo;
+      if(fechaEnvio) payload.factura_enviada_fecha = fechaEnvio;
+    } else {
+      if('factura_num' in (ot||{})) payload.factura_num = null;
+      if('documento_numero' in (ot||{})) payload.documento_numero = null;
+      if('documento_tipo' in (ot||{})) payload.documento_tipo = null;
+    }
 
     let { error } = await supabaseClient
       .from('ots')
@@ -12715,7 +12834,7 @@ async function savePagoFinal(otId, btn) {
       await supabaseClient.from('payments').insert({
         ot_id: otId,
         monto: Number(ot.monto || 0),
-        data: { facturaNumero: factura, documentoTipo, metodoPago: metodo, fechaPago: toCLDateFromISO(fecha) },
+        data: { facturaNumero: factura || '', documentoTipo: modoDirecto ? 'pago_directo' : documentoTipo, metodoPago: metodo, fechaPago: toCLDateFromISO(fecha), modalidadCobro: modoDirecto ? 'directo' : 'factura' },
         created_by: currentUser?.id || null,
         created_by_email: currentUser?.email || currentUserEmail || '',
         created_by_name: currentUserDisplayName || ''
@@ -12728,7 +12847,7 @@ async function savePagoFinal(otId, btn) {
     closeModal();
 
     // FULL CARRETE 🎉
-    celebrarPago({ ot: ot.numeroOT || ot.numero || ot.nro || '', monto: formatCLP(ot.monto), metodo, fecha: toCLDateFromISO(fecha), factura: `${getDocumentoLabelOT(ot)} ${factura}` });
+    celebrarPago({ ot: ot.numeroOT || ot.numero || ot.nro || '', monto: formatCLP(ot.monto), metodo, fecha: toCLDateFromISO(fecha), factura: modoDirecto ? 'Pago directo / neto' : `${getDocumentoLabelOT(ot)} ${factura}` });
   }catch(err){
     console.error('savePagoFinal error:', err);
     alert('No se pudo confirmar el pago. Revisa la consola (F12).');
@@ -13089,9 +13208,16 @@ async function savePagoFinal(otId, btn) {
 
     function getCobranzaBadgeOT(ot){
       const cobro = normalizeOTCobroEstado(ot);
+      const mode = getOTCobroMode(ot);
+      if(mode === 'directo' && cobro === 'pendiente_pago') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Pago directo pendiente</span>';
+      if(mode === 'directo' && cobro === 'pagado') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Pago directo pagado</span>';
       if(cobro === 'pendiente_facturar') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Sin documento</span>';
-      if(cobro === 'pendiente_pago') return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Pendiente de pago</span>';
-      return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Pagado</span>';
+      if(cobro === 'pendiente_pago') return getOTCobroMode(ot) === 'directo'
+        ? '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Pago directo pendiente</span>'
+        : '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Pendiente de pago</span>';
+      return getOTCobroMode(ot) === 'directo'
+        ? '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Pago directo pagado</span>'
+        : '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Pagado</span>';
     }
 
     async function saveCobranzaGestion(otId, btn){
@@ -15745,9 +15871,16 @@ function getOTCompactDocumentHTML(o){
   const id = (o && o.id) ? String(o.id) : '';
   const fac = getFacturaNumeroOT(o);
   const docLabel = getDocumentoLabelOT(o);
+  const mode = getOTCobroMode(o);
   const trabajoCancelado = getEffectiveOTTrabajoEstado(o) === 'cancelada' || normalizeOTCobroEstado(o) === 'cancelada';
   if(trabajoCancelado){
     return `<span class="ot-doc-chip ot-doc-chip--cancelled" title="OT cancelada"><i class="fa-solid fa-ban"></i><span class="ot-doc-chip-text">Cancelada</span></span>`;
+  }
+  if(mode === 'directo'){
+    if(isOTPagada(o)){
+      return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-chip ot-doc-chip--paid" title="Pago directo pagado"><i class="fa-solid fa-circle-check"></i><span class="ot-doc-chip-text">Pago directo</span></button>`;
+    }
+    return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-chip ot-doc-chip--pending" title="Pago directo pendiente"><i class="fa-solid fa-hand-holding-dollar"></i><span class="ot-doc-chip-text">Pago directo</span></button>`;
   }
   if(!fac){
     return `<button onclick="handleOTFacturaPagoClick('${id}')" class="ot-doc-chip ot-doc-chip--empty" title="Registrar documento"><i class="fa-solid fa-file-invoice"></i><span class="ot-doc-chip-text">Sin documento</span></button>`;
@@ -15771,7 +15904,10 @@ function getOTReferenceStackHTML(o){
 
 function getOTCobroMiniHTML(o){
   const s = normalizeOTCobroEstado(o);
+  const mode = getOTCobroMode(o);
   if(s === 'cancelada') return '<span class="ot-cobro-mini ot-cobro-mini--cancelled">Cancelada</span>';
+  if(mode === 'directo' && s === 'pendiente_pago') return '<span class="ot-cobro-mini ot-cobro-mini--pending">Pago directo pendiente</span>';
+  if(mode === 'directo' && s === 'pagado') return '<span class="ot-cobro-mini ot-cobro-mini--paid">Pago directo pagado</span>';
   if(s === 'pendiente_facturar') return '<span class="ot-cobro-mini ot-cobro-mini--empty">Sin documento</span>';
   if(s === 'pendiente_pago') return '<span class="ot-cobro-mini ot-cobro-mini--pending">Pendiente de pago</span>';
   if(s === 'pagado') return '<span class="ot-cobro-mini ot-cobro-mini--paid">Pagada</span>';
@@ -15794,6 +15930,7 @@ function getOTSecondaryLine(o){
   if(o?.numeroCotizacion) parts.push(`Cot: ${safeText(o.numeroCotizacion)}`);
   const valueLabel = getOTWorkValueLabel(o);
   if(valueLabel) parts.push(`Valor: ${safeText(valueLabel)}`);
+  if(getOTCobroMode(o) === 'directo') parts.push('Cobro: Pago directo');
   return parts.join(' · ').trim();
 }
 
@@ -16025,9 +16162,16 @@ function openEditOT(otId){
           </select>
         </div>
         <div>
+          <label class="text-sm text-gray-600">Modalidad de cobro</label>
+          <select id="eOtCobroMode" class="w-full px-3 py-2 border rounded-xl" onchange="toggleEditOTFacturaField()">
+            <option value="factura" ${getOTCobroMode(o)==='factura'?'selected':''}>Con factura</option>
+            <option value="directo" ${getOTCobroMode(o)==='directo'?'selected':''}>Pago directo / neto</option>
+          </select>
+        </div>
+        <div>
           <label class="text-sm text-gray-600">Estado de cobro</label>
-          <select id="eOtCobro" class="w-full px-3 py-2 border rounded-xl" onchange="toggleEditOTFacturaField()">
-            ${[['pendiente_facturar','Pendiente de facturar'],['pendiente_pago','Pendiente de pago'],['pagado','Pagado']].map(([v,l]) => `<option value="${v}" ${normalizeOTCobroEstado(o)===v?'selected':''}>${l}</option>`).join('')}
+          <select id="eOtCobro" class="w-full px-3 py-2 border rounded-xl" onchange="toggleEditOTFacturaField()" data-mode="${getOTCobroMode(o)}">
+            ${getOTCobroSelectOptionsHTML(getOTCobroMode(o), normalizeOTCobroEstado(o))}
           </select>
         </div>
         <div class="md:col-span-2" id="eOtFacturaWrap" style="display:none;">
@@ -16267,10 +16411,12 @@ async function saveEditOT(otId, btn){
     if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
 
     const ot = (ots || []).find(x => String(x.id) === String(otId)) || {};
+    const cobroMode = String(document.getElementById('eOtCobroMode')?.value || getOTCobroMode(ot) || 'factura').toLowerCase().trim();
     let cobro = String(document.getElementById('eOtCobro')?.value || (ot.cobro_estado || ot.pago_estado) || 'pendiente_facturar').toLowerCase().trim().replace(/-/g,'_');
     if(cobro === 'facturado' || cobro === 'pendiente') cobro = 'pendiente_pago';
-    const facturaNum = String(document.getElementById('eOtFacturaNum')?.value ?? '').trim();
-    const documentoTipo = String(document.getElementById('eOtDocumentoTipo')?.value || getDocumentoTipoOT(ot) || 'factura').toLowerCase().trim();
+    if(cobroMode === 'directo' && cobro === 'pendiente_facturar') cobro = 'pendiente_pago';
+    let facturaNum = String(document.getElementById('eOtFacturaNum')?.value ?? '').trim();
+    let documentoTipo = String(document.getElementById('eOtDocumentoTipo')?.value || getDocumentoTipoOT(ot) || 'factura').toLowerCase().trim();
     const guiaDespacho = String(document.getElementById('eOtGuia')?.value || '').trim();
     const direccionOT = String(document.getElementById('eOtDireccion')?.value || '').trim();
     const selectedQuoteId = String(document.getElementById('eOtQuoteId')?.value || '').trim();
@@ -16286,10 +16432,14 @@ async function saveEditOT(otId, btn){
     const selectedQuoteFin = selectedQuote ? getFinancialBreakdownFromSource(selectedQuote) : null;
     const fin = selectedQuoteFin || manualFin;
 
-    if((cobro === 'pendiente_pago' || cobro === 'facturado' || cobro === 'pagado') && !facturaNum){
+    if(cobroMode !== 'directo' && (cobro === 'pendiente_pago' || cobro === 'facturado' || cobro === 'pagado') && !facturaNum){
       alert('Para marcar la OT como facturada o pagada debes ingresar el número de documento.');
       if(btn){ btn.disabled = false; btn.innerText = 'Guardar'; }
       return;
+    }
+    if(cobroMode === 'directo'){
+      facturaNum = '';
+      documentoTipo = 'sin_documento';
     }
 
     if(facturaNum){
@@ -16318,6 +16468,8 @@ async function saveEditOT(otId, btn){
     dataNew.guia_despacho = guiaDespacho;
     dataNew.direccion = direccionOT;
     dataNew.sucursal = direccionOT;
+    dataNew.modalidadCobro = cobroMode;
+    dataNew.modalidad_cobro = cobroMode;
     dataNew.pago_estado = cobro;
     dataNew.cobro_estado = cobro;
 
