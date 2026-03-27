@@ -237,6 +237,23 @@ function toggleEditOTFacturaField(){
     #mainContent { width: 100% !important; min-width: 0 !important; height: 100vh !important; overflow-y: auto !important; overflow-x: hidden !important; padding: 24px !important; margin-left: 0 !important; }
 #mainContent { width: 100% !important; min-width: 0 !important; padding: 24px !important; margin-left: 0 !important; }
     #mainContent [id^="view-"] { width: 100% !important; max-width: 1600px; margin: 0 auto; }
+    #sidebarBackdrop{ position:fixed; inset:0; background:rgba(15,23,42,.42); backdrop-filter:blur(1px); z-index:55; opacity:0; pointer-events:none; transition:opacity .18s ease; }
+    #sidebarBackdrop.show{ opacity:1; pointer-events:auto; }
+    #mobileSidebarToggle{ display:none; align-items:center; justify-content:center; width:42px; height:42px; border-radius:14px; border:1px solid rgba(148,163,184,.28); background:rgba(255,255,255,.9); color:#0f172a; box-shadow:0 8px 26px rgba(15,23,42,.08); }
+    #mobileSidebarToggle:hover{ background:#fff; }
+    @media (max-width: 1023px){
+      #app:not(.hidden){ grid-template-columns: 1fr !important; }
+      #sidebar{ position:fixed !important; left:0; top:0; bottom:0; height:100vh !important; width:min(290px, 86vw) !important; max-width:86vw !important; z-index:60; transform:translateX(-108%); transition:transform .22s ease, width .18s ease; box-shadow:0 18px 50px rgba(15,23,42,.24); }
+      #sidebar.collapsed{ width:min(290px, 86vw) !important; }
+      #sidebar.mobile-open{ transform:translateX(0); }
+      #mainContent{ height:100vh !important; padding:16px !important; }
+      #mobileSidebarToggle{ display:inline-flex; }
+      .sidebar .sidebar-label{ opacity:1 !important; max-width:240px !important; }
+      .sidebar .nav-btn{ justify-content:flex-start !important; }
+      .sidebar-brand-wrap{ justify-content:flex-start !important; min-height:52px !important; }
+      .sidebar-brand-logo{ width:170px !important; max-width:100% !important; }
+      #currentUser{ display:block !important; }
+    }
     #mainContent table { width: 100% !important; }
 .nav-active { background-color: #e8f0ff; color: #1f2937; }
     .nav-btn{ color:#111827; }
@@ -919,14 +936,15 @@ function toggleEditOTFacturaField(){
       </div>
     </div>
 
+    <div id="sidebarBackdrop" onclick="closeMobileSidebar()"></div>
+
     <div class="flex-1 p-5 overflow-auto" id="mainContent">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between gap-3 mb-6">
+        <div class="flex items-center gap-3 min-w-0">
+          <button id="mobileSidebarToggle" type="button" onclick="toggleMobileSidebar()" aria-label="Abrir menú"><i class="fas fa-bars"></i></button>
           <div id="topbarTitle" class="text-3xl font-extrabold text-gray-900">Dashboard</div>
         </div>
-        <div class="flex items-center gap-3">
-          
-        </div>
+        <div class="flex items-center gap-3"></div>
       </div>
 
       
@@ -1846,11 +1864,145 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.supabaseClient = supabaseClient;
 
+    const SESSION_IDLE_LIMIT_MS = 10 * 60 * 1000;
+    const SESSION_ACTIVITY_KEY = 'ecoluz_last_activity_ts_v1';
     let currentUser = null;
     window.currentUser = null;
     let currentUserDisplayName = null;
+    let inactivityTimer = null;
+    let inactivityBound = false;
+    let appBootstrapped = false;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function setAppAuthVisibility(isLoggedIn) {
+      const loginScreen = document.getElementById('loginScreen');
+      const app = document.getElementById('app');
+      if (loginScreen) loginScreen.classList.toggle('hidden', !!isLoggedIn);
+      if (app) app.classList.toggle('hidden', !isLoggedIn);
+    }
+
+    function updateCurrentUserUI(displayName) {
+      const safeName = displayName || 'Usuario';
+      const currentUserEl = document.getElementById('currentUser');
+      if (currentUserEl) currentUserEl.textContent = `Conectado como: ${safeName}`;
+      const welcomeName = document.getElementById('welcomeName');
+      if (welcomeName) welcomeName.textContent = safeName;
+    }
+
+    function clearInactivityTimer() {
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+      }
+    }
+
+    function saveSessionActivity() {
+      try { localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now())); } catch(e) {}
+    }
+
+    function getLastSessionActivity() {
+      try { return Number(localStorage.getItem(SESSION_ACTIVITY_KEY) || 0); } catch(e) { return 0; }
+    }
+
+    function restartInactivityTimer() {
+      clearInactivityTimer();
+      if (!currentUser) return;
+      inactivityTimer = setTimeout(() => {
+        handleInactivityLogout();
+      }, SESSION_IDLE_LIMIT_MS);
+    }
+
+    function registerActivity() {
+      if (!currentUser) return;
+      saveSessionActivity();
+      restartInactivityTimer();
+    }
+
+    function bindInactivityTracking() {
+      if (inactivityBound) return;
+      inactivityBound = true;
+      const activityEvents = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
+      activityEvents.forEach((evt) => {
+        document.addEventListener(evt, () => {
+          if (currentUser) registerActivity();
+        }, { passive: true });
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (!currentUser || document.visibilityState !== 'visible') return;
+        const lastActivity = getLastSessionActivity();
+        if (lastActivity && (Date.now() - lastActivity > SESSION_IDLE_LIMIT_MS)) {
+          handleInactivityLogout();
+        } else {
+          restartInactivityTimer();
+        }
+      });
+    }
+
+    async function completeLoginFlow(user, fallbackEmail, options = {}) {
+      const { preserveView = false } = options;
+      currentUser = user || null;
+      window.currentUser = currentUser;
+      currentUserDisplayName =
+        (currentUser?.user_metadata && (currentUser.user_metadata.name || currentUser.user_metadata.full_name)) ||
+        formatShortName(currentUser?.email || fallbackEmail || '');
+
+      setAppAuthVisibility(true);
+      try { syncSidebarResponsiveState(); } catch(e) {}
+      updateCurrentUserUI(currentUserDisplayName);
+      try { applySavedAppearance(); } catch(e) { console.warn('No se pudo aplicar apariencia de usuario', e); }
+
+      registerActivity();
+      bindInactivityTracking();
+
+      if (!appBootstrapped) {
+        await loadData();
+        renderAll();
+        showView('dashboard');
+        updateAutoModeUI();
+        suscribirseACambios();
+        appBootstrapped = true;
+      } else if (!preserveView) {
+        renderAll();
+        showView('dashboard');
+      }
+    }
+
+    async function restoreSessionIfAvailable() {
+      try {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) {
+          console.error('Error obteniendo sesión:', error);
+          setAppAuthVisibility(false);
+          return false;
+        }
+        const session = data?.session || null;
+        if (!session?.user) {
+          setAppAuthVisibility(false);
+          return false;
+        }
+        const lastActivity = getLastSessionActivity();
+        if (lastActivity && (Date.now() - lastActivity > SESSION_IDLE_LIMIT_MS)) {
+          await logout({ reload: false, silent: true, reason: 'idle' });
+          return false;
+        }
+        await completeLoginFlow(session.user, session.user.email, { preserveView: false });
+        return true;
+      } catch (err) {
+        console.error('No se pudo restaurar la sesión:', err);
+        setAppAuthVisibility(false);
+        return false;
+      }
+    }
+
+    async function handleInactivityLogout() {
+      await logout({ reload: false, silent: true, reason: 'idle' });
+      const errorEl = document.getElementById('loginError');
+      if (errorEl) {
+        errorEl.textContent = 'Sesión cerrada por 10 minutos de inactividad';
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
       try { applySavedAppearance(); } catch(e) { console.warn('No se pudo aplicar apariencia inicial', e); }
       try { initializeBrandLogos(); } catch(e) { console.warn('No se pudo cargar logo inicial', e); }
       const btn = document.getElementById('loginButton');
@@ -1873,6 +2025,9 @@ window.supabaseClient = supabaseClient;
         passwordInput.dataset.boundEnter = '1';
         passwordInput.addEventListener('keydown', onEnter);
       }
+
+      bindInactivityTracking();
+      await restoreSessionIfAvailable();
     });
 
     async function login() {
@@ -1902,31 +2057,13 @@ window.supabaseClient = supabaseClient;
           return;
         }
 
-        currentUser = data?.user || null;
-        window.currentUser = currentUser;
-        currentUserDisplayName =
-          (currentUser?.user_metadata && (currentUser.user_metadata.name || currentUser.user_metadata.full_name)) ||
-          formatShortName(currentUser?.email || email);
+        const errorEl = document.getElementById('loginError');
+        if(errorEl){
+          errorEl.textContent = 'Usuario o contraseña incorrectos';
+          errorEl.classList.add('hidden');
+        }
 
-        const loginScreen = document.getElementById('loginScreen');
-        const app = document.getElementById('app');
-
-        if(loginScreen) loginScreen.classList.add('hidden');
-        if(app) app.classList.remove('hidden');
-
-        const currentUserEl = document.getElementById('currentUser');
-        if(currentUserEl) currentUserEl.textContent = `Conectado como: ${currentUserDisplayName}`;
-
-        const welcomeName = document.getElementById('welcomeName');
-        if(welcomeName) welcomeName.textContent = currentUserDisplayName;
-
-        try { applySavedAppearance(); } catch(e) { console.warn('No se pudo aplicar apariencia de usuario', e); }
-
-        await loadData();
-        renderAll();
-        showView('dashboard');
-        updateAutoModeUI();
-        suscribirseACambios();
+        await completeLoginFlow(data?.user || null, email);
       } catch (err) {
         console.error('Error al iniciar sesión:', err);
         if(errorEl) errorEl.classList.remove('hidden');
@@ -1938,8 +2075,10 @@ window.supabaseClient = supabaseClient;
       }
     }
 
-    async function logout() {
+    async function logout(options = {}) {
+      const { reload = true, silent = false, reason = 'manual' } = options;
       try {
+        clearInactivityTimer();
         if (sharedSyncInterval) {
           clearInterval(sharedSyncInterval);
           sharedSyncInterval = null;
@@ -1948,12 +2087,28 @@ window.supabaseClient = supabaseClient;
           try { supabaseClient.removeChannel(sharedSyncChannel); } catch(e) {}
           sharedSyncChannel = null;
         }
+        try { localStorage.removeItem(SESSION_ACTIVITY_KEY); } catch(e) {}
         await supabaseClient.auth.signOut();
-        window.currentUser = null;
       } catch (e) {
         console.error('Error cerrando sesión:', e);
       }
-      location.reload();
+      currentUser = null;
+      currentUserDisplayName = null;
+      window.currentUser = null;
+      appBootstrapped = false;
+      setAppAuthVisibility(false);
+      const passwordInput = document.getElementById('password');
+      if (passwordInput) passwordInput.value = '';
+      if (!silent) {
+        const errorEl = document.getElementById('loginError');
+        if (errorEl && reason !== 'manual') {
+          errorEl.textContent = 'Sesión finalizada';
+          errorEl.classList.remove('hidden');
+        }
+      }
+      if (reload) {
+        location.reload();
+      }
     }
 
 
@@ -9007,6 +9162,7 @@ function showView(view) {
   view = alias[view] || view;
   window.currentMainView = view;
   try { updateTopbarSearchButton(view); } catch(e){}
+  try { closeMobileSidebar(true); } catch(e){}
 
   // Hide all views regardless of where they are in the DOM (fix nesting issues)
   document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
@@ -16630,6 +16786,67 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof showNewOTManualModal === 'function') showNewOTManualModal();
     });
   }
+});
+
+
+function isMobileSidebarMode(){
+  return window.matchMedia && window.matchMedia('(max-width: 1023px)').matches;
+}
+
+function openMobileSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if(!sidebar || !isMobileSidebarMode()) return;
+  sidebar.classList.remove('collapsed');
+  sidebar.classList.add('mobile-open');
+  if(backdrop) backdrop.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMobileSidebar(force = false){
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if(!sidebar) return;
+  if(!force && !isMobileSidebarMode()){
+    if(backdrop) backdrop.classList.remove('show');
+    document.body.style.overflow = '';
+    return;
+  }
+  sidebar.classList.remove('mobile-open');
+  if(backdrop) backdrop.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function toggleMobileSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar) return;
+  if(!isMobileSidebarMode()){
+    sidebar.classList.toggle('collapsed');
+    return;
+  }
+  if(sidebar.classList.contains('mobile-open')) closeMobileSidebar(true);
+  else openMobileSidebar();
+}
+
+function syncSidebarResponsiveState(){
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if(!sidebar) return;
+  if(isMobileSidebarMode()){
+    sidebar.classList.remove('collapsed');
+    sidebar.classList.remove('mobile-open');
+    if(backdrop) backdrop.classList.remove('show');
+    document.body.style.overflow = '';
+  } else {
+    sidebar.classList.remove('mobile-open');
+    if(backdrop) backdrop.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  syncSidebarResponsiveState();
+  window.addEventListener('resize', syncSidebarResponsiveState);
 });
 
 // --- Sidebar auto-hide (desktop hover) ---
