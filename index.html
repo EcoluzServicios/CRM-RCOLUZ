@@ -1018,6 +1018,9 @@ function toggleEditOTFacturaField(){
             <button onclick="generateRealizadosPorMesPDF()" class="sidebar-mini-link" title="PDF Trabajos realizados por mes">
               <i class="fa-solid fa-calendar-check"></i> <span class="sidebar-label">Realizados por mes (PDF)</span>
             </button>
+            <button onclick="refreshDataNow(true)" class="sidebar-mini-link" title="Actualizar datos">
+              <i class="fa-solid fa-rotate"></i> <span class="sidebar-label">Actualizar datos</span>
+            </button>
             <button onclick="exportData()" class="sidebar-mini-link" title="Respaldo y exportación">
               <i class="fa-solid fa-download"></i> <span class="sidebar-label">Respaldo y exportación</span>
             </button>
@@ -1952,10 +1955,17 @@ function toggleEditOTFacturaField(){
 const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bHVldmRkZnVscXBzemtkb3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NDkxODUsImV4cCI6MjA4NzEyNTE4NX0.1dD4TWlCY-KGJABFFPSy6MBJu__6J85xvEf1FXA84eU";
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 window.supabaseClient = supabaseClient;
 
-    const SESSION_IDLE_LIMIT_MS = 10 * 60 * 1000;
+    const ENABLE_IDLE_AUTO_LOGOUT = false;
+    const SESSION_IDLE_LIMIT_MS = 8 * 60 * 60 * 1000;
     const SESSION_ACTIVITY_KEY = 'ecoluz_last_activity_ts_v1';
     let currentUser = null;
     window.currentUser = null;
@@ -1996,7 +2006,7 @@ window.supabaseClient = supabaseClient;
 
     function restartInactivityTimer() {
       clearInactivityTimer();
-      if (!currentUser) return;
+      if (!currentUser || !ENABLE_IDLE_AUTO_LOGOUT) return;
       inactivityTimer = setTimeout(() => {
         handleInactivityLogout();
       }, SESSION_IDLE_LIMIT_MS);
@@ -2005,7 +2015,7 @@ window.supabaseClient = supabaseClient;
     function registerActivity() {
       if (!currentUser) return;
       saveSessionActivity();
-      restartInactivityTimer();
+      if (ENABLE_IDLE_AUTO_LOGOUT) restartInactivityTimer();
     }
 
     function bindInactivityTracking() {
@@ -2019,12 +2029,14 @@ window.supabaseClient = supabaseClient;
       });
       document.addEventListener('visibilitychange', () => {
         if (!currentUser || document.visibilityState !== 'visible') return;
-        const lastActivity = getLastSessionActivity();
-        if (lastActivity && (Date.now() - lastActivity > SESSION_IDLE_LIMIT_MS)) {
-          handleInactivityLogout();
-        } else {
-          restartInactivityTimer();
+        if (ENABLE_IDLE_AUTO_LOGOUT) {
+          const lastActivity = getLastSessionActivity();
+          if (lastActivity && (Date.now() - lastActivity > SESSION_IDLE_LIMIT_MS)) {
+            handleInactivityLogout();
+            return;
+          }
         }
+        restartInactivityTimer();
       });
     }
 
@@ -2071,7 +2083,7 @@ window.supabaseClient = supabaseClient;
           return false;
         }
         const lastActivity = getLastSessionActivity();
-        if (lastActivity && (Date.now() - lastActivity > SESSION_IDLE_LIMIT_MS)) {
+        if (ENABLE_IDLE_AUTO_LOGOUT && lastActivity && (Date.now() - lastActivity > SESSION_IDLE_LIMIT_MS)) {
           await logout({ reload: false, silent: true, reason: 'idle' });
           return false;
         }
@@ -2085,10 +2097,11 @@ window.supabaseClient = supabaseClient;
     }
 
     async function handleInactivityLogout() {
+      if (!ENABLE_IDLE_AUTO_LOGOUT) return;
       await logout({ reload: false, silent: true, reason: 'idle' });
       const errorEl = document.getElementById('loginError');
       if (errorEl) {
-        errorEl.textContent = 'Sesión cerrada por 10 minutos de inactividad';
+        errorEl.textContent = 'Sesión cerrada por inactividad';
         errorEl.classList.remove('hidden');
       }
     }
@@ -2207,9 +2220,115 @@ window.supabaseClient = supabaseClient;
     let reports = [];
     window.quotes = quotes;
     window.reports = reports;
+
+    function replaceRecordInCollection(list, record){
+      const arr = Array.isArray(list) ? list : [];
+      const idx = arr.findIndex(x => String(x?.id || '') === String(record?.id || ''));
+      if(idx >= 0) arr[idx] = record;
+      else arr.unshift(record);
+      return arr;
+    }
+
+    async function fetchFullQuoteById(quoteId){
+      const id = String(quoteId || '').trim();
+      if(!id) return null;
+      const { data: row, error } = await supabaseClient
+        .from('quotes')
+        .select('*, clients(id, name, rut)')
+        .eq('id', id)
+        .single();
+      if(error) throw error;
+      const c = clientsById.get(String(row.client_id));
+      const clientName = (() => {
+        const a = safeText(row.clients && row.clients.name);
+        const b = safeText(c?.name);
+        const c1 = safeText(row.nombre);
+        const d = safeText(row.name);
+        const e = safeText(row.razonSocial);
+        return a || b || c1 || d || e || 'Cliente no encontrado';
+      })();
+      const clientRut = (row.clients && row.clients.rut) || c?.rut || row.rut || row.client_rut || '';
+      const numeroCot = row.numero || row.cotizacion || 'S/N';
+      const model = {
+        id: row.id,
+        clientId: row.client_id,
+        clientName,
+        razonSocial: clientName,
+        rut: clientRut,
+        clientRut,
+        numeroCotizacion: numeroCot,
+        monto: Number(row.monto || 0),
+        descripcion: row.descripcion || '',
+        obra: row.obra || row.descripcion || 'Sin descripción',
+        items: Array.isArray(row.items) ? row.items : [],
+        sucursal: row.sucursal || row.branch || row.data?.sucursal || row.data?.sucursal_direccion || row.data?.direccion_sucursal || '',
+        direccion: row.direccion || row.address || row.data?.direccion || row.data?.address || '',
+        fecha: row.fecha || row.data?.fecha || row.data?.fechaDocumento || row.data?.fechaCotizacion || (row.created_at ? String(row.created_at).slice(0, 10) : todayISO()),
+        estado: (row.estado || 'pendiente').toLowerCase(),
+        tipo_servicio: row.tipo_servicio || '',
+        enviado_por_correo: !!row.enviado_por_correo,
+        enviado_por_wsp: !!row.enviado_por_wsp,
+        fecha_envio: row.fecha_envio || null,
+        ejecutor_envio: row.ejecutor_envio || '',
+        creadoPor: row.created_by_name || formatShortName(row.created_by_email || '') || '—',
+        createdByName: row.created_by_name || formatShortName(row.created_by_email || '') || '—',
+        createdByEmail: row.created_by_email || '',
+        createdBy: row.created_by_email || '',
+        created_by: row.created_by || null,
+        created_at: row.created_at || null,
+        bruto: Number(row.bruto || 0),
+        descuento_pct: Number(row.descuento_pct || 0),
+        descuento_monto: Number(row.descuento_monto || 0),
+        neto: Number(row.neto || 0),
+        iva: Number(row.iva || 0),
+        data: row.data || {}
+      };
+      quotes = replaceRecordInCollection(quotes, model);
+      window.quotes = quotes;
+      return model;
+    }
+
+    async function ensureQuoteLoaded(quoteId){
+      let q = (quotes || []).find(x => String(x.id || '') === String(quoteId || ''));
+      const needsFull = !q || !Array.isArray(q.items) || (q.items.length === 0 && !(q.data && (q.data.items || q.data.attachments || q.data.sucursal || q.data.clausulas || q.data.condiciones)));
+      if(needsFull){
+        q = await fetchFullQuoteById(quoteId);
+      }
+      return q;
+    }
+    window.ensureQuoteLoaded = ensureQuoteLoaded;
+
+    async function fetchFullReportById(reportId){
+      const id = String(reportId || '').trim();
+      if(!id) return null;
+      if(String(id).startsWith('local_report_')){
+        return (reports || []).find(r => String(r.id || '') === id) || null;
+      }
+      const { data: row, error } = await supabaseClient
+        .from(REPORTS_TABLE)
+        .select('*')
+        .eq('id', id)
+        .single();
+      if(error) throw error;
+      const model = mapReportRowToModel(row);
+      reports = replaceRecordInCollection(reports, model);
+      window.reports = reports;
+      return model;
+    }
+
+    async function ensureReportLoaded(reportId){
+      let rep = (reports || []).find(r => String(r.id || '') === String(reportId || ''));
+      const needsFull = !rep || !rep.data || !Array.isArray(rep.data.equipos) || !Array.isArray(rep.data.evidencias) || !Array.isArray(rep.data.items || []);
+      if(needsFull){
+        rep = await fetchFullReportById(reportId);
+      }
+      return rep;
+    }
+    window.ensureReportLoaded = ensureReportLoaded;
     let reportStorageMode = 'supabase';
     const REPORTS_TABLE = 'informes';
     const REPORTS_LOCAL_KEY = 'ecoluz_reports_local_v1';
+    const OT_LIGHT_SELECT = 'id, client_id, quote_id, numero_ot, descripcion, sucursal, direccion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data';
     window.currentReportAttachments = [];
     let maintenancePrograms = [];
     let recycleBinItems = [];
@@ -4780,24 +4899,22 @@ function openGlobalSearchResult(type, id){
 
     async function loadCalendarEvents(){
       try{
-        let { data, error } = await supabaseClient
-          .from(CALENDAR_TABLE)
-          .select('*')
-          .order('date', { ascending: true })
-          .order('time', { ascending: true });
-
-        if(error) throw error;
+        let data = (await safeSelectWithAutoDrop(CALENDAR_TABLE, 'id, title, type, status, date, time, client_id, client_name, ot_id, ot_number, responsible, notes, created_by, created_by_name, created_at, updated_at', {
+          orders: [
+            { column: 'date', ascending: true },
+            { column: 'time', ascending: true }
+          ]
+        })).data || [];
 
         if((!data || !data.length) && localStorage.getItem(CALENDAR_STORAGE_KEY) && localStorage.getItem(CALENDAR_MIGRATED_KEY) !== 'true'){
           const migrated = await migrateLocalCalendarEventsToSupabase();
           if(migrated){
-            const refetch = await supabaseClient
-              .from(CALENDAR_TABLE)
-              .select('*')
-              .order('date', { ascending: true })
-              .order('time', { ascending: true });
-            if(refetch.error) throw refetch.error;
-            data = refetch.data || [];
+            data = (await safeSelectWithAutoDrop(CALENDAR_TABLE, 'id, title, type, status, date, time, client_id, client_name, ot_id, ot_number, responsible, notes, created_by, created_by_name, created_at, updated_at', {
+              orders: [
+                { column: 'date', ascending: true },
+                { column: 'time', ascending: true }
+              ]
+            })).data || [];
           }
         }
 
@@ -5563,7 +5680,7 @@ async function loadRecycleBinItems(){
   try{
     const { data, error } = await supabaseClient
       .from(RECYCLE_BIN_TABLE)
-      .select('*')
+      .select('id, entity_type, source_table, record_id, display_name, payload, deleted_at, deleted_by, deleted_by_name')
       .order('deleted_at', { ascending: false });
     if(error) throw error;
     recycleBinItems = Array.isArray(data) ? data : [];
@@ -6120,12 +6237,109 @@ async function showCalendarEventModal(dateISO='', eventId=''){
     window.deleteCalendarEvent = deleteCalendarEvent;
     window.openCalendarLinkedOT = openCalendarLinkedOT;
 
-    // ================= CLIENTES =================
-    const { data: cData, error: cErr } = await supabaseClient
-      .from('clients').select('*')
-      .order('created_at', { ascending: false });
 
-    if (cErr) throw cErr;
+    function splitSelectColumnsTopLevel(selectStr){
+      const parts = [];
+      let current = '';
+      let depth = 0;
+      for (const ch of String(selectStr || '')) {
+        if (ch === '(') depth += 1;
+        if (ch === ')' && depth > 0) depth -= 1;
+        if (ch === ',' && depth === 0) {
+          if (current.trim()) parts.push(current.trim());
+          current = '';
+          continue;
+        }
+        current += ch;
+      }
+      if (current.trim()) parts.push(current.trim());
+      return parts.filter(Boolean);
+    }
+
+    function removeColumnFromSelect(selectStr, columnName){
+      const col = String(columnName || '').trim();
+      if (!col) return String(selectStr || '');
+      const filtered = splitSelectColumnsTopLevel(selectStr).filter(part => {
+        const normalized = String(part || '').trim();
+        const base = normalized.split(':')[0].trim();
+        return base !== col;
+      });
+      return filtered.join(', ');
+    }
+
+    async function safeSelectWithAutoDrop(table, selectStr, options = {}){
+      const attempts = [selectStr, ...((Array.isArray(options.fallbacks) ? options.fallbacks : []))].filter(Boolean);
+      const orderList = Array.isArray(options.orders)
+        ? options.orders.filter(x => x && x.column)
+        : (options.orderColumn ? [{ column: options.orderColumn, ascending: !!options.ascending }] : []);
+      let lastError = null;
+      const missingRegex = new RegExp(`column\\s+${table}\\.([a-zA-Z0-9_]+)\\s+does not exist`, 'i');
+      const cacheRegex = new RegExp(`Could not find the '([^']+)' column of '${table}'`, 'i');
+      const relationRegex = new RegExp(`Could not find a relationship between '[^']+' and '[^']+' in the schema cache`, 'i');
+
+      for (const baseSelect of attempts) {
+        let current = String(baseSelect || '').trim();
+        const removed = new Set();
+        for (let i = 0; i < 40 && current; i += 1) {
+          let query = supabaseClient.from(table).select(current);
+          orderList.forEach(ord => {
+            query = query.order(ord.column, { ascending: !!ord.ascending });
+          });
+          const res = await query;
+          if (!res.error) return { data: res.data || [], usedSelect: current };
+
+          lastError = res.error;
+          const msg = String(res.error.message || '');
+          let missing = null;
+          const m1 = msg.match(missingRegex);
+          if (m1) missing = m1[1];
+          const m2 = msg.match(cacheRegex);
+          if (!missing && m2) missing = m2[1];
+
+          if (!missing || removed.has(missing)) break;
+          const next = removeColumnFromSelect(current, missing);
+          if (!next || next === current) break;
+          console.warn(`[safeSelectWithAutoDrop] ${table}: columna opcional omitida -> ${missing}`);
+          removed.add(missing);
+          current = next;
+        }
+      }
+      throw lastError || new Error(`No se pudo cargar ${table}`);
+    }
+
+    // ================= CLIENTES =================
+    async function loadClientsSafe(){
+      const attempts = [
+        'id, rut, tipo, telefono, telefono2, email, contacto, ciudad, giro, documento_habitual, condicion_pago, observaciones, sucursales, is_mandante, name, created_by, created_by_email, created_by_name, created_at, data, direccion',
+        'id, rut, tipo, telefono, telefono2, email, contacto, ciudad, giro, documento_habitual, condicion_pago, observaciones, sucursales, name, created_by, created_by_email, created_by_name, created_at, data, direccion',
+        'id, rut, tipo, telefono, email, contacto, ciudad, name, created_by, created_by_email, created_by_name, created_at, data',
+        'id, rut, name, created_at, data'
+      ];
+
+      let lastError = null;
+      for (const cols of attempts) {
+        const res = await supabaseClient
+          .from('clients')
+          .select(cols)
+          .order('created_at', { ascending: false });
+
+        if (!res.error) {
+          return res.data || [];
+        }
+
+        lastError = res.error;
+        const msg = String(res.error.message || '');
+        if (/column\s+clients\./i.test(msg)) {
+          console.warn('Columna no disponible en select inicial de clients. Reintentando con menos columnas...', msg);
+          continue;
+        }
+        throw res.error;
+      }
+
+      throw lastError || new Error('No se pudo cargar clients');
+    }
+
+    const cData = await loadClientsSafe();
 
     clients = (cData || []).map(r => ({
       id: r.id,
@@ -6419,24 +6633,18 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
 
 
     // ================= COTIZACIONES =================
-    // Intento 1: traer relación clients (requiere FK quotes.client_id -> clients.id y permisos RLS)
-    let qData = null;
-    let qErr = null;
-
-    ({ data: qData, error: qErr } = await supabaseClient
-      .from('quotes')
-      .select('*, clients(id, name, rut)')
-      .order('created_at', { ascending: false }));
-
-    // Fallback: si falla el JOIN (sin FK / RLS / cache), traemos quotes sin relación
-    if (qErr) {
-      ({ data: qData, error: qErr } = await supabaseClient
-        .from('quotes')
-        .select('*')
-        .order('created_at', { ascending: false }));
+    const QUOTES_SELECT_WITH_CLIENT = 'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by, created_by_email, created_by_name, created_at, sucursal, direccion, bruto, descuento_pct, descuento_monto, neto, iva, clients(id, name, rut)';
+    const QUOTES_SELECT_BASE = 'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by, created_by_email, created_by_name, created_at, sucursal, direccion, bruto, descuento_pct, descuento_monto, neto, iva';
+    let qData = [];
+    try {
+      qData = (await safeSelectWithAutoDrop('quotes', QUOTES_SELECT_WITH_CLIENT, {
+        orderColumn: 'created_at',
+        ascending: false,
+        fallbacks: [QUOTES_SELECT_BASE]
+      })).data || [];
+    } catch (qErr) {
+      throw qErr;
     }
-
-    if (qErr) throw qErr;
 
     quotes = (qData || []).map(r => {
       const c = clientsById.get(String(r.client_id));
@@ -6498,12 +6706,10 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     });
 
 // ================= OTs (TABLA: OT) =================
-    const { data: oData, error: oErr } = await supabaseClient
-      .from('ots')
-.select('*')
-      .order('created_at', { ascending: false });
-
-    if (oErr) throw oErr;
+    const oData = (await safeSelectWithAutoDrop('ots', OT_LIGHT_SELECT, {
+      orderColumn: 'created_at',
+      ascending: false
+    })).data || [];
 
     ots = (oData || []).map(r => {
       const data = r.data || {};
@@ -6546,12 +6752,10 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
 
     
     // ================= REQUERIMIENTOS =================
-    const { data: rData, error: rErr } = await supabaseClient
-      .from('requerimientos')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (rErr) throw rErr;
+    const rData = (await safeSelectWithAutoDrop('requerimientos', 'id, client_id, client_name, client_rut, nombre, rut, fecha, detalle, descripcion, estado, created_by_name, created_by_email, created_at, data', {
+      orderColumn: 'created_at',
+      ascending: false
+    })).data || [];
 
     requerimientos = (rData || []).map(r => {
       const c = clientsById.get(String(r.client_id));
@@ -6593,12 +6797,16 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     });
 
 // ================= VISITAS =================
-    const { data: vData, error: vErr } = await supabaseClient
-      .from('visitas')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (vErr) throw vErr;
+    const vData = (await safeSelectWithAutoDrop('visitas', 'id, client_id, fecha, descripcion, estado, nombre, name, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data', {
+      orderColumn: 'created_at',
+      ascending: false,
+      fallbacks: [
+        'id, client_id, fecha, descripcion, estado, nombre, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data',
+        'id, client_id, fecha, descripcion, estado, nombre, rut, created_by_name, created_by_email, created_at, data',
+        'id, client_id, fecha, descripcion, estado, created_by_name, created_by_email, created_at, data',
+        'id, fecha, descripcion, estado, created_at, data'
+      ]
+    })).data || [];
 
     visitas = (vData || []).map(r => ({
       id: r.id,
@@ -6616,19 +6824,20 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     }));
 
     // ================= INFORMES =================
+    let remoteReportModels = [];
     try {
-      const { data: repData, error: repErr } = await supabaseClient
-        .from(REPORTS_TABLE)
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (repErr) throw repErr;
-      reports = (repData || []).map(mapReportRowToModel);
+      const repData = (await safeSelectWithAutoDrop(REPORTS_TABLE, 'id, numero_informe, fecha, client_id, client_name, client_rut, ot_id, quote_id, numero_ot, numero_cotizacion, tipo_servicio, titulo, tecnico_responsable, direccion, resumen_ejecutivo, detalle_general, observaciones_generales, sugerencias_mejora, total_equipos, equipos_operativos, equipos_no_operativos, equipos_con_observacion, estado_general, created_by_name, created_by_email, created_at, updated_at', {
+        orderColumn: 'created_at',
+        ascending: false
+      })).data || [];
+      remoteReportModels = (repData || []).map(mapReportRowToModel);
       reportStorageMode = 'supabase';
     } catch (repLoadErr) {
-      console.warn('Informes no disponibles en Supabase, se usará almacenamiento local:', repLoadErr?.message || repLoadErr);
-      reports = getLocalReportsRaw().map(mapReportRowToModel);
+      console.warn('Informes no disponibles en Supabase, se conservarán informes locales:', repLoadErr?.message || repLoadErr);
+      remoteReportModels = [];
       reportStorageMode = 'local';
     }
+    reports = mergeLoadedReports(remoteReportModels, getLocalReportsRaw());
     window.reports = reports;
     window.reportStorageMode = reportStorageMode;
 
@@ -6653,6 +6862,250 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     console.error("Error en loadData:", err);
     alert("Error cargando datos desde Supabase: " + (err.message || err));
   }
+}
+
+
+async function refreshQuotesCollectionFromServer(){
+  const qData = (await safeSelectWithAutoDrop('quotes', QUOTES_SELECT_WITH_CLIENT, {
+    orderColumn: 'created_at',
+    ascending: false,
+    fallbacks: [QUOTES_SELECT_BASE]
+  })).data || [];
+
+  quotes = (qData || []).map(r => {
+    const c = clientsById.get(String(r.client_id));
+    const clientName = (() => {
+      const a = safeText(r.clients && r.clients.name);
+      const b = safeText(c?.name);
+      const c1 = safeText(r.nombre);
+      const d = safeText(r.name);
+      const e = safeText(r.razonSocial);
+      return a || b || c1 || d || e || 'Cliente no encontrado';
+    })();
+
+    const clientRut = (r.clients && r.clients.rut) || c?.rut || '';
+    const numeroCot = r.numero || r.cotizacion || 'S/N';
+
+    return {
+      id: r.id,
+      clientId: r.client_id,
+      clientName,
+      razonSocial: clientName,
+      rut: clientRut,
+      clientRut,
+      numeroCotizacion: numeroCot,
+      monto: Number(r.monto || 0),
+      descripcion: r.descripcion || '',
+      obra: r.obra || r.descripcion || 'Sin descripción',
+      items: null,
+      sucursal: r.sucursal || r.branch || '',
+      direccion: r.direccion || r.address || '',
+      fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0, 10) : todayISO()),
+      estado: (r.estado || 'pendiente').toLowerCase(),
+      tipo_servicio: r.tipo_servicio || '',
+      enviado_por_correo: !!r.enviado_por_correo,
+      enviado_por_wsp: !!r.enviado_por_wsp,
+      fecha_envio: r.fecha_envio || null,
+      ejecutor_envio: r.ejecutor_envio || '',
+      creadoPor: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      createdByEmail: r.created_by_email || '',
+      createdBy: r.created_by_email || '',
+      created_by: r.created_by || null,
+      created_at: r.created_at || null,
+      bruto: Number(r.bruto || 0),
+      descuento_pct: Number(r.descuento_pct || 0),
+      descuento_monto: Number(r.descuento_monto || 0),
+      neto: Number(r.neto || 0),
+      iva: Number(r.iva || 0),
+      data: {}
+    };
+  });
+
+  quotes.sort((a,b) => {
+    const na = parseInt(String(a.numeroCotizacion || a.numero || a.numero_cotizacion || '').replace(/\D/g,'')) || 0;
+    const nb = parseInt(String(b.numeroCotizacion || b.numero || b.numero_cotizacion || '').replace(/\D/g,'')) || 0;
+    return nb - na;
+  });
+  window.quotes = quotes;
+}
+
+async function refreshOTsCollectionFromServer(){
+  const oData = (await safeSelectWithAutoDrop('ots', OT_LIGHT_SELECT, {
+    orderColumn: 'created_at',
+    ascending: false
+  })).data || [];
+
+  ots = (oData || []).map(r => {
+    const data = r.data || {};
+    const linkedQuoteId = r.quote_id || data.quoteId || data.quote_id || null;
+    const linkedQuote = (window.quotes || quotes || []).find(q => String(q.id || '') === String(linkedQuoteId || '')) || null;
+    const linkedQuoteState = linkedQuote
+      ? (typeof window.getQuoteNormalizedState === 'function'
+          ? window.getQuoteNormalizedState(linkedQuote)
+          : String(linkedQuote.estado || linkedQuote.data?.estado || '').toLowerCase().trim())
+      : '';
+    const cancelledByQuote = linkedQuoteState === 'rechazada'
+      || data.cancelada_por_cotizacion === true
+      || String(data.estado_cotizacion_vinculada || '').toLowerCase().trim() === 'rechazada';
+
+    return {
+      id: r.id,
+      clientId: r.client_id,
+      quoteId: linkedQuoteId,
+      quote_id: r.quote_id || null,
+      clientName: data.clientName || clients.find(c => String(c.id) === String(r.client_id))?.name || '—',
+      clientRut: data.rut || clients.find(c => String(c.id) === String(r.client_id))?.rut || '',
+      numeroCotizacion: (linkedQuote?.numeroCotizacion) || data.numeroCotizacion || '',
+      numeroOT: r.numero_ot || data.numeroOT || 'S/N',
+      descripcion: r.descripcion || data.descripcion || '',
+      sucursal: r.sucursal || data.sucursal || data.sucursal_direccion || data.direccion_sucursal || '',
+      direccion: r.direccion || r.address || data.direccion || data.address || '',
+      oc: r.oc || data.oc || '',
+      hes: r.hes || data.hes || '',
+      guia_despacho: r.guia_despacho || data.guia_despacho || '',
+      estado: String(cancelledByQuote ? 'cancelada' : (r.estado || data.estado || 'en_curso')).toLowerCase(),
+      pago_estado: String(cancelledByQuote ? 'cancelada' : (r.pago_estado || '')).toLowerCase(),
+      fecha: r.fecha || data.fecha || data.fechaDocumento || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+      monto: Number((data.monto ?? r.monto) || 0),
+      abonos: Array.isArray(data.abonos) ? data.abonos : [],
+      fechaPago: data.fechaPago || null,
+      metodoPago: data.metodoPago || null,
+      documentoTipo: (r.documento_tipo || data.documentoTipo || data.documento_tipo || ((r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero) ? 'factura' : 'sin_documento')),
+      facturaNumero: (r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero || null),
+      factura_num: r.factura_num || r.factura_numero || r.documento_numero || null,
+      factura_enviada_fecha: r.factura_enviada_fecha || null,
+      factura_registro_fecha: r.factura_registro_fecha || null,
+      cobro_estado: String(r.cobro_estado || '').toLowerCase(),
+      modalidadCobro: data.modalidadCobro || data.modalidad_cobro || 'factura',
+      createdByName: r.created_by_name || data.createdBy || formatShortName(r.created_by_email || '') || '—',
+      createdByEmail: r.created_by_email || '',
+      created_by: r.created_by || null,
+      created_at: r.created_at || null,
+      data
+    };
+  });
+
+  ots.sort((a,b) => {
+    const pa = parseOTNumberParts(a?.numeroOT ?? a?.numero_ot ?? '');
+    const pb = parseOTNumberParts(b?.numeroOT ?? b?.numero_ot ?? '');
+    const rank = (n) => (n >= 2000 && n < 4000) ? 0 : 1;
+    const ra = rank(pa.main);
+    const rb = rank(pb.main);
+    if (ra !== rb) return ra - rb;
+    const cmp = compareOTNumberDesc(a, b);
+    if (cmp !== 0) return cmp;
+    const da = new Date(a.created_at || 0).getTime() || 0;
+    const db = new Date(b.created_at || 0).getTime() || 0;
+    return db - da;
+  });
+  window.ots = ots;
+}
+
+async function refreshRequerimientosCollectionFromServer(){
+  const rData = (await safeSelectWithAutoDrop('requerimientos', 'id, client_id, client_name, client_rut, nombre, rut, fecha, detalle, descripcion, estado, created_by_name, created_by_email, created_at, data', {
+    orderColumn: 'created_at',
+    ascending: false
+  })).data || [];
+
+  requerimientos = (rData || []).map(r => {
+    const c = clientsById.get(String(r.client_id));
+    const nombre = r.nombre || r.client_name || c?.name || 'Cliente no encontrado';
+    const rut = r.rut || r.client_rut || c?.rut || '';
+    return {
+      id: r.id,
+      clientId: r.client_id || null,
+      fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+      detalle: r.detalle || r.descripcion || '',
+      estado: (r.estado || 'pendiente').toLowerCase(),
+      nombre,
+      rut,
+      createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      data: r.data || {}
+    };
+  });
+  reqs = requerimientos;
+  window.reqs = reqs;
+}
+
+async function refreshVisitasCollectionFromServer(){
+  const vData = (await safeSelectWithAutoDrop('visitas', 'id, client_id, fecha, descripcion, estado, nombre, name, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data', {
+    orderColumn: 'created_at',
+    ascending: false,
+    fallbacks: [
+      'id, client_id, fecha, descripcion, estado, nombre, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data',
+      'id, client_id, fecha, descripcion, estado, nombre, rut, created_by_name, created_by_email, created_at, data',
+      'id, client_id, fecha, descripcion, estado, created_by_name, created_by_email, created_at, data',
+      'id, fecha, descripcion, estado, created_at, data'
+    ]
+  })).data || [];
+  visitas = (vData || []).map(r => ({
+    id: r.id,
+    clientId: r.client_id || null,
+    fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+    descripcion: r.descripcion || '',
+    estado: (r.estado || 'pendiente').toLowerCase(),
+    nombre: r.nombre || r.name || '',
+    rut: r.rut || '',
+    direccion: r.direccion || '',
+    telefono: r.telefono || '',
+    email: r.email || '',
+    createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+    data: r.data || {}
+  }));
+  window.visitas = visitas;
+}
+
+async function refreshReportsCollectionFromServer(){
+  let remoteReportModels = [];
+  try {
+    const repData = (await safeSelectWithAutoDrop(REPORTS_TABLE, 'id, numero_informe, fecha, client_id, client_name, client_rut, ot_id, quote_id, numero_ot, numero_cotizacion, tipo_servicio, titulo, tecnico_responsable, direccion, resumen_ejecutivo, detalle_general, observaciones_generales, sugerencias_mejora, total_equipos, equipos_operativos, equipos_no_operativos, equipos_con_observacion, estado_general, created_by_name, created_by_email, created_at, updated_at', {
+      orderColumn: 'created_at',
+      ascending: false
+    })).data || [];
+    remoteReportModels = (repData || []).map(mapReportRowToModel);
+    reportStorageMode = 'supabase';
+  } catch (repLoadErr) {
+    console.warn('No se pudieron refrescar informes desde Supabase:', repLoadErr?.message || repLoadErr);
+    remoteReportModels = [];
+    reportStorageMode = 'local';
+  }
+  reports = mergeLoadedReports(remoteReportModels, getLocalReportsRaw());
+  window.reports = reports;
+  window.reportStorageMode = reportStorageMode;
+}
+
+let sharedSyncPendingTables = new Set();
+let sharedSyncForceFullRefresh = false;
+
+async function refreshSelectiveSharedData(tables){
+  const refreshSet = new Set((tables || []).filter(Boolean));
+  if (!refreshSet.size) {
+    await loadData();
+    return;
+  }
+
+  if (refreshSet.has('quotes')) await refreshQuotesCollectionFromServer();
+  if (refreshSet.has('ots')) await refreshOTsCollectionFromServer();
+  if (refreshSet.has('requerimientos')) await refreshRequerimientosCollectionFromServer();
+  if (refreshSet.has('visitas')) await refreshVisitasCollectionFromServer();
+  if (refreshSet.has(REPORTS_TABLE)) await refreshReportsCollectionFromServer();
+  if (refreshSet.has('calendar_events')) await loadCalendarEvents();
+  if (refreshSet.has('maintenance_programs')) await loadMaintenancePrograms();
+  if (refreshSet.has(RECYCLE_BIN_TABLE)) await loadRecycleBinItems();
+
+  window.quotes = quotes;
+  window.ots = ots;
+  window.visitas = visitas;
+  window.reqs = reqs;
+  window.reports = reports;
+  window.reportStorageMode = reportStorageMode;
+  window.maintenancePrograms = maintenancePrograms;
+  window.clients = clients;
+
+  renderAll();
+  renderDashboard();
+  try { renderDashboardMaintenanceSummary(); } catch(e) {}
 }
 
 
@@ -7126,19 +7579,53 @@ function renderQuotes() {
 
 window.renderQuotes = renderQuotes;
 
+    async function refreshDataNow(showToast = true) {
+      sharedSyncNeedsRefreshWhenVisible = false;
+      scheduleSharedDataRefresh(showToast, 'manual');
+    }
+    window.refreshDataNow = refreshDataNow;
 
 
     let sharedSyncChannel = null;
     let sharedSyncInterval = null;
     let sharedSyncRunning = false;
     let sharedSyncLastRefreshAt = 0;
+    let sharedSyncQueued = false;
+    let sharedSyncDebounceTimer = null;
+    let sharedSyncNeedsRefreshWhenVisible = false;
+    const SHARED_SYNC_DEBOUNCE_MS = 1800;
+    const SHARED_SYNC_MIN_REFRESH_MS = 90000;
+    const SHARED_SYNC_REFRESH_ON_VISIBLE_MS = 300000;
+    const SHARED_SYNC_TABLES = [
+      'clients',
+      'quotes',
+      'ots',
+      'requerimientos',
+      'visitas',
+      'calendar_events',
+      'maintenance_programs',
+      REPORTS_TABLE,
+      RECYCLE_BIN_TABLE
+    ];
 
     async function refreshSharedDataSilently(showToast = false) {
-      if (sharedSyncRunning) return;
+      if (sharedSyncRunning) {
+        sharedSyncQueued = true;
+        return;
+      }
       try {
         sharedSyncRunning = true;
-        await loadData();
-        renderAll();
+        const pendingTables = Array.from(sharedSyncPendingTables || []);
+        const shouldFullRefresh = sharedSyncForceFullRefresh || !pendingTables.length;
+        sharedSyncPendingTables = new Set();
+        sharedSyncForceFullRefresh = false;
+
+        if (shouldFullRefresh) {
+          await loadData();
+        } else {
+          await refreshSelectiveSharedData(pendingTables);
+        }
+
         sharedSyncLastRefreshAt = Date.now();
         if (showToast && typeof toastInfo === 'function') {
           toastInfo('Datos actualizados por otro usuario 🔄');
@@ -7147,6 +7634,48 @@ window.renderQuotes = renderQuotes;
         console.error('Error sincronizando datos compartidos:', err);
       } finally {
         sharedSyncRunning = false;
+        if (sharedSyncQueued) {
+          sharedSyncQueued = false;
+          scheduleSharedDataRefresh(false, 'queued');
+        }
+      }
+    }
+
+    function scheduleSharedDataRefresh(showToast = false, reason = 'change', changedTable = null) {
+      if (!currentUser) return;
+
+      if (changedTable === 'full' || !changedTable) {
+        sharedSyncForceFullRefresh = true;
+      } else {
+        sharedSyncPendingTables.add(changedTable);
+      }
+
+      if (document.visibilityState !== 'visible') {
+        sharedSyncNeedsRefreshWhenVisible = true;
+        return;
+      }
+
+      const elapsed = Date.now() - sharedSyncLastRefreshAt;
+      const mustWait = reason !== 'manual' && elapsed > 0 && elapsed < SHARED_SYNC_MIN_REFRESH_MS;
+      if (mustWait) {
+        sharedSyncNeedsRefreshWhenVisible = true;
+        return;
+      }
+
+      if (sharedSyncDebounceTimer) clearTimeout(sharedSyncDebounceTimer);
+      sharedSyncDebounceTimer = setTimeout(async () => {
+        sharedSyncDebounceTimer = null;
+        sharedSyncNeedsRefreshWhenVisible = false;
+        await refreshSharedDataSilently(showToast);
+      }, reason === 'manual' ? 100 : SHARED_SYNC_DEBOUNCE_MS);
+    }
+
+    function refreshSharedDataIfNeededOnVisible() {
+      if (!currentUser) return;
+      const elapsed = Date.now() - sharedSyncLastRefreshAt;
+      const shouldRefresh = sharedSyncNeedsRefreshWhenVisible || !sharedSyncLastRefreshAt || elapsed >= SHARED_SYNC_REFRESH_ON_VISIBLE_MS;
+      if (shouldRefresh) {
+        scheduleSharedDataRefresh(false, 'visible');
       }
     }
 
@@ -7157,34 +7686,33 @@ window.renderQuotes = renderQuotes;
           sharedSyncChannel = null;
         }
 
-        sharedSyncChannel = supabaseClient
-          .channel('public:shared-sync')
-          .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
-            await refreshSharedDataSilently(true);
-          })
-          .subscribe((status) => {
-            console.log('Realtime estado:', status);
+        let channel = supabaseClient.channel('public:shared-sync');
+        SHARED_SYNC_TABLES.forEach((tableName) => {
+          channel = channel.on('postgres_changes', { event: '*', schema: 'public', table: tableName }, async () => {
+            const lightweightTables = new Set(['quotes','ots','requerimientos','visitas', REPORTS_TABLE, 'calendar_events', 'maintenance_programs']);
+            scheduleSharedDataRefresh(true, 'realtime', lightweightTables.has(tableName) ? tableName : 'full');
           });
+        });
+        sharedSyncChannel = channel.subscribe((status) => {
+          console.log('Realtime estado:', status);
+        });
 
-        if (sharedSyncInterval) clearInterval(sharedSyncInterval);
-        sharedSyncInterval = setInterval(async () => {
-          const enoughTimePassed = (Date.now() - sharedSyncLastRefreshAt) > 12000;
-          if (document.visibilityState === 'visible' && enoughTimePassed) {
-            await refreshSharedDataSilently(false);
-          }
-        }, 15000);
+        if (sharedSyncInterval) {
+          clearInterval(sharedSyncInterval);
+          sharedSyncInterval = null;
+        }
 
         if (!window.__sharedSyncVisibilityBound) {
           window.__sharedSyncVisibilityBound = true;
 
           document.addEventListener('visibilitychange', async () => {
             if (document.visibilityState === 'visible') {
-              await refreshSharedDataSilently(false);
+              refreshSharedDataIfNeededOnVisible();
             }
           });
 
           window.addEventListener('focus', async () => {
-            await refreshSharedDataSilently(false);
+            refreshSharedDataIfNeededOnVisible();
           });
         }
       } catch (err) {
@@ -7294,12 +7822,10 @@ window.renderQuotes = renderQuotes;
 
     async function loadMaintenancePrograms(){
       try{
-        const { data, error } = await supabaseClient
-          .from(window.MAINTENANCE_PROGRAMS_TABLE)
-          .select('*')
-          .order('client_name', { ascending: true });
-
-        if(error) throw error;
+        const data = (await safeSelectWithAutoDrop(window.MAINTENANCE_PROGRAMS_TABLE, 'id, client_id, client_name, site_name, service_type, frequency, start_month, program_year, responsible, notes, status, completed_months, completed_history, created_by_name, created_at', {
+          orderColumn: 'client_name',
+          ascending: true
+        })).data || [];
 
         maintenancePrograms = (data || []).map(r => ({
           id: r.id,
@@ -8171,6 +8697,116 @@ window.renderQuotes = renderQuotes;
       localStorage.setItem(REPORTS_LOCAL_KEY, JSON.stringify(Array.isArray(items) ? items : []));
     }
 
+
+    function getReportIdentityKey(report){
+      const rep = report || {};
+      return [
+        String(rep.numeroInforme || rep.numero_informe || rep.data?.numeroInforme || ''),
+        String(rep.clientId || rep.client_id || rep.data?.clientId || rep.data?.client_id || ''),
+        String(rep.otId || rep.ot_id || rep.data?.otId || rep.data?.ot_id || ''),
+        String(rep.fecha || rep.data?.fecha || '')
+      ].join('|');
+    }
+
+    function buildLocalReportRow(payload, options = {}){
+      const existing = options.existing || {};
+      const nowIso = new Date().toISOString();
+      const id = String(options.id || existing.id || ('local_report_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)));
+      const evidencias = normalizeReportEvidenceArray(payload?.evidencias || payload?.data?.evidencias || existing?.evidencias || []);
+      const equipos = normalizeReportEquipmentArray(payload?.data?.equipos || payload?.equipos || existing?.data?.equipos || existing?.equipos || []);
+      const items = Array.isArray(payload?.data?.items) ? payload.data.items : (Array.isArray(payload?.data?.itemsIntervenidos) ? payload.data.itemsIntervenidos : (Array.isArray(existing?.data?.items) ? existing.data.items : []));
+      const baseData = Object.assign({}, existing?.data || {}, payload?.data || {});
+      baseData.evidencias = evidencias;
+      baseData.equipos = equipos;
+      baseData.exceptions = normalizeReportEquipmentArray(baseData.exceptions || equipos);
+      baseData.items = Array.isArray(baseData.items) ? baseData.items : items;
+      baseData.itemsIntervenidos = Array.isArray(baseData.itemsIntervenidos) ? baseData.itemsIntervenidos : items;
+      baseData._pending_sync = !!options.pendingSync;
+      baseData._server_id = options.serverId || existing?._server_id || existing?.data?._server_id || (id.startsWith('local_report_') ? '' : id);
+      return Object.assign({}, existing, payload || {}, {
+        id,
+        evidencias,
+        equipos,
+        data: baseData,
+        created_at: existing?.created_at || payload?.created_at || nowIso,
+        updated_at: nowIso,
+        source: 'local',
+        _pending_sync: !!options.pendingSync,
+        _server_id: options.serverId || existing?._server_id || existing?.data?._server_id || (id.startsWith('local_report_') ? '' : id)
+      });
+    }
+
+    function saveLocalReportRow(payload, options = {}){
+      const rows = getLocalReportsRaw();
+      const targetId = String(options.id || payload?.id || '');
+      let idx = rows.findIndex(row => String(row?.id || '') === targetId);
+      if(idx < 0 && options.serverId){
+        idx = rows.findIndex(row => String(row?._server_id || row?.data?._server_id || '') === String(options.serverId));
+      }
+      if(idx < 0 && payload){
+        const key = getReportIdentityKey(payload);
+        idx = rows.findIndex(row => getReportIdentityKey(row) === key);
+      }
+      const existing = idx >= 0 ? rows[idx] : {};
+      const row = buildLocalReportRow(payload, Object.assign({}, options, { existing }));
+      if(idx >= 0) rows[idx] = row;
+      else rows.unshift(row);
+      setLocalReportsRaw(rows);
+      return row;
+    }
+
+    function removeLocalReportRows(reportRef){
+      const ref = reportRef || {};
+      const refId = String(ref.id || reportRef || '');
+      const serverId = String(ref.serverId || ref._server_id || ref.data?._server_id || '');
+      const identity = getReportIdentityKey(ref);
+      const next = getLocalReportsRaw().filter(row => {
+        if(refId && String(row?.id || '') === refId) return false;
+        if(serverId && String(row?._server_id || row?.data?._server_id || '') === serverId) return false;
+        if(identity && getReportIdentityKey(row) === identity) return false;
+        return true;
+      });
+      setLocalReportsRaw(next);
+    }
+
+    function sortReportsCollection(list){
+      return (Array.isArray(list) ? list.slice() : []).sort((a,b) => {
+        const nb = reportNumberValue(b?.numeroInforme || b?.numero_informe || '');
+        const na = reportNumberValue(a?.numeroInforme || a?.numero_informe || '');
+        if(nb !== na) return nb - na;
+        const db = new Date(b?.updated_at || b?.created_at || b?.fecha || 0).getTime() || 0;
+        const da = new Date(a?.updated_at || a?.created_at || a?.fecha || 0).getTime() || 0;
+        return db - da;
+      });
+    }
+
+    function mergeLoadedReports(remoteModels, localRows){
+      const merged = sortReportsCollection(remoteModels || []);
+      (Array.isArray(localRows) ? localRows : []).forEach(localRow => {
+        const localModel = mapReportRowToModel(localRow);
+        const serverId = String(localRow?._server_id || localRow?.data?._server_id || localModel.serverId || '');
+        let idx = -1;
+        if(serverId) idx = merged.findIndex(rep => String(rep?.id || '') === serverId);
+        if(idx < 0 && localModel.id) idx = merged.findIndex(rep => String(rep?.id || '') === String(localModel.id || ''));
+        if(idx < 0){
+          const key = getReportIdentityKey(localModel);
+          idx = merged.findIndex(rep => getReportIdentityKey(rep) === key);
+        }
+        if(idx >= 0){
+          if(localModel.pendingSync || localRow?._pending_sync){
+            merged[idx] = Object.assign({}, merged[idx], localModel, {
+              source: 'local',
+              pendingSync: true,
+              data: Object.assign({}, merged[idx]?.data || {}, localModel.data || {}, { _pending_sync: true })
+            });
+          }
+        } else {
+          merged.unshift(localModel);
+        }
+      });
+      return sortReportsCollection(merged);
+    }
+
     function getLinkedOTForReport(report){
       if(!report) return null;
       const otId = String(report.otId || report.ot_id || report.data?.otId || report.data?.ot_id || '').trim();
@@ -8243,6 +8879,56 @@ window.renderQuotes = renderQuotes;
       return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">No informado</span>';
     }
 
+
+    function getConsolidationSignature(eq = {}){
+      return JSON.stringify({
+        tipoEquipo: eq.tipoEquipo || '',
+        marcaModelo: eq.marcaModelo || '',
+        btu: eq.btu || '',
+        trabajoRealizado: eq.trabajoRealizado || '',
+        detalleMantencion: eq.detalleMantencion || '',
+        observaciones: eq.observaciones || '',
+        sugerencias: eq.sugerencias || '',
+        estadoFinal: eq.estadoFinal || 'operativo',
+        candidatoBTU: eq.candidatoBTU || 'no'
+      });
+    }
+
+    function getReportConsolidationInfo(report){
+      const equipments = normalizeReportEquipmentArray(report?.equipos || report?.data?.equipos || []);
+      if(equipments.length < 2) return { mode: 'detailed', equipments, groups: [] };
+      const map = new Map();
+      equipments.forEach((eq, idx) => {
+        const key = getConsolidationSignature(eq);
+        if(!map.has(key)) map.set(key, { key, common: eq, items: [] });
+        map.get(key).items.push({ ...eq, _index: idx + 1 });
+      });
+      const groups = Array.from(map.values());
+      const repeatedGroups = groups.filter(g => g.items.length > 1);
+      if(groups.length === 1 || repeatedGroups.length){
+        return { mode: 'consolidated', equipments, groups };
+      }
+      return { mode: 'detailed', equipments, groups };
+    }
+
+    function getReportCommonLines(eq = {}){
+      const rows = [];
+      if(eq.tipoEquipo) rows.push(['Tipo de equipo', eq.tipoEquipo]);
+      if(eq.marcaModelo) rows.push(['Marca / modelo', eq.marcaModelo]);
+      if(eq.btu) rows.push(['BTU', `${eq.btu} BTU`]);
+      if(eq.trabajoRealizado) rows.push(['Trabajo realizado', eq.trabajoRealizado]);
+      if(eq.detalleMantencion) rows.push(['Detalle mantención / limpieza', eq.detalleMantencion]);
+      if(eq.observaciones) rows.push(['Observaciones', eq.observaciones]);
+      if(eq.sugerencias) rows.push(['Sugerencias', eq.sugerencias]);
+      if(eq.candidatoBTU && eq.candidatoBTU !== 'no') rows.push(['Candidato BTU', eq.candidatoBTU]);
+      rows.push(['Estado final', getEquipmentStateLabel(eq.estadoFinal)]);
+      return rows;
+    }
+
+    function getReportAreasTableRows(items = []){
+      return items.map((eq, idx) => ([String(idx + 1), eq.area || `Equipo ${eq._index || (idx + 1)}`, getEquipmentStateLabel(eq.estadoFinal)]));
+    }
+
     function mapReportRowToModel(row){
       const data = row?.data || {};
       const linkedOT = (ots || []).find(o => String(o.id) === String(row?.ot_id || data.otId || data.ot_id || '')) || null;
@@ -8277,10 +8963,17 @@ window.renderQuotes = renderQuotes;
         createdByName: row.created_by_name || data.createdByName || formatShortName(row.created_by_email || '') || '—',
         createdByEmail: row.created_by_email || data.createdByEmail || '',
         created_at: row.created_at || null,
+        updated_at: row.updated_at || data.updated_at || null,
         source: row.source || 'supabase',
+        pendingSync: !!(row._pending_sync || data._pending_sync),
+        serverId: row._server_id || data._server_id || null,
         data: Object.assign({}, data, {
           evidencias: normalizeReportEvidenceArray(data.evidencias || row.evidencias || []),
-          equipos: normalizeReportEquipmentArray(data.equipos || row.equipos || [])
+          equipos: normalizeReportEquipmentArray(data.equipos || row.equipos || []),
+          exceptions: normalizeReportEquipmentArray(data.exceptions || data.equipos || row.equipos || []),
+          items: Array.isArray(data.items) ? data.items : (Array.isArray(data.itemsIntervenidos) ? data.itemsIntervenidos : []),
+          _pending_sync: !!(row._pending_sync || data._pending_sync),
+          _server_id: row._server_id || data._server_id || null
         })
       };
     }
@@ -8415,6 +9108,7 @@ window.renderQuotes = renderQuotes;
       if(!box) return;
       const list = Array.isArray(items) && items.length ? items : [{}];
       box.innerHTML = list.map((eq, idx) => getReportEquipmentRowHTML(eq, idx)).join('');
+      refreshReportVisualSummary();
     }
 
     function addReportEquipmentRow(prefill = {}){
@@ -8422,6 +9116,7 @@ window.renderQuotes = renderQuotes;
       if(!box) return;
       const count = box.querySelectorAll('[data-report-eq-row]').length;
       box.insertAdjacentHTML('beforeend', getReportEquipmentRowHTML(prefill, count));
+      refreshReportVisualSummary();
     }
 
     function removeReportEquipmentRow(btn){
@@ -8436,6 +9131,115 @@ window.renderQuotes = renderQuotes;
         const label = r.querySelector('.font-black');
         if(label) label.textContent = 'Equipo ' + (idx + 1);
       });
+      refreshReportVisualSummary();
+    }
+
+
+    function normalizeReportItem(item = {}){
+      return {
+        descripcion: String(item.descripcion || '').trim(),
+        cantidad: Math.max(1, parseInt(item.cantidad || 1, 10) || 1),
+        ubicacion: String(item.ubicacion || '').trim(),
+        estadoFinal: String(item.estadoFinal || 'operativo').trim() || 'operativo',
+        observacion: String(item.observacion || '').trim()
+      };
+    }
+
+    function getDefaultReportItems(report = null, bulkTpl = {}){
+      const saved = Array.isArray(report?.data?.itemsIntervenidos) ? report.data.itemsIntervenidos : [];
+      if(saved.length) return saved.map(normalizeReportItem);
+      const qty = Math.max(1, parseInt((bulkTpl.areasList && bulkTpl.areasList.length) || bulkTpl.count || report?.totalEquipos || 1, 10) || 1);
+      const ubic = (bulkTpl.areasList && bulkTpl.areasList.join(', ')) || bulkTpl.areaBase || '';
+      const desc = bulkTpl.trabajoRealizado || report?.detalleGeneral || '';
+      if(desc || ubic || qty > 1) return [normalizeReportItem({ descripcion: desc || 'Servicio realizado', cantidad: qty, ubicacion: ubic, estadoFinal: bulkTpl.estadoFinal || 'operativo', observacion: bulkTpl.observaciones || report?.observacionesGenerales || '' })];
+      return [normalizeReportItem({ descripcion: '', cantidad: 1, ubicacion: '', estadoFinal: 'operativo', observacion: '' })];
+    }
+
+    function renderReportItemRows(items){
+      const box = document.getElementById('reportItems');
+      if(!box) return;
+      const rows = (items && items.length ? items : [normalizeReportItem({})]).map(item => {
+        const it = normalizeReportItem(item);
+        return `
+          <div class="grid grid-cols-1 lg:grid-cols-[1.6fr_120px_1fr_220px_1.2fr_auto] gap-3 items-end p-4 rounded-2xl border border-slate-200 bg-white" data-report-item-row>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Ítem</label>
+              <input data-field="descripcion" value="${escapeHtml(it.descripcion)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Mantención preventiva split muro / Revisión cámara de frío / Mantención portón eléctrico">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Cantidad</label>
+              <input data-field="cantidad" type="number" min="1" step="1" value="${escapeHtml(String(it.cantidad || 1))}" class="w-full px-3 py-3 border rounded-xl">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Ubicación <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+              <input data-field="ubicacion" value="${escapeHtml(it.ubicacion)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Ej: Habitaciones 101 a 120 / Recepción / Cámara 1">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Estado final</label>
+              <select data-field="estadoFinal" class="w-full px-3 py-3 border rounded-xl">
+                <option value="operativo" ${it.estadoFinal==='operativo'?'selected':''}>Operativo</option>
+                <option value="operativo_observacion" ${it.estadoFinal==='operativo_observacion'?'selected':''}>Con observación</option>
+                <option value="no_operativo" ${it.estadoFinal==='no_operativo'?'selected':''}>No operativo</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observación <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+              <input data-field="observacion" value="${escapeHtml(it.observacion)}" class="w-full px-3 py-3 border rounded-xl" placeholder="Solo si este ítem tuvo algo distinto">
+            </div>
+            <div class="pb-1">
+              <button type="button" onclick="removeReportItemRow(this)" class="px-3 py-3 rounded-xl text-rose-600 hover:bg-rose-50 font-semibold"><i class="fa-solid fa-trash mr-2"></i>Quitar</button>
+            </div>
+          </div>`;
+      }).join('');
+      box.innerHTML = rows;
+    }
+
+    function addReportItemRow(prefill = {}){
+      const items = collectReportItemsFromForm();
+      items.push(normalizeReportItem(prefill));
+      renderReportItemRows(items);
+      refreshReportVisualSummary();
+    }
+
+    function removeReportItemRow(btn){
+      const row = btn?.closest?.('[data-report-item-row]');
+      if(row) row.remove();
+      const box = document.getElementById('reportItems');
+      if(box && !box.querySelector('[data-report-item-row]')) renderReportItemRows([normalizeReportItem({})]);
+      refreshReportVisualSummary();
+    }
+
+    function collectReportItemsFromForm(){
+      return Array.from(document.querySelectorAll('#reportItems [data-report-item-row]')).map(row => normalizeReportItem({
+        descripcion: row.querySelector('[data-field="descripcion"]')?.value,
+        cantidad: row.querySelector('[data-field="cantidad"]')?.value,
+        ubicacion: row.querySelector('[data-field="ubicacion"]')?.value,
+        estadoFinal: row.querySelector('[data-field="estadoFinal"]')?.value,
+        observacion: row.querySelector('[data-field="observacion"]')?.value
+      })).filter(item => item.descripcion || item.ubicacion || item.observacion || Number(item.cantidad || 0) > 1);
+    }
+
+    function buildReportEffectiveEquipmentsFromItems(items = []){
+      const rows = [];
+      items.forEach(item => {
+        const qty = Math.max(1, parseInt(item.cantidad || 1, 10) || 1);
+        for(let i=0;i<qty;i++) rows.push(normalizeReportEquipment({ area: item.ubicacion || '', estadoFinal: item.estadoFinal || 'operativo', trabajoRealizado: item.descripcion || '', observaciones: item.observacion || '' }));
+      });
+      return rows;
+    }
+
+    function getReportItemsForReport(report){
+      const saved = Array.isArray(report?.data?.itemsIntervenidos) ? report.data.itemsIntervenidos : [];
+      if(saved.length) return saved.map(normalizeReportItem);
+      const bulkTpl = report?.data?.bulkTemplate || {};
+      const qty = Number(report?.totalEquipos || report?.total_equipos || (bulkTpl.areasList && bulkTpl.areasList.length) || bulkTpl.count || 0);
+      const desc = report?.detalleGeneral || bulkTpl.trabajoRealizado || '';
+      if(desc || qty) return [normalizeReportItem({ descripcion: desc || 'Servicio realizado', cantidad: qty || 1, ubicacion: (bulkTpl.areasList || []).join(', '), estadoFinal: bulkTpl.estadoFinal || 'operativo', observacion: report?.observacionesGenerales || '' })];
+      return [];
+    }
+
+    function getReportItemsSummaryText(items = []){
+      return items.map(item => `${item.descripcion || 'Servicio'}${item.cantidad ? ` x${item.cantidad}` : ''}${item.ubicacion ? ` (${item.ubicacion})` : ''}`).join(' · ');
     }
 
     function collectReportEquipmentsFromForm(){
@@ -8456,22 +9260,177 @@ window.renderQuotes = renderQuotes;
       }).filter(eq => [eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, eq.trabajoRealizado, eq.detalleMantencion, eq.observaciones, eq.sugerencias].some(Boolean));
     }
 
+
+    function getReportBulkAreasFromText(value){
+      if(Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
+      const raw = String(value || '').trim();
+      if(!raw) return [];
+
+      try {
+        if((raw.startsWith('[') && raw.endsWith(']')) || (raw.startsWith('{') && raw.endsWith('}'))){
+          const parsed = JSON.parse(raw);
+          if(Array.isArray(parsed)) return parsed.map(v => String(v || '').trim()).filter(Boolean);
+          if(parsed && Array.isArray(parsed.areasList)) return parsed.areasList.map(v => String(v || '').trim()).filter(Boolean);
+        }
+      } catch(e) {}
+
+      return raw
+        .split(/(?:\r?\n|;|,|\|)/g)
+        .map(v => String(v || '').trim())
+        .filter(Boolean);
+    }
+
+    function getReportBulkTemplateFromForm(){
+      const get = (id, fallback='') => String(document.getElementById(id)?.value || fallback || '').trim();
+      const areasList = getReportBulkAreasFromText(get('rBulkAreasList'));
+      return {
+        count: Math.max(1, parseInt(get('rBulkCount', areasList.length ? String(areasList.length) : '1'), 10) || 1),
+        areaBase: get('rBulkAreaBase'),
+        areasList,
+        startAt: Math.max(1, parseInt(get('rBulkStartAt','1'), 10) || 1),
+        tipoEquipo: get('rBulkTipoEquipo'),
+        marcaModelo: get('rBulkMarcaModelo'),
+        btu: get('rBulkBTU'),
+        estadoFinal: get('rBulkEstadoFinal','operativo') || 'operativo',
+        candidatoBTU: get('rBulkCandidatoBTU','no') || 'no',
+        trabajoRealizado: get('rBulkTrabajoRealizado'),
+        detalleMantencion: get('rBulkDetalleMantencion'),
+        observaciones: get('rBulkObservaciones'),
+        sugerencias: get('rBulkSugerencias')
+      };
+    }
+
+    function hasMeaningfulReportBulkTemplate(tpl = {}){
+      return Boolean(
+        (tpl.areasList && tpl.areasList.length) ||
+        tpl.areaBase ||
+        tpl.tipoEquipo ||
+        tpl.marcaModelo ||
+        tpl.btu ||
+        tpl.trabajoRealizado ||
+        tpl.detalleMantencion ||
+        tpl.observaciones ||
+        tpl.sugerencias ||
+        (tpl.count && Number(tpl.count) > 1)
+      );
+    }
+
+    function mergeReportEquipmentWithTemplate(row = {}, tpl = {}, idx = 0, totalRows = 1){
+      const base = getReportBulkRowFromTemplate({ ...tpl, count: totalRows }, idx);
+      const merged = {
+        ...base,
+        ...row,
+        area: row.area || (tpl.areasList && tpl.areasList[idx]) || base.area || '',
+        tipoEquipo: row.tipoEquipo || base.tipoEquipo || '',
+        marcaModelo: row.marcaModelo || base.marcaModelo || '',
+        btu: row.btu || base.btu || '',
+        estadoFinal: row.estadoFinal || base.estadoFinal || 'operativo',
+        candidatoBTU: row.candidatoBTU || base.candidatoBTU || 'no',
+        trabajoRealizado: row.trabajoRealizado || base.trabajoRealizado || '',
+        detalleMantencion: row.detalleMantencion || base.detalleMantencion || '',
+        observaciones: row.observaciones || base.observaciones || '',
+        sugerencias: row.sugerencias || base.sugerencias || ''
+      };
+      return normalizeReportEquipment(merged);
+    }
+
+    function buildReportEffectiveEquipmentsFromForm(){
+      const items = collectReportItemsFromForm();
+      if(items.length) return buildReportEffectiveEquipmentsFromItems(items);
+      const rows = collectReportEquipmentsFromForm();
+      const tpl = getReportBulkTemplateFromForm();
+      const totalRows = (tpl.areasList && tpl.areasList.length) ? tpl.areasList.length : (tpl.count || rows.length || 1);
+      if(rows.length){
+        return rows.map((row, idx) => mergeReportEquipmentWithTemplate(row, tpl, idx, Math.max(totalRows, rows.length))).filter(eq => [eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, eq.trabajoRealizado, eq.detalleMantencion, eq.observaciones, eq.sugerencias].some(Boolean));
+      }
+      if(!hasMeaningfulReportBulkTemplate(tpl)) return [];
+      return Array.from({ length: totalRows }, (_, idx) => mergeReportEquipmentWithTemplate({}, tpl, idx, totalRows)).filter(eq => [eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, eq.trabajoRealizado, eq.detalleMantencion, eq.observaciones, eq.sugerencias].some(Boolean));
+    }
+
+    function summarizeReportEquipments(equipments = []){
+      let operativos = 0, observacion = 0, noOperativos = 0;
+      equipments.forEach(eq => {
+        if(eq.estadoFinal === 'no_operativo') noOperativos += 1;
+        else if(eq.estadoFinal === 'operativo_observacion') observacion += 1;
+        else operativos += 1;
+      });
+      return { total: equipments.length, operativos, observacion, noOperativos };
+    }
+
+    function getReportBulkRowFromTemplate(tpl, idx){
+      const area = tpl.areaBase ? `${tpl.areaBase}${tpl.count > 1 ? ' ' + (tpl.startAt + idx) : ''}`.trim() : '';
+      return normalizeReportEquipment({
+        area,
+        tipoEquipo: tpl.tipoEquipo,
+        marcaModelo: tpl.marcaModelo,
+        btu: tpl.btu,
+        estadoFinal: tpl.estadoFinal,
+        candidatoBTU: tpl.candidatoBTU,
+        trabajoRealizado: tpl.trabajoRealizado,
+        detalleMantencion: tpl.detalleMantencion,
+        observaciones: tpl.observaciones,
+        sugerencias: tpl.sugerencias
+      });
+    }
+
+    function addMultipleReportEquipmentRows(){
+      const tpl = getReportBulkTemplateFromForm();
+      if(!hasMeaningfulReportBulkTemplate(tpl)){
+        alert('Completa al menos cantidad, áreas, tipo de equipo, trabajo realizado, detalle u observaciones comunes para crear la lista.');
+        return;
+      }
+      const total = (tpl.areasList && tpl.areasList.length) ? tpl.areasList.length : tpl.count;
+      for(let i=0;i<total;i++){
+        addReportEquipmentRow(getReportBulkRowFromTemplate({ ...tpl, count: total }, i));
+      }
+      refreshReportVisualSummary();
+    }
+
+    function applyBulkFieldsToReportRows(mode = 'all'){
+      const tpl = getReportBulkTemplateFromForm();
+      const rows = Array.from(document.querySelectorAll('#reportEquipments [data-report-eq-row]'));
+      if(!rows.length){
+        addReportEquipmentRow(getReportBulkRowFromTemplate(tpl, 0));
+        return;
+      }
+      rows.forEach((row, idx) => {
+        const setField = (field, value) => {
+          if(value === '' || value == null) return;
+          const el = row.querySelector(`[data-field="${field}"]`);
+          if(!el) return;
+          if(mode === 'empty' && String(el.value || '').trim()) return;
+          el.value = value;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        if(tpl.areasList && tpl.areasList[idx]){
+          setField('area', tpl.areasList[idx]);
+        } else if(tpl.areaBase){
+          const area = `${tpl.areaBase}${rows.length > 1 || tpl.count > 1 ? ' ' + (tpl.startAt + idx) : ''}`.trim();
+          setField('area', area);
+        }
+        setField('tipoEquipo', tpl.tipoEquipo);
+        setField('marcaModelo', tpl.marcaModelo);
+        setField('btu', tpl.btu);
+        setField('estadoFinal', tpl.estadoFinal);
+        setField('candidatoBTU', tpl.candidatoBTU);
+        setField('trabajoRealizado', tpl.trabajoRealizado);
+        setField('detalleMantencion', tpl.detalleMantencion);
+        setField('observaciones', tpl.observaciones);
+        setField('sugerencias', tpl.sugerencias);
+      });
+      refreshReportVisualSummary();
+    }
+
     function getReportFromForm(reportId = null){
       const otId = String(document.getElementById('rOT')?.value || '').trim();
       const linkedOT = otId ? ((ots || []).find(o => String(o.id) === otId) || null) : null;
       const linkedQuote = linkedOT ? getLinkedQuoteForOT(linkedOT) : null;
       const clientId = String(document.getElementById('rClient')?.value || linkedOT?.clientId || '').trim() || null;
       const client = clientId ? ((clients || []).find(c => String(c.id) === clientId) || null) : null;
-      const equipments = collectReportEquipmentsFromForm();
-      const summary = (() => {
-        let operativos = 0, observacion = 0, noOperativos = 0;
-        equipments.forEach(eq => {
-          if(eq.estadoFinal === 'no_operativo') noOperativos += 1;
-          else if(eq.estadoFinal === 'operativo_observacion') observacion += 1;
-          else operativos += 1;
-        });
-        return { total: equipments.length, operativos, observacion, noOperativos };
-      })();
+      const bulkTemplate = getReportBulkTemplateFromForm();
+      const reportItems = collectReportItemsFromForm();
+      const equipments = reportItems.length ? buildReportEffectiveEquipmentsFromItems(reportItems) : buildReportEffectiveEquipmentsFromForm();
+      const summary = summarizeReportEquipments(equipments);
       const tempEvidencias = normalizeReportEvidenceArray(window.currentReportAttachments || []);
       const payloadData = {
         numeroInforme: String(document.getElementById('rNumero')?.value || '').trim() || getNextReportNumber(),
@@ -8487,7 +9446,7 @@ window.renderQuotes = renderQuotes;
         titulo: String(document.getElementById('rTitulo')?.value || '').trim() || `Informe técnico ${linkedOT?.numeroOT || linkedOT?.numero_ot || ''}`.trim(),
         tecnicoResponsable: String(document.getElementById('rTecnico')?.value || currentUserDisplayName || '').trim(),
         direccion: String(document.getElementById('rDireccion')?.value || '').trim(),
-        detalleGeneral: String(document.getElementById('rDetalleGeneral')?.value || '').trim(),
+        detalleGeneral: getReportItemsSummaryText(reportItems) || String(document.getElementById('rDetalleGeneral')?.value || '').trim(),
         resumenEjecutivo: String(document.getElementById('rResumen')?.value || '').trim(),
         observacionesGenerales: String(document.getElementById('rObservaciones')?.value || '').trim(),
         sugerenciasMejora: String(document.getElementById('rSugerencias')?.value || '').trim(),
@@ -8506,8 +9465,13 @@ window.renderQuotes = renderQuotes;
           ...payloadData,
           evidencia_temporal_count: tempEvidencias.length,
           equipos: payloadData.equipos,
+          exceptions: payloadData.equipos,
           createdByName: currentUserDisplayName || 'Usuario',
-          createdByEmail: currentUser?.email || ''
+          createdByEmail: currentUser?.email || '',
+          bulkTemplate,
+          items: reportItems,
+          itemsIntervenidos: reportItems,
+          captureMode: bulkTemplate && hasMeaningfulReportBulkTemplate(bulkTemplate) ? 'common-first' : 'detailed'
         }
       };
     }
@@ -8530,8 +9494,70 @@ window.renderQuotes = renderQuotes;
       }
     }
 
-    function showNewReportModal(prefill = {}){
-      const report = prefill && prefill.id ? (reports || []).find(r => String(r.id) === String(prefill.id)) : null;
+    function getReportVisualSummaryHTML(summary){
+      const total = Number(summary?.total || 0);
+      const operativos = Number(summary?.operativos || 0);
+      const observacion = Number(summary?.observacion || 0);
+      const noOperativos = Number(summary?.noOperativos || 0);
+      const pct = value => total ? Math.max(6, Math.round((Number(value || 0) / total) * 100)) : 0;
+      return `
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <div>
+              <div class="text-xs font-black uppercase tracking-wide text-slate-500">Resumen visual</div>
+              <div class="text-sm text-slate-600 mt-1">Vista compacta del estado general del informe.</div>
+            </div>
+            <div class="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 self-start sm:self-auto">
+              <span class="text-xs uppercase tracking-wide text-slate-500 font-bold">Equipos revisados</span>
+              <span class="text-xl font-black text-slate-900">${total}</span>
+            </div>
+          </div>
+          <div class="h-3 rounded-full bg-slate-100 overflow-hidden flex mb-3">
+            ${operativos ? `<div style="width:${pct(operativos)}%" class="bg-emerald-500"></div>` : ''}
+            ${observacion ? `<div style="width:${pct(observacion)}%" class="bg-amber-500"></div>` : ''}
+            ${noOperativos ? `<div style="width:${pct(noOperativos)}%" class="bg-rose-500"></div>` : ''}
+            ${!total ? '<div class="w-full bg-slate-200"></div>' : ''}
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div class="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
+              <div class="text-[11px] uppercase tracking-wide font-bold text-emerald-700">Operativos</div>
+              <div class="text-xl font-black text-emerald-700 mt-0.5">${operativos}</div>
+            </div>
+            <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
+              <div class="text-[11px] uppercase tracking-wide font-bold text-amber-700">Con observación</div>
+              <div class="text-xl font-black text-amber-700 mt-0.5">${observacion}</div>
+            </div>
+            <div class="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2">
+              <div class="text-[11px] uppercase tracking-wide font-bold text-rose-700">No operativos</div>
+              <div class="text-xl font-black text-rose-700 mt-0.5">${noOperativos}</div>
+            </div>
+            <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+              <div class="text-[11px] uppercase tracking-wide font-bold text-slate-600">Estado general</div>
+              <div class="text-sm font-black text-slate-800 mt-1">${total ? (noOperativos >= total ? 'No operativo' : ((noOperativos > 0 || observacion > 0) ? 'Operativo parcial' : 'Operativo')) : 'Sin equipos'}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function refreshReportVisualSummary(){
+      const box = document.getElementById('reportVisualSummary');
+      if(!box) return;
+      const equipments = buildReportEffectiveEquipmentsFromForm();
+      const summary = summarizeReportEquipments(equipments);
+      box.innerHTML = getReportVisualSummaryHTML(summary);
+    }
+
+    function bindReportVisualSummaryEvents(){
+      const box = document.getElementById('reportEquipments');
+      if(!box || box.dataset.summaryBound === '1') return;
+      box.dataset.summaryBound = '1';
+      box.addEventListener('input', refreshReportVisualSummary);
+      box.addEventListener('change', refreshReportVisualSummary);
+    }
+
+    async function showNewReportModal(prefill = {}){
+      const report = prefill && prefill.id ? await ensureReportLoaded(prefill.id) : null;
       const linkedOTId = String(prefill.otId || report?.otId || '').trim();
       const linkedOT = linkedOTId ? (ots || []).find(o => String(o.id) === linkedOTId) : null;
       const linkedQuote = report ? getLinkedQuoteForReport(report) : (linkedOT ? getLinkedQuoteForOT(linkedOT) : null);
@@ -8540,7 +9566,9 @@ window.renderQuotes = renderQuotes;
       const selectedClientId = report?.clientId || linkedOT?.clientId || '';
       const reportType = normalizeReportServiceType(report?.tipoServicio || linkedQuote?.tipo_servicio || prefill.tipoServicio || 'mantencion') || 'mantencion';
       const title = report?.titulo || `Informe técnico ${linkedOT?.numeroOT || linkedOT?.numero_ot || ''}`.trim();
-      const equipments = report?.equipos?.length ? report.equipos : [];
+      const bulkTpl = report?.data?.bulkTemplate || {};
+      const reportItems = getDefaultReportItems(report, bulkTpl);
+      const equipments = Array.isArray(report?.data?.exceptions) ? report.data.exceptions : [];
       window.currentReportAttachments = normalizeReportEvidenceArray(report?.evidencias || report?.data?.evidencias || []);
 
       const otOptions = ['<option value="">Sin OT vinculada</option>'].concat((ots || []).map(ot => {
@@ -8606,35 +9634,72 @@ window.renderQuotes = renderQuotes;
             </div>
           </div>
 
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Detalle general del trabajo</label>
-              <textarea id="rDetalleGeneral" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Resume qué trabajo se realizó, alcance y contexto">${escapeHtml(report?.detalleGeneral || linkedOT?.descripcion || linkedQuote?.obra || '')}</textarea>
+          <div class="border border-amber-200 rounded-2xl p-4 bg-amber-50/60 mb-6">
+            <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-3">
+              <div>
+                <h3 class="text-lg font-black text-slate-800">1. Datos comunes del servicio</h3>
+                <p class="text-sm text-slate-500">Rellena primero esta parte. Si muchos equipos llevan el mismo trabajo, el sistema tomará estos datos para el informe aunque no completes una ficha por cada equipo.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="addReportItemRow()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-plus mr-2"></i>Agregar ítem</button>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Resumen ejecutivo</label>
-              <textarea id="rResumen" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Resumen ejecutivo listo para entregar al cliente">${escapeHtml(report?.resumenEjecutivo || '')}</textarea>
+            <div class="grid grid-cols-1 gap-4">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Resumen ejecutivo</label>
+                <textarea id="rResumen" rows="4" class="w-full px-3 py-3 border rounded-xl bg-white" placeholder="Ej: Se realizó mantención preventiva a los equipos del sector hotel. Todos quedaron operativos y sin observaciones relevantes.">${escapeHtml(report?.resumenEjecutivo || '')}</textarea>
+              </div>
+              <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                <div class="mb-3">
+                  <h3 class="text-base font-black text-slate-800">2. Ítems intervenidos</h3>
+                  <p class="text-sm text-slate-500 mt-1">Agrupa aquí lo intervenido. Sirve para equipos iguales o diferentes, sin repetir fichas una por una.</p>
+                </div>
+                <div id="reportItems" class="space-y-3"></div>
+              </div>
+              <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observaciones generales <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+                  <textarea id="rObservaciones" rows="3" class="w-full px-3 py-3 border rounded-xl bg-white" placeholder="Solo si hubo hallazgos o algo relevante que informar">${escapeHtml(report?.observacionesGenerales || '')}</textarea>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Sugerencias <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+                  <textarea id="rSugerencias" rows="3" class="w-full px-3 py-3 border rounded-xl bg-white" placeholder="Solo si quieres dejar una recomendación">${escapeHtml(report?.sugerenciasMejora || '')}</textarea>
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observaciones generales</label>
-              <textarea id="rObservaciones" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Detalles, hallazgos o alertas detectadas">${escapeHtml(report?.observacionesGenerales || '')}</textarea>
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Sugerencias de mejora</label>
-              <textarea id="rSugerencias" rows="4" class="w-full px-3 py-3 border rounded-xl" placeholder="Recomendaciones técnicas, correctivas o preventivas">${escapeHtml(report?.sugerenciasMejora || '')}</textarea>
-            </div>
+            <input type="hidden" id="rDetalleGeneral" value="${escapeHtml(report?.detalleGeneral || '')}">
+            <input type="hidden" id="rBulkCount" value="1">
+            <input type="hidden" id="rBulkAreaBase" value="">
+            <input type="hidden" id="rBulkStartAt" value="1">
+            <input type="hidden" id="rBulkAreasList" value="">
+            <input type="hidden" id="rBulkEstadoFinal" value="operativo">
+            <input type="hidden" id="rBulkTipoEquipo" value="">
+            <input type="hidden" id="rBulkMarcaModelo" value="">
+            <input type="hidden" id="rBulkBTU" value="">
+            <input type="hidden" id="rBulkCandidatoBTU" value="no">
+            <input type="hidden" id="rBulkTrabajoRealizado" value="">
+            <input type="hidden" id="rBulkDetalleMantencion" value="">
+            <input type="hidden" id="rBulkObservaciones" value="">
+            <input type="hidden" id="rBulkSugerencias" value="">
           </div>
 
-          <div class="mb-6">
-            <div class="flex items-center justify-between gap-4 mb-3">
+          <details class="mb-6 rounded-2xl border border-slate-200 bg-white p-4">
+            <summary class="cursor-pointer list-none flex items-center justify-between gap-3">
               <div>
-                <h3 class="text-lg font-black text-slate-800">Detalle por equipos</h3>
-                <p class="text-sm text-slate-500">Agrega cada equipo revisado, su estado final, observaciones y sugerencias.</p>
+                <h3 class="text-base font-black text-slate-800">3. Excepciones puntuales (opcional)</h3>
+                <p class="text-sm text-slate-500 mt-1">Ábrelo solo si necesitas registrar algo muy distinto a los ítems generales.</p>
               </div>
-              <button type="button" onclick="addReportEquipmentRow()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-plus mr-2"></i>Agregar equipo</button>
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 border border-slate-200 text-slate-600">avanzado</span>
+            </summary>
+            <div class="mt-4">
+              <div class="flex justify-end mb-3">
+                <button type="button" onclick="addReportEquipmentRow()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-plus mr-2"></i>Agregar excepción</button>
+              </div>
+              <div id="reportEquipments" class="space-y-4"></div>
             </div>
-            <div id="reportEquipments" class="space-y-4"></div>
-          </div>
+          </details>
+
+          <div id="reportVisualSummary" class="mb-6"></div>
 
           <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50 mb-6">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
@@ -8673,7 +9738,10 @@ window.renderQuotes = renderQuotes;
           </div>
         </div>
       `);
+      renderReportItemRows(reportItems);
       renderReportEquipmentRows(equipments);
+      bindReportVisualSummaryEvents();
+      refreshReportVisualSummary();
       renderReportEvidenceList();
       populateReportOTFields();
     }
@@ -8724,17 +9792,36 @@ window.renderQuotes = renderQuotes;
         };
 
         let savedMode = 'supabase';
+        let effectiveReport = null;
+        const originalReport = reportId ? ((reports || []).find(r => String(r.id || '') === String(reportId)) || null) : null;
+        const localDraft = saveLocalReportRow(Object.assign({}, payload, {
+          id: reportId || null,
+          created_at: originalReport?.created_at || null,
+          updated_at: new Date().toISOString(),
+          source: 'local'
+        }), {
+          id: String(reportId || '').startsWith('local_report_') ? reportId : '',
+          serverId: originalReport?.serverId || (!String(reportId || '').startsWith('local_report_') ? reportId : ''),
+          pendingSync: true
+        });
+
         if(reportStorageMode === 'supabase' && !(String(reportId || '').startsWith('local_report_'))){
           try {
+            let savedRow = null;
             if(reportId){
-              const { error } = await supabaseClient.from(REPORTS_TABLE).update(payload).eq('id', reportId);
+              const { data, error } = await supabaseClient.from(REPORTS_TABLE).update(payload).eq('id', reportId).select('*').single();
               if(error) throw error;
+              savedRow = data;
             } else {
-              const { error } = await supabaseClient.from(REPORTS_TABLE).insert([payload]);
+              const { data, error } = await supabaseClient.from(REPORTS_TABLE).insert([payload]).select('*').single();
               if(error) throw error;
+              savedRow = data;
             }
+            effectiveReport = mapReportRowToModel(savedRow);
+            removeLocalReportRows(Object.assign({}, localDraft, { serverId: effectiveReport.id }));
+            reportStorageMode = 'supabase';
           } catch (err) {
-            console.warn('No se pudo guardar el informe en Supabase, se usará modo local:', err?.message || err);
+            console.warn('No se pudo guardar el informe en Supabase, se mantendrá en modo local:', err?.message || err);
             savedMode = 'local';
             reportStorageMode = 'local';
           }
@@ -8743,24 +9830,18 @@ window.renderQuotes = renderQuotes;
         }
 
         if(savedMode === 'local'){
-          const localRows = getLocalReportsRaw();
-          const id = reportId || ('local_report_' + Date.now());
-          const row = Object.assign({}, payload, {
-            id,
-            created_at: reportId ? (localRows.find(x => String(x.id) === String(id))?.created_at || new Date().toISOString()) : new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            source: 'local'
-          });
-          const idx = localRows.findIndex(x => String(x.id) === String(id));
-          if(idx >= 0) localRows[idx] = row;
-          else localRows.unshift(row);
-          setLocalReportsRaw(localRows);
+          effectiveReport = mapReportRowToModel(localDraft);
         }
 
-        await loadData();
+        if(effectiveReport){
+          reports = sortReportsCollection(replaceRecordInCollection(reports, effectiveReport));
+          window.reports = reports;
+        }
+
         renderReports();
+        try { renderDashboard(); } catch(e) {}
         if(options && options.generatePdf){
-          await generateReportPDF(model);
+          await generateReportPDF(effectiveReport || model);
         }
         closeModal();
         toastInfo(savedMode === 'supabase' ? (options && options.generatePdf ? 'Informe guardado y PDF descargado ✅' : 'Informe guardado correctamente ✅') : (options && options.generatePdf ? 'Informe guardado en modo local y PDF descargado ✅' : 'Informe guardado en modo local ✅'));
@@ -8775,15 +9856,18 @@ window.renderQuotes = renderQuotes;
       if(!rep) return;
       if(!confirm(`¿Eliminar el informe ${rep.numeroInforme || ''}?`)) return;
       try {
-        if(String(reportId).startsWith('local_report_') || reportStorageMode === 'local'){
-          const rows = getLocalReportsRaw().filter(x => String(x.id) !== String(reportId));
-          setLocalReportsRaw(rows);
+        const isLocalOnly = String(reportId).startsWith('local_report_') || rep?.source === 'local' || rep?.pendingSync || reportStorageMode === 'local';
+        if(isLocalOnly){
+          removeLocalReportRows(rep || { id: reportId });
         } else {
           const { error } = await supabaseClient.from(REPORTS_TABLE).delete().eq('id', reportId);
           if(error) throw error;
+          removeLocalReportRows(rep || { id: reportId, serverId: reportId });
         }
-        await loadData();
+        reports = (reports || []).filter(x => String(x?.id || '') !== String(reportId));
+        window.reports = reports;
         renderReports();
+        try { renderDashboard(); } catch(e) {}
       } catch(err){
         console.error(err);
         alert('No se pudo eliminar el informe: ' + (err?.message || err));
@@ -8847,7 +9931,7 @@ window.renderQuotes = renderQuotes;
         return `
           <tr class="border-t hover:bg-slate-50">
             <td class="p-4">${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))}</td>
-            <td class="p-4 font-bold text-slate-800">${escapeHtml(rep.numeroInforme || 'S/N')}</td>
+            <td class="p-4 font-bold text-slate-800">${escapeHtml(rep.numeroInforme || 'S/N')}${rep.pendingSync ? ' <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">LOCAL</span>' : ''}</td>
             <td class="p-4">
               <div class="font-semibold text-slate-800">${escapeHtml(rep.clientName || 'Cliente')}</div>
               <div class="text-xs text-slate-500 mt-1">${escapeHtml(rep.clientRut || '')}</div>
@@ -8869,13 +9953,37 @@ window.renderQuotes = renderQuotes;
       }).join('');
     }
 
-    function previewReport(reportId){
-      const rep = (reports || []).find(r => String(r.id) === String(reportId));
+    async function previewReport(reportId){
+      const rep = await ensureReportLoaded(reportId);
       if(!rep){ alert('Informe no encontrado'); return; }
       const s = getReportOperationalSummary(rep);
-      const equipments = normalizeReportEquipmentArray(rep.equipos || rep.data?.equipos || []);
+      const reportItems = getReportItemsForReport(rep);
+      const consolidation = getReportConsolidationInfo(rep);
+      const equipments = consolidation.equipments;
       const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || []);
-      const eqRows = equipments.length ? equipments.map((eq, idx) => {
+      const eqRows = consolidation.mode === 'consolidated' ? consolidation.groups.map((group, idx) => {
+        const commonLines = getReportCommonLines(group.common).map(([label, value]) => `<div class="py-2 border-b border-slate-100 last:border-b-0"><div class="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">${escapeHtml(label)}</div><div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(value)}</div></div>`).join('');
+        const areasTable = getReportAreasTableRows(group.items).map(row => `<tr><td class="px-3 py-2 border-b border-slate-100 text-slate-500">${escapeHtml(row[0])}</td><td class="px-3 py-2 border-b border-slate-100 text-slate-700">${escapeHtml(row[1])}</td><td class="px-3 py-2 border-b border-slate-100 text-slate-700">${escapeHtml(row[2])}</td></tr>`).join('');
+        return `
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+              <div>
+                <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Grupo ${idx + 1}</div>
+                <div class="text-lg font-bold text-slate-800 mt-1">${group.items.length} equipo(s) con el mismo servicio</div>
+                <div class="text-sm text-slate-500 mt-1">La información repetida se muestra una sola vez y abajo queda la lista de áreas o equipos revisados.</div>
+              </div>
+              <div>${getEquipmentStateBadge(group.common.estadoFinal)}</div>
+            </div>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">${commonLines || '<div class="text-sm text-slate-500">Sin detalle común ingresado.</div>'}</div>
+              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Áreas / equipos incluidos</div>
+                <table class="w-full text-sm"><thead><tr class="text-slate-400 text-xs uppercase tracking-wide"><th class="text-left px-3 py-2">#</th><th class="text-left px-3 py-2">Referencia</th><th class="text-left px-3 py-2">Estado</th></tr></thead><tbody>${areasTable}</tbody></table>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') : (equipments.length ? equipments.map((eq, idx) => {
         const refParts = [eq.area, eq.marcaModelo, eq.btu ? `${eq.btu} BTU` : ''].filter(Boolean);
         const serviceText = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
         const notesText = [eq.observaciones, eq.sugerencias ? `Sugerencia: ${eq.sugerencias}` : ''].filter(Boolean).join('\n');
@@ -8901,7 +10009,8 @@ window.renderQuotes = renderQuotes;
             </div>
           </div>
         `;
-      }).join('') : '<div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">No hay equipos cargados.</div>';
+      }).join('') : '<div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">No hay equipos cargados.</div>');
+      const itemsTable = reportItems.length ? `<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide"><tr><th class="px-4 py-3 text-left">Ítem</th><th class="px-4 py-3 text-left">Cant.</th><th class="px-4 py-3 text-left">Ubicación</th><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Observación</th></tr></thead><tbody>${reportItems.map(it => `<tr class="border-t border-slate-100"><td class="px-4 py-3 text-slate-700">${escapeHtml(it.descripcion || 'Servicio')}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(String(it.cantidad || 1))}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(it.ubicacion || '—')}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(it.observacion || '—')}</td></tr>`).join('')}</tbody></table></div>` : '';
       const evidenceHtml = evidencias.length ? evidencias.slice(0,6).map(ev => `<div class="border rounded-2xl overflow-hidden bg-white"><img src="${ev.dataUrl}" class="w-full h-40 object-cover"><div class="p-3 text-xs text-slate-600">${escapeHtml(ev.category || 'general')} · ${escapeHtml(ev.name || '')}</div></div>`).join('') : '<div class="text-sm text-slate-500">No hay evidencias cargadas.</div>';
       openModal(`
         <div class="p-6 sm:p-8">
@@ -8924,19 +10033,10 @@ window.renderQuotes = renderQuotes;
             <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Estado general</div><div class="mt-2">${getReportStateBadge(rep)}</div></div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100"><div class="text-xs uppercase tracking-wide text-emerald-700 font-black">Operativos</div><div class="text-3xl font-black text-emerald-700 mt-1">${s.operativos}</div></div>
-            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100"><div class="text-xs uppercase tracking-wide text-amber-700 font-black">Con observación</div><div class="text-3xl font-black text-amber-700 mt-1">${s.observacion}</div></div>
-            <div class="bg-rose-50 rounded-2xl p-4 border border-rose-100"><div class="text-xs uppercase tracking-wide text-rose-700 font-black">No operativos</div><div class="text-3xl font-black text-rose-700 mt-1">${s.noOperativos}</div></div>
-            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200"><div class="text-xs uppercase tracking-wide text-slate-600 font-black">Equipos revisados</div><div class="text-3xl font-black text-slate-800 mt-1">${s.total}</div></div>
-          </div>
+          <div class="mb-6">${getReportVisualSummaryHTML(s)}</div>
 
           <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-            <div class="border rounded-2xl p-4 bg-white">
-              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Detalle general</div>
-              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.detalleGeneral || 'Sin detalle general')}</div>
-            </div>
-            <div class="border rounded-2xl p-4 bg-white">
+            <div class="border rounded-2xl p-4 bg-white xl:col-span-2">
               <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Resumen ejecutivo</div>
               <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.resumenEjecutivo || 'Sin resumen ejecutivo')}</div>
             </div>
@@ -8945,17 +10045,17 @@ window.renderQuotes = renderQuotes;
               <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.observacionesGenerales || 'Sin observaciones')}</div>
             </div>
             <div class="border rounded-2xl p-4 bg-white">
-              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Sugerencias de mejora</div>
+              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Sugerencias</div>
               <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.sugerenciasMejora || 'Sin sugerencias')}</div>
             </div>
           </div>
 
           <div class="mb-6">
             <div class="flex items-center justify-between gap-3 mb-3">
-              <h3 class="text-lg font-black text-slate-800">Detalle por equipos</h3>
-              <div class="text-sm text-slate-500">${equipments.length} registrado(s)</div>
+              <h3 class="text-lg font-black text-slate-800">Ítems intervenidos</h3>
+              <div class="text-sm text-slate-500">${reportItems.length ? reportItems.length : equipments.length} registro(s)</div>
             </div>
-            <div class="space-y-4">${eqRows}</div>
+            ${itemsTable || `<div class="space-y-4">${eqRows}</div>`}
           </div>
 
           <div>
@@ -9019,7 +10119,7 @@ window.renderQuotes = renderQuotes;
 
     async function generateReportPDF(reportRef){
       try {
-        const rep = (reportRef && typeof reportRef === 'object') ? reportRef : (reports || []).find(r => String(r.id) === String(reportRef));
+        const rep = (reportRef && typeof reportRef === 'object') ? reportRef : await ensureReportLoaded(reportRef);
         if(!rep){ alert('Informe no encontrado'); return; }
         if(!window.jspdf || !window.jspdf.jsPDF){ alert('No se pudo cargar la librería PDF'); return; }
         const { jsPDF } = window.jspdf;
@@ -9030,7 +10130,9 @@ window.renderQuotes = renderQuotes;
         const lightGreen = [245,249,236];
         const dark = [15,23,42];
         const summary = getReportOperationalSummary(rep);
-        const equipments = normalizeReportEquipmentArray(rep.equipos || rep.data?.equipos || []);
+        const reportItems = getReportItemsForReport(rep);
+        const consolidation = getReportConsolidationInfo(rep);
+        const equipments = consolidation.equipments;
         const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || window.currentReportAttachments || []);
 
         await addLogoToPdf(doc);
@@ -9098,29 +10200,67 @@ window.renderQuotes = renderQuotes;
 
         doc.setFont('helvetica','bold');
         doc.setFontSize(11.5);
-        doc.text('Detalle por equipos', margin, y);
+        doc.text(reportItems.length ? 'Ítems intervenidos' : (consolidation.mode === 'consolidated' ? 'Detalle consolidado del servicio' : 'Detalle por equipos'), margin, y);
         y += 3;
-        doc.autoTable({
-          startY: y + 1,
-          theme: 'grid',
-          margin: { left: margin, right: margin },
-          head: [['Equipo / referencia', 'Servicio ejecutado', 'Estado', 'Observaciones y recomendaciones']],
-          body: equipments.length ? equipments.map(eq => {
-            const reference = [eq.tipoEquipo, eq.area ? `Ubicación: ${eq.area}` : '', eq.marcaModelo ? `Marca / modelo: ${eq.marcaModelo}` : '', eq.btu ? `Capacidad: ${eq.btu} BTU` : ''].filter(Boolean).join('\n');
-            const service = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
-            const notes = [eq.observaciones, eq.sugerencias ? 'Sugerencia: ' + eq.sugerencias : '', eq.candidatoBTU && eq.candidatoBTU !== 'no' ? 'Candidato BTU: ' + eq.candidatoBTU : ''].filter(Boolean).join('\n');
-            return [
-              reference || 'Equipo intervenido sin referencia detallada',
-              service || 'Sin detalle ingresado.',
-              getEquipmentStateLabel(eq.estadoFinal),
-              notes || 'Sin observaciones registradas.'
-            ];
-          }) : [['Sin equipos registrados', '—', '—', '—']],
-          styles: { fontSize: 8, cellPadding: 2.2, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
-          headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
-          alternateRowStyles: { fillColor: [250,251,252] },
-          columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 54 }, 2: { cellWidth: 24 }, 3: { cellWidth: 58 } }
-        });
+        if(reportItems.length){
+          doc.autoTable({
+            startY: y + 1,
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            head: [['Ítem', 'Cant.', 'Ubicación', 'Estado', 'Observación']],
+            body: reportItems.map(it => [it.descripcion || 'Servicio', String(it.cantidad || 1), it.ubicacion || '—', getEquipmentStateLabel(it.estadoFinal), it.observacion || '—']),
+            styles: { fontSize: 8.2, cellPadding: 2.3, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
+            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' }
+          });
+          y = doc.lastAutoTable.finalY + 4;
+        } else if(consolidation.mode === 'consolidated'){
+          const group = consolidation.groups[0];
+          const commonRows = getReportCommonLines(group.common);
+          doc.autoTable({
+            startY: y + 1,
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            head: [['Dato', 'Detalle']],
+            body: commonRows.length ? commonRows : [['Detalle común', 'Sin detalle ingresado.']],
+            styles: { fontSize: 8.2, cellPadding: 2.4, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
+            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
+            columnStyles: { 0: { cellWidth: 42, fontStyle:'bold' }, 1: { cellWidth: pageWidth - (margin * 2) - 42 } }
+          });
+          y = doc.lastAutoTable.finalY + 4;
+          doc.autoTable({
+            startY: y,
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            head: [['#', 'Área / equipo', 'Estado']],
+            body: getReportAreasTableRows(group.items),
+            styles: { fontSize: 8, cellPadding: 2.2, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
+            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
+            alternateRowStyles: { fillColor: [250,251,252] },
+            columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 110 }, 2: { cellWidth: 42 } }
+          });
+        } else {
+          doc.autoTable({
+            startY: y + 1,
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            head: [['Equipo / referencia', 'Servicio ejecutado', 'Estado', 'Observaciones y recomendaciones']],
+            body: equipments.length ? equipments.map(eq => {
+              const reference = [eq.tipoEquipo, eq.area ? `Ubicación: ${eq.area}` : '', eq.marcaModelo ? `Marca / modelo: ${eq.marcaModelo}` : '', eq.btu ? `Capacidad: ${eq.btu} BTU` : ''].filter(Boolean).join('\n');
+              const service = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
+              const notes = [eq.observaciones, eq.sugerencias ? 'Sugerencia: ' + eq.sugerencias : '', eq.candidatoBTU && eq.candidatoBTU !== 'no' ? 'Candidato BTU: ' + eq.candidatoBTU : ''].filter(Boolean).join('\n');
+              return [
+                reference || 'Equipo intervenido sin referencia detallada',
+                service || 'Sin detalle ingresado.',
+                getEquipmentStateLabel(eq.estadoFinal),
+                notes || 'Sin observaciones registradas.'
+              ];
+            }) : [['Sin equipos registrados', '—', '—', '—']],
+            styles: { fontSize: 8, cellPadding: 2.2, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
+            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
+            alternateRowStyles: { fillColor: [250,251,252] },
+            columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 54 }, 2: { cellWidth: 24 }, 3: { cellWidth: 58 } }
+          });
+        }
         y = doc.lastAutoTable.finalY + 6;
 
         const ensureSpace = (heightNeeded) => {
@@ -9235,6 +10375,8 @@ window.renderQuotes = renderQuotes;
 
     window.showNewReportModal = showNewReportModal;
     window.saveReport = saveReport;
+    window.addReportItemRow = addReportItemRow;
+    window.removeReportItemRow = removeReportItemRow;
     window.previewReport = previewReport;
     window.generateReportPDF = generateReportPDF;
     window.renderReports = renderReports;
@@ -9736,6 +10878,76 @@ function renderAll() {
   setTimeout(() => { try { applyOTsActive(); applyOTsClosed(); } catch(e){} }, 0);
   setTimeout(() => { try { applyAbonos(); applyAbonosClosed(); } catch(e){} }, 0);
 }
+
+
+    function splitSelectColumnsTopLevel(selectStr){
+      const parts = [];
+      let current = '';
+      let depth = 0;
+      for (const ch of String(selectStr || '')) {
+        if (ch === '(') depth += 1;
+        if (ch === ')' && depth > 0) depth -= 1;
+        if (ch === ',' && depth === 0) {
+          if (current.trim()) parts.push(current.trim());
+          current = '';
+          continue;
+        }
+        current += ch;
+      }
+      if (current.trim()) parts.push(current.trim());
+      return parts.filter(Boolean);
+    }
+
+    function removeColumnFromSelect(selectStr, columnName){
+      const col = String(columnName || '').trim();
+      if (!col) return String(selectStr || '');
+      const filtered = splitSelectColumnsTopLevel(selectStr).filter(part => {
+        const normalized = String(part || '').trim();
+        const base = normalized.split(':')[0].trim();
+        return base !== col;
+      });
+      return filtered.join(', ');
+    }
+
+    async function safeSelectWithAutoDrop(table, selectStr, options = {}){
+      const attempts = [selectStr, ...((Array.isArray(options.fallbacks) ? options.fallbacks : []))].filter(Boolean);
+      const orderList = Array.isArray(options.orders)
+        ? options.orders.filter(x => x && x.column)
+        : (options.orderColumn ? [{ column: options.orderColumn, ascending: !!options.ascending }] : []);
+      let lastError = null;
+      const missingRegex = new RegExp(`column\\s+${table}\\.([a-zA-Z0-9_]+)\\s+does not exist`, 'i');
+      const cacheRegex = new RegExp(`Could not find the '([^']+)' column of '${table}'`, 'i');
+      const relationRegex = new RegExp(`Could not find a relationship between '[^']+' and '[^']+' in the schema cache`, 'i');
+
+      for (const baseSelect of attempts) {
+        let current = String(baseSelect || '').trim();
+        const removed = new Set();
+        for (let i = 0; i < 40 && current; i += 1) {
+          let query = supabaseClient.from(table).select(current);
+          orderList.forEach(ord => {
+            query = query.order(ord.column, { ascending: !!ord.ascending });
+          });
+          const res = await query;
+          if (!res.error) return { data: res.data || [], usedSelect: current };
+
+          lastError = res.error;
+          const msg = String(res.error.message || '');
+          let missing = null;
+          const m1 = msg.match(missingRegex);
+          if (m1) missing = m1[1];
+          const m2 = msg.match(cacheRegex);
+          if (!missing && m2) missing = m2[1];
+
+          if (!missing || removed.has(missing)) break;
+          const next = removeColumnFromSelect(current, missing);
+          if (!next || next === current) break;
+          console.warn(`[safeSelectWithAutoDrop] ${table}: columna opcional omitida -> ${missing}`);
+          removed.add(missing);
+          current = next;
+        }
+      }
+      throw lastError || new Error(`No se pudo cargar ${table}`);
+    }
 
     // ================= CLIENTES =================
     
@@ -10899,7 +12111,7 @@ async function saveNewQuote(btn) {
     }
 }
     async function editQuote(quoteId) {
-      const q = quotes.find(x => String(x.id) === String(quoteId));
+      const q = await ensureQuoteLoaded(quoteId);
       if (!q) return;
 
       // Datos base (soporta varias formas de guardado)
@@ -11326,7 +12538,7 @@ function getQuoteFollowupMiniHTML(q){
 }
 
 async function showQuoteFollowupModal(quoteId){
-  const q = (quotes || []).find(x => String(x.id) === String(quoteId));
+  const q = await ensureQuoteLoaded(quoteId);
   if(!q){
     alert('No se encontró la cotización.');
     return;
@@ -11422,7 +12634,7 @@ async function showQuoteFollowupModal(quoteId){
 async function saveQuoteFollowup(quoteId, btn){
   try{
     if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
-    const q = (quotes || []).find(x => String(x.id) === String(quoteId));
+    const q = await ensureQuoteLoaded(quoteId);
     if(!q) throw new Error('No se encontró la cotización.');
 
     const stage = (document.getElementById('quoteFollowupStage')?.value || '').trim() || 'borrador';
@@ -14951,7 +16163,7 @@ async function saveNewReq() {
     }
 
     async function buildQuotePDFDoc(quoteId) {
-      const q = quotes.find(x => String(x.id) === String(quoteId));
+      const q = await ensureQuoteLoaded(quoteId);
       if(!q) throw new Error('No se encontró la cotización.');
 
       const { jsPDF } = window.jspdf; 
@@ -15051,7 +16263,7 @@ async function saveNewReq() {
       const o = ots.find(x => String(x.id) === String(otId));
       if(!o) throw new Error('OT no encontrada');
 
-      const quote = (quotes || []).find(q => String(q.id) === String(o.quoteId || o.quote_id || (o.data && (o.data.quoteId || o.data.quote_id)) || ''));
+      const quote = (o.quoteId || o.quote_id || (o.data && (o.data.quoteId || o.data.quote_id))) ? await ensureQuoteLoaded(String(o.quoteId || o.quote_id || (o.data && (o.data.quoteId || o.data.quote_id)) || '')) : null;
       const client = (() => {
         const byId = clientsById && clientsById.get(String(o.clientId || ''));
         if(byId) return byId;
@@ -15195,8 +16407,36 @@ async function saveNewReq() {
 
     async function previewOT(otId){
       try{
-        const doc = await buildOTPDFDoc(otId);
-        const blobUrl = (location.protocol === 'file:') ? doc.output('datauristring') : doc.output('bloburl');
+        const o = ots.find(x => String(x.id) === String(otId));
+        if(!o) throw new Error('OT no encontrada');
+
+        const linkedQuote = (typeof getLinkedQuoteForOT === 'function') ? getLinkedQuoteForOT(o) : null;
+        const client = (() => {
+          const byId = clientsById && clientsById.get(String(o.clientId || ''));
+          if(byId) return byId;
+          const byRut = (clients || []).find(c => String(c.rut || '').trim() && String(c.rut || '').trim() === String(o.clientRut || '').trim());
+          if(byRut) return byRut;
+          return null;
+        })();
+
+        const contacto = (client && (client.contacto || client.contact || (client.data && (client.data.contacto || client.data.contact)))) || (o.data && (o.data.contacto || o.data.contact)) || '-';
+        const telefono = (client && (client.telefono || client.phone || (client.data && (client.data.telefono || client.data.phone)))) || (o.data && (o.data.telefono || o.data.phone)) || '-';
+        const email = (client && (client.email || (client.data && client.data.email))) || (o.data && o.data.email) || '-';
+        const direccion = (client && (client.direccion || client.address || (client.data && (client.data.direccion || client.data.address)))) || (o.direccion || (o.data && (o.data.direccion || o.data.address))) || '-';
+        const tipoDocumento = getDocumentoLabelOT(o);
+        const numeroDocumento = getFacturaNumeroOT(o) || '-';
+        const abonos = Array.isArray(o.abonos) ? o.abonos : [];
+        const fin = getFinancialBreakdownFromSource(o || {});
+        const totalAbonado = abonos.reduce((acc, a) => acc + Number(a?.monto || 0), 0);
+        const saldoPendiente = Math.max(0, Number(fin.total || o.monto || 0) - totalAbonado);
+        const trabajoEstado = normalizeOTTrabajoEstado(o.estado).replace(/_/g, ' ');
+        const trabajoDescripcion = safeText(o.descripcion || linkedQuote?.obra || linkedQuote?.descripcion || '-');
+        const quoteNumber = safeText(linkedQuote?.numeroCotizacion || o.numeroCotizacion || '-');
+        const servicio = safeText(linkedQuote?.tipo_servicio || o?.data?.tipo_servicio || '-');
+        const report = (typeof getLatestReportForOT === 'function') ? getLatestReportForOT(otId) : null;
+        const reportAction = report
+          ? `<button type="button" onclick="previewReport('${String(report.id || '')}')" class="px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold">Abrir informe</button>`
+          : `<button type="button" onclick="showNewReportModal({ otId:'${String(otId)}' })" class="px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold">Crear informe</button>`;
 
         const existing = document.getElementById('otPreviewModal');
         if(existing) existing.remove();
@@ -15206,13 +16446,14 @@ async function saveNewReq() {
         modal.className = 'fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4';
         modal.innerHTML = `
           <div class="w-full max-w-6xl h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
               <div>
-                <h3 class="text-2xl font-black text-slate-800">Previsualización de OT</h3>
-                <p class="text-slate-500 text-sm">Vista directa dentro del sistema, sin descargar el archivo.</p>
+                <h3 class="text-2xl font-black text-slate-800">OT ${escapeHtml(String(o.numeroOT || o.numero_ot || 'S/N'))}</h3>
+                <p class="text-slate-500 text-sm">Vista rápida en pantalla. El PDF queda solo como descarga puntual cuando realmente se necesite.</p>
               </div>
               <div class="flex items-center gap-2">
-                <button type="button" id="otPreviewDownloadBtn" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">
+                <button type="button" onclick="editOT('${String(otId)}')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Editar</button>
+                <button type="button" id="otPreviewDownloadBtn" class="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold">
                   Descargar PDF
                 </button>
                 <button type="button" id="otPreviewCloseBtn" class="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 text-2xl leading-none">
@@ -15220,8 +16461,83 @@ async function saveNewReq() {
                 </button>
               </div>
             </div>
-            <div class="flex-1 bg-slate-100">
-              <iframe src="${blobUrl}" class="w-full h-full border-0" title="Vista previa de OT"></iframe>
+            <div class="flex-1 overflow-y-auto bg-slate-100 px-6 py-6">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-3xl shadow p-5">
+                  <p class="text-sm text-slate-500">Estado trabajo</p>
+                  <div class="mt-2">${badgeOTTrabajoEstado(o)}</div>
+                </div>
+                <div class="bg-white rounded-3xl shadow p-5">
+                  <p class="text-sm text-slate-500">Cobro</p>
+                  <div class="mt-2">${badgeOTCobro(o)}</div>
+                </div>
+                <div class="bg-white rounded-3xl shadow p-5">
+                  <p class="text-sm text-slate-500">Monto total</p>
+                  <p class="text-2xl font-black text-slate-800 mt-2">${escapeHtml(formatCLP(fin.total || o.monto || 0))}</p>
+                </div>
+                <div class="bg-white rounded-3xl shadow p-5">
+                  <p class="text-sm text-slate-500">Saldo pendiente</p>
+                  <p class="text-2xl font-black text-rose-700 mt-2">${escapeHtml(formatCLP(saldoPendiente))}</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div class="bg-white rounded-3xl shadow p-6">
+                  <h4 class="text-lg font-black text-slate-800 mb-4">Datos principales</h4>
+                  <div class="space-y-3 text-sm">
+                    <div><span class="font-bold text-slate-700">Fecha:</span> ${escapeHtml(formatDDMMYY(o.fecha || o.created_at || todayISO()))}</div>
+                    <div><span class="font-bold text-slate-700">Cliente:</span> ${escapeHtml(safeText(o.clientName || client?.name || '-'))}</div>
+                    <div><span class="font-bold text-slate-700">RUT:</span> ${escapeHtml(safeText(o.clientRut || client?.rut || '-'))}</div>
+                    <div><span class="font-bold text-slate-700">Contacto:</span> ${escapeHtml(safeText(contacto))}</div>
+                    <div><span class="font-bold text-slate-700">Teléfono:</span> ${escapeHtml(safeText(telefono))}</div>
+                    <div><span class="font-bold text-slate-700">Correo:</span> ${escapeHtml(safeText(email))}</div>
+                    <div><span class="font-bold text-slate-700">Dirección:</span> ${escapeHtml(safeText(direccion))}</div>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow p-6">
+                  <h4 class="text-lg font-black text-slate-800 mb-4">Trabajo y documento</h4>
+                  <div class="space-y-3 text-sm">
+                    <div><span class="font-bold text-slate-700">Cotización vinculada:</span> ${escapeHtml(quoteNumber)}</div>
+                    <div><span class="font-bold text-slate-700">Tipo de servicio:</span> ${escapeHtml(servicio)}</div>
+                    <div><span class="font-bold text-slate-700">Documento:</span> ${escapeHtml(tipoDocumento)} ${numeroDocumento !== '-' ? 'N° ' + escapeHtml(numeroDocumento) : '(pendiente)'}</div>
+                    <div><span class="font-bold text-slate-700">OC:</span> ${escapeHtml(safeText(o.oc || '-'))}</div>
+                    <div><span class="font-bold text-slate-700">HES:</span> ${escapeHtml(safeText(o.hes || '-'))}</div>
+                    <div><span class="font-bold text-slate-700">Guía despacho:</span> ${escapeHtml(safeText(o.guia_despacho || '-'))}</div>
+                    <div><span class="font-bold text-slate-700">Estado normalizado:</span> ${escapeHtml(trabajoEstado || '-')}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-3xl shadow p-6 mt-6">
+                <h4 class="text-lg font-black text-slate-800 mb-4">Descripción del trabajo</h4>
+                <div class="text-sm leading-6 text-slate-700 whitespace-pre-wrap">${escapeHtml(trabajoDescripcion || '-')}</div>
+              </div>
+
+              <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+                <div class="bg-white rounded-3xl shadow p-6">
+                  <h4 class="text-lg font-black text-slate-800 mb-4">Resumen de cobro</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="rounded-2xl bg-slate-50 p-4"><p class="text-slate-500">Neto</p><p class="font-black text-slate-800 mt-1">${escapeHtml(formatCLP(fin.neto || 0))}</p></div>
+                    <div class="rounded-2xl bg-slate-50 p-4"><p class="text-slate-500">IVA</p><p class="font-black text-slate-800 mt-1">${escapeHtml(formatCLP(fin.iva || 0))}</p></div>
+                    <div class="rounded-2xl bg-slate-50 p-4"><p class="text-slate-500">Abonado</p><p class="font-black text-emerald-700 mt-1">${escapeHtml(formatCLP(totalAbonado))}</p></div>
+                    <div class="rounded-2xl bg-slate-50 p-4"><p class="text-slate-500">Saldo</p><p class="font-black text-rose-700 mt-1">${escapeHtml(formatCLP(saldoPendiente))}</p></div>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow p-6">
+                  <div class="flex items-center justify-between gap-3 mb-4">
+                    <h4 class="text-lg font-black text-slate-800">Acciones rápidas</h4>
+                    <button type="button" onclick="openOTLibroFromMenu('${String(otId)}')" class="text-sm font-bold text-slate-600 hover:text-slate-900">Ver bitácora</button>
+                  </div>
+                  <div class="flex flex-wrap gap-3">
+                    ${linkedQuote ? `<button type="button" onclick="previewQuote('${String(linkedQuote.id || '')}')" class="px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold">Abrir cotización</button>` : ''}
+                    <button type="button" onclick="goToCobranzaForOT('${String(otId)}')" class="px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold">Ver cobranza</button>
+                    ${reportAction}
+                  </div>
+                  <p class="text-xs text-slate-400 mt-4">La OT se consulta directamente en pantalla. El PDF queda disponible solo como respaldo cuando realmente lo necesites.</p>
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -15253,7 +16569,7 @@ async function saveNewReq() {
 
       }catch(e){
         console.error(e);
-        alert('No se pudo abrir la previsualización de la OT.');
+        alert('No se pudo abrir la vista de la OT.');
       }
     }
 
@@ -15742,8 +17058,8 @@ function showOTDescripcion(otId){
   document.getElementById('modal').classList.remove('hidden');
 }
 
-let otSearchFree = '';
-let otStatusFilter = 'all';
+var otSearchFree = '';
+var otStatusFilter = 'all';
 
 function applyOTStatusFilterButtons(){
   const config = [
@@ -15969,7 +17285,7 @@ function renderOTs() {
   const closedRows = [];
 
   ordered.forEach(o => {
-    const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT"><i class="fa-solid fa-eye text-lg"></i></button>`;
+    const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
     const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
     const groupId = `ot-${String(o.id || '')}`;
     const tr = document.createElement('tr');
@@ -16041,7 +17357,6 @@ function showOTMoreOptions(otId){
 
       <div class="grid grid-cols-1 gap-3">
         <button onclick="previewOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-regular fa-eye mr-2 text-sky-700"></i> Ver OT</button>
-        <button onclick="generateOTPDF('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF</button>
         <button onclick="editOT('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar OT</button>
         <button onclick="programCalendarFromOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-calendar-plus mr-2 text-indigo-700"></i> Programar en calendario</button>
         <button onclick="${reportAction}" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-lines mr-2 text-cyan-700"></i> ${reportLabel}</button>
@@ -20258,10 +21573,3 @@ function toggleSidebarTools(forceOpen = null){
 
 </body>
 </html>
-
-try {
-  document.addEventListener('DOMContentLoaded', () => {
-    try { updateQuoteSearchClearButton(); } catch(e){}
-    try { updateOTSearchClearButton(); } catch(e){}
-  });
-} catch(e){}
