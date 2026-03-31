@@ -1036,7 +1036,7 @@ function toggleEditOTFacturaField(){
       <div class="flex items-center justify-between gap-3 mb-6">
         <div class="flex items-center gap-3 min-w-0">
           <button id="mobileSidebarToggle" type="button" onclick="toggleMobileSidebar()" aria-label="Abrir menú" aria-expanded="false"><i class="fas fa-bars"></i></button>
-          <button id="desktopSidebarToggle" type="button" onclick="toggleSidebarMenu()" aria-label="Contraer menú" title="Contraer/expandir menú" class="hidden lg:inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"><i class="fas fa-angle-left"></i></button>
+          <button id="desktopSidebarToggle" type="button" onclick="toggleSidebarMenu()" aria-label="Contraer menú" title="Contraer/expandir menú" class="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"><i class="fas fa-angle-left"></i></button>
           <div id="topbarTitle" class="text-3xl font-extrabold text-gray-900">Dashboard</div>
         </div>
         <div class="flex items-center gap-3"></div>
@@ -18194,9 +18194,7 @@ function isTouchLikeDevice(){
 
 function isMobileSidebarMode(){
   if(!window.matchMedia) return false;
-  const narrowViewport = window.matchMedia('(max-width: 1180px)').matches;
-  const tabletTouchViewport = window.matchMedia('(max-width: 1400px)').matches && isTouchLikeDevice();
-  return !!(narrowViewport || tabletTouchViewport);
+  return window.matchMedia('(max-width: 1180px)').matches;
 }
 
 
@@ -18247,14 +18245,21 @@ function toggleDesktopSidebarPin(forceExpanded = null){
 }
 
 function toggleSidebarMenu(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar) return;
   if(isMobileSidebarMode()){
-    const sidebar = document.getElementById('sidebar');
-    if(!sidebar) return;
     if(sidebar.classList.contains('mobile-open')) closeMobileSidebar(true);
     else openMobileSidebar();
     return;
   }
-  toggleDesktopSidebarPin();
+  if(sidebar.classList.contains('collapsed')){
+    setSidebarPinnedOpen(true);
+    sidebar.classList.remove('collapsed');
+  } else {
+    setSidebarPinnedOpen(false);
+    sidebar.classList.add('collapsed');
+  }
+  updateDesktopSidebarToggleUI();
 }
 
 function setupDesktopSidebarAutoHide(){
@@ -18285,7 +18290,7 @@ function setupDesktopSidebarAutoHide(){
   sidebar.addEventListener('click', (e) => {
     if(!isDesktopSidebarMode() || getSidebarPinnedOpen()) return;
     const clickedNav = e.target && e.target.closest && e.target.closest('button, a, input, select, textarea');
-    if(sidebar.classList.contains('collapsed') && !clickedNav){
+    if(sidebar.classList.contains('collapsed')){
       sidebar.classList.remove('collapsed');
       updateDesktopSidebarToggleUI();
     }
@@ -18343,12 +18348,13 @@ function syncSidebarResponsiveState(){
   const backdrop = document.getElementById('sidebarBackdrop');
   const body = document.body;
   if(!sidebar) return;
+
   if(isMobileSidebarMode()){
     body.classList.add('sidebar-mobile-mode');
     sidebar.classList.remove('collapsed');
-    sidebar.classList.remove('mobile-open');
-    if(backdrop) backdrop.classList.remove('show');
-    document.body.style.overflow = '';
+    if(!sidebar.classList.contains('mobile-open')) sidebar.classList.remove('mobile-open');
+    if(backdrop && !sidebar.classList.contains('mobile-open')) backdrop.classList.remove('show');
+    document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
   } else {
     body.classList.remove('sidebar-mobile-mode');
     sidebar.classList.remove('mobile-open');
