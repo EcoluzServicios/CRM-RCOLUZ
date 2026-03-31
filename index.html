@@ -1036,6 +1036,7 @@ function toggleEditOTFacturaField(){
       <div class="flex items-center justify-between gap-3 mb-6">
         <div class="flex items-center gap-3 min-w-0">
           <button id="mobileSidebarToggle" type="button" onclick="toggleMobileSidebar()" aria-label="Abrir menú" aria-expanded="false"><i class="fas fa-bars"></i></button>
+          <button id="desktopSidebarToggle" type="button" onclick="toggleDesktopSidebarPin()" aria-label="Contraer menú" title="Contraer/expandir menú" class="hidden xl:inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"><i class="fas fa-angle-left"></i></button>
           <div id="topbarTitle" class="text-3xl font-extrabold text-gray-900">Dashboard</div>
         </div>
         <div class="flex items-center gap-3"></div>
@@ -1575,7 +1576,7 @@ function toggleEditOTFacturaField(){
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <h1 class="text-3xl font-bold">Informes técnicos</h1>
-            <p class="text-sm text-slate-500 mt-1">Genera informes profesionales con detalle por equipo, gráficos, evidencias y PDF listo para entregar al cliente.</p>
+            <p class="text-sm text-slate-500 mt-1">Genera informes livianos en texto para descargar en Word. Las imágenes se agregan manualmente fuera del sistema para reducir consumo de datos.</p>
           </div>
           <div class="flex flex-wrap gap-3">
             <button onclick="showNewReportModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo informe</span></button>
@@ -1602,7 +1603,7 @@ function toggleEditOTFacturaField(){
                   <th class="p-4 text-left">Tipo</th>
                   <th class="p-4 text-left">Equipos</th>
                   <th class="p-4 text-left">Estado general</th>
-                  <th class="p-4 text-center">PDF</th>
+                  <th class="p-4 text-center">Word</th>
                   <th class="p-4 text-center">Acciones</th>
                 </tr>
               </thead>
@@ -2318,7 +2319,7 @@ window.supabaseClient = supabaseClient;
 
     async function ensureReportLoaded(reportId){
       let rep = (reports || []).find(r => String(r.id || '') === String(reportId || ''));
-      const needsFull = !rep || !rep.data || !Array.isArray(rep.data.equipos) || !Array.isArray(rep.data.evidencias) || !Array.isArray(rep.data.items || []);
+      const needsFull = !rep || !rep.data || !Array.isArray(rep.data.equipos) || !Array.isArray(rep.data.items || []);
       if(needsFull){
         rep = await fetchFullReportById(reportId);
       }
@@ -2329,6 +2330,83 @@ window.supabaseClient = supabaseClient;
     const REPORTS_TABLE = 'informes';
     const REPORTS_LOCAL_KEY = 'ecoluz_reports_local_v1';
     const OT_LIGHT_SELECT = 'id, client_id, quote_id, numero_ot, descripcion, sucursal, direccion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data';
+
+    const OT_LIGHT_SELECT_MIN = 'id, client_id, quote_id, numero_ot, descripcion, estado, pago_estado, fecha, monto, created_by_name, created_by_email, created_by, created_at, data';
+
+    function hydrateOTRows(rawRows){
+      const source = Array.isArray(rawRows) ? rawRows : [];
+      return source.map(r => {
+        const data = r?.data || {};
+        const linkedQuoteId = r?.quote_id || data.quoteId || data.quote_id || null;
+        const linkedQuote = (window.quotes || quotes || []).find(q => String(q.id || '') === String(linkedQuoteId || '')) || null;
+        const linkedQuoteState = linkedQuote
+          ? (typeof window.getQuoteNormalizedState === 'function'
+              ? window.getQuoteNormalizedState(linkedQuote)
+              : String(linkedQuote.estado || linkedQuote.data?.estado || '').toLowerCase().trim())
+          : '';
+        const cancelledByQuote = linkedQuoteState === 'rechazada'
+          || data.cancelada_por_cotizacion === true
+          || String(data.estado_cotizacion_vinculada || '').toLowerCase().trim() === 'rechazada';
+        const clientMatch = (clients || []).find(c => String(c.id || '') === String(r?.client_id || '')) || null;
+        const amountRaw = data.total ?? data.monto ?? r?.monto ?? 0;
+        return {
+          id: r?.id,
+          clientId: r?.client_id,
+          quoteId: linkedQuoteId,
+          quote_id: r?.quote_id || null,
+          clientName: data.clientName || data.nombre || data.name || clientMatch?.name || '—',
+          clientRut: data.rut || clientMatch?.rut || '',
+          numeroCotizacion: (linkedQuote?.numeroCotizacion) || data.numeroCotizacion || '',
+          numeroOT: r?.numero_ot || data.numeroOT || data.numero_ot || 'S/N',
+          numero_ot: r?.numero_ot || data.numeroOT || data.numero_ot || 'S/N',
+          descripcion: r?.descripcion || data.descripcion || data.descripcion_trabajo || '',
+          sucursal: r?.sucursal || data.sucursal || data.sucursal_direccion || data.direccion_sucursal || '',
+          direccion: r?.direccion || r?.address || data.direccion || data.address || '',
+          oc: r?.oc || data.oc || '',
+          hes: r?.hes || data.hes || '',
+          guia_despacho: r?.guia_despacho || data.guia_despacho || data.guiaDespacho || '',
+          estado: String(cancelledByQuote ? 'cancelada' : (r?.estado || data.estado || 'pendiente')).toLowerCase(),
+          pago_estado: String(cancelledByQuote ? 'cancelada' : (r?.pago_estado || data.pago_estado || '')).toLowerCase(),
+          fecha: r?.fecha || data.fecha || data.fechaDocumento || (r?.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+          monto: Number(amountRaw || 0),
+          total: Number(amountRaw || 0),
+          abonos: Array.isArray(data.abonos) ? data.abonos : [],
+          fechaPago: data.fechaPago || null,
+          metodoPago: data.metodoPago || null,
+          documentoTipo: (r?.documento_tipo || data.documentoTipo || data.documento_tipo || ((r?.factura_num || r?.factura_numero || r?.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero) ? 'factura' : 'sin_documento')),
+          facturaNumero: (r?.factura_num || r?.factura_numero || r?.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero || null),
+          factura_num: r?.factura_num || r?.factura_numero || r?.documento_numero || null,
+          factura_enviada_fecha: r?.factura_enviada_fecha || null,
+          factura_registro_fecha: r?.factura_registro_fecha || null,
+          cobro_estado: String(r?.cobro_estado || data.cobro_estado || '').toLowerCase(),
+          modalidadCobro: data.modalidadCobro || data.modalidad_cobro || 'factura',
+          createdByName: r?.created_by_name || data.createdBy || formatShortName(r?.created_by_email || '') || '—',
+          createdByEmail: r?.created_by_email || '',
+          created_by: r?.created_by || null,
+          created_at: r?.created_at || null,
+          data
+        };
+      });
+    }
+
+    async function loadOTsSafe(){
+      const attempts = [
+        { select: OT_LIGHT_SELECT, orderColumn: 'created_at', ascending: false, fallbacks: [OT_LIGHT_SELECT_MIN] },
+        { select: OT_LIGHT_SELECT_MIN, orderColumn: 'created_at', ascending: false },
+        { select: OT_LIGHT_SELECT_MIN }
+      ];
+      let lastError = null;
+      for(const cfg of attempts){
+        try {
+          const res = await safeSelectWithAutoDrop('ots', cfg.select, cfg);
+          return Array.isArray(res?.data) ? res.data : [];
+        } catch(err){
+          lastError = err;
+        }
+      }
+      console.error('No se pudo cargar OTs de forma segura:', lastError);
+      return [];
+    }
     window.currentReportAttachments = [];
     let maintenancePrograms = [];
     let recycleBinItems = [];
@@ -6706,76 +6784,22 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     });
 
 // ================= OTs (TABLA: OT) =================
-    const oData = (await safeSelectWithAutoDrop('ots', OT_LIGHT_SELECT, {
-      orderColumn: 'created_at',
-      ascending: false
-    })).data || [];
-
-    ots = (oData || []).map(r => {
-      const data = r.data || {};
-      return {
-        id: r.id,
-        clientId: r.client_id,
-        quoteId: r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || null,
-        quote_id: r.quote_id || null,
-        clientName: r.clients?.name || data.clientName || clients.find(c => String(c.id) === String(r.client_id))?.name || '—',
-        clientRut: r.clients?.rut || data.rut || clients.find(c => String(c.id) === String(r.client_id))?.rut || '',
-        numeroCotizacion: (quotes.find(q => String(q.id) === String(r.quote_id))?.numeroCotizacion) || data.numeroCotizacion || '',
-        numeroOT: r.numero_ot || data.numeroOT || 'S/N',
-        descripcion: r.descripcion || data.descripcion || '',
-        sucursal: r.sucursal || data.sucursal || data.sucursal_direccion || data.direccion_sucursal || '',
-        direccion: r.direccion || r.address || data.direccion || data.address || '',
-        oc: r.oc || data.oc || '',
-        hes: r.hes || data.hes || '',
-        guia_despacho: r.guia_despacho || data.guia_despacho || '',
-        estado: (((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || '')) && (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))) : String(((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))?.estado || '').toLowerCase())) === 'rechazada') || data.cancelada_por_cotizacion || String(data.estado_cotizacion_vinculada || '').toLowerCase() === 'rechazada' ? 'cancelada' : (r.estado || data.estado || 'en_curso')).toLowerCase(),
-        pago_estado: ((((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || '')) && (typeof window.getQuoteNormalizedState === 'function' ? window.getQuoteNormalizedState((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))) : String(((window.quotes || []).find(q => String(q.id || '') === String(r.quote_id || (r.data && (r.data.quoteId || r.data.quote_id)) || ''))?.estado || '').toLowerCase())) === 'rechazada') || data.cancelada_por_cotizacion || String(data.estado_cotizacion_vinculada || '').toLowerCase() === 'rechazada') ? 'cancelada' : (r.pago_estado || '')).toLowerCase(),
-        fecha: r.fecha || data.fecha || data.fechaDocumento || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
-        monto: Number((data.monto ?? r.monto) || 0),
-        abonos: Array.isArray(data.abonos) ? data.abonos : [],
-        fechaPago: data.fechaPago || null,
-        metodoPago: data.metodoPago || null,
-        documentoTipo: (r.documento_tipo || data.documentoTipo || data.documento_tipo || ((r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero) ? 'factura' : 'sin_documento')),
-        facturaNumero: (r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero || null),
-        factura_num: r.factura_num || r.factura_numero || r.documento_numero || null,
-        factura_enviada_fecha: r.factura_enviada_fecha || null,
-        factura_registro_fecha: r.factura_registro_fecha || null,
-        cobro_estado: (r.cobro_estado || '').toLowerCase(),
-        modalidadCobro: data.modalidadCobro || data.modalidad_cobro || 'factura',
-        createdByName: r.created_by_name || data.createdBy || formatShortName(r.created_by_email || '') || '—',
-        createdByEmail: r.created_by_email || '',
-        created_by: r.created_by || null,
-        created_at: r.created_at || null,
-        data
-      };
-    });
+    const oData = await loadOTsSafe();
+    ots = hydrateOTRows(oData);
 
     
-    // ================= REQUERIMIENTOS =================
-    const rData = (await safeSelectWithAutoDrop('requerimientos', 'id, client_id, client_name, client_rut, nombre, rut, fecha, detalle, descripcion, estado, created_by_name, created_by_email, created_at, data', {
-      orderColumn: 'created_at',
-      ascending: false
-    })).data || [];
-
-    requerimientos = (rData || []).map(r => {
-      const c = clientsById.get(String(r.client_id));
-      const nombre = r.nombre || r.client_name || c?.name || 'Cliente no encontrado';
-      const rut = r.rut || r.client_rut || c?.rut || '';
-      return {
-        id: r.id,
-        clientId: r.client_id || null,
-        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
-        detalle: r.detalle || r.descripcion || '',
-        estado: (r.estado || 'pendiente').toLowerCase(),
-        nombre,
-        rut,
-        createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
-        data: r.data || {}
-      };
-    });
-
+    // ================= MÓDULOS CARGADOS BAJO DEMANDA =================
+    window.lazyModuleState = window.lazyModuleState || { reqsLoaded: false, visitasLoaded: false, reportsLoaded: false };
+    requerimientos = [];
     reqs = requerimientos; // alias para compatibilidad con UI antigua
-
+    visitas = [];
+    reports = mergeLoadedReports([], getLocalReportsRaw());
+    reportStorageMode = 'supabase';
+    window.reports = reports;
+    window.reportStorageMode = reportStorageMode;
+    window.lazyModuleState.reqsLoaded = false;
+    window.lazyModuleState.visitasLoaded = false;
+    window.lazyModuleState.reportsLoaded = false;
 
     // Ordenar OTs por N° OT respetando duplicados manuales (ej: 2525_01 sobre 2525)
     ots.sort((a,b) => {
@@ -6796,51 +6820,6 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
       return db - da;
     });
 
-// ================= VISITAS =================
-    const vData = (await safeSelectWithAutoDrop('visitas', 'id, client_id, fecha, descripcion, estado, nombre, name, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data', {
-      orderColumn: 'created_at',
-      ascending: false,
-      fallbacks: [
-        'id, client_id, fecha, descripcion, estado, nombre, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data',
-        'id, client_id, fecha, descripcion, estado, nombre, rut, created_by_name, created_by_email, created_at, data',
-        'id, client_id, fecha, descripcion, estado, created_by_name, created_by_email, created_at, data',
-        'id, fecha, descripcion, estado, created_at, data'
-      ]
-    })).data || [];
-
-    visitas = (vData || []).map(r => ({
-      id: r.id,
-      clientId: r.client_id || null,
-      fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
-      descripcion: r.descripcion || '',
-      estado: (r.estado || 'pendiente').toLowerCase(),
-      nombre: r.nombre || r.name || '',
-      rut: r.rut || '',
-      direccion: r.direccion || '',
-      telefono: r.telefono || '',
-      email: r.email || '',
-      createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
-      data: r.data || {}
-    }));
-
-    // ================= INFORMES =================
-    let remoteReportModels = [];
-    try {
-      const repData = (await safeSelectWithAutoDrop(REPORTS_TABLE, 'id, numero_informe, fecha, client_id, client_name, client_rut, ot_id, quote_id, numero_ot, numero_cotizacion, tipo_servicio, titulo, tecnico_responsable, direccion, resumen_ejecutivo, detalle_general, observaciones_generales, sugerencias_mejora, total_equipos, equipos_operativos, equipos_no_operativos, equipos_con_observacion, estado_general, created_by_name, created_by_email, created_at, updated_at', {
-        orderColumn: 'created_at',
-        ascending: false
-      })).data || [];
-      remoteReportModels = (repData || []).map(mapReportRowToModel);
-      reportStorageMode = 'supabase';
-    } catch (repLoadErr) {
-      console.warn('Informes no disponibles en Supabase, se conservarán informes locales:', repLoadErr?.message || repLoadErr);
-      remoteReportModels = [];
-      reportStorageMode = 'local';
-    }
-    reports = mergeLoadedReports(remoteReportModels, getLocalReportsRaw());
-    window.reports = reports;
-    window.reportStorageMode = reportStorageMode;
-
     await loadMaintenancePrograms();
 
     // Exponer a window (para helpers/paginación)
@@ -6848,15 +6827,16 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     window.ots = ots;
     window.visitas = visitas;
     window.reqs = reqs;
+    window.requerimientos = requerimientos;
     window.reports = reports;
     window.reportStorageMode = reportStorageMode;
     window.maintenancePrograms = maintenancePrograms;
-    try { renderVisitas(); } catch(e) {}
     window.clients = clients;
 
     // Render
     renderAll();
     renderDashboard();
+    try { if(typeof fetchLightDashboardCounts === 'function') await fetchLightDashboardCounts(); } catch(e) { console.warn('No se pudieron cargar contadores livianos del dashboard', e); }
   try { renderDashboardMaintenanceSummary(); } catch(e) {}
   } catch (err) {
     console.error("Error en loadData:", err);
@@ -6930,61 +6910,10 @@ async function refreshQuotesCollectionFromServer(){
   window.quotes = quotes;
 }
 
+
 async function refreshOTsCollectionFromServer(){
-  const oData = (await safeSelectWithAutoDrop('ots', OT_LIGHT_SELECT, {
-    orderColumn: 'created_at',
-    ascending: false
-  })).data || [];
-
-  ots = (oData || []).map(r => {
-    const data = r.data || {};
-    const linkedQuoteId = r.quote_id || data.quoteId || data.quote_id || null;
-    const linkedQuote = (window.quotes || quotes || []).find(q => String(q.id || '') === String(linkedQuoteId || '')) || null;
-    const linkedQuoteState = linkedQuote
-      ? (typeof window.getQuoteNormalizedState === 'function'
-          ? window.getQuoteNormalizedState(linkedQuote)
-          : String(linkedQuote.estado || linkedQuote.data?.estado || '').toLowerCase().trim())
-      : '';
-    const cancelledByQuote = linkedQuoteState === 'rechazada'
-      || data.cancelada_por_cotizacion === true
-      || String(data.estado_cotizacion_vinculada || '').toLowerCase().trim() === 'rechazada';
-
-    return {
-      id: r.id,
-      clientId: r.client_id,
-      quoteId: linkedQuoteId,
-      quote_id: r.quote_id || null,
-      clientName: data.clientName || clients.find(c => String(c.id) === String(r.client_id))?.name || '—',
-      clientRut: data.rut || clients.find(c => String(c.id) === String(r.client_id))?.rut || '',
-      numeroCotizacion: (linkedQuote?.numeroCotizacion) || data.numeroCotizacion || '',
-      numeroOT: r.numero_ot || data.numeroOT || 'S/N',
-      descripcion: r.descripcion || data.descripcion || '',
-      sucursal: r.sucursal || data.sucursal || data.sucursal_direccion || data.direccion_sucursal || '',
-      direccion: r.direccion || r.address || data.direccion || data.address || '',
-      oc: r.oc || data.oc || '',
-      hes: r.hes || data.hes || '',
-      guia_despacho: r.guia_despacho || data.guia_despacho || '',
-      estado: String(cancelledByQuote ? 'cancelada' : (r.estado || data.estado || 'en_curso')).toLowerCase(),
-      pago_estado: String(cancelledByQuote ? 'cancelada' : (r.pago_estado || '')).toLowerCase(),
-      fecha: r.fecha || data.fecha || data.fechaDocumento || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
-      monto: Number((data.monto ?? r.monto) || 0),
-      abonos: Array.isArray(data.abonos) ? data.abonos : [],
-      fechaPago: data.fechaPago || null,
-      metodoPago: data.metodoPago || null,
-      documentoTipo: (r.documento_tipo || data.documentoTipo || data.documento_tipo || ((r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero) ? 'factura' : 'sin_documento')),
-      facturaNumero: (r.factura_num || r.factura_numero || r.documento_numero || data.facturaNumero || data.factura || data.nroFactura || data.documentoNumero || null),
-      factura_num: r.factura_num || r.factura_numero || r.documento_numero || null,
-      factura_enviada_fecha: r.factura_enviada_fecha || null,
-      factura_registro_fecha: r.factura_registro_fecha || null,
-      cobro_estado: String(r.cobro_estado || '').toLowerCase(),
-      modalidadCobro: data.modalidadCobro || data.modalidad_cobro || 'factura',
-      createdByName: r.created_by_name || data.createdBy || formatShortName(r.created_by_email || '') || '—',
-      createdByEmail: r.created_by_email || '',
-      created_by: r.created_by || null,
-      created_at: r.created_at || null,
-      data
-    };
-  });
+  const oData = await loadOTsSafe();
+  ots = hydrateOTRows(oData);
 
   ots.sort((a,b) => {
     const pa = parseOTNumberParts(a?.numeroOT ?? a?.numero_ot ?? '');
@@ -7001,6 +6930,7 @@ async function refreshOTsCollectionFromServer(){
   });
   window.ots = ots;
 }
+
 
 async function refreshRequerimientosCollectionFromServer(){
   const rData = (await safeSelectWithAutoDrop('requerimientos', 'id, client_id, client_name, client_rut, nombre, rut, fecha, detalle, descripcion, estado, created_by_name, created_by_email, created_at, data', {
@@ -9431,7 +9361,8 @@ window.renderQuotes = renderQuotes;
       const reportItems = collectReportItemsFromForm();
       const equipments = reportItems.length ? buildReportEffectiveEquipmentsFromItems(reportItems) : buildReportEffectiveEquipmentsFromForm();
       const summary = summarizeReportEquipments(equipments);
-      const tempEvidencias = normalizeReportEvidenceArray(window.currentReportAttachments || []);
+      const tempEvidencias = [];
+      window.currentReportAttachments = [];
       const payloadData = {
         numeroInforme: String(document.getElementById('rNumero')?.value || '').trim() || getNextReportNumber(),
         fecha: document.getElementById('rFecha')?.value || todayISO(),
@@ -9569,7 +9500,7 @@ window.renderQuotes = renderQuotes;
       const bulkTpl = report?.data?.bulkTemplate || {};
       const reportItems = getDefaultReportItems(report, bulkTpl);
       const equipments = Array.isArray(report?.data?.exceptions) ? report.data.exceptions : [];
-      window.currentReportAttachments = normalizeReportEvidenceArray(report?.evidencias || report?.data?.evidencias || []);
+      window.currentReportAttachments = [];
 
       const otOptions = ['<option value="">Sin OT vinculada</option>'].concat((ots || []).map(ot => {
         const selected = String(ot.id) === linkedOTId ? 'selected' : '';
@@ -9587,7 +9518,7 @@ window.renderQuotes = renderQuotes;
           <div class="flex items-start justify-between gap-4 mb-6">
             <div>
               <h2 class="text-2xl font-black text-slate-900">${report ? 'Editar informe técnico' : 'Nuevo informe técnico'}</h2>
-              <p class="text-sm text-slate-500 mt-1">Captura el detalle del trabajo, resumen ejecutivo, estado de equipos y evidencias para generar un informe profesional.</p>
+              <p class="text-sm text-slate-500 mt-1">Captura el detalle del trabajo en texto para generar un informe Word liviano. Las imágenes quedaron fuera del sistema para reducir egress.</p>
             </div>
             <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
           </div>
@@ -9702,37 +9633,18 @@ window.renderQuotes = renderQuotes;
           <div id="reportVisualSummary" class="mb-6"></div>
 
           <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50 mb-6">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 text-slate-500"><i class="fa-solid fa-file-word text-xl"></i></div>
               <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Evidencias fotográficas</h3>
-                  <span id="reportEvidenceCount" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">0 evidencia(s)</span>
-                </div>
-                <p class="text-xs text-slate-500 mt-1">Adjunta imágenes de antes y después, fallas, pruebas o cualquier respaldo visual. Estas imágenes son temporales: sirven para la vista previa y el PDF de esta sesión, pero no se guardan dentro del sistema.</p>
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Informe en texto</h3>
+                <p class="text-sm text-slate-500 mt-1">Las imágenes se eliminaron de esta sección para reducir egress. El informe se descargará en Word y, si lo necesitas, puedes insertar fotos manualmente después.</p>
               </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-end">
-              <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tipo de evidencia</label>
-                <select id="reportEvidenceType" class="w-full px-3 py-3 border rounded-xl bg-white">
-                  <option value="general">General</option>
-                  <option value="antes">Antes</option>
-                  <option value="despues">Después</option>
-                  <option value="falla">Falla encontrada</option>
-                  <option value="placa">Placa / datos</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Imágenes para PDF (temporales)</label>
-                <input id="reportEvidenceInput" type="file" accept="image/*" multiple class="w-full px-3 py-3 border rounded-xl bg-white" onchange="handleReportEvidenceInputChange()">
-              </div>
-            </div>
-            <div id="reportEvidenceList" class="mt-4 space-y-3"></div>
           </div>
 
           <div class="flex flex-wrap gap-3">
             <button onclick="saveReport('${report?.id || ''}')" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-bold">Guardar informe</button>
-            <button onclick="saveReportAndGeneratePDF('${report?.id || ''}')" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-bold">Guardar y descargar PDF</button>
+            <button onclick="saveReportAndGenerateWord('${report?.id || ''}')" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-bold">Guardar y descargar Word</button>
             ${report ? `<button onclick="previewReport('${report.id}')" class="px-5 py-3 rounded-2xl border font-bold hover:bg-gray-50">Vista previa</button>` : ''}
             <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-bold hover:bg-gray-50">Cancelar</button>
           </div>
@@ -9746,8 +9658,8 @@ window.renderQuotes = renderQuotes;
       populateReportOTFields();
     }
 
-    function saveReportAndGeneratePDF(reportId){
-      return saveReport(reportId, { generatePdf: true });
+    function saveReportAndGenerateWord(reportId){
+      return saveReport(reportId, { generateWord: true });
     }
 
     async function saveReport(reportId, options = {}){
@@ -9841,10 +9753,10 @@ window.renderQuotes = renderQuotes;
         renderReports();
         try { renderDashboard(); } catch(e) {}
         if(options && options.generatePdf){
-          await generateReportPDF(effectiveReport || model);
+          await generateReportWord(effectiveReport || model);
         }
         closeModal();
-        toastInfo(savedMode === 'supabase' ? (options && options.generatePdf ? 'Informe guardado y PDF descargado ✅' : 'Informe guardado correctamente ✅') : (options && options.generatePdf ? 'Informe guardado en modo local y PDF descargado ✅' : 'Informe guardado en modo local ✅'));
+        toastInfo(savedMode === 'supabase' ? (options && options.generateWord ? 'Informe guardado y Word descargado ✅' : 'Informe guardado correctamente ✅') : (options && options.generateWord ? 'Informe guardado en modo local y Word descargado ✅' : 'Informe guardado en modo local ✅'));
       } catch (err) {
         console.error('saveReport error:', err);
         alert('No se pudo guardar el informe: ' + (err?.message || err));
@@ -9940,7 +9852,7 @@ window.renderQuotes = renderQuotes;
             <td class="p-4">${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</td>
             <td class="p-4 text-sm text-slate-600">${s.total} total · ${s.operativos} ok · ${s.observacion} obs · ${s.noOperativos} no ok</td>
             <td class="p-4">${getReportStateBadge(rep)}</td>
-            <td class="p-4 text-center"><button onclick="generateReportPDF('${rep.id}')" class="text-brand hover:opacity-80" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-xl"></i></button></td>
+            <td class="p-4 text-center"><button onclick="generateReportWord('${rep.id}')" class="text-brand hover:opacity-80" title="Descargar Word"><i class="fa-solid fa-file-word text-xl"></i></button></td>
             <td class="p-4">
               <div class="flex items-center justify-center gap-3">
                 <button onclick="previewReport('${rep.id}')" class="text-slate-600 hover:text-slate-900" title="Vista previa"><i class="fa-solid fa-eye text-lg"></i></button>
@@ -9960,7 +9872,6 @@ window.renderQuotes = renderQuotes;
       const reportItems = getReportItemsForReport(rep);
       const consolidation = getReportConsolidationInfo(rep);
       const equipments = consolidation.equipments;
-      const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || []);
       const eqRows = consolidation.mode === 'consolidated' ? consolidation.groups.map((group, idx) => {
         const commonLines = getReportCommonLines(group.common).map(([label, value]) => `<div class="py-2 border-b border-slate-100 last:border-b-0"><div class="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">${escapeHtml(label)}</div><div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(value)}</div></div>`).join('');
         const areasTable = getReportAreasTableRows(group.items).map(row => `<tr><td class="px-3 py-2 border-b border-slate-100 text-slate-500">${escapeHtml(row[0])}</td><td class="px-3 py-2 border-b border-slate-100 text-slate-700">${escapeHtml(row[1])}</td><td class="px-3 py-2 border-b border-slate-100 text-slate-700">${escapeHtml(row[2])}</td></tr>`).join('');
@@ -10011,7 +9922,6 @@ window.renderQuotes = renderQuotes;
         `;
       }).join('') : '<div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">No hay equipos cargados.</div>');
       const itemsTable = reportItems.length ? `<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide"><tr><th class="px-4 py-3 text-left">Ítem</th><th class="px-4 py-3 text-left">Cant.</th><th class="px-4 py-3 text-left">Ubicación</th><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Observación</th></tr></thead><tbody>${reportItems.map(it => `<tr class="border-t border-slate-100"><td class="px-4 py-3 text-slate-700">${escapeHtml(it.descripcion || 'Servicio')}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(String(it.cantidad || 1))}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(it.ubicacion || '—')}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(it.observacion || '—')}</td></tr>`).join('')}</tbody></table></div>` : '';
-      const evidenceHtml = evidencias.length ? evidencias.slice(0,6).map(ev => `<div class="border rounded-2xl overflow-hidden bg-white"><img src="${ev.dataUrl}" class="w-full h-40 object-cover"><div class="p-3 text-xs text-slate-600">${escapeHtml(ev.category || 'general')} · ${escapeHtml(ev.name || '')}</div></div>`).join('') : '<div class="text-sm text-slate-500">No hay evidencias cargadas.</div>';
       openModal(`
         <div class="p-6 sm:p-8">
           <div class="flex items-start justify-between gap-4 mb-6">
@@ -10020,7 +9930,7 @@ window.renderQuotes = renderQuotes;
               <p class="text-sm text-slate-500 mt-1">${escapeHtml(rep.numeroInforme || '—')} · ${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))} · ${escapeHtml(rep.clientName || 'Cliente')}</p>
             </div>
             <div class="flex gap-2">
-              <button onclick="generateReportPDF('${rep.id}')" class="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700">PDF</button>
+              <button onclick="generateReportWord('${rep.id}')" class="px-4 py-2 rounded-xl bg-blue-700 text-white font-semibold hover:bg-blue-800">Word</button>
               <button onclick="showNewReportModal({id:'${rep.id}'})" class="px-4 py-2 rounded-xl border font-semibold hover:bg-gray-50">Editar</button>
               <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
             </div>
@@ -10058,9 +9968,8 @@ window.renderQuotes = renderQuotes;
             ${itemsTable || `<div class="space-y-4">${eqRows}</div>`}
           </div>
 
-          <div>
-            <h3 class="text-lg font-black text-slate-800 mb-3">Evidencias</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">${evidenceHtml}</div>
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            Este informe se guarda y se descarga solo en texto. Si necesitas agregar fotografías, puedes insertarlas manualmente en Word después de descargarlo.
           </div>
         </div>
       `);
@@ -10117,272 +10026,223 @@ window.renderQuotes = renderQuotes;
       }
     }
 
-    async function generateReportPDF(reportRef){
+    function getReportWordStyles(){
+      return `
+        @page{margin:18mm 16mm 18mm 16mm;}
+        body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:0;padding:0;font-size:10.5pt;line-height:1.45;background:#ffffff;}
+        .doc{max-width:900px;margin:0 auto;padding:0;}
+        .topline{width:100%;border-collapse:collapse;margin:0 0 8px 0;}
+        .topline td{padding:0 0 4px 0;vertical-align:bottom;}
+        .topline .left{font-size:14pt;font-weight:800;color:#1f2937;}
+        .topline .right{font-size:12pt;font-weight:800;color:#355f1c;text-align:right;white-space:nowrap;}
+        .subcode{font-size:12pt;font-weight:700;color:#334155;margin:2px 0 12px 0;}
+        .meta{width:100%;border-collapse:collapse;margin:0 0 14px 0;}
+        .meta td{padding:5px 6px;border-bottom:1px solid #dbe3ef;vertical-align:top;}
+        .meta .label{font-weight:700;color:#334155;white-space:nowrap;width:1%;}
+        .meta .value{color:#111827;}
+        .meta .spacer{width:18px;border-bottom:0;padding:0;}
+        .summary-wrap{border:1px solid #dbe3ef;border-top:4px solid #85af28;border-radius:12px;padding:12px 14px 10px 14px;background:linear-gradient(180deg,#f8fbf1 0%,#ffffff 100%);margin:0 0 14px 0;}
+        .summary-grid{width:100%;border-collapse:separate;border-spacing:10px 0;margin-top:6px;}
+        .summary-grid td{padding:0;vertical-align:top;}
+        .mini-kpi{border:1px solid #dbe3ef;border-radius:12px;padding:10px 8px;text-align:center;min-height:62px;}
+        .mini-kpi .k{display:block;font-size:8.6pt;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+        .mini-kpi .v{display:block;font-size:16pt;font-weight:900;line-height:1;}
+        .kpi-total{background:#f8fafc;color:#334155;border-color:#cbd5e1;}
+        .kpi-ok{background:#ecfdf3;color:#166534;border-color:#bbf7d0;}
+        .kpi-obs{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+        .kpi-bad{background:#fef2f2;color:#b91c1c;border-color:#fecaca;}
+        .kpi-tech{background:#eef6df;color:#355f1c;border-color:#d1e7a1;}
+        .section{margin:14px 0 0 0;}
+        .section-title{font-size:11.5pt;font-weight:800;color:#355f1c;margin:0 0 6px 0;padding:0 0 4px 0;border-bottom:2px solid #dbe3ef;}
+        .text-box{padding:2px 0 0 0;background:transparent;border:none;border-radius:0;line-height:1.5;}
+        .grid{width:100%;border-collapse:collapse;margin:8px 0 0 0;}
+        .grid th,.grid td{border:1px solid #dbe3ef;padding:8px;vertical-align:top;}
+        .grid th{background:#eef6df;color:#355f1c;text-align:left;font-weight:800;}
+        .muted{color:#64748b;}
+        .chart-box{margin:10px 0 0 0;border:1px solid #dbe3ef;border-radius:12px;padding:10px;background:#ffffff;}
+        .chart-box .chart-title{font-size:9pt;font-weight:800;color:#355f1c;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:.04em;}
+        .chart-box img{width:100%;height:auto;display:block;}
+                .bullet-list{margin:0;padding-left:18px;}
+        .bullet-list li{margin:0 0 4px 0;}
+        .footer-note{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;font-size:9pt;color:#64748b;text-align:center;}
+        .small{font-size:9pt;}
+      `;
+    }
+
+    function nl2brSafe(text){
+      return escapeHtml(String(text || '')).replace(/\r?\n/g, '<br>');
+    }
+
+    function reportSuggestionsToListHtml(text){
+      const raw = String(text || '').trim();
+      if(!raw) return '<div class="text-box">Sin sugerencias de mejora.</div>';
+      const items = raw
+        .split(/\r?\n|;|•|\-/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      if(items.length <= 1){
+        return `<div class="text-box">${nl2brSafe(raw)}</div>`;
+      }
+      return `<ul class="bullet-list">${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    }
+
+    function buildReportWordHTML(rep){
+      const summary = getReportOperationalSummary(rep);
+      const reportItems = getReportItemsForReport(rep);
+      const consolidation = getReportConsolidationInfo(rep);
+      const equipments = consolidation.equipments || [];
+      const chartDataUrl = buildReportChartDataUrl(rep);
+      const infoNumber = escapeHtml(rep.numeroInforme || 'INF-S/N');
+      const techDocTitle = escapeHtml(rep.titulo || `Informe técnico ${rep.numeroOT || ''}`.trim() || 'Informe técnico');
+      const clientName = escapeHtml(rep.clientName || '—');
+      const reportDate = escapeHtml(formatDDMMYY(rep.fecha || rep.created_at));
+      const otNum = escapeHtml(rep.numeroOT || '—');
+      const quoteNum = escapeHtml(rep.numeroCotizacion || '—');
+      const serviceType = escapeHtml(getReportServiceLabel(rep.tipoServicio));
+      const address = escapeHtml(rep.direccion || '—');
+      const techName = escapeHtml(rep.tecnicoResponsable || '—');
+
+      const itemsHtml = reportItems.length
+        ? `<table class="grid"><thead><tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr></thead><tbody>${reportItems.map(it => `<tr><td>${escapeHtml(it.descripcion || 'Servicio')}</td><td>${escapeHtml(String(it.cantidad || 1))}</td><td>${escapeHtml(it.ubicacion || '—')}</td><td>${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td><td>${escapeHtml(it.observacion || 'Sin observaciones.')}</td></tr>`).join('')}</tbody></table>`
+        : '';
+
+      const consolidatedHtml = !reportItems.length && consolidation.mode === 'consolidated'
+        ? consolidation.groups.map((group) => {
+            const commonText = getReportCommonLines(group.common).map(([label, value]) => `<div><b>${escapeHtml(label)}:</b> ${nl2brSafe(value)}</div>`).join('') || '<div>Sin detalle común ingresado.</div>';
+            const rows = getReportAreasTableRows(group.items).map(row => `<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>Sin observaciones.</td></tr>`).join('');
+            return `<div class="text-box small" style="margin-bottom:8px;">${commonText}</div><table class="grid"><thead><tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr></thead><tbody>${rows}</tbody></table>`;
+          }).join('')
+        : '';
+
+      const equipmentHtml = !reportItems.length && consolidation.mode !== 'consolidated'
+        ? (equipments.length
+            ? `<table class="grid"><thead><tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr></thead><tbody>${equipments.map(eq => {
+                const itemName = eq.trabajoRealizado || eq.detalleMantencion || eq.tipoEquipo || 'Servicio técnico';
+                const ubicacion = [eq.area, eq.marcaModelo, eq.btu ? `${eq.btu} BTU` : ''].filter(Boolean).join(' · ') || '—';
+                const obs = [eq.observaciones, eq.sugerencias ? `Sugerencia: ${eq.sugerencias}` : ''].filter(Boolean).join(' · ') || 'Sin observaciones.';
+                return `<tr><td>${escapeHtml(itemName)}</td><td>1</td><td>${escapeHtml(ubicacion)}</td><td>${escapeHtml(getEquipmentStateLabel(eq.estadoFinal))}</td><td>${escapeHtml(obs)}</td></tr>`;
+              }).join('')}</tbody></table>`
+            : '<div class="text-box">No hay ítems intervenidos cargados.</div>')
+        : '';
+
+      const chartHtml = chartDataUrl ? `<div class="chart-box"><div class="chart-title">Gráfico estado de equipos</div><img src="${chartDataUrl}" alt="Gráfico estado de equipos"></div>` : '';
+
+      return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${techDocTitle}</title>
+<style>${getReportWordStyles()}</style>
+</head>
+<body>
+  <div class="doc">
+    <table class="topline">
+      <tr>
+        <td class="left">Informe técnico de servicio</td>
+        <td class="right">N° ${infoNumber}</td>
+      </tr>
+    </table>
+
+    <div class="subcode">${techDocTitle}</div>
+
+    <table class="meta">
+      <tr>
+        <td class="label">Cliente:</td><td class="value">${clientName}</td>
+        <td class="spacer"></td>
+        <td class="label">Fecha:</td><td class="value">${reportDate}</td>
+      </tr>
+      <tr>
+        <td class="label">OT:</td><td class="value">${otNum}</td>
+        <td class="spacer"></td>
+        <td class="label">Cotización:</td><td class="value">${quoteNum}</td>
+      </tr>
+      <tr>
+        <td class="label">Tipo:</td><td class="value">${serviceType}</td>
+        <td class="spacer"></td>
+        <td class="label">Técnico responsable:</td><td class="value">${techName}</td>
+      </tr>
+      <tr>
+        <td class="label">Dirección:</td><td class="value" colspan="4">${address}</td>
+      </tr>
+    </table>
+
+    <div class="summary-wrap">
+      <div class="section-title" style="margin-top:0;border-bottom:0;padding-bottom:0;">Resumen del estado general</div>
+      <table class="summary-grid">
+        <tr>
+          <td><div class="mini-kpi kpi-total"><span class="k">Equipos revisados</span><span class="v">${summary.total}</span></div></td>
+          <td><div class="mini-kpi kpi-slate"><span class="k">Estado general</span><span class="v" style="font-size:11pt;line-height:1.25;">${escapeHtml(getReportGeneralState(rep))}</span></div></td>
+          <td><div class="mini-kpi kpi-ok"><span class="k">Operativos</span><span class="v">${summary.operativos}</span></div></td>
+          <td><div class="mini-kpi kpi-obs"><span class="k">Con observación</span><span class="v">${summary.observacion}</span></div></td>
+          <td><div class="mini-kpi kpi-bad"><span class="k">No operativos</span><span class="v">${summary.noOperativos}</span></div></td>
+        </tr>
+      </table>
+      ${chartHtml}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Resumen ejecutivo</div>
+      <div class="text-box">${nl2brSafe(rep.resumenEjecutivo || rep.detalleGeneral || 'Sin resumen ejecutivo.')}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ítems intervenidos</div>
+      ${itemsHtml || consolidatedHtml || equipmentHtml}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Observaciones generales</div>
+      <div class="text-box">${nl2brSafe(rep.observacionesGenerales || 'Sin Observaciones.')}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sugerencias de mejora</div>
+      ${reportSuggestionsToListHtml(rep.sugerenciasMejora || '')}
+    </div>
+
+    <div class="footer-note">ECOLUZ · Informe técnico de servicio</div>
+  </div>
+</body>
+</html>`;
+    }
+
+    async function generateReportWord(reportRef){
       try {
         const rep = (reportRef && typeof reportRef === 'object') ? reportRef : await ensureReportLoaded(reportRef);
         if(!rep){ alert('Informe no encontrado'); return; }
-        if(!window.jspdf || !window.jspdf.jsPDF){ alert('No se pudo cargar la librería PDF'); return; }
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 12;
-        const green = [133,175,40];
-        const lightGreen = [245,249,236];
-        const dark = [15,23,42];
-        const summary = getReportOperationalSummary(rep);
-        const reportItems = getReportItemsForReport(rep);
-        const consolidation = getReportConsolidationInfo(rep);
-        const equipments = consolidation.equipments;
-        const evidencias = normalizeReportEvidenceArray(rep.evidencias || rep.data?.evidencias || window.currentReportAttachments || []);
-
-        await addLogoToPdf(doc);
-        doc.setDrawColor(...green);
-        doc.setLineWidth(0.6);
-        doc.line(margin, 24, pageWidth - margin, 24);
-        doc.setTextColor(...dark);
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(16);
-        doc.text('Informe técnico de servicio', margin, 31);
-        doc.setFontSize(9);
-        doc.setTextColor(100,116,139);
-        doc.text(`N° ${rep.numeroInforme || '—'}`, pageWidth - margin, 31, { align:'right' });
-
-        let y = 38;
-        doc.setTextColor(...dark);
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(13);
-        doc.text(rep.titulo || 'Informe técnico', margin, y);
-        y += 6;
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(9.5);
-        doc.text(`Cliente: ${rep.clientName || '—'}`, margin, y);
-        doc.text(`Fecha: ${formatDDMMYY(rep.fecha || rep.created_at)}`, pageWidth - margin, y, { align:'right' });
-        y += 5;
-        doc.text(`OT: ${rep.numeroOT || '—'}    Cotización: ${rep.numeroCotizacion || '—'}`, margin, y);
-        doc.text(`Tipo: ${getReportServiceLabel(rep.tipoServicio)}`, pageWidth - margin, y, { align:'right' });
-        y += 5;
-        doc.text(`Dirección: ${rep.direccion || '—'}`, margin, y);
-        y += 5;
-        doc.text(`Técnico responsable: ${rep.tecnicoResponsable || '—'}`, margin, y);
-
-        y += 5;
-        doc.autoTable({
-          startY: y,
-          theme: 'grid',
-          margin: { left: margin, right: margin },
-          styles: { fontSize: 9, cellPadding: 2.8, textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
-          headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle: 'bold' },
-          body: [
-            ['Equipos revisados', String(summary.total), 'Estado general', getReportGeneralState(rep)],
-            ['Operativos', String(summary.operativos), 'Con observación', String(summary.observacion)],
-            ['No operativos', String(summary.noOperativos), 'Técnico responsable', rep.tecnicoResponsable || '—']
-          ],
-          columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
-        });
-        y = doc.lastAutoTable.finalY + 6;
-
-        const resumenText = rep.resumenEjecutivo || rep.detalleGeneral || 'Sin resumen ejecutivo.';
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(11.5);
-        doc.text('Resumen ejecutivo', margin, y);
-        y += 4;
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(9.4);
-        const splitResumen = doc.splitTextToSize(resumenText, pageWidth - (margin * 2));
-        doc.text(splitResumen, margin, y);
-        y += splitResumen.length * 4.4 + 3;
-
-        const chartDataUrl = buildReportChartDataUrl(rep);
-        if(chartDataUrl){
-          doc.addImage(chartDataUrl, 'PNG', margin, y, pageWidth - (margin * 2), 62);
-          y += 68;
-        }
-
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(11.5);
-        doc.text(reportItems.length ? 'Ítems intervenidos' : (consolidation.mode === 'consolidated' ? 'Detalle consolidado del servicio' : 'Detalle por equipos'), margin, y);
-        y += 3;
-        if(reportItems.length){
-          doc.autoTable({
-            startY: y + 1,
-            theme: 'grid',
-            margin: { left: margin, right: margin },
-            head: [['Ítem', 'Cant.', 'Ubicación', 'Estado', 'Observación']],
-            body: reportItems.map(it => [it.descripcion || 'Servicio', String(it.cantidad || 1), it.ubicacion || '—', getEquipmentStateLabel(it.estadoFinal), it.observacion || '—']),
-            styles: { fontSize: 8.2, cellPadding: 2.3, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
-            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' }
-          });
-          y = doc.lastAutoTable.finalY + 4;
-        } else if(consolidation.mode === 'consolidated'){
-          const group = consolidation.groups[0];
-          const commonRows = getReportCommonLines(group.common);
-          doc.autoTable({
-            startY: y + 1,
-            theme: 'grid',
-            margin: { left: margin, right: margin },
-            head: [['Dato', 'Detalle']],
-            body: commonRows.length ? commonRows : [['Detalle común', 'Sin detalle ingresado.']],
-            styles: { fontSize: 8.2, cellPadding: 2.4, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
-            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
-            columnStyles: { 0: { cellWidth: 42, fontStyle:'bold' }, 1: { cellWidth: pageWidth - (margin * 2) - 42 } }
-          });
-          y = doc.lastAutoTable.finalY + 4;
-          doc.autoTable({
-            startY: y,
-            theme: 'grid',
-            margin: { left: margin, right: margin },
-            head: [['#', 'Área / equipo', 'Estado']],
-            body: getReportAreasTableRows(group.items),
-            styles: { fontSize: 8, cellPadding: 2.2, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
-            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
-            alternateRowStyles: { fillColor: [250,251,252] },
-            columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 110 }, 2: { cellWidth: 42 } }
-          });
-        } else {
-          doc.autoTable({
-            startY: y + 1,
-            theme: 'grid',
-            margin: { left: margin, right: margin },
-            head: [['Equipo / referencia', 'Servicio ejecutado', 'Estado', 'Observaciones y recomendaciones']],
-            body: equipments.length ? equipments.map(eq => {
-              const reference = [eq.tipoEquipo, eq.area ? `Ubicación: ${eq.area}` : '', eq.marcaModelo ? `Marca / modelo: ${eq.marcaModelo}` : '', eq.btu ? `Capacidad: ${eq.btu} BTU` : ''].filter(Boolean).join('\n');
-              const service = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
-              const notes = [eq.observaciones, eq.sugerencias ? 'Sugerencia: ' + eq.sugerencias : '', eq.candidatoBTU && eq.candidatoBTU !== 'no' ? 'Candidato BTU: ' + eq.candidatoBTU : ''].filter(Boolean).join('\n');
-              return [
-                reference || 'Equipo intervenido sin referencia detallada',
-                service || 'Sin detalle ingresado.',
-                getEquipmentStateLabel(eq.estadoFinal),
-                notes || 'Sin observaciones registradas.'
-              ];
-            }) : [['Sin equipos registrados', '—', '—', '—']],
-            styles: { fontSize: 8, cellPadding: 2.2, valign:'top', textColor: dark, lineColor: [225,231,239], lineWidth: 0.1 },
-            headStyles: { fillColor: lightGreen, textColor: dark, lineColor: [214,226,185], lineWidth: 0.1, fontStyle:'bold' },
-            alternateRowStyles: { fillColor: [250,251,252] },
-            columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 54 }, 2: { cellWidth: 24 }, 3: { cellWidth: 58 } }
-          });
-        }
-        y = doc.lastAutoTable.finalY + 6;
-
-        const ensureSpace = (heightNeeded) => {
-          const pageHeight = doc.internal.pageSize.getHeight();
-          if(y + heightNeeded > pageHeight - 14){
-            doc.addPage();
-            y = 16;
-          }
-        };
-
-        ensureSpace(36);
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(11.5);
-        doc.text('Observaciones generales', margin, y);
-        y += 4;
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(9.4);
-        const obsText = doc.splitTextToSize(rep.observacionesGenerales || 'Sin observaciones generales.', pageWidth - (margin * 2));
-        doc.text(obsText, margin, y);
-        y += obsText.length * 4.4 + 4;
-
-        ensureSpace(36);
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(11.5);
-        doc.text('Sugerencias de mejora', margin, y);
-        y += 4;
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(9.4);
-        const sugText = doc.splitTextToSize(rep.sugerenciasMejora || 'Sin sugerencias de mejora.', pageWidth - (margin * 2));
-        doc.text(sugText, margin, y);
-        y += sugText.length * 4.4 + 4;
-
-        if(evidencias.length){
-          const pageHeight = doc.internal.pageSize.getHeight();
-          const cols = 2;
-          const gapX = 8;
-          const gapY = 14;
-          const imgW = (pageWidth - (margin * 2) - gapX) / cols;
-          const imgH = 52;
-          const rowsPerPage = 2;
-          const perPage = cols * rowsPerPage;
-          const addEvidenceHeader = (continued = false) => {
-            doc.setFont('helvetica','bold');
-            doc.setFontSize(11.5);
-            doc.setTextColor(...dark);
-            doc.text(continued ? 'Evidencias fotográficas (continuación)' : 'Evidencias fotográficas', margin, y);
-            y += 5;
-          };
-
-          if(y + 10 > pageHeight - 20){
-            doc.addPage();
-            y = 16;
-          }
-          addEvidenceHeader(false);
-
-          evidencias.forEach((ev, idx) => {
-            if(idx > 0 && idx % perPage === 0){
-              doc.addPage();
-              y = 16;
-              addEvidenceHeader(true);
-            }
-
-            const localIndex = idx % perPage;
-            const col = localIndex % cols;
-            const row = Math.floor(localIndex / cols);
-            const x = margin + col * (imgW + gapX);
-            const yy = y + row * (imgH + gapY);
-
-            try {
-              const format = String(ev.mimeType || '').toLowerCase().includes('png') ? 'PNG' : 'JPEG';
-              doc.addImage(ev.dataUrl, format, x, yy, imgW, imgH);
-              doc.setFont('helvetica','normal');
-              doc.setFontSize(8);
-              doc.setTextColor(...dark);
-              const caption = `${ev.category || 'general'} · ${ev.name || ''}`.trim();
-              const splitCaption = doc.splitTextToSize(caption || 'Evidencia', imgW);
-              doc.text(splitCaption.slice(0, 2), x, yy + imgH + 4);
-            } catch(e) {
-              try {
-                doc.setDrawColor(220,226,232);
-                doc.setFillColor(248,250,252);
-                doc.roundedRect(x, yy, imgW, imgH, 2, 2, 'FD');
-                doc.setFont('helvetica','normal');
-                doc.setFontSize(8);
-                doc.setTextColor(100,116,139);
-                doc.text('No se pudo cargar esta evidencia', x + 4, yy + 8);
-              } catch(_) {}
-            }
-          });
-        }
-
-        const pages = doc.internal.getNumberOfPages();
-        for(let i = 1; i <= pages; i++){
-          doc.setPage(i);
-          const h = doc.internal.pageSize.getHeight();
-          doc.setDrawColor(220,226,232);
-          doc.line(margin, h - 10, pageWidth - margin, h - 10);
-          doc.setFont('helvetica','normal');
-          doc.setFontSize(8);
-          doc.setTextColor(100,116,139);
-          doc.text('ECOLUZ · Informe técnico de servicio', margin, h - 5.5);
-          doc.text(`Página ${i} de ${pages}`, pageWidth - margin, h - 5.5, { align:'right' });
-        }
-
-        const fileName = `Informe_${String(rep.numeroInforme || 'sin_numero').replace(/[^\\w-]+/g,'_')}.pdf`;
-        doc.save(fileName);
+        const html = buildReportWordHTML(rep);
+        const blob = new Blob(['﻿', html], { type: 'application/msword' });
+        const fileName = `Informe_${String(rep.numeroInforme || 'sin_numero').replace(/[^\w-]+/g,'_')}.doc`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          try { URL.revokeObjectURL(url); } catch(e) {}
+          try { a.remove(); } catch(e) {}
+        }, 250);
       } catch(err){
-        console.error('generateReportPDF error:', err);
-        alert('No se pudo generar el PDF del informe: ' + (err?.message || err));
+        console.error('generateReportWord error:', err);
+        alert('No se pudo generar el Word del informe: ' + (err?.message || err));
       }
     }
+
+    const generateReportPDF = generateReportWord;
 
     window.showNewReportModal = showNewReportModal;
     window.saveReport = saveReport;
     window.addReportItemRow = addReportItemRow;
     window.removeReportItemRow = removeReportItemRow;
     window.previewReport = previewReport;
+    window.generateReportWord = generateReportWord;
     window.generateReportPDF = generateReportPDF;
     window.renderReports = renderReports;
     window.populateReportOTFields = populateReportOTFields;
     window.addReportEquipmentRow = addReportEquipmentRow;
     window.removeReportEquipmentRow = removeReportEquipmentRow;
+    window.saveReportAndGenerateWord = saveReportAndGenerateWord;
     window.handleReportEvidenceInputChange = handleReportEvidenceInputChange;
     window.removeReportEvidenceItem = removeReportEvidenceItem;
     window.deleteReport = deleteReport;
@@ -10466,11 +10326,40 @@ function showView(view) {
       otSearchFree = '';
       try { updateOTSearchClearButton(); } catch(e){}
       if (typeof renderOTs === 'function') renderOTs();
+      if (typeof refreshOTsCollectionFromServer === 'function') {
+        Promise.resolve(refreshOTsCollectionFromServer())
+          .then(() => { try { renderOTs(); } catch(e) { console.error(e); } })
+          .catch(err => console.error('No se pudo refrescar OTs al abrir la vista:', err));
+      }
     } catch(e){}
     setTimeout(() => { try { applyOTsActive(); applyOTsClosed(); } catch(e){} }, 0);
   }
   if (view === 'reports') {
-    try { if (typeof renderReports === 'function') renderReports(); } catch(e){ console.error(e); }
+    try {
+      if (typeof window.loadReportsFull === 'function') {
+        Promise.resolve(window.loadReportsFull()).then(() => { try { if (typeof renderReports === 'function') renderReports(); } catch(e){ console.error(e); } });
+      } else if (typeof renderReports === 'function') {
+        renderReports();
+      }
+    } catch(e){ console.error(e); }
+  }
+  if (view === 'visitas') {
+    try {
+      if (typeof window.loadVisitasFull === 'function') {
+        Promise.resolve(window.loadVisitasFull()).then(() => { try { if (typeof renderVisitas === 'function') renderVisitas(); } catch(e){ console.error(e); } });
+      } else if (typeof renderVisitas === 'function') {
+        renderVisitas();
+      }
+    } catch(e){ console.error(e); }
+  }
+  if (view === 'reqs') {
+    try {
+      if (typeof window.loadRequerimientosFull === 'function') {
+        Promise.resolve(window.loadRequerimientosFull()).then(() => { try { if (typeof renderReqs === 'function') renderReqs(); } catch(e){ console.error(e); } });
+      } else if (typeof renderReqs === 'function') {
+        renderReqs();
+      }
+    } catch(e){ console.error(e); }
   }
   if (view === 'abonos') {
     try { abonosPage = 1; abonosClosedPage = 1; } catch(e){}
@@ -16826,8 +16715,13 @@ function renderDashboard() {
   return estado === 'pendiente' || estado === 'en_curso';
 }).length;
   const deuda = ots.filter(o => isOTDashboardPendientePago(o)).length;
-  const visitasPend = visitas.filter(v => String(v.estado||'').toLowerCase() === 'pendiente').length;
-  const reqsPend = (requerimientos||[]).filter(r => !['realizado','realizada','cancelado','cancelada'].includes(String(r.estado||'').toLowerCase())).length;
+  const lazyCounts = window.dashboardLightCounts || {};
+  const visitasPend = window.lazyModuleState?.visitasLoaded
+    ? visitas.filter(v => String(v.estado||'').toLowerCase() === 'pendiente').length
+    : Number(lazyCounts.visitasPend || 0);
+  const reqsPend = window.lazyModuleState?.reqsLoaded
+    ? (requerimientos||[]).filter(r => !['realizado','realizada','cancelado','cancelada'].includes(String(r.estado||'').toLowerCase())).length
+    : Number(lazyCounts.reqsPend || 0);
   const mantencionesCount = (quotes||[]).filter(q => isAcceptedAndActiveWorkQuote(q) && isMantencionQuote(q)).length;
   const suministrosInstCount = (quotes||[]).filter(q => isAcceptedAndActiveWorkQuote(q) && isSuministroInstalacionQuote(q) && isACEquipmentQuote(q)).length;
 
@@ -17281,41 +17175,60 @@ function renderOTs() {
     return db - da;
   }).filter(otMatchesSearch);
 
+  const orderedFallback = (!ordered.length && Array.isArray(ots) && ots.length && !String(otSearchFree || '').trim() && String(otStatusFilter || 'all') === 'all')
+    ? (ots || []).slice().sort((a,b)=>compareOTNumberDesc(a,b))
+    : ordered;
+
   const activeRows = [];
   const closedRows = [];
 
-  ordered.forEach(o => {
-    const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
-    const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
-    const groupId = `ot-${String(o.id || '')}`;
-    const tr = document.createElement('tr');
-    tr.className = 'ot-main-row border-t hover:bg-gray-50';
-    tr.setAttribute('data-page-group', groupId);
-    tr.setAttribute('data-ot-id', String(o.id || ''));
-    tr.innerHTML = `
-      <td class="p-3 text-sm">${formatDDMMYY(getPreferredOTDate(o))}</td>
-      <td class="p-3 text-sm font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
-      <td class="p-3 text-sm">${otClientCellHTML(o)}</td>
-      <td class="p-3 text-sm">${getOTReferenceStackHTML(o)}</td>
-      <td class="p-3 text-sm text-center"><div class="ot-state-stack">${badgeOTTrabajoEstado(o)}${getOTCobroMiniHTML(o)}</div></td>
-      <td class="p-3 text-sm text-center"><div class="ot-doc-cell">${getOTCompactDocumentHTML(o)}</div></td>
-      <td class="p-3 text-center"><div class="ot-actions-bar">${btnView}${btnMore}</div></td>
-    `;
+  orderedFallback.forEach(o => {
+    try {
+      const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
+      const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
+      const groupId = `ot-${String(o.id || '')}`;
+      const tr = document.createElement('tr');
+      tr.className = 'ot-main-row border-t hover:bg-gray-50';
+      tr.setAttribute('data-page-group', groupId);
+      tr.setAttribute('data-ot-id', String(o.id || ''));
+      tr.innerHTML = `
+        <td class="p-3 text-sm">${formatDDMMYY(getPreferredOTDate(o))}</td>
+        <td class="p-3 text-sm font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
+        <td class="p-3 text-sm">${otClientCellHTML(o)}</td>
+        <td class="p-3 text-sm">${getOTReferenceStackHTML(o)}</td>
+        <td class="p-3 text-sm text-center"><div class="ot-state-stack">${badgeOTTrabajoEstado(o)}${getOTCobroMiniHTML(o)}</div></td>
+        <td class="p-3 text-sm text-center"><div class="ot-doc-cell">${getOTCompactDocumentHTML(o)}</div></td>
+        <td class="p-3 text-center"><div class="ot-actions-bar">${btnView}${btnMore}</div></td>
+      `;
 
-    const descHtml = otWideDescriptionRowHTML(o);
-    const detalle = descHtml ? (() => {
-      const tmp = document.createElement('tbody');
-      tmp.innerHTML = descHtml.trim();
-      const row = tmp.firstElementChild;
-      if(row) row.setAttribute('data-page-group', groupId);
-      return row;
-    })() : null;
+      const descHtml = otWideDescriptionRowHTML(o);
+      const detalle = descHtml ? (() => {
+        const tmp = document.createElement('tbody');
+        tmp.innerHTML = descHtml.trim();
+        const row = tmp.firstElementChild;
+        if(row) row.setAttribute('data-page-group', groupId);
+        return row;
+      })() : null;
 
-    const trabajoCerrado = ['realizada','finalizada','cancelada'].includes(getEffectiveOTTrabajoEstado(o));
-    const pagada = isOTPagada(o);
-    const targetRows = (trabajoCerrado && pagada) ? closedRows : activeRows;
-    targetRows.push(tr);
-    if(detalle) targetRows.push(detalle);
+      const trabajoCerrado = ['realizada','finalizada','cancelada'].includes(getEffectiveOTTrabajoEstado(o));
+      const pagada = isOTPagada(o);
+      const targetRows = (trabajoCerrado && pagada) ? closedRows : activeRows;
+      targetRows.push(tr);
+      if(detalle) targetRows.push(detalle);
+    } catch(err) {
+      console.error('Error renderizando una OT:', err, o);
+      const tr = document.createElement('tr');
+      tr.className = 'border-t hover:bg-gray-50';
+      tr.innerHTML = `
+        <td class="p-3 text-sm">${formatDDMMYY(getPreferredOTDate(o))}</td>
+        <td class="p-3 text-sm font-bold">${escapeHtml(String(o.numero_ot || o.numeroOT || '-'))}</td>
+        <td class="p-3 text-sm">${escapeHtml(String(o.clientName || '—'))}</td>
+        <td class="p-3 text-sm">${escapeHtml(String(o.oc || o.hes || o.guia_despacho || '—'))}</td>
+        <td class="p-3 text-sm text-center">${badgeOTTrabajoEstado(o)}</td>
+        <td class="p-3 text-sm text-center">${escapeHtml(String(getFacturaNumeroOT(o) || 'Sin documento'))}</td>
+        <td class="p-3 text-center">—</td>`;
+      activeRows.push(tr);
+    }
   });
 
   if (!activeRows.length) {
@@ -18286,6 +18199,85 @@ function isMobileSidebarMode(){
   return !!(narrowViewport || tabletTouchViewport);
 }
 
+
+const SIDEBAR_PIN_KEY = 'ecoluz_sidebar_pinned_open_v1';
+let desktopSidebarAutoHideBound = false;
+
+function isDesktopSidebarMode(){
+  return !isMobileSidebarMode();
+}
+
+function getSidebarPinnedOpen(){
+  try { return localStorage.getItem(SIDEBAR_PIN_KEY) === 'true'; } catch(e) { return false; }
+}
+
+function setSidebarPinnedOpen(value){
+  try { localStorage.setItem(SIDEBAR_PIN_KEY, value ? 'true' : 'false'); } catch(e) {}
+}
+
+function updateDesktopSidebarToggleUI(){
+  const btn = document.getElementById('desktopSidebarToggle');
+  const sidebar = document.getElementById('sidebar');
+  if(!btn || !sidebar) return;
+  const isCollapsed = sidebar.classList.contains('collapsed');
+  btn.setAttribute('aria-pressed', String(!isCollapsed));
+  btn.setAttribute('title', isCollapsed ? 'Expandir menú' : 'Contraer menú');
+  btn.innerHTML = isCollapsed
+    ? '<i class="fas fa-angle-right"></i>'
+    : '<i class="fas fa-angle-left"></i>';
+}
+
+function applyDesktopSidebarState(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar || !isDesktopSidebarMode()) return;
+  if(getSidebarPinnedOpen()) sidebar.classList.remove('collapsed');
+  else sidebar.classList.add('collapsed');
+  updateDesktopSidebarToggleUI();
+}
+
+function toggleDesktopSidebarPin(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar || !isDesktopSidebarMode()) return;
+  const nextPinnedOpen = sidebar.classList.contains('collapsed');
+  setSidebarPinnedOpen(nextPinnedOpen);
+  applyDesktopSidebarState();
+}
+
+function setupDesktopSidebarAutoHide(){
+  if(desktopSidebarAutoHideBound) return;
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar) return;
+  desktopSidebarAutoHideBound = true;
+  let collapseTimer = null;
+
+  function collapseSoon(){
+    if(getSidebarPinnedOpen() || !isDesktopSidebarMode()) return;
+    if(collapseTimer) clearTimeout(collapseTimer);
+    collapseTimer = setTimeout(() => {
+      sidebar.classList.add('collapsed');
+      updateDesktopSidebarToggleUI();
+    }, 180);
+  }
+
+  function expandNow(){
+    if(getSidebarPinnedOpen() || !isDesktopSidebarMode()) return;
+    if(collapseTimer) clearTimeout(collapseTimer);
+    sidebar.classList.remove('collapsed');
+    updateDesktopSidebarToggleUI();
+  }
+
+  sidebar.addEventListener('mouseenter', expandNow);
+  sidebar.addEventListener('mouseleave', collapseSoon);
+  document.addEventListener('mousemove', (e) => {
+    if(!isDesktopSidebarMode() || getSidebarPinnedOpen()) return;
+    if(e.clientX <= 8){
+      if(collapseTimer) clearTimeout(collapseTimer);
+      sidebar.classList.remove('collapsed');
+      updateDesktopSidebarToggleUI();
+    }
+  });
+}
+
 function openMobileSidebar(){
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
@@ -18317,7 +18309,7 @@ function toggleMobileSidebar(){
   const sidebar = document.getElementById('sidebar');
   if(!sidebar) return;
   if(!isMobileSidebarMode()){
-    sidebar.classList.toggle('collapsed');
+    toggleDesktopSidebarPin();
     return;
   }
   if(sidebar.classList.contains('mobile-open')) closeMobileSidebar(true);
@@ -18340,7 +18332,9 @@ function syncSidebarResponsiveState(){
     sidebar.classList.remove('mobile-open');
     if(backdrop) backdrop.classList.remove('show');
     document.body.style.overflow = '';
+    applyDesktopSidebarState();
   }
+  updateDesktopSidebarToggleUI();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18353,46 +18347,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Sidebar auto-hide (desktop hover) ---
-(function setupSidebarAutoHide(){
-  const sidebar = document.getElementById('sidebar');
-  if(!sidebar) return;
-
-  const canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  const wideEnough = window.matchMedia && window.matchMedia('(min-width: 900px)').matches;
-
-  // Only auto-hide on desktop with mouse
-  if(!(canHover && wideEnough)) return;
-
-  let collapseTimer = null;
-
-  function collapse(){
-    sidebar.classList.add('collapsed');
-  }
-  function expand(){
-    sidebar.classList.remove('collapsed');
-  }
-
-  // start collapsed
-  collapse();
-
-  sidebar.addEventListener('mouseenter', () => {
-    if (collapseTimer) clearTimeout(collapseTimer);
-    expand();
-  });
-
-  sidebar.addEventListener('mouseleave', () => {
-    if (collapseTimer) clearTimeout(collapseTimer);
-    collapseTimer = setTimeout(collapse, 180);
-  });
-
-  // Optional: expand if cursor touches left edge (nice UX)
-  document.addEventListener('mousemove', (e) => {
-    if (e.clientX <= 8) {
-      if (collapseTimer) clearTimeout(collapseTimer);
-      expand();
-    }
-  });
-})();
+setupDesktopSidebarAutoHide();
 
 
 /* =========================
@@ -18809,14 +18764,14 @@ document.addEventListener('DOMContentLoaded', () => {
 /* === Pagination por módulo === */
 (function(){
   const PAGE_SIZES = {
-    clientsTable: 30,
-    pendingQuotesTable: 50,
-    acceptedQuotesTable: 50,
-    rejectedQuotesTable: 50,
-    otsActiveTable: 50,
-    otsClosedTable: 50,
-    abonosTable: 30,
-    abonosClosedTable: 30
+    clientsTable: 20,
+    pendingQuotesTable: 20,
+    acceptedQuotesTable: 20,
+    rejectedQuotesTable: 20,
+    otsActiveTable: 20,
+    otsClosedTable: 20,
+    abonosTable: 20,
+    abonosClosedTable: 20
   };
 
   window.clientsPage = window.clientsPage || 1;
@@ -19048,6 +19003,37 @@ document.addEventListener('DOMContentLoaded', () => {
     if(typeof _renderOTs === 'function') _renderOTs();
     setTimeout(()=>{ try{ applyOTsActive(); }catch(e){} try{ applyOTsClosed(); }catch(e){} }, 0);
   };
+
+
+  // Cuando el usuario busca, reinicia a la primera página para que no parezca que no hay resultados.
+  function bindSearchToFirstPage(inputId, resetFn){
+    const el = document.getElementById(inputId);
+    if(!el || el.dataset.pageResetBound === '1') return;
+    el.dataset.pageResetBound = '1';
+    el.addEventListener('input', () => {
+      try { resetFn(); } catch(e) {}
+    });
+  }
+
+  setTimeout(() => {
+    bindSearchToFirstPage('clientSearch', () => { window.clientsPage = 1; setTimeout(()=>{ try{ applyClients(); }catch(e){} }, 0); });
+    bindSearchToFirstPage('quoteSearchFree', () => {
+      window.pendingQuotesPage = 1;
+      window.acceptedQuotesPage = 1;
+      window.rejectedQuotesPage = 1;
+      setTimeout(()=>{ try{ applyPendingQuotes(); }catch(e){} try{ applyAcceptedQuotes(); }catch(e){} try{ applyRejectedQuotes(); }catch(e){} }, 0);
+    });
+    bindSearchToFirstPage('otSearchFree', () => {
+      window.otsActivePage = 1;
+      window.otsClosedPage = 1;
+      setTimeout(()=>{ try{ applyOTsActive(); }catch(e){} try{ applyOTsClosed(); }catch(e){} }, 0);
+    });
+    bindSearchToFirstPage('abonosSearch', () => {
+      window.abonosPage = 1;
+      window.abonosClosedPage = 1;
+      setTimeout(()=>{ try{ applyAbonos(); }catch(e){} try{ applyAbonosClosed(); }catch(e){} }, 0);
+    });
+  }, 0);
 
   const _renderAbonos = window.renderAbonos;
   window.renderAbonos = function(){
@@ -21571,5 +21557,797 @@ function toggleSidebarTools(forceOpen = null){
 }
 </script>
 
+
+<script id="server-side-list-paging">
+(function(){
+  if (window.__ecoluzServerPagingInit) return;
+  window.__ecoluzServerPagingInit = true;
+
+  const PAGE_SIZE = 20;
+  const remoteState = {
+    clients: { page: 1, total: 0, items: [], search: '', loading: false, loaded: false, requestId: 0 },
+    quotes: {
+      pending: { page: 1, total: 0, items: [], loading: false, loaded: false, requestId: 0 },
+      accepted: { page: 1, total: 0, items: [], loading: false, loaded: false, requestId: 0 },
+      rejected: { page: 1, total: 0, items: [], loading: false, loaded: false, requestId: 0 },
+      search: ''
+    },
+    ots: {
+      active: { page: 1, total: 0, items: [], loading: false, loaded: false, requestId: 0 },
+      closed: { page: 1, total: 0, items: [], loading: false, loaded: false, requestId: 0 },
+      search: '',
+      filter: 'all'
+    }
+  };
+  window.remoteListState = remoteState;
+
+  const CLIENT_SELECTS = [
+    'id, rut, tipo, telefono, telefono2, email, contacto, ciudad, giro, documento_habitual, condicion_pago, observaciones, sucursales, is_mandante, name, created_by, created_by_email, created_by_name, created_at, data, direccion',
+    'id, rut, tipo, telefono, telefono2, email, contacto, ciudad, giro, documento_habitual, condicion_pago, observaciones, sucursales, name, created_by, created_by_email, created_by_name, created_at, data, direccion',
+    'id, rut, tipo, telefono, email, contacto, ciudad, name, created_by, created_by_email, created_by_name, created_at, data',
+    'id, rut, name, created_at, data'
+  ];
+  const QUOTE_SELECTS = [
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, neto, iva, bruto, descuento_pct, descuento_monto, data',
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, data',
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, created_by_name, created_by_email, created_by, created_at, data'
+  ];
+  const OT_SELECTS = [window.OT_LIGHT_SELECT || 'id, client_id, quote_id, numero_ot, descripcion, sucursal, direccion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data',
+                      window.OT_LIGHT_SELECT_MIN || 'id, client_id, quote_id, numero_ot, descripcion, estado, pago_estado, fecha, monto, created_by_name, created_by_email, created_by, created_at, data'];
+
+  const missingCacheRegex = /Could not find the '([^']+)' column of '([^']+)'/i;
+  const missingRegexByTable = (table) => new RegExp('column\\s+' + table + '\\.([a-zA-Z0-9_]+)\\s+does not exist', 'i');
+
+  function sanitizeSearchTerm(v){
+    return String(v || '').trim().replace(/[,*()]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function getMatchingClientIds(term){
+    const q = normalizeText(term || '');
+    if(!q) return [];
+    return (window.clients || clients || [])
+      .filter(c => [c.name, c.rut, c.contacto, c.email, c.telefono, c.telefono2, c.ciudad].map(normalizeText).join(' ').includes(q))
+      .map(c => String(c.id || '').trim())
+      .filter(Boolean)
+      .slice(0, 40);
+  }
+
+  function mergeById(arr, incoming){
+    const base = Array.isArray(arr) ? arr.slice() : [];
+    const map = new Map(base.map(item => [String(item && item.id || ''), item]));
+    (incoming || []).forEach(item => {
+      const key = String(item && item.id || '');
+      if(!key) return;
+      map.set(key, Object.assign({}, map.get(key) || {}, item));
+    });
+    return Array.from(map.values());
+  }
+
+  function mapClientRow(r){
+    return {
+      id: r.id,
+      rut: (typeof formatRutForDisplay === 'function' ? formatRutForDisplay(r.rut || '') : (r.rut || '')),
+      tipo: r.tipo || '',
+      direccion: r.direccion || r.doreccion || (r.data && (r.data.direccion || r.data.doreccion)) || '',
+      telefono: r.telefono || (r.data && r.data.telefono) || '',
+      telefono2: r.telefono2 || (r.data && r.data.telefono2) || '',
+      email: r.email || (r.data && r.data.email) || '',
+      contacto: r.contacto || (r.data && r.data.contacto) || '',
+      ciudad: r.ciudad || (r.data && r.data.ciudad) || '',
+      giro: r.giro || (r.data && r.data.giro) || '',
+      documento_habitual: r.documento_habitual || (r.data && r.data.documento_habitual) || '',
+      condicion_pago: r.condicion_pago || (r.data && r.data.condicion_pago) || '',
+      observaciones: r.observaciones || (r.data && r.data.observaciones) || '',
+      sucursales: r.sucursales || (r.data && r.data.sucursales) || '',
+      isMandante: !!(r.is_mandante || (r.data && (r.data.is_mandante || r.data.mandante || r.data.es_mandante))),
+      data: r.data || {},
+      name: r.name || 'Sin Nombre',
+      created_by: r.created_by || null,
+      createdByEmail: r.created_by_email || '',
+      createdByName: r.created_by_name || '',
+      created_at: r.created_at || null
+    };
+  }
+
+  function mapQuoteRow(r){
+    const c = (window.clientsById && window.clientsById.get(String(r.client_id))) || (window.clients || clients || []).find(x => String(x.id || '') === String(r.client_id || ''));
+    const clientName = safeText(r.clientName) || safeText(r.razonSocial) || safeText(r.data && r.data.clientName) || safeText(c && c.name) || 'Cliente no encontrado';
+    const clientRut = (c && c.rut) || r.client_rut || '';
+    return {
+      id: r.id,
+      clientId: r.client_id,
+      clientName,
+      razonSocial: clientName,
+      rut: clientRut,
+      clientRut,
+      numeroCotizacion: r.numero || r.cotizacion || 'S/N',
+      monto: Number(r.monto || r.total || r.neto || 0),
+      descripcion: r.descripcion || (r.data && r.data.descripcion) || '',
+      obra: r.obra || r.descripcion || (r.data && (r.data.obra || r.data.descripcion)) || 'Sin descripción',
+      items: Array.isArray(r.items) ? r.items : [],
+      sucursal: r.sucursal || r.branch || (r.data && (r.data.sucursal || r.data.sucursal_direccion || r.data.direccion_sucursal)) || '',
+      direccion: r.direccion || r.address || (r.data && (r.data.direccion || r.data.address)) || '',
+      fecha: r.fecha || (r.data && (r.data.fecha || r.data.fechaDocumento || r.data.fechaCotizacion)) || (r.created_at ? String(r.created_at).slice(0, 10) : todayISO()),
+      estado: String(r.estado || 'pendiente').toLowerCase(),
+      tipo_servicio: r.tipo_servicio || (r.data && r.data.tipo_servicio) || '',
+      enviado_por_correo: !!r.enviado_por_correo,
+      enviado_por_wsp: !!r.enviado_por_wsp,
+      fecha_envio: r.fecha_envio || null,
+      ejecutor_envio: r.ejecutor_envio || '',
+      creadoPor: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      createdByEmail: r.created_by_email || '',
+      createdBy: r.created_by_email || '',
+      created_by: r.created_by || null,
+      created_at: r.created_at || null,
+      data: r.data || {}
+    };
+  }
+
+  async function pagedSelectWithAutoDrop(table, selectCandidates, options = {}){
+    const attempts = Array.isArray(selectCandidates) ? selectCandidates.filter(Boolean) : [selectCandidates].filter(Boolean);
+    const orderColumn = options.orderColumn || null;
+    const ascending = !!options.ascending;
+    const from = Number(options.from || 0);
+    const to = Number(options.to || (PAGE_SIZE - 1));
+    const configure = typeof options.configure === 'function' ? options.configure : null;
+    let lastError = null;
+
+    for (const baseSelect of attempts) {
+      let current = String(baseSelect || '').trim();
+      const removed = new Set();
+      for (let i = 0; i < 40 && current; i += 1) {
+        let query = supabaseClient.from(table).select(current, { count: 'exact' });
+        if (configure) query = configure(query) || query;
+        if (orderColumn) query = query.order(orderColumn, { ascending });
+        query = query.range(from, to);
+        const res = await query;
+        if (!res.error) return { data: res.data || [], count: res.count || 0, usedSelect: current };
+
+        lastError = res.error;
+        const msg = String(res.error.message || '');
+        let missing = null;
+        const m1 = msg.match(missingRegexByTable(table));
+        if (m1) missing = m1[1];
+        const m2 = msg.match(missingCacheRegex);
+        if (!missing && m2 && String(m2[2] || '').toLowerCase() === String(table).toLowerCase()) missing = m2[1];
+        if (!missing || removed.has(missing)) break;
+        const next = (typeof removeColumnFromSelect === 'function') ? removeColumnFromSelect(current, missing) : current;
+        if (!next || next === current) break;
+        removed.add(missing);
+        current = next;
+      }
+    }
+    throw lastError || new Error('No se pudo cargar ' + table);
+  }
+
+  function renderServerPager(containerId, state, onGo){
+    const box = document.getElementById(containerId);
+    if(!box) return;
+    const totalPages = Math.max(1, Math.ceil(Number(state.total || 0) / PAGE_SIZE));
+    const page = Math.min(Math.max(1, Number(state.page || 1)), totalPages);
+    const from = state.total ? ((page - 1) * PAGE_SIZE + 1) : 0;
+    const to = state.total ? Math.min(page * PAGE_SIZE, state.total) : 0;
+    let pages = [];
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, start + 4);
+    for(let i = start; i <= end; i += 1) pages.push(i);
+    box.innerHTML = `
+      <div class="w-full flex justify-end">
+        <div class="flex flex-col items-end gap-2 text-right">
+          <div class="flex flex-wrap gap-2 justify-end">
+            <button type="button" class="px-3 py-2 rounded-xl text-sm font-extrabold border ${page <= 1 ? 'opacity-50 pointer-events-none bg-white text-slate-400 border-slate-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}" data-remote-nav="prev">‹</button>
+            ${pages.map(p => `<button type="button" class="px-3 py-2 rounded-xl text-sm font-extrabold border ${p === page ? 'bg-brand text-white border-brand' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}" data-remote-page="${p}">${p}</button>`).join('')}
+            <button type="button" class="px-3 py-2 rounded-xl text-sm font-extrabold border ${page >= totalPages ? 'opacity-50 pointer-events-none bg-white text-slate-400 border-slate-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}" data-remote-nav="next">›</button>
+          </div>
+          <div class="text-sm text-slate-600">Mostrando <b>${from}</b>–<b>${to}</b> de <b>${state.total || 0}</b></div>
+        </div>
+      </div>`;
+    box.querySelectorAll('[data-remote-page]').forEach(btn => btn.addEventListener('click', () => onGo(Number(btn.getAttribute('data-remote-page')) || 1)));
+    const prev = box.querySelector('[data-remote-nav="prev"]');
+    const next = box.querySelector('[data-remote-nav="next"]');
+    if(prev) prev.addEventListener('click', () => onGo(page - 1));
+    if(next) next.addEventListener('click', () => onGo(page + 1));
+  }
+
+  function schedule(fnName, wait, fn){
+    const key = '__timer_' + fnName;
+    clearTimeout(window[key]);
+    window[key] = setTimeout(fn, wait);
+  }
+
+  function fillTableLoading(tbodyId, colspan, msg){
+    const tbody = document.getElementById(tbodyId);
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-6 text-center text-slate-500">${msg}</td></tr>`;
+  }
+
+  async function fetchClientsServerPage(page){
+    const state = remoteState.clients;
+    const requestId = ++state.requestId;
+    const rawSearch = String(document.getElementById('clientSearch')?.value || '').trim();
+    state.loading = true;
+    state.search = rawSearch;
+    fillTableLoading('clientsTable', 4, 'Cargando clientes...');
+    try {
+      const term = sanitizeSearchTerm(rawSearch);
+      const result = await pagedSelectWithAutoDrop('clients', CLIENT_SELECTS, {
+        orderColumn: 'name',
+        ascending: true,
+        from: (page - 1) * PAGE_SIZE,
+        to: (page * PAGE_SIZE) - 1,
+        configure(query){
+          if(!term) return query;
+          const ids = getMatchingClientIds(term);
+          const ors = [`name.ilike.*${term}*`, `rut.ilike.*${term}*`];
+          if(ids.length) ors.push(`id.in.(${ids.join(',')})`);
+          return query.or(ors.join(','));
+        }
+      });
+      if(requestId !== state.requestId) return;
+      state.page = page;
+      state.items = (result.data || []).map(mapClientRow);
+      state.total = Number(result.count || 0);
+      state.loading = false;
+      state.loaded = true;
+      window.clients = mergeById(window.clients || clients || [], state.items).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
+      clients = window.clients;
+      window.clientsById = new Map((window.clients || []).map(c => [String(c.id), c]));
+      renderClientsServer();
+    } catch(err){
+      console.error('Error paginando clientes:', err);
+      state.loading = false;
+      state.loaded = false;
+      if(typeof window.__renderClientsLocal === 'function') return window.__renderClientsLocal();
+    }
+  }
+
+  function renderClientsServer(){
+    const state = remoteState.clients;
+    const tbody = document.getElementById('clientsTable');
+    if(!tbody) return;
+    if(state.loading && !state.loaded){
+      fillTableLoading('clientsTable', 4, 'Cargando clientes...');
+      return;
+    }
+    const rows = state.items || [];
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500">${state.search ? 'Sin resultados' : 'Sin clientes'}</td></tr>`;
+      renderServerPager('clientsPager', state, fetchClientsServerPage);
+      return;
+    }
+    tbody.innerHTML = '';
+    rows.forEach(client => {
+      const tr = document.createElement('tr');
+      tr.className = 'ot-main-row border-t hover:bg-gray-50';
+      tr.innerHTML = `
+        <td class="p-4">${escapeHtml(client.rut || '')}</td>
+        <td class="p-4 font-medium">${escapeHtml(client.name || '—')}</td>
+        <td class="p-4">${escapeHtml(formatClientTipo(client.tipo))}${isMandanteClient(client) ? ' <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Mandante</span>' : ''}</td>
+        <td class="p-4 text-center space-x-3">
+          <button onclick="showClientDatos('${client.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-xl text-sm font-semibold">Datos</button>
+          <button onclick="viewClient('${client.id}')" class="text-brand hover:underline font-medium">Historial</button>
+        </td>`;
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        showClientDatos(client.id);
+      });
+      tbody.appendChild(tr);
+    });
+    renderServerPager('clientsPager', state, fetchClientsServerPage);
+  }
+
+  function applyQuoteBucketFilters(query, bucket){
+    if(bucket === 'accepted') return query.in('estado', ['aceptada','aceptado','aprobada']);
+    if(bucket === 'rejected') return query.in('estado', ['rechazada','rechazado','cancelada','cancelado','anulada','anulado']);
+    return query.or('estado.is.null,estado.eq.pendiente,estado.eq.enviada,estado.eq.borrador');
+  }
+
+  async function fetchQuotesServerPage(bucket, page){
+    const state = remoteState.quotes[bucket];
+    if(!state) return;
+    const requestId = ++state.requestId;
+    const rawSearch = String(document.getElementById('quoteSearchFree')?.value || window.quoteSearchFree || '').trim();
+    remoteState.quotes.search = rawSearch;
+    state.loading = true;
+    const bodyId = bucket === 'pending' ? 'pendingQuotesTable' : (bucket === 'accepted' ? 'acceptedQuotesTable' : 'rejectedQuotesTable');
+    fillTableLoading(bodyId, 7, 'Cargando cotizaciones...');
+    try {
+      const term = sanitizeSearchTerm(rawSearch);
+      const result = await pagedSelectWithAutoDrop('quotes', QUOTE_SELECTS, {
+        orderColumn: 'created_at',
+        ascending: false,
+        from: (page - 1) * PAGE_SIZE,
+        to: (page * PAGE_SIZE) - 1,
+        configure(query){
+          query = applyQuoteBucketFilters(query, bucket);
+          if(!term) return query;
+          const ids = getMatchingClientIds(term);
+          const ors = [`numero.ilike.*${term}*`, `obra.ilike.*${term}*`, `descripcion.ilike.*${term}*`, `tipo_servicio.ilike.*${term}*`];
+          if(ids.length) ors.push(`client_id.in.(${ids.join(',')})`);
+          return query.or(ors.join(','));
+        }
+      });
+      if(requestId !== state.requestId) return;
+      state.page = page;
+      state.items = (result.data || []).map(mapQuoteRow);
+      state.total = Number(result.count || 0);
+      state.loading = false;
+      state.loaded = true;
+      window.quotes = mergeById(window.quotes || quotes || [], state.items).sort((a,b)=>{
+        const na = parseInt(String(a.numeroCotizacion || a.numero || '').replace(/\D/g,''),10) || 0;
+        const nb = parseInt(String(b.numeroCotizacion || b.numero || '').replace(/\D/g,''),10) || 0;
+        return nb - na;
+      });
+      quotes = window.quotes;
+      renderQuotesServer();
+    } catch(err){
+      console.error('Error paginando cotizaciones:', bucket, err);
+      state.loading = false;
+      state.loaded = false;
+      if(typeof window.__renderQuotesLocal === 'function') return window.__renderQuotesLocal();
+    }
+  }
+
+  function renderQuotesBucket(rows, tbody, emptyMsg){
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td class="p-6 text-center text-gray-500" colspan="7">${emptyMsg}</td></tr>`;
+      return;
+    }
+    rows.forEach(q => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b hover:bg-gray-50';
+      const stRaw = String(q?.estado || q?.status || q?.data?.estado || q?.quoteStatus || 'pendiente').trim().toLowerCase();
+      const st = ['aprobada','aceptado'].includes(stRaw) ? 'aceptada' : (['rechazado','anulada','cancelada'].includes(stRaw) ? 'rechazada' : (stRaw || 'pendiente'));
+      let actions = '';
+      if (st === 'aceptada') {
+        const hasOT = typeof quoteHasLinkedOT === 'function' ? quoteHasLinkedOT(q) : false;
+        actions = `
+          <div class="flex items-center justify-center gap-3 flex-wrap">
+            ${hasOT ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>` : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
+            <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>
+          </div>`;
+      } else if (st === 'rechazada') {
+        actions = `<div class="flex items-center justify-center gap-5"><button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button></div>`;
+      } else {
+        actions = `
+          <div class="flex items-center justify-center gap-5">
+            <button onclick="acceptQuote('${q.id}')" class="text-green-600 hover:text-green-800" title="Aceptar"><i class="fas fa-check text-2xl"></i></button>
+            <button onclick="rejectQuote('${q.id}')" class="text-red-600 hover:text-red-800" title="Rechazar"><i class="fas fa-times text-2xl"></i></button>
+            <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fas fa-ellipsis-v text-2xl"></i></button>
+          </div>`;
+      }
+      const monto = Number(q.monto || q.total || q.data?.total || q.data?.monto || 0);
+      const clientLabel = safeText(q.clientName) || safeText(q.nombreCliente) || safeText(q.razonSocial) || safeText(q.data?.clientName) || '—';
+      const quoteReference = (typeof getQuoteListReference === 'function') ? getQuoteListReference(q) : '';
+      tr.innerHTML = `
+        <td class="p-4">${escapeHtml(q.numeroCotizacion || q.numero || q.folio || q.id || '')}</td>
+        <td class="p-4"><div class="font-semibold text-slate-900">${escapeHtml(clientLabel)}</div>${quoteReference ? `<div class="mt-1 text-sm text-slate-500 leading-snug">${escapeHtml(quoteReference)}</div>` : ''}</td>
+        <td class="p-4 font-bold text-blue-700 text-center">$${monto.toLocaleString('es-CL')}</td>
+        <td class="p-4 text-sm text-gray-600 text-center">${escapeHtml(formatShortName(q.createdByName || q.createdByEmail || q.createdBy || q.created_by_name || '—'))}</td>
+        <td class="p-4 text-sm text-center">${escapeHtml(formatDDMMYY(getPreferredQuoteDate(q)))}</td>
+        <td class="p-4 align-middle">${typeof renderQuoteSendCell === 'function' ? renderQuoteSendCell(q) : '—'}</td>
+        <td class="p-4 text-center">${actions}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderQuotesServer(){
+    renderQuotesBucket(remoteState.quotes.pending.items, document.getElementById('pendingQuotesTable'), remoteState.quotes.search ? 'Sin resultados' : 'Sin cotizaciones pendientes');
+    renderQuotesBucket(remoteState.quotes.accepted.items, document.getElementById('acceptedQuotesTable'), remoteState.quotes.search ? 'Sin resultados' : 'Sin cotizaciones aceptadas');
+    renderQuotesBucket(remoteState.quotes.rejected.items, document.getElementById('rejectedQuotesTable'), remoteState.quotes.search ? 'Sin resultados' : 'Sin cotizaciones rechazadas');
+    renderServerPager('pendingQuotesPager', remoteState.quotes.pending, (p) => fetchQuotesServerPage('pending', p));
+    renderServerPager('acceptedQuotesPager', remoteState.quotes.accepted, (p) => fetchQuotesServerPage('accepted', p));
+    renderServerPager('rejectedQuotesPager', remoteState.quotes.rejected, (p) => fetchQuotesServerPage('rejected', p));
+  }
+
+  function applyOTBucketFilters(query, bucket){
+    const filter = String(remoteState.ots.filter || 'all');
+    const realized = ['realizada','realizado','finalizada','finalizado'];
+    if(bucket === 'closed'){
+      query = query.in('estado', realized);
+      query = query.or('pago_estado.eq.pagado,pago_estado.eq.pagada,cobro_estado.eq.pagado,cobro_estado.eq.pagada');
+    } else {
+      if(filter === 'all'){
+        query = query.not('estado', 'in', '(cancelada,cancelado)');
+        query = query.or('estado.eq.pendiente,estado.eq.en_curso,estado.eq.encurso,estado.eq.realizada,estado.eq.realizado,estado.eq.finalizada,estado.eq.finalizado,estado.is.null');
+      } else if(filter === 'cancelada'){
+        query = query.in('estado', ['cancelada','cancelado']);
+      } else if(filter === 'pendiente'){
+        query = query.eq('estado', 'pendiente');
+      } else if(filter === 'en_curso'){
+        query = query.in('estado', ['en_curso','encurso']);
+      } else if(filter === 'realizada'){
+        query = query.in('estado', realized);
+      }
+      if(filter !== 'cancelada') {
+        query = query.not('pago_estado', 'in', '(pagado,pagada)');
+      }
+    }
+    return query;
+  }
+
+  async function fetchOTsServerPage(bucket, page){
+    const state = remoteState.ots[bucket];
+    if(!state) return;
+    const requestId = ++state.requestId;
+    const rawSearch = String(document.getElementById('otSearchFree')?.value || window.otSearchFree || '').trim();
+    remoteState.ots.search = rawSearch;
+    state.loading = true;
+    const bodyId = bucket === 'active' ? 'otsActiveTable' : 'otsClosedTable';
+    fillTableLoading(bodyId, 7, 'Cargando OTs...');
+    try {
+      const term = sanitizeSearchTerm(rawSearch);
+      const result = await pagedSelectWithAutoDrop('ots', OT_SELECTS, {
+        orderColumn: 'created_at',
+        ascending: false,
+        from: (page - 1) * PAGE_SIZE,
+        to: (page * PAGE_SIZE) - 1,
+        configure(query){
+          query = applyOTBucketFilters(query, bucket);
+          if(!term) return query;
+          const ids = getMatchingClientIds(term);
+          const ors = [`numero_ot.ilike.*${term}*`, `descripcion.ilike.*${term}*`, `oc.ilike.*${term}*`, `hes.ilike.*${term}*`, `guia_despacho.ilike.*${term}*`, `factura_num.ilike.*${term}*`];
+          if(ids.length) ors.push(`client_id.in.(${ids.join(',')})`);
+          return query.or(ors.join(','));
+        }
+      });
+      if(requestId !== state.requestId) return;
+      state.page = page;
+      state.items = (typeof hydrateOTRows === 'function') ? hydrateOTRows(result.data || []) : (result.data || []);
+      state.total = Number(result.count || 0);
+      state.loading = false;
+      state.loaded = true;
+      window.ots = mergeById(window.ots || ots || [], state.items);
+      ots = window.ots;
+      renderOTsServer();
+    } catch(err){
+      console.error('Error paginando OTs:', bucket, err);
+      state.loading = false;
+      state.loaded = false;
+      if(typeof window.__renderOTsLocal === 'function') return window.__renderOTsLocal();
+    }
+  }
+
+  function renderOTRowsInto(rows, tbody, emptyMsg){
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    if(!rows.length){
+      tbody.innerHTML = `<tr class="border-t"><td colspan="6" class="p-8 text-center text-slate-500">${emptyMsg}</td></tr>`;
+      return;
+    }
+    rows.forEach(o => {
+      try {
+        const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
+        const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
+        const groupId = `ot-${String(o.id || '')}`;
+        const tr = document.createElement('tr');
+        tr.className = 'ot-main-row border-t hover:bg-gray-50';
+        tr.setAttribute('data-page-group', groupId);
+        tr.setAttribute('data-ot-id', String(o.id || ''));
+        tr.innerHTML = `
+          <td class="p-3 text-sm">${formatDDMMYY(getPreferredOTDate(o))}</td>
+          <td class="p-3 text-sm font-bold">${o.numero_ot || o.numeroOT || '-'}</td>
+          <td class="p-3 text-sm">${typeof otClientCellHTML === 'function' ? otClientCellHTML(o) : escapeHtml(String(o.clientName || '—'))}</td>
+          <td class="p-3 text-sm">${typeof getOTReferenceStackHTML === 'function' ? getOTReferenceStackHTML(o) : escapeHtml(String(o.oc || o.hes || '—'))}</td>
+          <td class="p-3 text-sm text-center"><div class="ot-state-stack">${badgeOTTrabajoEstado(o)}${typeof getOTCobroMiniHTML === 'function' ? getOTCobroMiniHTML(o) : ''}</div></td>
+          <td class="p-3 text-sm text-center"><div class="ot-doc-cell">${typeof getOTCompactDocumentHTML === 'function' ? getOTCompactDocumentHTML(o) : escapeHtml(String(getFacturaNumeroOT(o) || 'Sin documento'))}</div></td>
+          <td class="p-3 text-center"><div class="ot-actions-bar">${btnView}${btnMore}</div></td>`;
+        tbody.appendChild(tr);
+        const descHtml = typeof otWideDescriptionRowHTML === 'function' ? otWideDescriptionRowHTML(o) : '';
+        if(descHtml){
+          const tmp = document.createElement('tbody');
+          tmp.innerHTML = descHtml.trim();
+          const row = tmp.firstElementChild;
+          if(row){
+            row.setAttribute('data-page-group', groupId);
+            tbody.appendChild(row);
+          }
+        }
+      } catch(err){
+        console.error('Error renderizando OT paginada:', err, o);
+      }
+    });
+  }
+
+  function renderOTsServer(){
+    renderOTRowsInto(remoteState.ots.active.items, document.getElementById('otsActiveTable'), remoteState.ots.search ? 'Sin resultados' : 'Sin OTs activas');
+    renderOTRowsInto(remoteState.ots.closed.items, document.getElementById('otsClosedTable'), remoteState.ots.search ? 'Sin resultados' : 'Sin OTs cerradas');
+    renderServerPager('otsActivePager', remoteState.ots.active, (p) => fetchOTsServerPage('active', p));
+    renderServerPager('otsClosedPager', remoteState.ots.closed, (p) => fetchOTsServerPage('closed', p));
+    try{ if(typeof applyOTStatusFilterButtons==='function') applyOTStatusFilterButtons(); }catch(e){}
+  }
+
+  window.__renderClientsLocal = window.renderClients;
+  window.__renderQuotesLocal = window.renderQuotes;
+  window.__renderOTsLocal = window.renderOTs;
+
+  window.renderClients = function(){
+    const currentSearch = String(document.getElementById('clientSearch')?.value || '').trim();
+    const shouldReset = currentSearch !== remoteState.clients.search;
+    schedule('clientsRemoteRender', shouldReset ? 250 : 40, () => fetchClientsServerPage(shouldReset ? 1 : (remoteState.clients.page || 1)));
+    if(remoteState.clients.loaded) renderClientsServer();
+    else fillTableLoading('clientsTable', 4, 'Cargando clientes...');
+  };
+  renderClients = window.renderClients;
+
+  window.renderQuotes = function(){
+    const currentSearch = String(document.getElementById('quoteSearchFree')?.value || window.quoteSearchFree || '').trim();
+    const shouldReset = currentSearch !== remoteState.quotes.search;
+    schedule('quotesRemoteRender', shouldReset ? 300 : 60, () => {
+      fetchQuotesServerPage('pending', shouldReset ? 1 : (remoteState.quotes.pending.page || 1));
+      fetchQuotesServerPage('accepted', shouldReset ? 1 : (remoteState.quotes.accepted.page || 1));
+      fetchQuotesServerPage('rejected', shouldReset ? 1 : (remoteState.quotes.rejected.page || 1));
+    });
+    if(remoteState.quotes.pending.loaded || remoteState.quotes.accepted.loaded || remoteState.quotes.rejected.loaded) renderQuotesServer();
+    else {
+      fillTableLoading('pendingQuotesTable', 7, 'Cargando cotizaciones...');
+      fillTableLoading('acceptedQuotesTable', 7, 'Cargando cotizaciones...');
+      fillTableLoading('rejectedQuotesTable', 7, 'Cargando cotizaciones...');
+    }
+  };
+  renderQuotes = window.renderQuotes;
+
+  window.renderOTs = function(){
+    const currentSearch = String(document.getElementById('otSearchFree')?.value || window.otSearchFree || '').trim();
+    const currentFilter = String(window.otStatusFilter || 'all');
+    const shouldReset = currentSearch !== remoteState.ots.search || currentFilter !== remoteState.ots.filter;
+    remoteState.ots.filter = currentFilter;
+    schedule('otsRemoteRender', shouldReset ? 300 : 60, () => {
+      fetchOTsServerPage('active', shouldReset ? 1 : (remoteState.ots.active.page || 1));
+      fetchOTsServerPage('closed', shouldReset ? 1 : (remoteState.ots.closed.page || 1));
+    });
+    if(remoteState.ots.active.loaded || remoteState.ots.closed.loaded) renderOTsServer();
+    else {
+      fillTableLoading('otsActiveTable', 7, 'Cargando OTs...');
+      fillTableLoading('otsClosedTable', 7, 'Cargando OTs...');
+    }
+  };
+  renderOTs = window.renderOTs;
+
+  window.applyClients = function(){};
+  window.applyPendingQuotes = function(){};
+  window.applyAcceptedQuotes = function(){};
+  window.applyRejectedQuotes = function(){};
+  window.applyOTsActive = function(){};
+  window.applyOTsClosed = function(){};
+
+  const originalSetQuoteSearch = window.setQuoteSearch;
+  window.setQuoteSearch = function(){
+    window.quoteSearchFree = ((document.getElementById('quoteSearchFree') || {}).value || '').toString();
+    try{ updateQuoteSearchClearButton(); }catch(e){}
+    remoteState.quotes.pending.page = 1;
+    remoteState.quotes.accepted.page = 1;
+    remoteState.quotes.rejected.page = 1;
+    return window.renderQuotes();
+  };
+  setQuoteSearch = window.setQuoteSearch;
+  window.clearQuoteSearch = function(){
+    const f = document.getElementById('quoteSearchFree');
+    if(f) f.value = '';
+    window.quoteSearchFree = '';
+    try{ updateQuoteSearchClearButton(); }catch(e){}
+    remoteState.quotes.search = '';
+    remoteState.quotes.pending.page = 1;
+    remoteState.quotes.accepted.page = 1;
+    remoteState.quotes.rejected.page = 1;
+    return window.renderQuotes();
+  };
+  clearQuoteSearch = window.clearQuoteSearch;
+
+  window.setOTSearch = function(){
+    window.otSearchFree = ((document.getElementById('otSearchFree') || {}).value || '').toString();
+    try{ updateOTSearchClearButton(); }catch(e){}
+    remoteState.ots.active.page = 1;
+    remoteState.ots.closed.page = 1;
+    return window.renderOTs();
+  };
+  setOTSearch = window.setOTSearch;
+  window.clearOTSearch = function(){
+    const f = document.getElementById('otSearchFree');
+    if(f) f.value = '';
+    window.otSearchFree = '';
+    try{ updateOTSearchClearButton(); }catch(e){}
+    remoteState.ots.search = '';
+    remoteState.ots.active.page = 1;
+    remoteState.ots.closed.page = 1;
+    return window.renderOTs();
+  };
+  clearOTSearch = window.clearOTSearch;
+
+  const originalSetOTStatusFilter = window.setOTStatusFilter;
+  window.setOTStatusFilter = function(value){
+    window.otStatusFilter = String(value || 'all');
+    try{ if(typeof applyOTStatusFilterButtons === 'function') applyOTStatusFilterButtons(); }catch(e){}
+    remoteState.ots.filter = window.otStatusFilter;
+    remoteState.ots.active.page = 1;
+    remoteState.ots.closed.page = 1;
+    return window.renderOTs();
+  };
+  setOTStatusFilter = window.setOTStatusFilter;
+
+  window.refreshQuotesCollectionFromServer = async function(){
+    await Promise.all([
+      fetchQuotesServerPage('pending', remoteState.quotes.pending.page || 1),
+      fetchQuotesServerPage('accepted', remoteState.quotes.accepted.page || 1),
+      fetchQuotesServerPage('rejected', remoteState.quotes.rejected.page || 1)
+    ]);
+  };
+  window.refreshOTsCollectionFromServer = async function(){
+    await Promise.all([
+      fetchOTsServerPage('active', remoteState.ots.active.page || 1),
+      fetchOTsServerPage('closed', remoteState.ots.closed.page || 1)
+    ]);
+  };
+
+  const originalShowView = window.showView;
+  if(typeof originalShowView === 'function'){
+    window.showView = function(view){
+      const out = originalShowView(view);
+      const normalized = String(window.currentMainView || view || '');
+      if(normalized === 'clients') setTimeout(() => window.renderClients(), 0);
+      if(normalized === 'quotes') setTimeout(() => window.renderQuotes(), 0);
+      if(normalized === 'ots') setTimeout(() => window.renderOTs(), 0);
+      return out;
+    };
+    showView = window.showView;
+  }
+})();
+
+(function(){
+  window.lazyModuleState = window.lazyModuleState || { reqsLoaded: false, visitasLoaded: false, reportsLoaded: false };
+  window.dashboardLightCounts = window.dashboardLightCounts || { visitasPend: 0, reqsPend: 0 };
+
+  async function fetchCountSafe(factory){
+    try {
+      const { count, error } = await factory();
+      if(error) throw error;
+      return Number(count || 0);
+    } catch(err){
+      console.warn('No se pudo obtener contador liviano:', err?.message || err);
+      return 0;
+    }
+  }
+
+  async function fetchLightDashboardCounts(){
+    const [visitasPend, reqsPend] = await Promise.all([
+      fetchCountSafe(() => supabaseClient.from('visitas').select('id', { count:'exact', head:true }).eq('estado', 'pendiente')),
+      fetchCountSafe(() => supabaseClient.from('requerimientos').select('id', { count:'exact', head:true }).or('estado.is.null,estado.eq.pendiente,estado.eq.en_curso,estado.eq.encurso'))
+    ]);
+    window.dashboardLightCounts = { visitasPend, reqsPend };
+    try { if(typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
+    return window.dashboardLightCounts;
+  }
+  window.fetchLightDashboardCounts = fetchLightDashboardCounts;
+
+  async function loadRequerimientosFull(force=false){
+    if(window.lazyModuleState?.reqsLoaded && !force) return (window.requerimientos || window.reqs || []);
+    const rData = (await safeSelectWithAutoDrop('requerimientos', 'id, client_id, client_name, client_rut, nombre, rut, fecha, detalle, descripcion, estado, created_by_name, created_by_email, created_at, data', {
+      orderColumn: 'created_at',
+      ascending: false
+    })).data || [];
+    requerimientos = (rData || []).map(r => {
+      const c = clientsById.get(String(r.client_id));
+      const nombre = r.nombre || r.client_name || c?.name || 'Cliente no encontrado';
+      const rut = r.rut || r.client_rut || c?.rut || '';
+      return {
+        id: r.id,
+        clientId: r.client_id || null,
+        fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+        detalle: r.detalle || r.descripcion || '',
+        estado: (r.estado || 'pendiente').toLowerCase(),
+        nombre,
+        rut,
+        createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+        data: r.data || {}
+      };
+    });
+    reqs = requerimientos;
+    window.requerimientos = requerimientos;
+    window.reqs = reqs;
+    window.lazyModuleState.reqsLoaded = true;
+    try { if(typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
+    return requerimientos;
+  }
+  window.loadRequerimientosFull = loadRequerimientosFull;
+
+  async function loadVisitasFull(force=false){
+    if(window.lazyModuleState?.visitasLoaded && !force) return (window.visitas || []);
+    const vData = (await safeSelectWithAutoDrop('visitas', 'id, client_id, fecha, descripcion, estado, nombre, name, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data', {
+      orderColumn: 'created_at',
+      ascending: false,
+      fallbacks: [
+        'id, client_id, fecha, descripcion, estado, nombre, rut, direccion, telefono, email, created_by_name, created_by_email, created_at, data',
+        'id, client_id, fecha, descripcion, estado, nombre, rut, created_by_name, created_by_email, created_at, data',
+        'id, client_id, fecha, descripcion, estado, created_by_name, created_by_email, created_at, data',
+        'id, fecha, descripcion, estado, created_at, data'
+      ]
+    })).data || [];
+    visitas = (vData || []).map(r => ({
+      id: r.id,
+      clientId: r.client_id || null,
+      fecha: r.fecha || (r.created_at ? String(r.created_at).slice(0,10) : todayISO()),
+      descripcion: r.descripcion || '',
+      estado: (r.estado || 'pendiente').toLowerCase(),
+      nombre: r.nombre || r.name || '',
+      rut: r.rut || '',
+      direccion: r.direccion || '',
+      telefono: r.telefono || '',
+      email: r.email || '',
+      createdByName: r.created_by_name || formatShortName(r.created_by_email || '') || '—',
+      data: r.data || {}
+    }));
+    window.visitas = visitas;
+    window.lazyModuleState.visitasLoaded = true;
+    try { if(typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
+    return visitas;
+  }
+  window.loadVisitasFull = loadVisitasFull;
+
+  async function loadReportsFull(force=false){
+    if(window.lazyModuleState?.reportsLoaded && !force) return (window.reports || []);
+    let remoteReportModels = [];
+    try {
+      const repData = (await safeSelectWithAutoDrop(REPORTS_TABLE, 'id, numero_informe, fecha, client_id, client_name, client_rut, ot_id, quote_id, numero_ot, numero_cotizacion, tipo_servicio, titulo, tecnico_responsable, direccion, resumen_ejecutivo, detalle_general, observaciones_generales, sugerencias_mejora, total_equipos, equipos_operativos, equipos_no_operativos, equipos_con_observacion, estado_general, created_by_name, created_by_email, created_at, updated_at', {
+        orderColumn: 'created_at',
+        ascending: false
+      })).data || [];
+      remoteReportModels = (repData || []).map(mapReportRowToModel);
+      window.reportStorageMode = 'supabase';
+    } catch (repLoadErr) {
+      console.warn('Informes no disponibles en Supabase, se conservarán informes locales:', repLoadErr?.message || repLoadErr);
+      remoteReportModels = [];
+      window.reportStorageMode = 'local';
+    }
+    reports = mergeLoadedReports(remoteReportModels, getLocalReportsRaw());
+    window.reports = reports;
+    window.lazyModuleState.reportsLoaded = true;
+    return reports;
+  }
+  window.loadReportsFull = loadReportsFull;
+
+  const origShowDashDetails = window.showDashDetails;
+  if(typeof origShowDashDetails === 'function'){
+    window.showDashDetails = async function(kind){
+      if(kind === 'visitas_pend' && !window.lazyModuleState?.visitasLoaded){
+        try { await loadVisitasFull(); } catch(e) { console.error(e); }
+      }
+      if(kind === 'reqs_pend' && !window.lazyModuleState?.reqsLoaded){
+        try { await loadRequerimientosFull(); } catch(e) { console.error(e); }
+      }
+      return origShowDashDetails(kind);
+    };
+    try { showDashDetails = window.showDashDetails; } catch(e) {}
+  }
+
+  const origShowViewLazy = window.showView;
+  if(typeof origShowViewLazy === 'function'){
+    window.showView = function(view){
+      const out = origShowViewLazy(view);
+      const normalized = String(window.currentMainView || view || '');
+      if(normalized === 'visitas'){
+        setTimeout(() => {
+          loadVisitasFull().then(() => { try { if(typeof renderVisitas === 'function') renderVisitas(); } catch(e) {} }).catch(err => console.error('No se pudo cargar visitas bajo demanda:', err));
+        }, 0);
+      }
+      if(normalized === 'reqs'){
+        setTimeout(() => {
+          loadRequerimientosFull().then(() => { try { if(typeof renderReqs === 'function') renderReqs(); } catch(e) {} }).catch(err => console.error('No se pudo cargar requerimientos bajo demanda:', err));
+        }, 0);
+      }
+      if(normalized === 'reports'){
+        setTimeout(() => {
+          loadReportsFull().then(() => { try { if(typeof renderReports === 'function') renderReports(); } catch(e) {} }).catch(err => console.error('No se pudo cargar informes bajo demanda:', err));
+        }, 0);
+      }
+      return out;
+    };
+    try { showView = window.showView; } catch(e) {}
+  }
+})();
+</script>
 </body>
 </html>
