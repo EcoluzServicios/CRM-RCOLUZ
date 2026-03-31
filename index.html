@@ -1036,7 +1036,7 @@ function toggleEditOTFacturaField(){
       <div class="flex items-center justify-between gap-3 mb-6">
         <div class="flex items-center gap-3 min-w-0">
           <button id="mobileSidebarToggle" type="button" onclick="toggleMobileSidebar()" aria-label="Abrir menú" aria-expanded="false"><i class="fas fa-bars"></i></button>
-          <button id="desktopSidebarToggle" type="button" onclick="toggleDesktopSidebarPin()" aria-label="Contraer menú" title="Contraer/expandir menú" class="hidden xl:inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"><i class="fas fa-angle-left"></i></button>
+          <button id="desktopSidebarToggle" type="button" onclick="toggleSidebarMenu()" aria-label="Contraer menú" title="Contraer/expandir menú" class="hidden lg:inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"><i class="fas fa-angle-left"></i></button>
           <div id="topbarTitle" class="text-3xl font-extrabold text-gray-900">Dashboard</div>
         </div>
         <div class="flex items-center gap-3"></div>
@@ -18235,12 +18235,26 @@ function applyDesktopSidebarState(){
   updateDesktopSidebarToggleUI();
 }
 
-function toggleDesktopSidebarPin(){
+function toggleDesktopSidebarPin(forceExpanded = null){
   const sidebar = document.getElementById('sidebar');
-  if(!sidebar || !isDesktopSidebarMode()) return;
-  const nextPinnedOpen = sidebar.classList.contains('collapsed');
-  setSidebarPinnedOpen(nextPinnedOpen);
-  applyDesktopSidebarState();
+  if(!sidebar) return;
+  if(!isDesktopSidebarMode()) return;
+  const shouldExpand = forceExpanded === null ? sidebar.classList.contains('collapsed') : !!forceExpanded;
+  setSidebarPinnedOpen(shouldExpand);
+  if(shouldExpand) sidebar.classList.remove('collapsed');
+  else sidebar.classList.add('collapsed');
+  updateDesktopSidebarToggleUI();
+}
+
+function toggleSidebarMenu(){
+  if(isMobileSidebarMode()){
+    const sidebar = document.getElementById('sidebar');
+    if(!sidebar) return;
+    if(sidebar.classList.contains('mobile-open')) closeMobileSidebar(true);
+    else openMobileSidebar();
+    return;
+  }
+  toggleDesktopSidebarPin();
 }
 
 function setupDesktopSidebarAutoHide(){
@@ -18256,11 +18270,11 @@ function setupDesktopSidebarAutoHide(){
     collapseTimer = setTimeout(() => {
       sidebar.classList.add('collapsed');
       updateDesktopSidebarToggleUI();
-    }, 180);
+    }, 220);
   }
 
   function expandNow(){
-    if(getSidebarPinnedOpen() || !isDesktopSidebarMode()) return;
+    if(!isDesktopSidebarMode()) return;
     if(collapseTimer) clearTimeout(collapseTimer);
     sidebar.classList.remove('collapsed');
     updateDesktopSidebarToggleUI();
@@ -18268,6 +18282,14 @@ function setupDesktopSidebarAutoHide(){
 
   sidebar.addEventListener('mouseenter', expandNow);
   sidebar.addEventListener('mouseleave', collapseSoon);
+  sidebar.addEventListener('click', (e) => {
+    if(!isDesktopSidebarMode() || getSidebarPinnedOpen()) return;
+    const clickedNav = e.target && e.target.closest && e.target.closest('button, a, input, select, textarea');
+    if(sidebar.classList.contains('collapsed') && !clickedNav){
+      sidebar.classList.remove('collapsed');
+      updateDesktopSidebarToggleUI();
+    }
+  });
   document.addEventListener('mousemove', (e) => {
     if(!isDesktopSidebarMode() || getSidebarPinnedOpen()) return;
     if(e.clientX <= 8){
