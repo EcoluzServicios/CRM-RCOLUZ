@@ -24172,8 +24172,17 @@ function toggleSidebarTools(forceOpen = null){
     const email = txt(document.getElementById('newCEmail')?.value || '');
     const direccion = txt(document.getElementById('newCDireccion')?.value || '');
     const payload = { name, rut, telefono, contacto, email, direccion, tipo: 'empresa', created_by: window.currentUser?.id || null, created_by_email: window.currentUser?.email || '', created_by_name: window.currentUserDisplayName || shortName(window.currentUser?.email || ''), data: { telefono, contacto, email, direccion, tipo: 'empresa' } };
-    const { data: row, error } = await sb.from('clients').insert([payload]).select().single();
-    if(error) throw error;
+    let row = null;
+    if(typeof safeInsertWithAutoDrop === 'function'){
+      const clientRes = await safeInsertWithAutoDrop('clients', payload);
+      if(clientRes?.error) throw clientRes.error;
+      row = clientRes?.data || null;
+    } else {
+      const inserted = await sb.from('clients').insert([payload]).select().single();
+      if(inserted.error) throw inserted.error;
+      row = inserted.data;
+    }
+    if(!row?.id) throw new Error('No se pudo crear el cliente.');
     return { id: row.id, name: txt(row.name), rut: txt(row.rut), direccion: txt(row.direccion || direccion) };
   }
 
@@ -24258,8 +24267,18 @@ function toggleSidebarTools(forceOpen = null){
       payload.created_by = window.currentUser?.id || null;
       payload.created_by_email = window.currentUser?.email || '';
       payload.created_by_name = window.currentUserDisplayName || shortName(window.currentUser?.email || '');
-      const { data: inserted, error } = await sb.from('quotes').insert([payload]).select('id').single();
-      if(error) throw error;
+
+      let inserted = null;
+      if(typeof safeInsertWithAutoDrop === 'function'){
+        const saveRes = await safeInsertWithAutoDrop('quotes', payload);
+        if(saveRes?.error) throw saveRes.error;
+        inserted = saveRes?.data || null;
+      } else {
+        const saveRes = await sb.from('quotes').insert([payload]).select().single();
+        if(saveRes.error) throw saveRes.error;
+        inserted = saveRes.data || null;
+      }
+
       if(window.pendingOTToLink && inserted?.id){
         try { await sb.from('ots').update({ quote_id: inserted.id }).eq('id', window.pendingOTToLink); } catch(e) { console.warn('No se pudo vincular OT', e); }
         window.pendingOTToLink = null;
@@ -24268,6 +24287,7 @@ function toggleSidebarTools(forceOpen = null){
       if(typeof window.loadData === 'function') await window.loadData();
       try { if(typeof window.renderQuotes === 'function') window.renderQuotes(); } catch(e) {}
       try { if(typeof window.renderOTs === 'function') window.renderOTs(); } catch(e) {}
+      try { if(typeof window.renderDashboard === 'function') window.renderDashboard(); } catch(e) {}
       notify('Cotización guardada ✅');
     } catch(err) {
       console.error('saveNewQuote.root', err);
@@ -24303,12 +24323,20 @@ function toggleSidebarTools(forceOpen = null){
       if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
       const existing = await fetchQuoteFull(quoteId);
       const { payload } = await collectQuotePayload(existing);
-      const { error } = await sb.from('quotes').update(payload).eq('id', quoteId);
-      if(error) throw error;
+
+      if(typeof safeUpdateWithAutoDrop === 'function'){
+        const updateRes = await safeUpdateWithAutoDrop('quotes', quoteId, payload);
+        if(updateRes?.error) throw updateRes.error;
+      } else {
+        const updateRes = await sb.from('quotes').update(payload).eq('id', quoteId).select().single();
+        if(updateRes.error) throw updateRes.error;
+      }
+
       closeSystemModal();
       if(typeof window.loadData === 'function') await window.loadData();
       try { if(typeof window.renderQuotes === 'function') window.renderQuotes(); } catch(e) {}
       try { if(typeof window.renderOTs === 'function') window.renderOTs(); } catch(e) {}
+      try { if(typeof window.renderDashboard === 'function') window.renderDashboard(); } catch(e) {}
       notify('Cotización actualizada ✅');
     } catch(err) {
       console.error('saveUpdatedQuote.root', err);
