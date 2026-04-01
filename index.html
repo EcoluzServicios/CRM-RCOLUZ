@@ -1957,7 +1957,7 @@ function toggleEditOTFacturaField(){
 const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bHVldmRkZnVscXBzemtkb3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NDkxODUsImV4cCI6MjA4NzEyNTE4NX0.1dD4TWlCY-KGJABFFPSy6MBJu__6J85xvEf1FXA84eU";
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -1969,9 +1969,9 @@ window.supabaseClient = supabaseClient;
     const ENABLE_IDLE_AUTO_LOGOUT = false;
     const SESSION_IDLE_LIMIT_MS = 8 * 60 * 60 * 1000;
     const SESSION_ACTIVITY_KEY = 'ecoluz_last_activity_ts_v1';
-    let currentUser = null;
+    var currentUser = null;
     window.currentUser = null;
-    let currentUserDisplayName = null;
+    var currentUserDisplayName = null;
     let inactivityTimer = null;
     let inactivityBound = false;
     let appBootstrapped = false;
@@ -2049,6 +2049,7 @@ window.supabaseClient = supabaseClient;
       currentUserDisplayName =
         (currentUser?.user_metadata && (currentUser.user_metadata.name || currentUser.user_metadata.full_name)) ||
         formatShortName(currentUser?.email || fallbackEmail || '');
+      window.currentUserDisplayName = currentUserDisplayName;
 
       setAppAuthVisibility(true);
       try { syncSidebarResponsiveState(); } catch(e) {}
@@ -2200,6 +2201,7 @@ window.supabaseClient = supabaseClient;
       }
       currentUser = null;
       currentUserDisplayName = null;
+      window.currentUserDisplayName = null;
       window.currentUser = null;
       appBootstrapped = false;
       setAppAuthVisibility(false);
@@ -2218,8 +2220,8 @@ window.supabaseClient = supabaseClient;
     }
 
 
-    let clients = [], quotes = [], ots = [], visitas = [], requerimientos = [], reqs = [];
-    let reports = [];
+    var clients = [], quotes = [], ots = [], visitas = [], requerimientos = [], reqs = [];
+    var reports = [];
     window.quotes = quotes;
     window.reports = reports;
 
@@ -2327,9 +2329,9 @@ window.supabaseClient = supabaseClient;
       return rep;
     }
     window.ensureReportLoaded = ensureReportLoaded;
-    let reportStorageMode = 'supabase';
-    const REPORTS_TABLE = 'informes';
-    const REPORTS_LOCAL_KEY = 'ecoluz_reports_local_v1';
+    var reportStorageMode = 'supabase';
+    var REPORTS_TABLE = 'informes';
+    var REPORTS_LOCAL_KEY = 'ecoluz_reports_local_v1';
     const OT_LIGHT_SELECT = 'id, client_id, quote_id, numero_ot, descripcion, sucursal, direccion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data';
 
     const OT_LIGHT_SELECT_MIN = 'id, client_id, quote_id, numero_ot, descripcion, estado, pago_estado, fecha, monto, created_by_name, created_by_email, created_by, created_at, data';
@@ -2409,20 +2411,20 @@ window.supabaseClient = supabaseClient;
       return [];
     }
     window.currentReportAttachments = [];
-    let maintenancePrograms = [];
-    let recycleBinItems = [];
-    let clientsById = new Map();
+    var maintenancePrograms = [];
+    var recycleBinItems = [];
+    var clientsById = new Map();
     
-    let pendingOTToLink = null; 
-    let calendarEvents = [];
-    let currentCalendarMonth = new Date();
-    let selectedCalendarDate = null;
-    let calendarViewMode = 'month';
-    let maintenanceProgramYear = new Date().getFullYear();
+    var pendingOTToLink = null; 
+    var calendarEvents = [];
+    var currentCalendarMonth = new Date();
+    var selectedCalendarDate = null;
+    var calendarViewMode = 'month';
+    var maintenanceProgramYear = new Date().getFullYear();
     // Cuando creas una OT desde una cotización aceptada (documentos antiguos)
-    let pendingQuoteToLinkOT = null; 
-    let pendingMaintenanceToLinkOT = null; 
-    let isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
+    var pendingQuoteToLinkOT = null; 
+    var pendingMaintenanceToLinkOT = null; 
+    var isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
 
     window.LOGO_FILE = "logo ecoluz.png";
     window.LOGO_FILES = [
@@ -4882,7 +4884,8 @@ function openGlobalSearchResult(type, id){
     const CALENDAR_STORAGE_KEY = 'ecoluz_calendar_events_v1';
     const CALENDAR_MIGRATED_KEY = 'ecoluz_calendar_events_migrated_v1';
     const CALENDAR_TABLE = 'calendar_events';
-    const RECYCLE_BIN_TABLE = 'recycle_bin';
+    var RECYCLE_BIN_TABLE = window.RECYCLE_BIN_TABLE || 'recycle_bin';
+    window.RECYCLE_BIN_TABLE = RECYCLE_BIN_TABLE;
     var MAINTENANCE_PROGRAMS_TABLE = 'maintenance_programs';
     window.MAINTENANCE_PROGRAMS_TABLE = MAINTENANCE_PROGRAMS_TABLE;
 
@@ -7540,7 +7543,7 @@ window.renderQuotes = renderQuotes;
       'calendar_events',
       'maintenance_programs',
       REPORTS_TABLE,
-      RECYCLE_BIN_TABLE
+      (window.RECYCLE_BIN_TABLE || 'recycle_bin')
     ];
 
     async function refreshSharedDataSilently(showToast = false) {
@@ -10207,6 +10210,7 @@ window.renderQuotes = renderQuotes;
 
     <div class="footer-note">ECOLUZ · Informe técnico de servicio</div>
   </div>
+
 </body>
 </html>`;
     }
@@ -11716,6 +11720,7 @@ function showNewQuoteModal(prefill = null) {
     clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
   }
   const displayNum = isAutoMode ? (typeof getNextQuoteNumber === 'function' ? getNextQuoteNumber() : '') : '';
+  const quoteManualChecked = !!(prefill && (prefill.documento_antiguo || prefill.manual_folio || (prefill.data && (prefill.data.documento_antiguo || prefill.data.manual_folio))));
   
   const html = `
     <div class="p-6 md:p-8">
@@ -11728,10 +11733,11 @@ function showNewQuoteModal(prefill = null) {
 <div class="bg-white p-3 rounded-xl border-2 border-emerald-500 shadow-sm ring-4 ring-emerald-50">
           <span class="text-[10px] font-black text-emerald-600 uppercase block mb-1 text-center">N° FOLIO</span>
           <input id="qNum" value="${displayNum}" class="text-2xl font-black text-emerald-700 bg-transparent border-none p-0 text-center focus:ring-0 w-28" placeholder="0000">
-          <label class="mt-2 inline-flex items-center gap-2 text-xs text-slate-500 select-none">
-            <input id="qManualFolio" type="checkbox" class="rounded border-slate-300">
-            <span>Documento antiguo / ingresar folio manual</span>
+          <label class="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-amber-700 select-none">
+            <input id="qManualFolio" type="checkbox" class="rounded border-slate-300" ${quoteManualChecked ? 'checked' : ''}>
+            <span>Cotización antigua / ingresar folio manual</span>
           </label>
+          <p class="text-[10px] text-amber-700/80 mt-2 text-center">Marca esta casilla si estás cargando una cotización antigua y necesitas escribir el folio manualmente.</p>
         </div>
 
         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm w-48">
@@ -11854,6 +11860,7 @@ function showNewQuoteModal(prefill = null) {
 
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
+  try{ bindFolioToggles(); }catch(e){}
   window.initAttachmentManager('quote', []);
   window.addItem();
   try{ window.populateQuoteSucursales && window.populateQuoteSucursales(); }catch(e){}
@@ -11908,6 +11915,10 @@ async function saveNewQuote(btn) {
     try {
         const isNew = !document.getElementById('newClientDiv').classList.contains('hidden');
         const folioRaw = document.getElementById('qNum').value.trim();
+        const esDocumentoAntiguo = !!document.getElementById('qManualFolio')?.checked;
+        const fechaDocumento = document.getElementById('qFecha')?.value || todayISO();
+        if(esDocumentoAntiguo && !folioRaw) throw new Error("Si marcas cotización antigua, debes ingresar el folio.");
+        if(esDocumentoAntiguo && !fechaDocumento) throw new Error("Si marcas cotización antigua, debes ingresar la fecha.");
         // Folio manual por ahora. Si viene vacío, guardamos 'S/N'.
         const folio = folioRaw || 'S/N';
         const obraDesc = document.getElementById('qObra').value.trim();
@@ -11972,8 +11983,8 @@ async function saveNewQuote(btn) {
                 items: itemsArr,
                 estado: 'pendiente',
                 tipo_servicio: tipoServ,
-                data: { sucursal: sucursal, attachments: quoteAttachments },
-                fecha: dateInputToISO(document.getElementById('qFecha')?.value || todayISO()),
+                data: { sucursal: sucursal, attachments: quoteAttachments, documento_antiguo: esDocumentoAntiguo, manual_folio: esDocumentoAntiguo, fecha_documento: fechaDocumento },
+                fecha: dateInputToISO(fechaDocumento),
                 enviado_por_correo: document.getElementById('sendEmailCheckbox')?.checked || false,
                 enviado_por_wsp: document.getElementById('sendWspCheckbox')?.checked || false,
                 created_by: currentUser?.id || null,
@@ -12012,6 +12023,7 @@ async function saveNewQuote(btn) {
       const numActual = (q.numeroCotizacion ?? q.numero ?? q.folio ?? (q.data && (q.data.numeroCotizacion || q.data.numero || q.data.folio)) ?? '').toString();
       const obraActual = (q.obra ?? (q.data && q.data.obra) ?? '').toString();
       const tipoActual = (q.tipo_servicio ?? (q.data && q.data.tipo_servicio) ?? 'General').toString();
+      const documentoAntiguo = !!(q.data && (q.data.documento_antiguo || q.data.manual_folio));
 
       // Cliente (solo lectura para no romper referencias)
       let clientOptions = '';
@@ -12048,6 +12060,11 @@ async function saveNewQuote(btn) {
             <div>
               <label class="text-xs font-bold text-slate-500">N° COTIZACIÓN (FOLIO)</label>
               <input id="qNum" value="${safeText(numActual)}" class="w-full px-3 py-3 border rounded-xl font-black text-slate-800" placeholder="Ej: 4719">
+              <label class="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-amber-700 select-none">
+                <input id="qManualFolio" type="checkbox" class="rounded border-slate-300" ${documentoAntiguo ? 'checked' : ''}>
+                <span>Cotización antigua / folio manual</span>
+              </label>
+              <p class="text-[11px] text-amber-700/80 mt-1">Marca esta casilla si este documento corresponde a una cotización antigua cargada manualmente.</p>
             </div>
 
             <div>
@@ -12128,6 +12145,7 @@ async function saveNewQuote(btn) {
 
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('modal').classList.remove('hidden');
+      try{ bindFolioToggles(); }catch(e){}
 
       // Cargar ítems (soporta q.items o q.data.items)
       const items = (q.items || (q.data && q.data.items) || []);
@@ -12217,7 +12235,10 @@ const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
             razonSocial: selectedClient.name || '',
             rut: selectedClient.rut || '',
             sucursal: sucursal,
-            attachments: quoteAttachments
+            attachments: quoteAttachments,
+            documento_antiguo: esDocumentoAntiguo,
+            manual_folio: esDocumentoAntiguo,
+            fecha_documento: fechaStr
           }),
           fecha: dateInputToISO(fechaStr),
           items: itemsArr,
@@ -12910,166 +12931,212 @@ function showNewOTFromQuoteModal(quoteId){
 }
 
 // ================= ÓRDENES DE TRABAJO =================
-    function showNewOTManualModal(prefill = {}) {
-      
-  try {
-let clientOptions = '<option value="">Selecciona cliente</option>';
-      clients.forEach(c => { clientOptions += `<option value="${c.id}">${c.name} (${c.rut})</option>`; });
 
-      // CORRECCIÓN: Definición limpia del número de OT
-      const displayOTNum = isAutoMode ? (typeof getNextOTNumber === 'function' ? getNextOTNumber() : '') : '';
-      const otNumHTML = `<input id="mOtNum" value="${displayOTNum}" placeholder="N° OT *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>
+function toggleOTLegacyQuoteFields(){
+  const check = document.getElementById('mOtHasLegacyQuote');
+  const wrap = document.getElementById('mOtLegacyQuoteWrap');
+  if(!check || !wrap) return;
+  wrap.style.display = check.checked ? 'block' : 'none';
+}
+
+function toggleOTManualFolio(){
+  const check = document.getElementById('otManualFolio');
+  const input = document.getElementById('mOtNum');
+  if(!check || !input) return;
+  if(check.checked){
+    input.readOnly = false;
+    input.required = true;
+    input.classList.remove('bg-indigo-50','text-indigo-700');
+    input.classList.add('bg-white','text-gray-900');
+    if(!String(input.value || '').trim()) input.value = '';
+  }else{
+    const next = (typeof getNextOTNumber === 'function') ? getNextOTNumber() : '';
+    input.value = next || '';
+    input.readOnly = !!isAutoMode;
+    if(isAutoMode){
+      input.classList.add('bg-indigo-50','text-indigo-700');
+      input.classList.remove('bg-white','text-gray-900');
+    }
+  }
+}
+
+function buildOTClientOptionsHTML(selectedId = ''){
+  const selected = String(selectedId || '');
+  let options = '<option value="">Selecciona un cliente</option>';
+  (clients || []).forEach(c => {
+    const name = escapeHtml(String(c?.name || 'Sin nombre'));
+    const rut = escapeHtml(String(c?.rut || 'Sin RUT'));
+    const id = String(c?.id || '');
+    options += `<option value="${id}" ${selected && selected===id ? 'selected' : ''}>${name} (${rut})</option>`;
+  });
+  return options;
+}
+
+function inferQuoteClientDataForOT(q){
+  if(!q) return null;
+  const clientId = String(q.clientId || q.client_id || q.data?.clientId || q.data?.client_id || '').trim();
+  const client = clientId ? ((clients || []).find(c => String(c.id) === clientId) || null) : null;
+  return {
+    clientId: clientId || '',
+    clientName: q.clientName || q.razonSocial || client?.name || '',
+    clientRut: q.clientRut || q.rut || client?.rut || '',
+    direccion: q.direccion || q.sucursal || q.data?.direccion || q.data?.sucursal || q.data?.sucursal_direccion || q.data?.direccion_sucursal || client?.direccion || ''
+  };
+}
+
+function showNewOTManualModal(prefill = {}) {
+  try{
+    const linkedQuote = pendingQuoteToLinkOT ? (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT)) : null;
+    const quoteClient = inferQuoteClientDataForOT(linkedQuote);
+    const quoteFin = linkedQuote ? getFinancialBreakdownFromSource(linkedQuote) : null;
+    const selectedClientId = String(prefill?.clientId || quoteClient?.clientId || '').trim();
+    const defaultDesc = String(prefill?.descripcion || linkedQuote?.obra || linkedQuote?.descripcion || '').trim();
+    const defaultDireccion = String(prefill?.direccion || prefill?.ubicacion || prefill?.sucursal || quoteClient?.direccion || '').trim();
+    const defaultFecha = String(prefill?.fecha || todayISO()).trim();
+    const defaultMode = String(prefill?.modalidadCobro || prefill?.modalidad_cobro || prefill?.cobroMode || (linkedQuote ? 'factura' : 'factura')).toLowerCase().trim();
+    const defaultLegacy = !!(prefill?.legacyQuote || prefill?.hasLegacyQuote || prefill?.legacy_quote || prefill?.cotizacionAntigua);
+    const defaultLegacyFolio = String(prefill?.legacyQuoteNumber || prefill?.legacy_quote_number || prefill?.folioCotizacionAntigua || '').trim();
+    const defaultLegacyFecha = String(prefill?.legacyQuoteDate || prefill?.legacy_quote_date || prefill?.fechaCotizacionAntigua || '').trim();
+    const displayOTNum = (typeof getNextOTNumber === 'function') ? getNextOTNumber() : '';
+
+    const html = `
+      <div class="p-8">
+        <h2 class="text-2xl font-bold mb-6 text-blue-900">Nueva Orden de Trabajo</h2>
+
+        ${linkedQuote ? `
+          <div class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <div class="font-bold text-emerald-900">OT vinculada a cotización</div>
+            <div class="text-sm text-emerald-800 mt-1">Cotización ${escapeHtml(String(linkedQuote.numeroCotizacion || linkedQuote.numero || 'S/N'))} · ${escapeHtml(String(quoteClient?.clientName || 'Cliente'))}</div>
+          </div>` : ''}
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium">N° OT *</label>
+            <input id="mOtNum" value="${escapeHtml(displayOTNum)}" placeholder="N° OT *" class="w-full px-3 py-2 border rounded-xl font-bold ${isAutoMode ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-900'}" ${isAutoMode ? 'readonly' : 'required'}>
             <label class="mt-2 inline-flex items-center gap-2 text-xs text-slate-500 select-none">
-              <input id="otManualFolio" type="checkbox" class="rounded border-slate-300">
+              <input id="otManualFolio" type="checkbox" class="rounded border-slate-300" onchange="toggleOTManualFolio()">
               <span>Documento antiguo / ingresar N° OT manual</span>
-            </label>`;
+            </label>
+          </div>
 
-      const html = `
-        <div class="p-8">
-          <h2 class="text-2xl font-bold mb-6 text-blue-900">Nueva OT Manual</h2>
-          <div class="space-y-4">
-            <div><label class="block text-sm font-medium">N° OT *</label>${otNumHTML}</div>
-            <div>
-              <label class="block text-sm font-medium">Fecha de la OT</label>
-              <input id="mOtFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl">
-              <p class="text-xs text-slate-500 mt-1">Si estás ingresando un documento antiguo, aquí puedes dejar la fecha real del documento.</p>
-            </div>
-            
-            <div class="mb-3 flex gap-4 bg-white p-2 rounded-xl border border-gray-200">
-                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-                    <input type="radio" name="otClientMode" value="existing" checked onchange="document.getElementById('divOtExisting').style.display='block'; document.getElementById('divOtNew').style.display='none';"> 
-                    <span class="text-blue-700">Existente</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
-                    <input type="radio" name="otClientMode" value="new" onchange="document.getElementById('divOtExisting').style.display='none'; document.getElementById('divOtNew').style.display='block';"> 
-                    <span class="text-emerald-600">Nuevo Cliente</span>
-                </label>
-            </div>
+          <div>
+            <label class="block text-sm font-medium">Fecha de la OT</label>
+            <input id="mOtFecha" type="date" value="${escapeHtml(defaultFecha || todayISO())}" class="w-full px-3 py-2 border rounded-xl">
+            <p class="text-xs text-slate-500 mt-1">Aquí puedes dejar la fecha real del documento.</p>
+          </div>
 
-            <div id="divOtExisting" class="mb-3">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Seleccionar Cliente *</label>
-                <select id="mOtClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600">${clientOptions}</select>
-            </div>
-
-            <div id="divOtNew" style="display: none;" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-                <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
-                <input type="text" id="otNewName" placeholder="Nombre / Empresa (*)" class="w-full px-3 py-2 border rounded-xl mb-2">
-                <input type="text" id="otNewRut" placeholder="RUT" class="w-full px-3 py-2 border rounded-xl mb-2">
-                <input type="text" id="otNewPhone" placeholder="Teléfono" class="w-full px-3 py-2 border rounded-xl">
-                <select id="otNewType" class="w-full px-3 py-2 border rounded-xl mt-2"><option value="Natural">Natural</option><option value="Empresa">Empresa</option></select>
-            </div>
-            <div><label class="block text-sm font-medium">Descripción del trabajo realizado *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Mantención correctiva, cambio de repuestos, revisión general..."></textarea></div>
-            <div><label class="block text-sm font-medium">Sucursal / ubicación / dirección</label><input id="mOtDireccion" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Sucursal Iquique · Vivar 1019"></div>
-            <div>
-              <label class="block text-sm font-medium">Modalidad de cobro</label>
-              <select id="mOtCobroMode" class="w-full px-3 py-2 border rounded-xl" onchange="toggleNewOTCobroMode()">
-                <option value="factura">Con factura</option>
-                <option value="directo">Pago directo / neto</option>
-                <option value="por_definir">Por definir</option>
-              </select>
-              <p id="mOtCobroModeHint" class="text-xs text-slate-500 mt-1">Usa “Con factura” cuando luego registrarás factura o boleta. “Por definir” deja el flujo abierto.</p>
-            </div>
-            <div id="mOtManualMontoWrap" class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                <label class="block text-sm font-semibold text-slate-700">Monto del trabajo</label>
-                <span id="mOtManualMontoHint" class="text-xs text-slate-500">Usa esta sección cuando la OT no tenga cotización.</span>
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input id="mOtHasLegacyQuote" type="checkbox" class="rounded border-slate-300" ${defaultLegacy ? 'checked' : ''} onchange="toggleOTLegacyQuoteFields()">
+              <span>La OT viene de una cotización antigua</span>
+            </label>
+            <div id="mOtLegacyQuoteWrap" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" style="display:${defaultLegacy ? 'grid' : 'none'}">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">N° folio cotización antigua</label>
+                <input id="mOtLegacyQuoteNumber" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(defaultLegacyFolio)}" placeholder="Ej: 4381">
               </div>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label class="block text-xs font-medium text-slate-500 mb-1">Neto</label>
-                  <input id="mOtNeto" type="number" min="0" step="1" value="0" oninput="syncNewOTManualAmounts('neto')" class="w-full px-3 py-2 border rounded-xl">
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-slate-500 mb-1">IVA</label>
-                  <input id="mOtIva" type="number" min="0" step="1" value="0" readonly class="w-full px-3 py-2 border rounded-xl bg-slate-100 text-slate-600">
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-slate-500 mb-1">Total</label>
-                  <input id="mOtTotal" type="number" min="0" step="1" value="0" oninput="syncNewOTManualAmounts('total')" class="w-full px-3 py-2 border rounded-xl">
-                </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Fecha cotización antigua</label>
+                <input id="mOtLegacyQuoteDate" type="date" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(defaultLegacyFecha)}">
               </div>
-              <p class="text-xs text-slate-500 mt-2">Puedes ingresar el neto o el total. El IVA se recalcula automáticamente al 19%.</p>
-            </div>
-            <div><label class="block text-sm font-medium">OC</label><input id="mOtOC" class="w-full px-3 py-2 border rounded-xl"></div>
-            <div><label class="block text-sm font-medium">HES</label><input id="mOtHES" class="w-full px-3 py-2 border rounded-xl"></div>
-            <div><label class="block text-sm font-medium">Guía de despacho</label><input id="mOtGuia" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: GD-1234"></div>
-            
-            <div class="flex gap-4 pt-4">
-              <button onclick="saveNewOTManual(this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-2xl font-semibold">Guardar OT</button>
-              <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
             </div>
           </div>
-        </div>`;
-      
-            document.getElementById('modalContent').innerHTML = html;
-      document.getElementById('modal').classList.remove('hidden');
-      window.initAttachmentManager('ot', []);
 
-      try {
-        if (prefill && typeof prefill === 'object') {
-          const elClient = document.getElementById('mOtClient');
-          const elDesc = document.getElementById('mOtDesc');
-          const elOC = document.getElementById('mOtOC');
-          const elHES = document.getElementById('mOtHES');
-          const elFecha = document.getElementById('mOtFecha');
-          const elNeto = document.getElementById('mOtNeto');
-          const elTotal = document.getElementById('mOtTotal');
-          const elDireccion = document.getElementById('mOtDireccion');
+          <div class="mb-3 flex gap-4 bg-white p-2 rounded-xl border border-gray-200">
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
+              <input type="radio" name="otClientMode" value="existing" ${linkedQuote ? 'checked' : 'checked'} onchange="document.getElementById('divOtExisting').style.display='block'; document.getElementById('divOtNew').style.display='none';">
+              <span class="text-blue-700">Cliente existente</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
+              <input type="radio" name="otClientMode" value="new" onchange="document.getElementById('divOtExisting').style.display='none'; document.getElementById('divOtNew').style.display='block';">
+              <span class="text-emerald-600">Cliente nuevo</span>
+            </label>
+          </div>
 
-          if (elClient && prefill.clientId) elClient.value = String(prefill.clientId);
-          if (elDesc && prefill.descripcion) elDesc.value = String(prefill.descripcion);
-          if (elOC && prefill.oc) elOC.value = String(prefill.oc);
-          if (elHES && prefill.hes) elHES.value = String(prefill.hes);
-          if (elFecha && prefill.fecha) elFecha.value = String(prefill.fecha);
-          if (elDireccion && (prefill.direccion || prefill.ubicacion || prefill.sucursal)) elDireccion.value = String(prefill.direccion || prefill.ubicacion || prefill.sucursal);
-          if (elNeto && Number(prefill.neto || 0) > 0) elNeto.value = Number(prefill.neto || 0);
-          if (elTotal && Number(prefill.total || 0) > 0) elTotal.value = Number(prefill.total || 0);
-          const elCobroMode = document.getElementById('mOtCobroMode');
-          if (elCobroMode && (prefill.modalidadCobro || prefill.modalidad_cobro || prefill.cobroMode)) {
-            elCobroMode.value = String(prefill.modalidadCobro || prefill.modalidad_cobro || prefill.cobroMode);
-          }
-        }
-      } catch(e) { console.warn('No se pudo aplicar prefill OT', e); }
+          <div id="divOtExisting" class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Seleccionar cliente *</label>
+            <select id="mOtClient" class="w-full px-3 py-2 border rounded-xl focus:border-blue-600" ${linkedQuote ? 'disabled' : ''}>${buildOTClientOptionsHTML(selectedClientId)}</select>
+            ${linkedQuote ? '<p class="text-xs text-slate-500 mt-1">Este cliente viene tomado desde la cotización vinculada.</p>' : ''}
+          </div>
 
-      try {
-        const maintenanceLink = pendingMaintenanceToLinkOT;
-        if (maintenanceLink) {
-          const box = document.createElement('div');
-          box.className = 'mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm';
-          box.innerHTML = `<div class="font-bold text-violet-900 mb-1">OT vinculada a programa de mantención</div>
-                           <div class="text-violet-800">${escapeHtml(maintenanceLink.clientName || 'Cliente')} · ${escapeHtml(getMaintenanceMonthName(maintenanceLink.month))} ${escapeHtml(String(maintenanceLink.year || ''))}</div>
-                           <div class="text-violet-700 text-xs mt-1">Esta OT quedará enlazada al programa y no permitirá duplicados para ese mismo mes.</div>`;
-          const modalRoot = document.getElementById('modalContent');
-          const container = modalRoot ? modalRoot.querySelector('.p-8') : null;
-          const heading = container ? container.querySelector('h2') : null;
-          if (container && heading) {
-            container.insertBefore(box, heading.nextSibling);
-          }
-        }
-      } catch(e) { console.warn('No se pudo pintar banner de mantención', e); }
+          <div id="divOtNew" style="display:none" class="mb-3 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+            <h4 class="text-xs font-bold text-emerald-800 uppercase mb-2">Datos del nuevo cliente</h4>
+            <input type="text" id="otNewName" placeholder="Nombre / Empresa (*)" class="w-full px-3 py-2 border rounded-xl mb-2">
+            <input type="text" id="otNewRut" placeholder="RUT" class="w-full px-3 py-2 border rounded-xl mb-2">
+            <input type="text" id="otNewPhone" placeholder="Teléfono" class="w-full px-3 py-2 border rounded-xl mb-2">
+            <select id="otNewType" class="w-full px-3 py-2 border rounded-xl"><option value="Natural">Natural</option><option value="Empresa">Empresa</option></select>
+          </div>
 
-      try{ bindFolioToggles(); }catch(e){}
-      try{ toggleNewOTCobroMode(); }catch(e){}
-      try {
-        const clientSelect = document.getElementById('mOtClient');
-        const direccionInput = document.getElementById('mOtDireccion');
-        const fillClientAddress = () => {
-          if(!direccionInput || String(direccionInput.value || '').trim()) return;
-          const clientId = String(clientSelect?.value || '').trim();
-          if(!clientId) return;
-          const selectedClient = (clients || []).find(c => String(c.id) === clientId);
-          const suggested = selectedClient?.direccion || selectedClient?.address || selectedClient?.data?.direccion || selectedClient?.data?.doreccion || '';
-          if(suggested) direccionInput.value = String(suggested).trim();
-        };
-        if(clientSelect) clientSelect.addEventListener('change', fillClientAddress);
-        fillClientAddress();
-      } catch(e) {}
-      try{ syncNewOTManualAmounts('neto'); }catch(e){}
-      try{ toggleNewOTManualAmountFields(); }catch(e){}
+          <div>
+            <label class="block text-sm font-medium">Descripción del trabajo realizado *</label>
+            <textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Mantención correctiva, cambio de repuestos, revisión general...">${escapeHtml(defaultDesc)}</textarea>
+          </div>
 
-  } catch (error) {
-      console.error("Error en showNewOTManualModal:", error);
-      alert("Error al abrir formulario de OT.");
+          <div>
+            <label class="block text-sm font-medium">Sucursal / ubicación / dirección</label>
+            <input id="mOtDireccion" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Sucursal Iquique · Vivar 1019" value="${escapeHtml(defaultDireccion)}">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium">Modalidad de cobro</label>
+            <select id="mOtCobroMode" class="w-full px-3 py-2 border rounded-xl" onchange="toggleNewOTCobroMode()">
+              <option value="factura" ${defaultMode==='factura' ? 'selected' : ''}>Con factura</option>
+              <option value="directo" ${defaultMode==='directo' ? 'selected' : ''}>Pago directo / neto</option>
+              <option value="por_definir" ${defaultMode==='por_definir' ? 'selected' : ''}>Por definir</option>
+            </select>
+            <p id="mOtCobroModeHint" class="text-xs text-slate-500 mt-1">Usa “Con factura” cuando luego registrarás factura o boleta. “Por definir” deja el flujo abierto.</p>
+          </div>
+
+          <div id="mOtManualMontoWrap" class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+              <label class="block text-sm font-semibold text-slate-700">Monto del trabajo</label>
+              <span id="mOtManualMontoHint" class="text-xs text-slate-500">Usa esta sección cuando la OT no tenga cotización.</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Neto</label>
+                <input id="mOtNeto" type="number" min="0" step="1" value="${Number(quoteFin?.neto || prefill?.neto || 0)}" oninput="syncNewOTManualAmounts('neto')" class="w-full px-3 py-2 border rounded-xl">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">IVA</label>
+                <input id="mOtIva" type="number" min="0" step="1" value="${Number(quoteFin?.iva || prefill?.iva || 0)}" readonly class="w-full px-3 py-2 border rounded-xl bg-slate-100 text-slate-600">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Total</label>
+                <input id="mOtTotal" type="number" min="0" step="1" value="${Number(quoteFin?.total || prefill?.total || 0)}" oninput="syncNewOTManualAmounts('total')" class="w-full px-3 py-2 border rounded-xl">
+              </div>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">Puedes ingresar el neto o el total. El IVA se recalcula automáticamente al 19%.</p>
+          </div>
+
+          <div><label class="block text-sm font-medium">OC</label><input id="mOtOC" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(String(prefill?.oc || ''))}"></div>
+          <div><label class="block text-sm font-medium">HES</label><input id="mOtHES" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(String(prefill?.hes || ''))}"></div>
+          <div><label class="block text-sm font-medium">Guía de despacho</label><input id="mOtGuia" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: GD-1234" value="${escapeHtml(String(prefill?.guia_despacho || prefill?.guiaDespacho || ''))}"></div>
+
+          <div class="flex gap-4 pt-4">
+            <button onclick="saveNewOTManual(this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-2xl font-semibold">Guardar OT</button>
+            <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').classList.remove('hidden');
+    try{ if(typeof window.initAttachmentManager === 'function') window.initAttachmentManager('ot', []); }catch(e){}
+    try{ syncNewOTManualAmounts('neto'); }catch(e){}
+    try{ toggleNewOTCobroMode(); }catch(e){}
+    try{ toggleOTLegacyQuoteFields(); }catch(e){}
+    try{ toggleOTManualFolio(); }catch(e){}
+    try{ toggleNewOTManualAmountFields(); }catch(e){}
+
+    if(linkedQuote){
+      const sel = document.getElementById('mOtClient');
+      if(sel) sel.value = quoteClient?.clientId || '';
+    }
+  }catch(error){
+    console.error('Error en showNewOTManualModal:', error);
+    alert('Error al abrir formulario de OT.');
   }
 }
 
@@ -13078,221 +13145,196 @@ window.showNewOTModal = function(prefill = {}) {
   return showNewOTManualModal(prefill || {});
 };
 
-async function goToCreatedOTAndEdit(otId, numeroOT = '') {
-  try {
-    if (!otId) return;
-    const otNum = String(numeroOT || '').trim();
-    try { closeModal(); } catch(e) {}
-    try { showView('ots'); } catch(e) {}
-    try {
-      const free = document.getElementById('otSearchFree');
-      if (free) free.value = otNum || '';
-      otSearchFree = otNum || '';
-      const byNum = document.getElementById('otSearchNumber');
-      if (byNum) byNum.value = otNum || '';
-      otSearchNumber = otNum || '';
-      const byClient = document.getElementById('otSearchClient');
-      if (byClient) byClient.value = '';
-      otSearchClient = '';
-      if (typeof updateOTSearchClearButton === 'function') updateOTSearchClearButton();
-      if (typeof setOTStatusFilter === 'function') setOTStatusFilter('all');
-      if (typeof renderOTs === 'function') renderOTs();
-      if (typeof applyOTsActive === 'function') applyOTsActive();
-      if (typeof applyOTsClosed === 'function') applyOTsClosed();
-    } catch(e) {
-      console.warn('No se pudo preparar la vista de OTs recién creada', e);
+async function saveNewOTManual(btn) {
+  if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
+  try{
+    const otNumEl = document.getElementById('mOtNum');
+    const numeroOT = String(otNumEl?.value || '').trim();
+    const fechaOT = String(document.getElementById('mOtFecha')?.value || todayISO()).trim();
+    const desc = String(document.getElementById('mOtDesc')?.value || '').trim();
+    const direccionOT = String(document.getElementById('mOtDireccion')?.value || '').trim();
+    const oc = String(document.getElementById('mOtOC')?.value || '').trim();
+    const hes = String(document.getElementById('mOtHES')?.value || '').trim();
+    const guia = String(document.getElementById('mOtGuia')?.value || '').trim();
+    const cobroModeRaw = String(document.getElementById('mOtCobroMode')?.value || 'factura').toLowerCase().trim();
+    const cobroMode = cobroModeRaw === 'por_definir' ? 'factura' : cobroModeRaw;
+    const initialCobroState = cobroMode === 'directo' ? 'pendiente_pago' : 'pendiente_facturar';
+
+    if(!numeroOT || !desc){
+      alert('Completa los datos: N° OT y Descripción.');
+      return;
     }
-    setTimeout(() => {
-      try {
-        const row = document.querySelector(`[data-ot-id="${String(otId)}"]`) || document.querySelector(`[data-id="${String(otId)}"]`);
-        if (row && typeof row.scrollIntoView === 'function') {
-          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      } catch(e) {}
-      try {
-        if (typeof editOT === 'function') editOT(otId);
-        else if (typeof previewOT === 'function') previewOT(otId);
-      } catch(e) {
-        console.error('No se pudo abrir la OT recién creada', e);
+
+    let linkedQuote = pendingQuoteToLinkOT ? (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT)) : null;
+    let linkedMaintenance = pendingMaintenanceToLinkOT ? Object.assign({}, pendingMaintenanceToLinkOT) : null;
+
+    let client = null;
+    const otClientMode = document.querySelector('input[name="otClientMode"]:checked')?.value || 'existing';
+
+    if(linkedQuote){
+      const quoteClient = inferQuoteClientDataForOT(linkedQuote);
+      client = quoteClient?.clientId ? ((clients || []).find(c => String(c.id) === String(quoteClient.clientId)) || null) : null;
+      if(!client && quoteClient?.clientName){
+        client = { id: quoteClient.clientId || null, name: quoteClient.clientName, rut: quoteClient.clientRut || '' };
       }
-    }, 250);
-  } catch(e) {
-    console.error('Error al redirigir a la OT recién creada', e);
-  }
-}
-
-    async function saveNewOTManual(btn) {
-      if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-
-      // CORRECCIÓN: Capturamos el número directamente del input que creamos
-      const numeroOT = document.getElementById('mOtNum').value.trim();
-      const desc = document.getElementById('mOtDesc').value.trim();
-      const linkedQuote = pendingQuoteToLinkOT ? (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT)) : null;
-      const linkedMaintenance = pendingMaintenanceToLinkOT ? Object.assign({}, pendingMaintenanceToLinkOT) : null;
-      const otDireccion = String(document.getElementById('mOtDireccion')?.value || '').trim();
-      if(linkedMaintenance){
-        const existingMaintenanceOT = getMaintenanceLinkedOT(linkedMaintenance.programId, linkedMaintenance.month, linkedMaintenance.year);
-        if(existingMaintenanceOT){
-          if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
-          closeModal();
-          toastInfo(`Ya existe la OT ${existingMaintenanceOT.numeroOT || existingMaintenanceOT.numero_ot || ''} para esa mantención.`);
-          if(typeof previewOT === 'function') previewOT(existingMaintenanceOT.id);
-          return;
-        }
+    } else if(otClientMode === 'existing'){
+      const clientId = String(document.getElementById('mOtClient')?.value || '').trim();
+      if(!clientId){
+        alert('Selecciona un cliente.');
+        return;
       }
-      const manualFin = {
-        neto: otMoneyToNumber(document.getElementById('mOtNeto')?.value || 0),
-        iva: otMoneyToNumber(document.getElementById('mOtIva')?.value || 0),
-        total: otMoneyToNumber(document.getElementById('mOtTotal')?.value || 0)
-      };
-      const quoteFin = linkedQuote ? getFinancialBreakdownFromSource(linkedQuote) : null;
-      const fin = quoteFin || manualFin;
-      const monto = otMoneyToNumber(fin.total || 0);
+      client = (clients || []).find(c => String(c.id) === clientId) || null;
+    } else {
+      const newName = String(document.getElementById('otNewName')?.value || '').trim();
+      const newRut = String(document.getElementById('otNewRut')?.value || '').trim();
+      const newPhone = String(document.getElementById('otNewPhone')?.value || '').trim();
+      const newType = String(document.getElementById('otNewType')?.value || 'Empresa').trim();
 
-      let client = null;
-      const otClientMode = document.querySelector('input[name="otClientMode"]:checked').value;
-
-      if (otClientMode === 'existing') {
-          const clientId = document.getElementById('mOtClient').value;
-          if (!numeroOT || !clientId || !desc) {
-              if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
-              return alert("Completa los datos: N° OT, Cliente y Descripción.");
-          }
-          client = clients.find(c => String(c.id) === String(clientId));
-      } else {
-          const newName = document.getElementById('otNewName').value.trim();
-          const newRut = document.getElementById('otNewRut').value.trim();
-          const newPhone = document.getElementById('otNewPhone').value.trim();
-
-          if (!newName || !numeroOT || !desc) {
-              if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
-              return alert("Faltan datos. El nombre del cliente nuevo es obligatorio.");
-          }
-
-          const { data: nC, error: eC } = await supabaseClient
-              .from('clients')
-              .insert([{ name: newName, rut: newRut, telefono: newPhone, tipo: (document.getElementById('otNewType')?.value || 'Empresa'), created_by: currentUser?.id || null, created_by_email: currentUser?.email || '', created_by_name: currentUserDisplayName || '' }])
-              .select().single();
-
-          if (eC) {
-              if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
-              return alert("Error al crear cliente: " + eC.message);
-          }
-          client = nC;
-          if (typeof clients !== 'undefined') clients.push(nC);
+      if(!newName){
+        alert('El nombre del nuevo cliente es obligatorio.');
+        return;
       }
 
-      
-      const otAttachments = window.collectModalAttachments('ot');
-      const cobroMode = String(document.getElementById('mOtCobroMode')?.value || 'factura').toLowerCase().trim();
-      const initialCobroState = (cobroMode === 'directo') ? 'pendiente_pago' : 'pendiente_facturar';
-
-      const payload = {
-        client_id: client.id,
-        numero_ot: numeroOT,
-        quote_id: null,
-        descripcion: desc,
-        oc: document.getElementById('mOtOC').value || '',
-        hes: document.getElementById('mOtHES').value || '',
-        guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
-        estado: 'pendiente',
-        pago_estado: initialCobroState,
-        fecha: document.getElementById('mOtFecha')?.value || todayISO(),
+      const insertClientPayload = {
+        name: newName,
+        rut: newRut || generateProvisionalRut(),
+        telefono: newPhone,
+        tipo: newType,
         created_by: currentUser?.id || null,
         created_by_email: currentUser?.email || '',
-        created_by_name: currentUserDisplayName || 'Admin',
-        // mantenemos data para compatibilidad con funciones antiguas
-        data: {
-          numeroOT,
-          numeroCotizacion: 'Sin Cotización',
-          clientName: client.name,
-          descripcion: desc,
-          monto,
-          total: monto,
-          neto: otMoneyToNumber(fin.neto || 0),
-          iva: otMoneyToNumber(fin.iva || 0),
-          manual_pricing: !linkedQuote,
-          oc: document.getElementById('mOtOC').value || '',
-          hes: document.getElementById('mOtHES').value || '',
-          guia_despacho: (document.getElementById('mOtGuia')?.value || '').trim(),
-          direccion: otDireccion,
-          sucursal: otDireccion,
-          attachments: otAttachments,
-          abonos: [],
-          modalidadCobro: cobroMode === 'por_definir' ? 'factura' : cobroMode,
-          modalidad_cobro: cobroMode === 'por_definir' ? 'factura' : cobroMode,
-          createdBy: currentUserDisplayName || 'Admin',
-          fecha: document.getElementById('mOtFecha')?.value || todayISO(),
-          maintenanceProgramId: linkedMaintenance?.programId || '',
-          maintenance_program_id: linkedMaintenance?.programId || '',
-          maintenanceMonth: Number(linkedMaintenance?.month || 0),
-          maintenance_month: Number(linkedMaintenance?.month || 0),
-          maintenanceYear: Number(linkedMaintenance?.year || 0),
-          maintenance_year: Number(linkedMaintenance?.year || 0),
-          maintenanceProgramTitle: linkedMaintenance?.title || '',
-          maintenanceServiceType: linkedMaintenance?.serviceType || '',
-          maintenanceSiteName: linkedMaintenance?.siteName || ''
-        }
+        created_by_name: currentUserDisplayName || ''
       };
 
-      // Vincular a una cotización aceptada si la OT se crea desde "Crear OT" en Cotizaciones
+      const { data: newClient, error: clientErr } = await supabaseClient.from('clients').insert([insertClientPayload]).select().single();
+      if(clientErr) throw clientErr;
+      client = newClient;
       try{
-        if (pendingQuoteToLinkOT) {
-          payload.quote_id = pendingQuoteToLinkOT;
-          const qq = (quotes || []).find(x => String(x.id) === String(pendingQuoteToLinkOT));
-          const qNum = qq ? (qq.numeroCotizacion || qq.numero || '') : '';
-          const qMonto = qq ? Number(qq.monto || 0) : 0;
-
-          payload.data = payload.data || {};
-          payload.data.quoteId = pendingQuoteToLinkOT;
-          payload.data.quote_id = pendingQuoteToLinkOT;
-          payload.data.manual_pricing = false;
-          if(qNum) payload.data.numeroCotizacion = qNum;
-          if(qMonto){
-            const qFin = getFinancialBreakdownFromSource(qq || {});
-            payload.data.monto = qMonto;
-            payload.data.total = qFin.total || qMonto;
-            payload.data.neto = qFin.neto || 0;
-            payload.data.iva = qFin.iva || 0;
-          }
-        }
+        if(Array.isArray(clients)) clients.push(newClient);
+        if(clientsById && typeof clientsById.set === 'function') clientsById.set(String(newClient.id), newClient);
       }catch(e){}
-
-      const { data: inserted, error } = await supabaseClient.from('ots').insert([payload]).select().single();
-
-      if (error) {
-         alert("Error al guardar OT: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Guardar OT"; }
-         return;
-      }
-      
-      try{
-        if (payload.quote_id) {
-          const qq = (quotes || []).find(x => String(x.id) === String(payload.quote_id));
-          const qData = Object.assign({}, qq?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
-          await supabaseClient.from('quotes').update({ data: qData }).eq('id', payload.quote_id);
-        }
-      }catch(e){ console.error('No se pudo marcar la cotización como OT creada:', e); }
-
-      await loadData();
-      try { renderOTs(); } catch(e){}
-      try { renderQuotes(); } catch(e){}
-      try { renderMaintenancePrograms(); } catch(e){}
-      try {
-        if(linkedMaintenance && typeof appendEntityHistory === 'function'){
-          await appendEntityHistory('ots', inserted?.id, {
-            type:'maintenance_link',
-            title:'OT vinculada a programa de mantención',
-            detail:`Programa: ${linkedMaintenance.clientName || client.name || 'Cliente'}
-Mes: ${getMaintenanceMonthName(linkedMaintenance.month)} ${linkedMaintenance.year || ''}`
-          });
-        }
-      } catch(e) { console.warn('No se pudo registrar historial de mantención en OT', e); }
-      pendingQuoteToLinkOT = null;
-      pendingMaintenanceToLinkOT = null;
-      toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}` + (linkedMaintenance ? ' · vinculada a mantención' : ''));
-      await goToCreatedOTAndEdit(inserted?.id, inserted?.numero_ot || numeroOT);
     }
+
+    if(!client){
+      alert('No se pudo resolver el cliente para la OT.');
+      return;
+    }
+
+    const manualFin = {
+      neto: otMoneyToNumber(document.getElementById('mOtNeto')?.value || 0),
+      iva: otMoneyToNumber(document.getElementById('mOtIva')?.value || 0),
+      total: otMoneyToNumber(document.getElementById('mOtTotal')?.value || 0)
+    };
+    const linkedQuoteFin = linkedQuote ? getFinancialBreakdownFromSource(linkedQuote) : null;
+    const fin = linkedQuoteFin || manualFin;
+    const monto = otMoneyToNumber(fin.total || 0);
+
+    const hasLegacyQuote = !!document.getElementById('mOtHasLegacyQuote')?.checked;
+    const legacyQuoteNumber = String(document.getElementById('mOtLegacyQuoteNumber')?.value || '').trim();
+    const legacyQuoteDate = String(document.getElementById('mOtLegacyQuoteDate')?.value || '').trim();
+
+    if(hasLegacyQuote && !legacyQuoteNumber){
+      alert('Si marcas cotización antigua, debes ingresar el folio.');
+      return;
+    }
+
+    const otAttachments = (typeof window.collectModalAttachments === 'function')
+      ? window.collectModalAttachments('ot')
+      : [];
+
+    const payload = {
+      client_id: client.id,
+      numero_ot: numeroOT,
+      quote_id: linkedQuote ? linkedQuote.id : null,
+      descripcion: desc,
+      sucursal: direccionOT,
+      direccion: direccionOT,
+      oc,
+      hes,
+      guia_despacho: guia,
+      estado: 'pendiente',
+      pago_estado: initialCobroState,
+      fecha: fechaOT,
+      monto,
+      created_by: currentUser?.id || null,
+      created_by_email: currentUser?.email || '',
+      created_by_name: currentUserDisplayName || 'Admin',
+      data: {
+        numeroOT,
+        numero_ot: numeroOT,
+        numeroCotizacion: linkedQuote ? String(linkedQuote.numeroCotizacion || linkedQuote.numero || '') : (hasLegacyQuote ? legacyQuoteNumber : 'Sin Cotización'),
+        clientName: client.name || '',
+        rut: client.rut || '',
+        descripcion: desc,
+        monto,
+        total: monto,
+        neto: otMoneyToNumber(fin.neto || 0),
+        iva: otMoneyToNumber(fin.iva || 0),
+        manual_pricing: !linkedQuote,
+        oc,
+        hes,
+        guia_despacho: guia,
+        direccion: direccionOT,
+        sucursal: direccionOT,
+        attachments: otAttachments,
+        abonos: [],
+        modalidadCobro: cobroMode,
+        modalidad_cobro: cobroMode,
+        cobro_estado: initialCobroState,
+        pago_estado: initialCobroState,
+        createdBy: currentUserDisplayName || 'Admin',
+        fecha: fechaOT,
+        legacyQuote: hasLegacyQuote,
+        legacy_quote: hasLegacyQuote,
+        legacyQuoteNumber,
+        legacy_quote_number: legacyQuoteNumber,
+        legacyQuoteDate,
+        legacy_quote_date: legacyQuoteDate,
+        cotizacionAntigua: hasLegacyQuote,
+        folioCotizacionAntigua: legacyQuoteNumber,
+        fechaCotizacionAntigua: legacyQuoteDate,
+        maintenanceProgramId: linkedMaintenance?.programId || '',
+        maintenance_program_id: linkedMaintenance?.programId || '',
+        maintenanceMonth: Number(linkedMaintenance?.month || 0),
+        maintenance_month: Number(linkedMaintenance?.month || 0),
+        maintenanceYear: Number(linkedMaintenance?.year || 0),
+        maintenance_year: Number(linkedMaintenance?.year || 0),
+        maintenanceProgramTitle: linkedMaintenance?.title || '',
+        maintenanceServiceType: linkedMaintenance?.serviceType || '',
+        maintenanceSiteName: linkedMaintenance?.siteName || ''
+      }
+    };
+
+    if(linkedQuote){
+      payload.data.quoteId = linkedQuote.id;
+      payload.data.quote_id = linkedQuote.id;
+    }
+
+    const { data: inserted, error } = await supabaseClient.from('ots').insert([payload]).select().single();
+    if(error) throw error;
+
+    try{
+      if(linkedQuote){
+        const qData = Object.assign({}, linkedQuote?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
+        await supabaseClient.from('quotes').update({ data: qData }).eq('id', linkedQuote.id);
+      }
+    }catch(e){ console.error('No se pudo marcar la cotización como OT creada:', e); }
+
+    await loadData();
+    try{ renderOTs(); }catch(e){}
+    try{ renderQuotes(); }catch(e){}
+    try{ renderMaintenancePrograms(); }catch(e){}
+    pendingQuoteToLinkOT = null;
+    pendingMaintenanceToLinkOT = null;
+    toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
+    await goToCreatedOTAndEdit(inserted?.id, inserted?.numero_ot || numeroOT);
+
+  }catch(error){
+    console.error('Error al guardar OT:', error);
+    alert('Error al guardar OT: ' + (error?.message || error));
+  }finally{
+    if(btn){ btn.disabled = false; btn.innerText = 'Guardar OT'; }
+  }
+}
 
     async function convertToOT(quoteId) {
       const q = quotes.find(x => x.id === quoteId);
@@ -16132,76 +16174,44 @@ async function saveNewReq() {
       doc.text("WhatsApp: +56 9 3698 3772", 200, 29, { align: 'right' });
     }
 
+    
     async function buildQuotePDFDoc(quoteId) {
       const q = await ensureQuoteLoaded(quoteId);
       if(!q) throw new Error('No se encontró la cotización.');
 
-      const { jsPDF } = window.jspdf; 
+      const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginL = 14;
+      const marginR = 14;
+      const usableWidth = pageWidth - marginL - marginR;
 
-      await addLogoToPdf(doc); 
-      addCompanyHeaderRight(doc);
+      const folio = safeText(q.numeroCotizacion || q.numero || 'S/N');
+      const fechaDoc = formatDDMMYY(q.fecha || q.created_at || todayISO());
+      const creadoPor = formatShortName(q.createdByName || q.createdBy || q.createdByEmail || '');
+      const cliente = safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado';
+      const rut = safeText(q.rut) || '-';
+      const sucursal = safeText((q.data && (q.data.sucursal || q.data.sucursal_direccion || q.data.direccion_sucursal || q.data.direccion)) || q.sucursal || q.direccion || '');
+      const obra = safeText(q.obra || q.descripcion || q.data?.obra || q.data?.descripcion || '-');
 
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
-      doc.text(`COTIZACIÓN N° ${q.numeroCotizacion}`, 14, 40);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-
-      doc.text(`Fecha: ${formatDDMMYY(q.fecha || q.created_at)}  |  Creado por: ${formatShortName(q.createdByName || q.createdBy || '')}`, 14, 48);
-
-      let yCursor = 58;
-      doc.setFont('helvetica', 'bold'); doc.text('Cliente', 14, yCursor); doc.setFont('helvetica', 'normal');
-      const sucDoc = (q.data && q.data.sucursal) || q.sucursal || '';
-      const clLines = [
-        `Nombre / Razón Social: ${safeText(q.razonSocial) || safeText(q.clientName) || 'Cliente no encontrado'}`,
-        `RUT: ${q.rut}`
-      ];
-      if (sucDoc) clLines.push(`Sucursal / Dirección: ${safeText(sucDoc)}`);
-      doc.text(clLines, 14, yCursor + 7);
-
-      yCursor += 25;
-      doc.setFont('helvetica', 'bold'); doc.text('Descripción de Obra', 14, yCursor); doc.setFont('helvetica', 'normal');
-      const textLines = doc.splitTextToSize(q.obra, 180); doc.text(textLines, 14, yCursor + 6);
-
-      let y = yCursor + 6 + (textLines.length * 5) + 6;
-
-      let totalNeto = 0;
-      const rows = (q.items || []).map((it, i) => {
-          const desc = (it.descripcion ?? it.desc ?? '').toString();
-          const cant = Number(it.cantidad ?? it.cant ?? 0);
-          const valor = Number(it.precio ?? it.valor ?? 0);
-          const netoItem = Number(it.subtotal ?? (cant * valor) ?? 0);
-          totalNeto += netoItem;
-          return [i+1, desc, cant, formatCLP(valor), formatCLP(netoItem)];
+      const rawItems = Array.isArray(q.items) ? q.items : [];
+      const rows = rawItems.map((it, i) => {
+        const desc = safeText(it.descripcion ?? it.desc ?? it.detalle ?? '-');
+        const cant = Number(it.cantidad ?? it.cant ?? 0) || 0;
+        const valor = Number(it.precio ?? it.valor ?? 0) || 0;
+        const netoItem = Number(it.subtotal ?? (cant * valor) ?? 0) || 0;
+        return [i + 1, desc, cant || 1, formatCLP(valor), formatCLP(netoItem)];
       });
 
-      doc.autoTable({ 
-        startY: y, 
-        head: [['#','Descripción','Cant.','V. Unit.','Subtotal']], 
-        body: rows, 
-        styles: { fontSize: 9 }, 
-        headStyles: { fillColor: [133, 175, 40], textColor: 255 }, 
-        margin: { left: 14, right: 14 } 
-      });
-
-      y = doc.lastAutoTable.finalY + 10;
-      const iva = totalNeto * 0.19;
+      let totalNeto = rawItems.reduce((acc, it) => {
+        const cant = Number(it.cantidad ?? it.cant ?? 0) || 0;
+        const valor = Number(it.precio ?? it.valor ?? 0) || 0;
+        const netoItem = Number(it.subtotal ?? (cant * valor) ?? 0) || 0;
+        return acc + netoItem;
+      }, 0);
+      const iva = Math.round(totalNeto * 0.19);
       const totalFinal = totalNeto + iva;
-
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Neto:`, 130, y); doc.text(`${formatCLP(totalNeto)}`, 196, y, { align: 'right' });
-      doc.text(`IVA (19%):`, 130, y + 6); doc.text(`${formatCLP(iva)}`, 196, y + 6, { align: 'right' });
-      doc.setFontSize(12); 
-      doc.text(`TOTAL:`, 130, y + 14); doc.text(`${formatCLP(totalFinal)}`, 196, y + 14, { align: 'right' });
-
-      y += 25;
-      if (y > 220) { doc.addPage(); y = 20; }
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold'); 
-      doc.text('Alcances y Consideraciones del Servicio', 14, y); 
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
 
       const alcances = [
         "1. La aceptación del presente presupuesto no implica ejecución inmediata del servicio. Los trabajos se programan de acuerdo con la disponibilidad de agenda y la correcta coordinación con el cliente.",
@@ -16213,15 +16223,163 @@ async function saveNewReq() {
         "7. La programación del servicio se realizará una vez recibido el pago correspondiente, según lo acordado en el presente presupuesto."
       ];
 
-      let yy = y + 6;
-      alcances.forEach((txt) => {
-        const wrapped = doc.splitTextToSize(txt, 180);
-        doc.text(wrapped, 14, yy);
-        yy += (wrapped.length * 4) + 2;
+      const drawHeader = async () => {
+        const logoData = await loadLogoDataUrl();
+        if(logoData){
+          const logoW = 48;
+          const logoH = 15;
+          doc.addImage(logoData, 'PNG', (pageWidth - logoW) / 2, 10, logoW, logoH);
+        } else {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(18);
+          doc.setTextColor(133, 175, 40);
+          doc.text('ECOLUZ SERVICIOS', pageWidth / 2, 18, { align: 'center' });
+        }
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text('ECOLUZ SERVICIOS LIMITADA', pageWidth / 2, 30, { align: 'center' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.7);
+        doc.text('21 de Mayo #1223, Iquique', pageWidth / 2, 34.5, { align: 'center' });
+        doc.text('contacto@ecoluzservicios.cl', pageWidth / 2, 38.5, { align: 'center' });
+        doc.text('www.ecoluzservicios.cl · +56 9 3698 3772', pageWidth / 2, 42.5, { align: 'center' });
+
+        doc.setDrawColor(210, 218, 228);
+        doc.line(marginL, 47, pageWidth - marginR, 47);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(17, 24, 39);
+        doc.text(`COTIZACIÓN N° ${folio}`, marginL, 55);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`Fecha: ${fechaDoc} | Creado por: ${creadoPor || '-'}`, marginL, 60);
+      };
+
+      const drawFooter = () => {
+        const pages = doc.getNumberOfPages();
+        const stamp = formatDDMMYY(todayISO());
+        for(let i = 1; i <= pages; i++){
+          doc.setPage(i);
+          doc.setDrawColor(225, 231, 238);
+          doc.line(marginL, pageHeight - 10, pageWidth - marginR, pageHeight - 10);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`ECOLUZ · Cotización · Página ${i} de ${pages}`, marginL, pageHeight - 5);
+          doc.text(stamp, pageWidth - marginR, pageHeight - 5, { align: 'right' });
+        }
+      };
+
+      await drawHeader();
+
+      let y = 69;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(17, 24, 39);
+      doc.text('Cliente', marginL, y);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.2);
+      const clientLines = [
+        `Nombre / Razón Social: ${cliente}`,
+        `RUT: ${rut}`
+      ];
+      if(sucursal) clientLines.push(`Sucursal / Dirección: ${sucursal}`);
+      let yy = y + 5;
+      clientLines.forEach(line => {
+        doc.text(line, marginL, yy);
+        yy += 4.5;
       });
 
+      y = yy + 3;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.text('Descripción de Obra', marginL, y);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.2);
+      const obraLines = doc.splitTextToSize(obra, usableWidth);
+      doc.text(obraLines, marginL, y + 5);
+      y += 5 + (obraLines.length * 4.2) + 3;
+
+      doc.autoTable({
+        startY: y,
+        head: [['#', 'Descripción', 'Cant.', 'V. Unit.', 'Subtotal']],
+        body: rows.length ? rows : [[1, 'Sin ítems cargados', '', '', '']],
+        theme: 'plain',
+        styles: {
+          fontSize: 8.8,
+          cellPadding: { top: 2.1, right: 1.8, bottom: 2.1, left: 1.8 },
+          textColor: [17, 24, 39],
+          lineColor: [212, 220, 228],
+          lineWidth: 0.15,
+          overflow: 'linebreak',
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [245, 247, 250],
+          textColor: [17, 24, 39],
+          fontStyle: 'bold'
+        },
+        alternateRowStyles: { fillColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 106 },
+          2: { cellWidth: 14, halign: 'center' },
+          3: { cellWidth: 28, halign: 'right' },
+          4: { cellWidth: 28, halign: 'right' }
+        },
+        margin: { left: marginL, right: marginR }
+      });
+
+      y = (doc.lastAutoTable?.finalY || y) + 6;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.8);
+      doc.setTextColor(17, 24, 39);
+      doc.text('Neto:', 150, y);
+      doc.text(formatCLP(totalNeto), pageWidth - marginR, y, { align: 'right' });
+      doc.text('IVA (19%):', 150, y + 5.5);
+      doc.text(formatCLP(iva), pageWidth - marginR, y + 5.5, { align: 'right' });
+      doc.setFontSize(11.5);
+      doc.text('TOTAL:', 150, y + 12);
+      doc.text(formatCLP(totalFinal), pageWidth - marginR, y + 12, { align: 'right' });
+
+      y += 22;
+      if(y > pageHeight - 40){
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.text('Alcances y Consideraciones del Servicio', marginL, y);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      yy = y + 5;
+
+      alcances.forEach((txt) => {
+        const wrapped = doc.splitTextToSize(txt, usableWidth);
+        if(yy + (wrapped.length * 3.8) > pageHeight - 18){
+          doc.addPage();
+          yy = 20;
+        }
+        doc.text(wrapped, marginL, yy);
+        yy += (wrapped.length * 3.8) + 1.7;
+      });
+
+      drawFooter();
       return doc;
     }
+
 
     async function generateQuotePDF(quoteId) {
       const doc = await buildQuotePDFDoc(quoteId);
@@ -17578,7 +17736,7 @@ function buildActaRecepcionPrintHtml(data){
   }
 </style>
 </head>
-<body>
+<body onload="setTimeout(function(){ try { window.print(); } catch(e) {} }, 250)">
   <div class="page">
     <div class="top-line"></div>
     <div class="header">
@@ -17624,13 +17782,6 @@ function buildActaRecepcionPrintHtml(data){
 
     <div class="footer">ECOLUZ · Acta de recepción de servicio ejecutado</div>
   </div>
-  <script>
-    window.onload = function(){
-      setTimeout(function(){
-        try { window.print(); } catch(e) {}
-      }, 250);
-    };
-  <\/script>
 </body>
 </html>`;
 }
@@ -17674,59 +17825,58 @@ function printActaRecepcion(sourceType, sourceId){
     signatureDataUrl
   });
 
-  removeActaPrintHost();
+  const printFrame = document.createElement('iframe');
+  printFrame.style.position = 'fixed';
+  printFrame.style.right = '0';
+  printFrame.style.bottom = '0';
+  printFrame.style.width = '0';
+  printFrame.style.height = '0';
+  printFrame.style.border = '0';
+  printFrame.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(printFrame);
 
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(printHtml, 'text/html');
-  const printBody = parsed?.body?.innerHTML || printHtml;
-
-  const style = document.createElement('style');
-  style.id = 'actaPrintStyle';
-  style.textContent = `
-    @media screen {
-      #actaPrintHost { display:none !important; }
-    }
-    @media print {
-      body * { visibility:hidden !important; }
-      #actaPrintHost, #actaPrintHost * { visibility:visible !important; }
-      #actaPrintHost {
-        display:block !important;
-        position:absolute !important;
-        left:0 !important;
-        top:0 !important;
-        width:100% !important;
-        min-height:100vh !important;
-        background:#fff !important;
-        z-index:999999 !important;
-        padding:0 !important;
-        margin:0 !important;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-
-  const host = document.createElement('div');
-  host.id = 'actaPrintHost';
-  host.innerHTML = printBody;
-  document.body.appendChild(host);
+  const frameDoc = printFrame.contentWindow?.document;
+  if(!frameDoc){
+    printFrame.remove();
+    alert('No se pudo preparar la impresión del acta.');
+    return;
+  }
 
   const cleanup = () => {
-    window.removeEventListener('afterprint', cleanup);
-    setTimeout(() => { removeActaPrintHost(); }, 150);
+    setTimeout(() => {
+      try { printFrame.remove(); } catch(e) {}
+    }, 300);
   };
-  window.addEventListener('afterprint', cleanup, { once:true });
+
+  frameDoc.open();
+  frameDoc.write(printHtml);
+  frameDoc.close();
 
   closeModal();
-  setTimeout(() => {
+
+  const doPrint = () => {
     try {
-      window.focus();
-      window.print();
+      const win = printFrame.contentWindow;
+      if(!win){
+        cleanup();
+        alert('No se pudo abrir la impresión del acta.');
+        return;
+      }
+      win.focus();
+      win.print();
+      cleanup();
     } catch(e) {
       console.error('No se pudo imprimir el acta:', e);
       cleanup();
       alert('No se pudo abrir la impresión del acta.');
     }
-  }, 120);
+  };
+
+  if (printFrame.contentWindow?.document?.readyState === 'complete') {
+    setTimeout(doPrint, 150);
+  } else {
+    printFrame.onload = () => setTimeout(doPrint, 150);
+  }
 }
 window.printActaRecepcion = printActaRecepcion;
 
@@ -18651,7 +18801,7 @@ function isMobileSidebarMode(){
 
 
 const SIDEBAR_PIN_KEY = 'ecoluz_sidebar_pinned_open_v1';
-let desktopSidebarAutoHideBound = false;
+var desktopSidebarAutoHideBound = false;
 
 function isDesktopSidebarMode(){
   return !isMobileSidebarMode();
@@ -19237,6 +19387,726 @@ document.addEventListener('DOMContentLoaded', () => {
   dash.appendChild(h2);
   if (grid) dash.appendChild(grid);
 });
+
+
+/* ==== ROOT REBUILD COTIZACIONES INTEGRADO ==== */
+
+(function(){
+  function esc(v){
+    if(typeof escapeHtml === 'function') return escapeHtml(v == null ? '' : String(v));
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function txt(v){
+    if(typeof safeText === 'function') return safeText(v);
+    if(v === null || v === undefined) return '';
+    return String(v).trim();
+  }
+  function clp(v){
+    const n = Number(v || 0);
+    if(typeof formatCLP === 'function') return formatCLP(n);
+    return '$' + Math.round(n).toLocaleString('es-CL');
+  }
+  function today(){
+    if(typeof todayISO === 'function') return todayISO();
+    return new Date().toISOString().slice(0,10);
+  }
+  function toInputDate(v){
+    if(typeof isoToDateInput === 'function') return isoToDateInput(v);
+    return txt(v).slice(0,10);
+  }
+  function toSaveDate(v){
+    if(typeof dateInputToISO === 'function') return dateInputToISO(v);
+    return (txt(v) || today()) + 'T12:00:00.000Z';
+  }
+  function shortName(v){
+    if(typeof formatShortName === 'function') return formatShortName(v || '');
+    return txt(v) || '—';
+  }
+  function quoteOptions(selectedValue){
+    const selected = txt(selectedValue).toLowerCase();
+    const base = Array.isArray(window.quoteServiceTypeOptions) ? window.quoteServiceTypeOptions.slice() : [
+      'Reparación','Mantención','Instalación','Suministro','Suministro e Instalación','Asistencia de emergencia','Visita de emergencia'
+    ];
+    if(selected && !base.some(x => String(x).toLowerCase() === selected)) base.unshift(selectedValue);
+    return base.map(opt => `<option value="${esc(opt)}" ${String(opt).toLowerCase() === selected ? 'selected' : ''}>${esc(opt)}</option>`).join('');
+  }
+  function quotePresetButtons(){
+    const presets = Array.isArray(window.quoteItemPresets) ? window.quoteItemPresets : [];
+    if(!presets.length) return '';
+    return presets.map(item => `<button type="button" onclick="window.quoteModalAddItem(${JSON.stringify(item)},1,0)" class="px-3 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition">${esc(item)}</button>`).join('');
+  }
+  function quotePresetDatalist(){
+    const presets = Array.isArray(window.quoteItemPresets) ? window.quoteItemPresets : [];
+    return `<datalist id="quoteItemPresetsList">${presets.map(item => `<option value="${esc(item)}"></option>`).join('')}</datalist>`;
+  }
+  function clientOptions(selectedId){
+    const selId = String(selectedId || '');
+    const list = Array.isArray(window.clients || clients) ? (window.clients || clients) : [];
+    const options = ['<option value="">Seleccionar Cliente...</option>'];
+    list.forEach(c => {
+      const label = `${txt(c.name) || 'Sin nombre'}${txt(c.rut) ? ` (${txt(c.rut)})` : ''}`;
+      options.push(`<option value="${esc(c.id)}" ${String(c.id) === selId ? 'selected' : ''}>${esc(label)}</option>`);
+    });
+    return options.join('');
+  }
+  function currentClients(){
+    return Array.isArray(window.clients || clients) ? (window.clients || clients) : [];
+  }
+  function getClientById(id){
+    return currentClients().find(c => String(c.id) === String(id || '')) || null;
+  }
+  function attachmentPanel(){
+    return (typeof window.renderAttachmentPanelHTML === 'function') ? window.renderAttachmentPanelHTML('quote') : '';
+  }
+  function initAttachments(att){
+    try{ if(typeof window.initAttachmentManager === 'function') window.initAttachmentManager('quote', Array.isArray(att) ? att : []); }catch(e){ console.warn('Adjuntos quote:', e); }
+  }
+  function collectedAttachments(){
+    try{ if(typeof window.collectModalAttachments === 'function') return window.collectModalAttachments('quote') || []; }catch(e){}
+    return [];
+  }
+  function openSystemModal(html){
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+    if(!modal || !content) throw new Error('No se encontró el contenedor del modal.');
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+  }
+  function closeSystemModal(){
+    try{ if(typeof closeModal === 'function') closeModal(); else document.getElementById('modal')?.classList.add('hidden'); }catch(e){}
+  }
+  function showToast(message){
+    try{ if(typeof toastInfo === 'function') toastInfo(message); else alert(message); }catch(e){ alert(message); }
+  }
+  function provisionalRut(raw){
+    const val = txt(raw);
+    if(val) return (typeof pickRutOrProvisional === 'function') ? pickRutOrProvisional(val) : val;
+    if(typeof generateProvisionalRut === 'function') return generateProvisionalRut();
+    return 'SIN-RUT-' + String(Date.now()).slice(-6);
+  }
+  function quoteGetFormMode(){
+    return document.getElementById('newClientDiv')?.classList.contains('hidden') ? 'existing' : 'new';
+  }
+  window.toggleClientMode = function(mode){
+    const existingDiv = document.getElementById('existingClientDiv');
+    const newDiv = document.getElementById('newClientDiv');
+    const btnExistente = document.getElementById('btnExistente');
+    const btnNuevo = document.getElementById('btnNuevo');
+    const isNew = String(mode) === 'new';
+    if(existingDiv) existingDiv.classList.toggle('hidden', isNew);
+    if(newDiv) newDiv.classList.toggle('hidden', !isNew);
+    if(btnExistente){
+      btnExistente.className = 'px-4 py-2 rounded-lg text-sm font-bold transition-all ' + (isNew ? 'text-slate-500 hover:text-emerald-600' : 'bg-white shadow-sm text-slate-700');
+    }
+    if(btnNuevo){
+      btnNuevo.className = 'px-4 py-2 rounded-lg text-sm font-bold transition-all ' + (isNew ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500 hover:text-emerald-600');
+    }
+  };
+
+  function quoteRecalculate(){
+    let bruto = 0;
+    document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
+      const qty = Number(row.querySelector('.quote-item-cant')?.value || 0);
+      const unit = Number(row.querySelector('.quote-item-valor')?.value || 0);
+      const subtotal = Math.max(0, Math.round(qty * unit));
+      const subtotalEl = row.querySelector('.quote-item-subtotal');
+      if(subtotalEl) subtotalEl.textContent = clp(subtotal);
+      bruto += subtotal;
+    });
+    const pct = Math.max(0, Math.min(100, Number(document.getElementById('descuento_pct')?.value || 0)));
+    const descMonto = Math.round(bruto * (pct / 100));
+    const neto = Math.max(0, bruto - descMonto);
+    const iva = Math.round(neto * 0.19);
+    const total = neto + iva;
+    const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+    set('bruto_display', clp(bruto));
+    set('descuento_pct_display', `${pct.toLocaleString('es-CL')}%`);
+    set('descuento_display', '-' + clp(descMonto));
+    set('neto_display', clp(neto));
+    set('iva_display', clp(iva));
+    set('total', clp(total));
+    return { bruto, descPct: pct, descMonto, neto, iva, total };
+  }
+
+  window.quoteModalRecalculate = quoteRecalculate;
+
+  window.quoteModalAddItem = function(desc, qty, unit){
+    const container = document.getElementById('itemsContainer');
+    if(!container) return;
+    const row = document.createElement('div');
+    row.className = 'quote-item-row grid grid-cols-12 gap-2 p-4 items-center bg-white border-b border-slate-50';
+    row.innerHTML = `
+      <div class="col-span-6"><input type="text" list="quoteItemPresetsList" class="quote-item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${esc(txt(desc))}"></div>
+      <div class="col-span-1"><input type="number" min="0" step="1" class="quote-item-cant w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(qty || 1)}"></div>
+      <div class="col-span-2"><input type="number" min="0" step="1" class="quote-item-valor w-full bg-transparent border-none text-right font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(unit || 0)}"></div>
+      <div class="col-span-2 text-right"><span class="quote-item-subtotal font-bold text-sm text-emerald-600">$0</span></div>
+      <div class="col-span-1 text-right"><button type="button" class="text-slate-300 hover:text-red-500 font-bold">✕</button></div>`;
+    container.appendChild(row);
+    const removeBtn = row.querySelector('button');
+    if(removeBtn) removeBtn.addEventListener('click', function(){ row.remove(); quoteRecalculate(); });
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', quoteRecalculate));
+    quoteRecalculate();
+  };
+
+  function quoteRowsToItems(){
+    const items = [];
+    document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
+      const descripcion = txt(row.querySelector('.quote-item-desc')?.value || '');
+      const cantidad = Number(row.querySelector('.quote-item-cant')?.value || 0);
+      const precio = Number(row.querySelector('.quote-item-valor')?.value || 0);
+      if(descripcion && cantidad > 0){
+        items.push({ descripcion, cantidad, precio, subtotal: Math.round(cantidad * precio) });
+      }
+    });
+    return items;
+  }
+
+  async function fetchQuoteFull(quoteId){
+    const id = txt(quoteId);
+    if(!id) throw new Error('Cotización no encontrada.');
+    const { data: row, error } = await supabaseClient
+      .from('quotes')
+      .select('*, clients(id, name, rut, telefono, email, direccion, data)')
+      .eq('id', id)
+      .single();
+    if(error) throw error;
+    const data = row.data || {};
+    const client = row.clients || getClientById(row.client_id) || {};
+    const clientName = txt(client.name) || txt(data.clientName) || txt(data.razonSocial) || txt(row.nombre) || txt(row.name) || 'Cliente no encontrado';
+    const rut = txt(client.rut) || txt(data.rut) || txt(row.rut);
+    const sucursal = txt(row.sucursal) || txt(data.sucursal) || txt(data.sucursal_direccion) || txt(data.direccion_sucursal) || txt(row.direccion) || txt(data.direccion);
+    const items = Array.isArray(row.items) ? row.items : (Array.isArray(data.items) ? data.items : []);
+    return {
+      id: row.id,
+      clientId: row.client_id,
+      clientName,
+      razonSocial: clientName,
+      rut,
+      numeroCotizacion: txt(row.numero) || txt(data.numeroCotizacion) || 'S/N',
+      numero: txt(row.numero) || txt(data.numeroCotizacion) || 'S/N',
+      obra: txt(row.obra) || txt(data.obra) || txt(row.descripcion) || txt(data.descripcion),
+      descripcion: txt(row.descripcion) || txt(row.obra) || txt(data.descripcion) || txt(data.obra),
+      tipo_servicio: txt(row.tipo_servicio) || txt(data.tipo_servicio) || 'Mantención',
+      sucursal,
+      direccion: txt(row.direccion) || txt(data.direccion) || sucursal,
+      fecha: row.fecha || data.fecha || data.fechaDocumento || (row.created_at ? String(row.created_at).slice(0,10) : today()),
+      estado: txt(row.estado || data.estado || 'pendiente').toLowerCase() || 'pendiente',
+      items,
+      monto: Number(row.monto || data.total || 0),
+      bruto: Number(row.bruto || data.bruto || 0),
+      descuento_pct: Number(row.descuento_pct || data.descuento_pct || 0),
+      descuento_monto: Number(row.descuento_monto || data.descuento_monto || 0),
+      neto: Number(row.neto || data.neto || 0),
+      iva: Number(row.iva || data.iva || 0),
+      createdByName: txt(row.created_by_name) || shortName(row.created_by_email || ''),
+      createdByEmail: txt(row.created_by_email),
+      created_by: row.created_by || null,
+      created_at: row.created_at || null,
+      data: Object.assign({}, data, {
+        clientId: row.client_id,
+        client_id: row.client_id,
+        clientName,
+        razonSocial: clientName,
+        rut,
+        sucursal,
+        direccion: txt(row.direccion) || txt(data.direccion) || sucursal,
+        items
+      })
+    };
+  }
+
+  function quoteModalHtml(mode, q, prefill){
+    const editing = mode === 'edit';
+    const quote = q || {};
+    const fill = prefill || {};
+    const clientId = fill.clientId || quote.clientId || '';
+    const quoteNum = editing ? (quote.numeroCotizacion || quote.numero || 'S/N') : ((typeof getNextQuoteNumber === 'function' && window.isAutoMode) ? getNextQuoteNumber() : '');
+    const quoteDate = toInputDate(fill.fecha || quote.fecha || today());
+    const quoteType = txt(fill.tipo_servicio || quote.tipo_servicio || 'Mantención');
+    const quoteObra = txt(fill.obra || quote.obra || quote.descripcion || '');
+    const quoteSucursal = txt(fill.sucursal || quote.sucursal || quote.direccion || '');
+    const discountPct = Number(quote.descuento_pct || fill.descuento_pct || 0);
+    const attachmentsHtml = attachmentPanel();
+    return `
+      <div class="p-6 md:p-8">
+        <div class="flex justify-between items-start mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800">${editing ? 'Editar Cotización' : 'Nueva Cotización'}</h2>
+            <p class="text-slate-500 text-sm font-medium">Empresa: Ecoluz</p>
+          </div>
+          <div class="flex flex-col gap-3 items-end">
+            <div class="bg-white p-3 rounded-xl border-2 border-emerald-500 shadow-sm ring-4 ring-emerald-50">
+              <span class="text-[10px] font-black text-emerald-600 uppercase block mb-1 text-center">N° FOLIO</span>
+              <input id="qNum" value="${esc(quoteNum)}" class="text-2xl font-black text-emerald-700 bg-transparent border-none p-0 text-center focus:ring-0 w-32" placeholder="0000">
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm w-52">
+              <span class="text-[10px] font-black text-slate-500 uppercase block mb-1 text-center">Fecha</span>
+              <input id="qFecha" type="date" value="${esc(quoteDate)}" class="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 text-center focus:ring-0">
+              <p class="text-[10px] text-slate-400 mt-1 text-center">Editable (docs antiguos)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mb-6 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200 ${editing ? 'hidden' : ''}">
+          <button type="button" onclick="window.toggleClientMode('existing')" id="btnExistente" class="px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-slate-700 transition-all">Cliente Registrado</button>
+          <button type="button" onclick="window.toggleClientMode('new')" id="btnNuevo" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-emerald-600 transition-all">+ Nuevo Cliente</button>
+        </div>
+
+        <div class="space-y-6">
+          <div id="existingClientDiv" class="${editing ? '' : ''}">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Seleccionar de la lista *</label>
+            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none">${clientOptions(clientId)}</select>
+            <div class="mt-3">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Sucursal / Dirección</label>
+              <input id="qSucursal" list="qSucursalList" value="${esc(quoteSucursal)}" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none" placeholder="Escribe o selecciona sucursal / dirección">
+              <datalist id="qSucursalList"></datalist>
+              <div id="qSucursalPreview" class="mt-2 hidden">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                  <div class="font-bold text-emerald-800 mb-1">Sucursal seleccionada (solo interno)</div>
+                  <div id="qSucursalPreviewText" class="text-emerald-900"></div>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 ml-1">Se imprimirá en el PDF y también sirve para identificar la sucursal correcta.</p>
+            </div>
+          </div>
+
+          <div id="newClientDiv" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-emerald-50/50 border-2 border-emerald-100 rounded-2xl">
+            <div class="md:col-span-2 text-[10px] font-bold text-emerald-700 uppercase mb-1">Datos del Nuevo Cliente</div>
+            <input id="newCName" placeholder="Nombre / Razón Social *" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCRut" placeholder="RUT (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCPhone" placeholder="Teléfono (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCContact" placeholder="Contacto (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCEmail" placeholder="Email (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white md:col-span-2">
+            <input id="newCDireccion" placeholder="Dirección / sucursal (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white md:col-span-2">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Tipo de Trabajo</label>
+              <select id="qTipo" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">${quoteOptions(quoteType)}</select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
+              <textarea id="qObra" rows="2" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="¿Qué se va a realizar?">${esc(quoteObra)}</textarea>
+            </div>
+          </div>
+
+          <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+            <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase border-b">
+              <div class="col-span-6">Descripción</div>
+              <div class="col-span-1 text-center">Cant</div>
+              <div class="col-span-2 text-right">Valor Unit.</div>
+              <div class="col-span-2 text-right">Subtotal</div>
+              <div class="col-span-1"></div>
+            </div>
+            <div id="itemsContainer" class="divide-y divide-slate-100"></div>
+            ${quotePresetDatalist()}
+            <div class="px-4 py-3 border-t border-slate-100 bg-slate-50">
+              <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Items rápidos</div>
+              <div class="flex flex-wrap gap-2">${quotePresetButtons() || '<span class="text-xs text-slate-400">Sin items rápidos definidos.</span>'}</div>
+            </div>
+            <div class="p-3 bg-[#85af28]/10 flex justify-center border-t border-slate-100">
+              <button type="button" onclick="window.quoteModalAddItem('',1,0)" class="text-emerald-600 font-bold text-xs flex items-center gap-2 hover:scale-105 transition-all">
+                <span class="flex items-center justify-center w-6 h-6 bg-emerald-600 text-white rounded-full">+</span> AGREGAR ITEM
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            <div class="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 text-[10px] text-emerald-800 italic leading-tight">
+              <h4 class="font-bold uppercase mb-2 tracking-widest text-emerald-600">Consideraciones Ecoluz</h4>
+              <ul class="space-y-1">
+                <li>• Validez de presupuesto: 15 días corridos.</li>
+                <li>• Pago contra entrega de servicio o según acuerdo.</li>
+                <li>• La programación del servicio se coordina con el cliente según agenda técnica.</li>
+              </ul>
+            </div>
+            <div class="space-y-2 text-right pr-2 self-center">
+              <div class="text-sm text-slate-400">Bruto <span id="bruto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+              <div class="flex items-center justify-end gap-2 text-sm">
+                <span class="text-slate-400">Descuento</span>
+                <input id="descuento_pct" type="number" min="0" max="100" step="0.01" class="w-20 px-2 py-1 border rounded-lg text-right" value="${discountPct}">
+                <span id="descuento_pct_display" class="text-slate-500">0%</span>
+              </div>
+              <div class="text-sm text-slate-400">Descuento $ <span id="descuento_display" class="font-bold text-slate-700 ml-4">-$0</span></div>
+              <div class="text-sm text-slate-400">Neto <span id="neto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+              <div class="text-sm text-slate-400 border-b border-slate-100 pb-2">IVA (19%) <span id="iva_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+              <div class="pt-2 text-3xl font-black text-emerald-600">TOTAL <span id="total" class="ml-4">$0</span></div>
+            </div>
+          </div>
+
+          ${attachmentsHtml}
+
+          <div class="flex gap-3 pt-4">
+            ${editing ? `<button type="button" onclick="window.previewQuote('${esc(quote.id)}')" class="flex-1 bg-slate-100 text-slate-700 py-4 rounded-xl font-bold">Previsualizar</button>` : ''}
+            <button type="button" onclick="${editing ? `window.saveUpdatedQuote('${esc(quote.id)}', this)` : 'window.saveNewQuote(this)'}" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all">${editing ? 'GUARDAR CAMBIOS' : 'GUARDAR COTIZACIÓN'}</button>
+            <button type="button" onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">CANCELAR</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function populateQuoteFormFromData(quote, prefill){
+    const items = Array.isArray(quote?.items) && quote.items.length ? quote.items : (Array.isArray(prefill?.items) ? prefill.items : []);
+    const rows = items.length ? items : [{ descripcion:'', cantidad:1, precio:0 }];
+    const container = document.getElementById('itemsContainer');
+    if(container) container.innerHTML = '';
+    rows.forEach(item => window.quoteModalAddItem(item.descripcion || item.desc || '', item.cantidad || item.cant || 1, item.precio || item.valor || 0));
+    const discountInput = document.getElementById('descuento_pct');
+    if(discountInput) discountInput.addEventListener('input', quoteRecalculate);
+    quoteRecalculate();
+    const clientSelect = document.getElementById('qClient');
+    if(clientSelect){
+      clientSelect.addEventListener('change', function(){
+        try{ if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); }catch(e){}
+      });
+    }
+    const sucInput = document.getElementById('qSucursal');
+    if(sucInput){
+      sucInput.addEventListener('input', function(){ try{ if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); }catch(e){} });
+      sucInput.addEventListener('change', function(){ try{ if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); }catch(e){} });
+    }
+    try{ if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); }catch(e){}
+    try{ if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); }catch(e){}
+    initAttachments((quote?.data && quote.data.attachments) || []);
+  }
+
+  async function ensureClientForQuote(isEdit){
+    const mode = isEdit ? 'existing' : quoteGetFormMode();
+    if(mode === 'existing'){
+      const clientId = txt(document.getElementById('qClient')?.value || '');
+      if(!clientId) throw new Error('Debes seleccionar un cliente.');
+      const client = getClientById(clientId);
+      if(client) return { id: clientId, name: txt(client.name), rut: txt(client.rut), direccion: txt(client.direccion || client.data?.direccion || '') };
+      const { data: row, error } = await supabaseClient.from('clients').select('*').eq('id', clientId).single();
+      if(error) throw error;
+      return { id: row.id, name: txt(row.name), rut: txt(row.rut), direccion: txt(row.direccion || row.data?.direccion || '') };
+    }
+    const name = txt(document.getElementById('newCName')?.value || '');
+    if(!name) throw new Error('Debes ingresar el nombre o razón social del nuevo cliente.');
+    const rut = provisionalRut(document.getElementById('newCRut')?.value || '');
+    const telefono = txt(document.getElementById('newCPhone')?.value || '');
+    const contacto = txt(document.getElementById('newCContact')?.value || '');
+    const email = txt(document.getElementById('newCEmail')?.value || '');
+    const direccion = txt(document.getElementById('newCDireccion')?.value || '');
+    const payload = {
+      name,
+      rut,
+      telefono,
+      contacto,
+      email,
+      direccion,
+      tipo: 'empresa',
+      created_by: currentUser?.id || null,
+      created_by_email: currentUser?.email || '',
+      created_by_name: window.currentUserDisplayName || currentUserDisplayName || shortName(currentUser?.email || ''),
+      data: { telefono, contacto, email, direccion, tipo: 'empresa' }
+    };
+    const { data: row, error } = await supabaseClient.from('clients').insert([payload]).select().single();
+    if(error) throw error;
+    return { id: row.id, name: txt(row.name), rut: txt(row.rut), direccion: txt(row.direccion || direccion) };
+  }
+
+  async function collectQuotePayload(existingQuote){
+    const isEdit = !!existingQuote;
+    const client = await ensureClientForQuote(isEdit);
+    const folio = txt(document.getElementById('qNum')?.value || '') || 'S/N';
+    const obra = txt(document.getElementById('qObra')?.value || '');
+    const tipo = txt(document.getElementById('qTipo')?.value || 'Mantención') || 'Mantención';
+    const fecha = txt(document.getElementById('qFecha')?.value || today()) || today();
+    const sucursal = txt(document.getElementById('qSucursal')?.value || '');
+    const items = quoteRowsToItems();
+    if(!obra) throw new Error('Debes ingresar la descripción de obra.');
+    if(!items.length) throw new Error('Debes ingresar al menos un ítem.');
+    const totals = quoteRecalculate();
+    const attachments = collectedAttachments();
+    const payload = {
+      numero: folio,
+      client_id: client.id,
+      obra,
+      descripcion: obra,
+      monto: totals.total,
+      bruto: totals.bruto,
+      descuento_pct: totals.descPct,
+      descuento_monto: totals.descMonto,
+      neto: totals.neto,
+      iva: totals.iva,
+      items,
+      estado: txt(existingQuote?.estado || 'pendiente') || 'pendiente',
+      tipo_servicio: tipo,
+      sucursal: sucursal || null,
+      direccion: sucursal || client.direccion || null,
+      fecha: toSaveDate(fecha),
+      data: Object.assign({}, existingQuote?.data || {}, {
+        clientId: client.id,
+        client_id: client.id,
+        clientName: client.name,
+        razonSocial: client.name,
+        rut: client.rut,
+        sucursal,
+        direccion: sucursal || client.direccion || '',
+        obra,
+        descripcion: obra,
+        tipo_servicio: tipo,
+        items,
+        attachments
+      })
+    };
+    return { payload, client };
+  }
+
+  window.showNewQuoteModal = async function(prefill){
+    try{
+      if(!prefill) pendingOTToLink = null;
+      openSystemModal(quoteModalHtml('new', null, prefill || null));
+      populateQuoteFormFromData(null, prefill || null);
+      if(prefill && prefill.clientId){
+        const clientSel = document.getElementById('qClient');
+        if(clientSel) clientSel.value = String(prefill.clientId);
+        try{ if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); }catch(e){}
+      }
+      if(prefill && prefill.sucursal){
+        const sucInput = document.getElementById('qSucursal');
+        if(sucInput) sucInput.value = String(prefill.sucursal);
+      }
+      if(prefill && prefill.newClient){
+        window.toggleClientMode('new');
+      } else {
+        window.toggleClientMode('existing');
+      }
+      try{ if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); }catch(e){}
+    }catch(err){
+      console.error('showNewQuoteModal', err);
+      alert('No se pudo abrir la cotización: ' + (err.message || err));
+    }
+  };
+
+  window.saveNewQuote = async function(btn){
+    const label = btn ? btn.textContent : '';
+    try{
+      if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
+      const { payload } = await collectQuotePayload(null);
+      payload.created_by = currentUser?.id || null;
+      payload.created_by_email = currentUser?.email || '';
+      payload.created_by_name = window.currentUserDisplayName || currentUserDisplayName || shortName(currentUser?.email || '');
+      const { data: inserted, error } = await supabaseClient.from('quotes').insert([payload]).select('id').single();
+      if(error) throw error;
+      if(typeof pendingOTToLink !== 'undefined' && pendingOTToLink && inserted?.id){
+        try{ await supabaseClient.from('ots').update({ quote_id: inserted.id }).eq('id', pendingOTToLink); }catch(e){ console.warn('No se pudo vincular OT', e); }
+        pendingOTToLink = null;
+      }
+      closeSystemModal();
+      await loadData();
+      try{ renderQuotes(); }catch(e){}
+      try{ renderOTs(); }catch(e){}
+      showToast('Cotización guardada ✅');
+    }catch(err){
+      console.error('saveNewQuote', err);
+      alert('Error al guardar la cotización: ' + (err.message || err));
+    }finally{
+      if(btn){ btn.disabled = false; btn.textContent = label || 'GUARDAR COTIZACIÓN'; }
+    }
+  };
+
+  window.editQuote = async function(quoteId){
+    try{
+      const quote = await fetchQuoteFull(quoteId);
+      openSystemModal(quoteModalHtml('edit', quote, null));
+      populateQuoteFormFromData(quote, null);
+      const qClient = document.getElementById('qClient');
+      if(qClient) qClient.value = String(quote.clientId || '');
+      const qSucursal = document.getElementById('qSucursal');
+      if(qSucursal) qSucursal.value = quote.sucursal || quote.direccion || '';
+      const discountInput = document.getElementById('descuento_pct');
+      if(discountInput) discountInput.value = Number(quote.descuento_pct || 0);
+      quoteRecalculate();
+      try{ if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); }catch(e){}
+    }catch(err){
+      console.error('editQuote', err);
+      alert('No se pudo abrir la cotización para editar: ' + (err.message || err));
+    }
+  };
+
+  window.saveUpdatedQuote = async function(quoteId, btn){
+    const label = btn ? btn.textContent : '';
+    try{
+      if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
+      const existing = await fetchQuoteFull(quoteId);
+      const { payload } = await collectQuotePayload(existing);
+      const { error } = await supabaseClient.from('quotes').update(payload).eq('id', quoteId);
+      if(error) throw error;
+      closeSystemModal();
+      await loadData();
+      try{ renderQuotes(); }catch(e){}
+      try{ renderOTs(); }catch(e){}
+      showToast('Cotización actualizada ✅');
+    }catch(err){
+      console.error('saveUpdatedQuote', err);
+      alert('No se pudo guardar la cotización: ' + (err.message || err));
+    }finally{
+      if(btn){ btn.disabled = false; btn.textContent = label || 'GUARDAR CAMBIOS'; }
+    }
+  };
+
+  function computeQuoteTotalsForPdf(q){
+    const items = Array.isArray(q.items) ? q.items : [];
+    const itemsBruto = items.reduce((sum, it) => sum + Math.round((Number(it.cantidad || it.cant || 0) * Number(it.precio || it.valor || 0)) || Number(it.subtotal || 0)), 0);
+    const bruto = Number(q.bruto || itemsBruto || q.neto || 0);
+    const descPct = Number(q.descuento_pct || 0);
+    const descMonto = Number(q.descuento_monto || 0);
+    const neto = Number(q.neto || Math.max(0, bruto - descMonto));
+    const iva = Number(q.iva || Math.round(neto * 0.19));
+    const total = Number(q.monto || (neto + iva));
+    return { bruto, descPct, descMonto, neto, iva, total };
+  }
+
+  window.buildQuotePDFDoc = async function(quoteId){
+    const q = await fetchQuoteFull(quoteId);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    if(typeof addLogoToPdf === 'function') await addLogoToPdf(doc);
+    if(typeof addCompanyHeaderRight === 'function') addCompanyHeaderRight(doc);
+
+    const folio = q.numeroCotizacion || q.numero || 'S/N';
+    const fecha = (typeof formatDDMMYY === 'function') ? formatDDMMYY(q.fecha || q.created_at) : txt(q.fecha || q.created_at);
+    const creadoPor = txt(q.createdByName || q.createdByEmail || '');
+    const totals = computeQuoteTotalsForPdf(q);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(`COTIZACIÓN N° ${folio}`, 14, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Fecha: ${fecha}${creadoPor ? '  |  Creado por: ' + shortName(creadoPor) : ''}`, 14, 48);
+
+    let y = 58;
+    doc.setFont('helvetica', 'bold'); doc.text('Cliente', 14, y); doc.setFont('helvetica', 'normal');
+    const clLines = [
+      `Nombre / Razón Social: ${txt(q.razonSocial || q.clientName) || 'Cliente no encontrado'}`,
+      `RUT: ${txt(q.rut) || '—'}`
+    ];
+    if(txt(q.sucursal || q.direccion)) clLines.push(`Sucursal / Dirección: ${txt(q.sucursal || q.direccion)}`);
+    doc.text(clLines, 14, y + 7);
+
+    y += 25;
+    doc.setFont('helvetica', 'bold'); doc.text('Descripción de Obra', 14, y); doc.setFont('helvetica', 'normal');
+    const obraLines = doc.splitTextToSize(txt(q.obra || q.descripcion || 'Sin descripción'), 180);
+    doc.text(obraLines, 14, y + 6);
+    y = y + 8 + (obraLines.length * 5);
+
+    const rows = (Array.isArray(q.items) && q.items.length ? q.items : [{ descripcion: q.obra || q.descripcion || 'Servicio técnico', cantidad: 1, precio: totals.neto || totals.total, subtotal: totals.neto || totals.total }]).map((it, i) => {
+      const cantidad = Number(it.cantidad || it.cant || 0) || 1;
+      const precio = Number(it.precio || it.valor || 0) || Number(it.subtotal || 0) || 0;
+      const subtotal = Number(it.subtotal || Math.round(cantidad * precio) || 0);
+      return [
+        i + 1,
+        txt(it.descripcion || it.desc || 'Servicio'),
+        cantidad,
+        clp(precio),
+        clp(subtotal)
+      ];
+    });
+
+    doc.autoTable({
+      startY: y + 4,
+      head: [['#','Descripción','Cant.','V. Unit.','Subtotal']],
+      body: rows,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [133, 175, 40], textColor: 255 },
+      margin: { left: 14, right: 14 }
+    });
+
+    y = doc.lastAutoTable.finalY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bruto:', 130, y); doc.text(clp(totals.bruto), 196, y, { align:'right' });
+    if(totals.descMonto > 0 || totals.descPct > 0){
+      doc.text(`Descuento (${totals.descPct.toLocaleString('es-CL')}%):`, 130, y + 6); doc.text('-' + clp(totals.descMonto), 196, y + 6, { align:'right' });
+      doc.text('Neto:', 130, y + 12); doc.text(clp(totals.neto), 196, y + 12, { align:'right' });
+      doc.text('IVA (19%):', 130, y + 18); doc.text(clp(totals.iva), 196, y + 18, { align:'right' });
+      doc.setFontSize(12); doc.text('TOTAL:', 130, y + 26); doc.text(clp(totals.total), 196, y + 26, { align:'right' });
+      y += 36;
+    } else {
+      doc.text('Neto:', 130, y + 6); doc.text(clp(totals.neto), 196, y + 6, { align:'right' });
+      doc.text('IVA (19%):', 130, y + 12); doc.text(clp(totals.iva), 196, y + 12, { align:'right' });
+      doc.setFontSize(12); doc.text('TOTAL:', 130, y + 20); doc.text(clp(totals.total), 196, y + 20, { align:'right' });
+      y += 30;
+    }
+
+    if(y > 220){ doc.addPage(); y = 20; }
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Alcances y Consideraciones del Servicio', 14, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const alcances = [
+      '1. La aceptación del presente presupuesto no implica ejecución inmediata del servicio. Los trabajos se programan de acuerdo con la disponibilidad de agenda técnica y la correcta coordinación con el cliente.',
+      '2. Algunos servicios pueden requerir la adquisición previa de insumos o equipos específicos, lo que podría afectar los plazos de ejecución.',
+      '3. El plazo estimado de ejecución será informado una vez aceptado el presupuesto y confirmada la disponibilidad de materiales.',
+      '4. El servicio cuenta con una garantía de 30 días corridos, salvo condiciones especiales informadas en la cotización.',
+      '5. No se considerarán cubiertas por garantía las fallas derivadas de mal uso, falta de mantención, modificaciones realizadas por terceros o causas externas al servicio contratado.'
+    ];
+    let yy = y + 6;
+    alcances.forEach(line => {
+      const wrapped = doc.splitTextToSize(line, 180);
+      doc.text(wrapped, 14, yy);
+      yy += (wrapped.length * 4) + 2;
+    });
+    return doc;
+  };
+
+  window.generateQuotePDF = async function(quoteId){
+    const q = await fetchQuoteFull(quoteId);
+    const doc = await window.buildQuotePDFDoc(quoteId);
+    doc.save(`Cotizacion_${txt(q.numeroCotizacion || q.numero || 'S_N').replace(/[^a-zA-Z0-9_-]+/g,'_')}.pdf`);
+  };
+
+  window.previewQuote = async function(quoteId){
+    try{
+      const doc = await window.buildQuotePDFDoc(quoteId);
+      const blobUrl = (location.protocol === 'file:') ? doc.output('datauristring') : doc.output('bloburl');
+      const existing = document.getElementById('quotePreviewModal');
+      if(existing) existing.remove();
+      const modal = document.createElement('div');
+      modal.id = 'quotePreviewModal';
+      modal.className = 'fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4';
+      modal.innerHTML = `
+        <div class="w-full max-w-6xl h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <div>
+              <h3 class="text-2xl font-black text-slate-800">Previsualización de cotización</h3>
+              <p class="text-slate-500 text-sm">Vista directa dentro del sistema, sin descargar el archivo.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="quotePreviewDownloadBtn" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Descargar PDF</button>
+              <button type="button" id="quotePreviewCloseBtn" class="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 text-2xl leading-none">×</button>
+            </div>
+          </div>
+          <div class="flex-1 bg-slate-100"><iframe src="${blobUrl}" class="w-full h-full border-0" title="Vista previa de cotización"></iframe></div>
+        </div>`;
+      document.body.appendChild(modal);
+      document.body.style.overflow = 'hidden';
+      const closePreview = () => { modal.remove(); document.body.style.overflow = ''; };
+      modal.querySelector('#quotePreviewCloseBtn')?.addEventListener('click', closePreview);
+      modal.addEventListener('click', (e) => { if(e.target === modal) closePreview(); });
+      modal.querySelector('#quotePreviewDownloadBtn')?.addEventListener('click', async () => { await window.generateQuotePDF(quoteId); });
+      document.addEventListener('keydown', function escHandler(ev){ if(ev.key === 'Escape' && document.getElementById('quotePreviewModal')){ closePreview(); document.removeEventListener('keydown', escHandler); } });
+    }catch(err){
+      console.error('previewQuote', err);
+      alert('No se pudo abrir la previsualización: ' + (err.message || err));
+    }
+  };
+
+  try{ showNewQuoteModal = window.showNewQuoteModal; }catch(e){}
+  try{ saveNewQuote = window.saveNewQuote; }catch(e){}
+  try{ editQuote = window.editQuote; }catch(e){}
+  try{ saveUpdatedQuote = window.saveUpdatedQuote; }catch(e){}
+  try{ previewQuote = window.previewQuote; }catch(e){}
+  try{ buildQuotePDFDoc = window.buildQuotePDFDoc; }catch(e){}
+  try{ generateQuotePDF = window.generateQuotePDF; }catch(e){}
+})();
+
 </script>
   <div id="toastHost"></div>
 
@@ -22829,5 +23699,1042 @@ function toggleSidebarTools(forceOpen = null){
   }
 })();
 </script>
+
+<script id="root-fix-bootstrap">
+(function(){
+  function bindPrimaryAction(selector, fnName){
+    document.querySelectorAll(selector).forEach(function(btn){
+      if(btn.dataset.rootBound === '1') return;
+      btn.dataset.rootBound = '1';
+      btn.addEventListener('click', function(ev){
+        const fn = window[fnName];
+        if(typeof fn !== 'function') return;
+        ev.preventDefault();
+        try { fn(); } catch(err){ console.error('Error en acción primaria', fnName, err); }
+      });
+    });
+  }
+  function bindAll(){
+    bindPrimaryAction('#view-quotes > div.flex.justify-between.mb-6 button', 'showNewQuoteModal');
+    bindPrimaryAction('#view-ots > div.flex.flex-wrap.items-center.justify-between.gap-3.mb-6 button', 'showNewOTModal');
+    bindPrimaryAction('#view-clients > div.flex.flex-wrap.items-center.justify-between.gap-3.mb-6 button', 'showNewClientModal');
+  }
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(bindAll, 0); });
+  window.addEventListener('load', function(){ setTimeout(bindAll, 200); });
+})();
+</script>
+
+<script id="quote-root-rebuild-final">
+(function(){
+  const NS = {};
+
+  function esc(v){
+    const s = v == null ? '' : String(v);
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function txt(v){
+    if (typeof window.safeText === 'function') return window.safeText(v);
+    if (v === null || v === undefined) return '';
+    return String(v).trim();
+  }
+  function clp(v){
+    const n = Number(v || 0);
+    if (typeof window.formatCLP === 'function') return window.formatCLP(n);
+    return '$' + Math.round(n).toLocaleString('es-CL');
+  }
+  function today(){
+    if (typeof window.todayISO === 'function') return window.todayISO();
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  function toInputDate(v){
+    if (typeof window.isoToDateInput === 'function') return window.isoToDateInput(v);
+    return txt(v).slice(0,10);
+  }
+  function toSaveDate(v){
+    if (typeof window.dateInputToISO === 'function') return window.dateInputToISO(v);
+    return `${txt(v) || today()}T12:00:00.000Z`;
+  }
+  function shortName(v){
+    if (typeof window.formatShortName === 'function') return window.formatShortName(v || '');
+    return txt(v) || '—';
+  }
+  function openModal(html){
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+    if(!modal || !content) throw new Error('No se encontró el modal del sistema.');
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+  }
+  function closeSystemModal(){
+    try {
+      if (typeof window.closeModal === 'function') window.closeModal();
+      else document.getElementById('modal')?.classList.add('hidden');
+    } catch(e) {
+      document.getElementById('modal')?.classList.add('hidden');
+    }
+  }
+  function notify(msg){
+    try {
+      if (typeof window.toastSuccess === 'function') return window.toastSuccess(msg);
+      if (typeof window.toastInfo === 'function') return window.toastInfo(msg);
+    } catch(e) {}
+    alert(msg);
+  }
+  function getClients(){
+    const list = Array.isArray(window.clients) ? window.clients : (Array.isArray(window.clientsById) ? window.clientsById : []);
+    return Array.isArray(list) ? list : [];
+  }
+  function getClientById(id){
+    return getClients().find(c => String(c.id) === String(id || '')) || null;
+  }
+  function getTypes(){
+    const base = Array.isArray(window.quoteServiceTypeOptions) && window.quoteServiceTypeOptions.length
+      ? window.quoteServiceTypeOptions.slice()
+      : ['Mantención','Reparación','Instalación','Suministro','Suministro e Instalación','Asistencia de emergencia','Visita de emergencia'];
+    return base;
+  }
+  function getPresets(){
+    return Array.isArray(window.quoteItemPresets) ? window.quoteItemPresets : [];
+  }
+  function getAttachmentsHtml(){
+    try {
+      if (typeof window.renderAttachmentPanelHTML === 'function') return window.renderAttachmentPanelHTML('quote');
+    } catch(e) {}
+    return '';
+  }
+  function initAttachments(list){
+    try {
+      if (typeof window.initAttachmentManager === 'function') window.initAttachmentManager('quote', Array.isArray(list) ? list : []);
+    } catch(e) {}
+  }
+  function collectAttachments(){
+    try {
+      if (typeof window.collectModalAttachments === 'function') return window.collectModalAttachments('quote') || [];
+    } catch(e) {}
+    return [];
+  }
+  function provisionalRut(raw){
+    const val = txt(raw);
+    if (val && typeof window.pickRutOrProvisional === 'function') return window.pickRutOrProvisional(val);
+    if (val) return val;
+    if (typeof window.generateProvisionalRut === 'function') return window.generateProvisionalRut();
+    return 'SIN-RUT-' + String(Date.now()).slice(-6);
+  }
+
+  function clientOptions(selectedId){
+    const sel = String(selectedId || '');
+    const options = ['<option value="">Seleccionar Cliente...</option>'];
+    getClients().forEach(c => {
+      const name = txt(c.name) || 'Sin nombre';
+      const rut = txt(c.rut);
+      const label = rut ? `${name} (${rut})` : name;
+      options.push(`<option value="${esc(c.id)}" ${String(c.id)===sel?'selected':''}>${esc(label)}</option>`);
+    });
+    return options.join('');
+  }
+  function typeOptions(selected){
+    const sel = String(selected || '').toLowerCase().trim();
+    return getTypes().map(opt => `<option value="${esc(opt)}" ${String(opt).toLowerCase()===sel?'selected':''}>${esc(opt)}</option>`).join('');
+  }
+  function presetButtons(){
+    const presets = getPresets();
+    if (!presets.length) return '<span class="text-xs text-slate-400">Sin items rápidos definidos.</span>';
+    return presets.map(item => `<button type="button" onclick="window.__quoteRoot.addItem(${JSON.stringify(item)},1,0)" class="px-3 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition">${esc(item)}</button>`).join('');
+  }
+  function presetDatalist(){
+    const presets = getPresets();
+    return `<datalist id="quoteItemPresetsList">${presets.map(item => `<option value="${esc(item)}"></option>`).join('')}</datalist>`;
+  }
+
+  function buildModal(mode, quote, prefill){
+    const editing = mode === 'edit';
+    const q = quote || {};
+    const fill = prefill || {};
+    const quoteNumber = editing
+      ? (q.numeroCotizacion || q.numero || 'S/N')
+      : ((typeof window.getNextQuoteNumber === 'function' && window.isAutoMode) ? window.getNextQuoteNumber() : '');
+    const quoteDate = toInputDate(fill.fecha || q.fecha || today());
+    const quoteType = txt(fill.tipo_servicio || q.tipo_servicio || 'Mantención') || 'Mantención';
+    const quoteObra = txt(fill.obra || q.obra || q.descripcion || '');
+    const quoteSucursal = txt(fill.sucursal || q.sucursal || q.direccion || '');
+    const selectedClient = fill.clientId || q.clientId || '';
+    const discountPct = Number(q.descuento_pct || fill.descuento_pct || 0);
+    const quoteManualChecked = !!(fill.documento_antiguo || fill.manual_folio || q.documento_antiguo || q.manual_folio || q.data?.documento_antiguo || q.data?.manual_folio);
+    const quoteManualDate = toInputDate(fill.fecha_documento || fill.fechaDocumento || q.fecha_documento || q.fechaDocumento || q.data?.fecha_documento || q.data?.fechaDocumento || q.fecha || today());
+    return `
+      <div class="p-6 md:p-8">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-black text-slate-800">${editing ? 'Editar Cotización' : 'Nueva Cotización'}</h2>
+            <p class="text-sm text-slate-500 mt-1">Formulario estable de cotizaciones</p>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div class="bg-white p-3 rounded-xl border-2 border-emerald-500 shadow-sm ring-4 ring-emerald-50 min-w-[150px]">
+              <span class="text-[10px] font-black text-emerald-600 uppercase block mb-1 text-center">N° Folio</span>
+              <input id="qNum" value="${esc(quoteNumber)}" class="text-2xl font-black text-emerald-700 bg-transparent border-none p-0 text-center focus:ring-0 w-full" placeholder="0000">
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm min-w-[180px]">
+              <span class="text-[10px] font-black text-slate-500 uppercase block mb-1 text-center">Fecha</span>
+              <input id="qFecha" type="date" value="${esc(quoteDate)}" class="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 text-center focus:ring-0">
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+          <label class="inline-flex items-center gap-3 text-sm font-semibold text-amber-900 select-none cursor-pointer">
+            <input id="qManualFolio" type="checkbox" class="h-4 w-4 rounded border-amber-300 text-emerald-600 focus:ring-emerald-500" ${quoteManualChecked ? 'checked' : ''}>
+            <span>Cotización antigua / ingreso manual de folio y fecha</span>
+          </label>
+          <p class="text-xs text-amber-800/80 mt-2 ml-7">Si marcas esta casilla, puedes escribir el folio manualmente arriba y usar la fecha real del documento en el campo Fecha.</p>
+          <div class="mt-3 ml-7 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-amber-800 uppercase mb-1">Folio antiguo</label>
+              <input id="qLegacyFolioMirror" value="${esc(quoteNumber)}" class="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-sm" placeholder="Ej: 4381" oninput="var q=document.getElementById('qNum'); if(q && document.getElementById('qManualFolio')?.checked){ q.value=this.value; }">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-amber-800 uppercase mb-1">Fecha antigua</label>
+              <input id="qLegacyFechaMirror" type="date" value="${esc(quoteManualDate)}" class="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-sm" onchange="var q=document.getElementById('qFecha'); if(q && document.getElementById('qManualFolio')?.checked){ q.value=this.value; }">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mb-6 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200 ${editing ? 'hidden' : ''}">
+          <button type="button" onclick="window.__quoteRoot.toggleClientMode('existing')" id="btnExistente" class="px-4 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-slate-700 transition-all">Cliente Registrado</button>
+          <button type="button" onclick="window.__quoteRoot.toggleClientMode('new')" id="btnNuevo" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-emerald-600 transition-all">+ Nuevo Cliente</button>
+        </div>
+
+        <div class="space-y-6">
+          <div id="existingClientDiv">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Seleccionar de la lista *</label>
+            <select id="qClient" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none">${clientOptions(selectedClient)}</select>
+            <div class="mt-3">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Sucursal / Dirección</label>
+              <input id="qSucursal" list="qSucursalList" value="${esc(quoteSucursal)}" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:border-emerald-500 outline-none" placeholder="Escribe o selecciona sucursal / dirección">
+              <datalist id="qSucursalList"></datalist>
+              <div id="qSucursalPreview" class="mt-2 hidden"><div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm"><div class="font-bold text-emerald-800 mb-1">Sucursal seleccionada</div><div id="qSucursalPreviewText" class="text-emerald-900"></div></div></div>
+            </div>
+          </div>
+
+          <div id="newClientDiv" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-emerald-50/50 border-2 border-emerald-100 rounded-2xl">
+            <div class="md:col-span-2 text-[10px] font-bold text-emerald-700 uppercase mb-1">Datos del Nuevo Cliente</div>
+            <input id="newCName" placeholder="Nombre / Razón Social *" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCRut" placeholder="RUT (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCPhone" placeholder="Teléfono (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCContact" placeholder="Contacto (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input id="newCEmail" placeholder="Email (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white md:col-span-2">
+            <input id="newCDireccion" placeholder="Dirección / sucursal (opcional)" class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white md:col-span-2">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Tipo de Trabajo</label>
+              <select id="qTipo" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">${typeOptions(quoteType)}</select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
+              <textarea id="qObra" rows="2" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="¿Qué se va a realizar?">${esc(quoteObra)}</textarea>
+            </div>
+          </div>
+
+          <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+            <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase border-b">
+              <div class="col-span-6">Descripción</div>
+              <div class="col-span-1 text-center">Cant</div>
+              <div class="col-span-2 text-right">Valor Unit.</div>
+              <div class="col-span-2 text-right">Subtotal</div>
+              <div class="col-span-1"></div>
+            </div>
+            <div id="itemsContainer" class="divide-y divide-slate-100"></div>
+            ${presetDatalist()}
+            <div class="px-4 py-3 border-t border-slate-100 bg-slate-50">
+              <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Items rápidos</div>
+              <div class="flex flex-wrap gap-2">${presetButtons()}</div>
+            </div>
+            <div class="p-3 bg-[#85af28]/10 flex justify-center border-t border-slate-100">
+              <button type="button" onclick="window.__quoteRoot.addItem('',1,0)" class="text-emerald-600 font-bold text-xs flex items-center gap-2 hover:scale-105 transition-all"><span class="flex items-center justify-center w-6 h-6 bg-emerald-600 text-white rounded-full">+</span> AGREGAR ITEM</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            <div class="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 text-[10px] text-emerald-800 italic leading-tight">
+              <h4 class="font-bold uppercase mb-2 tracking-widest text-emerald-600">Consideraciones Ecoluz</h4>
+              <ul class="space-y-1">
+                <li>• Validez de presupuesto: 15 días corridos.</li>
+                <li>• Pago contra entrega de servicio o según acuerdo.</li>
+                <li>• La programación del servicio se coordina con el cliente según agenda técnica.</li>
+              </ul>
+            </div>
+            <div class="space-y-2 text-right pr-2 self-center">
+              <div class="text-sm text-slate-400">Bruto <span id="bruto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+              <div class="flex items-center justify-end gap-2 text-sm">
+                <span class="text-slate-400">Descuento</span>
+                <input id="descuento_pct" type="number" min="0" max="100" step="0.01" class="w-20 px-2 py-1 border rounded-lg text-right" value="${discountPct}">
+                <span id="descuento_pct_display" class="text-slate-500">0%</span>
+              </div>
+              <div class="text-sm text-slate-400">Descuento $ <span id="descuento_display" class="font-bold text-slate-700 ml-4">-$0</span></div>
+              <div class="text-sm text-slate-400">Neto <span id="neto_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+              <div class="text-sm text-slate-400 border-b border-slate-100 pb-2">IVA (19%) <span id="iva_display" class="font-bold text-slate-700 ml-4">$0</span></div>
+              <div class="pt-2 text-3xl font-black text-emerald-600">TOTAL <span id="total" class="ml-4">$0</span></div>
+            </div>
+          </div>
+
+          ${getAttachmentsHtml()}
+
+          <div class="flex flex-col md:flex-row gap-3 pt-4">
+            ${editing ? `<button type="button" onclick="window.previewQuote('${esc(q.id || '')}')" class="flex-1 bg-slate-100 text-slate-700 py-4 rounded-xl font-bold">Previsualizar</button>` : ''}
+            <button type="button" onclick="${editing ? `window.saveUpdatedQuote('${esc(q.id || '')}', this)` : 'window.saveNewQuote(this)'}" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all">${editing ? 'GUARDAR CAMBIOS' : 'GUARDAR COTIZACIÓN'}</button>
+            <button type="button" onclick="window.__quoteRoot.close()" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">CANCELAR</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  NS.toggleClientMode = function(mode){
+    const isNew = String(mode) === 'new';
+    const existingDiv = document.getElementById('existingClientDiv');
+    const newDiv = document.getElementById('newClientDiv');
+    const btnExistente = document.getElementById('btnExistente');
+    const btnNuevo = document.getElementById('btnNuevo');
+    if(existingDiv) existingDiv.classList.toggle('hidden', isNew);
+    if(newDiv) newDiv.classList.toggle('hidden', !isNew);
+    if(btnExistente) btnExistente.className = 'px-4 py-2 rounded-lg text-sm font-bold transition-all ' + (isNew ? 'text-slate-500 hover:text-emerald-600' : 'bg-white shadow-sm text-slate-700');
+    if(btnNuevo) btnNuevo.className = 'px-4 py-2 rounded-lg text-sm font-bold transition-all ' + (isNew ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500 hover:text-emerald-600');
+  };
+  NS.close = closeSystemModal;
+
+  NS.recalculate = function(){
+    let bruto = 0;
+    document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
+      const qty = Number(row.querySelector('.quote-item-cant')?.value || 0);
+      const unit = Number(row.querySelector('.quote-item-valor')?.value || 0);
+      const subtotal = Math.max(0, Math.round(qty * unit));
+      const subtotalEl = row.querySelector('.quote-item-subtotal');
+      if(subtotalEl) subtotalEl.textContent = clp(subtotal);
+      bruto += subtotal;
+    });
+    const pct = Math.max(0, Math.min(100, Number(document.getElementById('descuento_pct')?.value || 0)));
+    const descMonto = Math.round(bruto * (pct / 100));
+    const neto = Math.max(0, bruto - descMonto);
+    const iva = Math.round(neto * 0.19);
+    const total = neto + iva;
+    const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+    set('bruto_display', clp(bruto));
+    set('descuento_pct_display', `${pct.toLocaleString('es-CL')}%`);
+    set('descuento_display', '-' + clp(descMonto));
+    set('neto_display', clp(neto));
+    set('iva_display', clp(iva));
+    set('total', clp(total));
+    return { bruto, descPct: pct, descMonto, neto, iva, total };
+  };
+
+  NS.addItem = function(desc, qty, unit){
+    const container = document.getElementById('itemsContainer');
+    if(!container) return;
+    const row = document.createElement('div');
+    row.className = 'quote-item-row grid grid-cols-12 gap-2 p-4 items-center bg-white border-b border-slate-50';
+    row.innerHTML = `
+      <div class="col-span-6"><input type="text" list="quoteItemPresetsList" class="quote-item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${esc(txt(desc))}"></div>
+      <div class="col-span-1"><input type="number" min="0" step="1" class="quote-item-cant w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(qty || 1)}"></div>
+      <div class="col-span-2"><input type="number" min="0" step="1" class="quote-item-valor w-full bg-transparent border-none text-right font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(unit || 0)}"></div>
+      <div class="col-span-2 text-right"><span class="quote-item-subtotal font-bold text-sm text-emerald-600">$0</span></div>
+      <div class="col-span-1 text-right"><button type="button" class="text-slate-300 hover:text-red-500 font-bold">✕</button></div>`;
+    container.appendChild(row);
+    row.querySelector('button')?.addEventListener('click', function(){ row.remove(); NS.recalculate(); });
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', NS.recalculate));
+    NS.recalculate();
+  };
+
+  function rowsToItems(){
+    const items = [];
+    document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
+      const descripcion = txt(row.querySelector('.quote-item-desc')?.value || '');
+      const cantidad = Number(row.querySelector('.quote-item-cant')?.value || 0);
+      const precio = Number(row.querySelector('.quote-item-valor')?.value || 0);
+      if(descripcion && cantidad > 0){
+        items.push({ descripcion, cantidad, precio, subtotal: Math.round(cantidad * precio) });
+      }
+    });
+    return items;
+  }
+
+  function bindQuoteModalEnhancements(){
+    document.getElementById('descuento_pct')?.addEventListener('input', NS.recalculate);
+    document.getElementById('qClient')?.addEventListener('change', function(){
+      try { if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); } catch(e) {}
+    });
+    const qManual = document.getElementById('qManualFolio');
+    const qNum = document.getElementById('qNum');
+    const qFecha = document.getElementById('qFecha');
+    const qLegacyFolioMirror = document.getElementById('qLegacyFolioMirror');
+    const qLegacyFechaMirror = document.getElementById('qLegacyFechaMirror');
+    const syncLegacyQuoteUi = ()=>{
+      const checked = !!qManual?.checked;
+      if(qLegacyFolioMirror){
+        qLegacyFolioMirror.disabled = !checked;
+        qLegacyFolioMirror.classList.toggle('opacity-60', !checked);
+        if(checked && qNum) qLegacyFolioMirror.value = qNum.value || qLegacyFolioMirror.value || '';
+      }
+      if(qLegacyFechaMirror){
+        qLegacyFechaMirror.disabled = !checked;
+        qLegacyFechaMirror.classList.toggle('opacity-60', !checked);
+        if(checked && qFecha) qLegacyFechaMirror.value = qFecha.value || qLegacyFechaMirror.value || '';
+      }
+    };
+    qManual?.addEventListener('change', syncLegacyQuoteUi);
+    qNum?.addEventListener('input', ()=>{ if(qManual?.checked && qLegacyFolioMirror) qLegacyFolioMirror.value = qNum.value || ''; });
+    qFecha?.addEventListener('change', ()=>{ if(qManual?.checked && qLegacyFechaMirror) qLegacyFechaMirror.value = qFecha.value || ''; });
+    qLegacyFolioMirror?.addEventListener('input', ()=>{ if(qManual?.checked && qNum) qNum.value = qLegacyFolioMirror.value || ''; });
+    qLegacyFechaMirror?.addEventListener('change', ()=>{ if(qManual?.checked && qFecha) qFecha.value = qLegacyFechaMirror.value || ''; });
+    syncLegacyQuoteUi();
+    const suc = document.getElementById('qSucursal');
+    if(suc){
+      suc.addEventListener('input', function(){ try { if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); } catch(e) {} });
+      suc.addEventListener('change', function(){ try { if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); } catch(e) {} });
+    }
+    try { if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); } catch(e) {}
+    try { if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); } catch(e) {}
+  }
+
+  function fillQuoteForm(quote, prefill){
+    const items = Array.isArray(quote?.items) && quote.items.length ? quote.items : (Array.isArray(prefill?.items) ? prefill.items : []);
+    const list = items.length ? items : [{ descripcion:'', cantidad:1, precio:0 }];
+    const container = document.getElementById('itemsContainer');
+    if(container) container.innerHTML = '';
+    list.forEach(item => NS.addItem(item.descripcion || item.desc || '', item.cantidad || item.cant || 1, item.precio || item.valor || 0));
+    initAttachments((quote?.data && quote.data.attachments) || []);
+    NS.recalculate();
+    bindQuoteModalEnhancements();
+  }
+
+  async function fetchQuoteFull(quoteId){
+    const id = txt(quoteId);
+    if(!id) throw new Error('Cotización no encontrada.');
+    const sb = window.supabaseClient || window.supabase;
+    if(!sb || !sb.from) throw new Error('Supabase no está disponible.');
+    const { data: row, error } = await sb.from('quotes').select('*, clients(id, name, rut, telefono, email, direccion, data)').eq('id', id).single();
+    if(error) throw error;
+    const data = row.data || {};
+    const client = row.clients || getClientById(row.client_id) || {};
+    const clientName = txt(client.name) || txt(data.clientName) || txt(data.razonSocial) || txt(row.nombre) || txt(row.name) || 'Cliente no encontrado';
+    const rut = txt(client.rut) || txt(data.rut) || txt(row.rut);
+    const sucursal = txt(row.sucursal) || txt(data.sucursal) || txt(data.sucursal_direccion) || txt(data.direccion_sucursal) || txt(row.direccion) || txt(data.direccion);
+    const items = Array.isArray(row.items) ? row.items : (Array.isArray(data.items) ? data.items : []);
+    return {
+      id: row.id,
+      clientId: row.client_id,
+      clientName,
+      razonSocial: clientName,
+      rut,
+      numeroCotizacion: txt(row.numero) || txt(data.numeroCotizacion) || 'S/N',
+      numero: txt(row.numero) || txt(data.numeroCotizacion) || 'S/N',
+      obra: txt(row.obra) || txt(data.obra) || txt(row.descripcion) || txt(data.descripcion),
+      descripcion: txt(row.descripcion) || txt(row.obra) || txt(data.descripcion) || txt(data.obra),
+      tipo_servicio: txt(row.tipo_servicio) || txt(data.tipo_servicio) || 'Mantención',
+      sucursal,
+      direccion: txt(row.direccion) || txt(data.direccion) || sucursal,
+      fecha: row.fecha || data.fecha || data.fechaDocumento || (row.created_at ? String(row.created_at).slice(0,10) : today()),
+      estado: txt(row.estado || data.estado || 'pendiente').toLowerCase() || 'pendiente',
+      items,
+      monto: Number(row.monto || data.total || 0),
+      bruto: Number(row.bruto || data.bruto || 0),
+      descuento_pct: Number(row.descuento_pct || data.descuento_pct || 0),
+      descuento_monto: Number(row.descuento_monto || data.descuento_monto || 0),
+      neto: Number(row.neto || data.neto || 0),
+      iva: Number(row.iva || data.iva || 0),
+      createdByName: txt(row.created_by_name) || shortName(row.created_by_email || ''),
+      createdByEmail: txt(row.created_by_email),
+      created_at: row.created_at || null,
+      data: Object.assign({}, data, { clientId: row.client_id, client_id: row.client_id, clientName, razonSocial: clientName, rut, sucursal, direccion: txt(row.direccion) || txt(data.direccion) || sucursal, items })
+    };
+  }
+
+  async function ensureClientForQuote(isEdit){
+    const mode = isEdit ? 'existing' : (document.getElementById('newClientDiv')?.classList.contains('hidden') ? 'existing' : 'new');
+    const sb = window.supabaseClient || window.supabase;
+    if(mode === 'existing'){
+      const clientId = txt(document.getElementById('qClient')?.value || '');
+      if(!clientId) throw new Error('Debes seleccionar un cliente.');
+      const client = getClientById(clientId);
+      if(client) return { id: clientId, name: txt(client.name), rut: txt(client.rut), direccion: txt(client.direccion || client.data?.direccion || '') };
+      const { data: row, error } = await sb.from('clients').select('*').eq('id', clientId).single();
+      if(error) throw error;
+      return { id: row.id, name: txt(row.name), rut: txt(row.rut), direccion: txt(row.direccion || row.data?.direccion || '') };
+    }
+    const name = txt(document.getElementById('newCName')?.value || '');
+    if(!name) throw new Error('Debes ingresar el nombre o razón social del nuevo cliente.');
+    const rut = provisionalRut(document.getElementById('newCRut')?.value || '');
+    const telefono = txt(document.getElementById('newCPhone')?.value || '');
+    const contacto = txt(document.getElementById('newCContact')?.value || '');
+    const email = txt(document.getElementById('newCEmail')?.value || '');
+    const direccion = txt(document.getElementById('newCDireccion')?.value || '');
+    const payload = { name, rut, telefono, contacto, email, direccion, tipo: 'empresa', created_by: window.currentUser?.id || null, created_by_email: window.currentUser?.email || '', created_by_name: window.currentUserDisplayName || shortName(window.currentUser?.email || ''), data: { telefono, contacto, email, direccion, tipo: 'empresa' } };
+    const { data: row, error } = await sb.from('clients').insert([payload]).select().single();
+    if(error) throw error;
+    return { id: row.id, name: txt(row.name), rut: txt(row.rut), direccion: txt(row.direccion || direccion) };
+  }
+
+  async function collectQuotePayload(existingQuote){
+    const isEdit = !!existingQuote;
+    const client = await ensureClientForQuote(isEdit);
+    const manualLegacy = !!document.getElementById('qManualFolio')?.checked;
+    const folio = txt(document.getElementById('qNum')?.value || '') || 'S/N';
+    const obra = txt(document.getElementById('qObra')?.value || '');
+    const tipo = txt(document.getElementById('qTipo')?.value || 'Mantención') || 'Mantención';
+    const fecha = txt(document.getElementById('qFecha')?.value || today()) || today();
+    const sucursal = txt(document.getElementById('qSucursal')?.value || '');
+    const items = rowsToItems();
+    if(!obra) throw new Error('Debes ingresar la descripción de obra.');
+    if(!items.length) throw new Error('Debes ingresar al menos un ítem.');
+    if(manualLegacy && !txt(document.getElementById('qNum')?.value || '')) throw new Error('Si marcas cotización antigua, debes ingresar el folio manual.');
+    if(manualLegacy && !txt(document.getElementById('qFecha')?.value || '')) throw new Error('Si marcas cotización antigua, debes ingresar la fecha antigua.');
+    const totals = NS.recalculate();
+    const attachments = collectAttachments();
+    const payload = {
+      numero: folio,
+      client_id: client.id,
+      obra,
+      descripcion: obra,
+      monto: totals.total,
+      bruto: totals.bruto,
+      descuento_pct: totals.descPct,
+      descuento_monto: totals.descMonto,
+      neto: totals.neto,
+      iva: totals.iva,
+      items,
+      estado: txt(existingQuote?.estado || 'pendiente') || 'pendiente',
+      tipo_servicio: tipo,
+      sucursal: sucursal || null,
+      direccion: sucursal || client.direccion || null,
+      fecha: toSaveDate(fecha),
+      data: Object.assign({}, existingQuote?.data || {}, { clientId: client.id, client_id: client.id, clientName: client.name, razonSocial: client.name, rut: client.rut, sucursal, direccion: sucursal || client.direccion || '', obra, descripcion: obra, tipo_servicio: tipo, items, attachments, documento_antiguo: manualLegacy, manual_folio: manualLegacy, fecha_documento: fecha })
+    };
+    return { payload, client };
+  }
+
+  function computeTotalsForView(q){
+    const items = Array.isArray(q.items) ? q.items : [];
+    const bruto = Number(q.bruto || items.reduce((sum, it) => sum + Math.round((Number(it.cantidad || 0) * Number(it.precio || 0)) || Number(it.subtotal || 0)), 0));
+    const descPct = Number(q.descuento_pct || 0);
+    const descMonto = Number(q.descuento_monto || Math.round(bruto * (descPct/100)));
+    const neto = Number(q.neto || Math.max(0, bruto - descMonto));
+    const iva = Number(q.iva || Math.round(neto * 0.19));
+    const total = Number(q.monto || (neto + iva));
+    return { bruto, descPct, descMonto, neto, iva, total };
+  }
+
+  window.showNewQuoteModal = async function(prefill){
+    try {
+      if(!prefill) window.pendingOTToLink = null;
+      openModal(buildModal('new', null, prefill || null));
+      fillQuoteForm(null, prefill || null);
+      if(prefill && prefill.clientId){
+        const qClient = document.getElementById('qClient');
+        if(qClient) qClient.value = String(prefill.clientId);
+        try { if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); } catch(e) {}
+      }
+      if(prefill && prefill.sucursal){
+        const qSucursal = document.getElementById('qSucursal');
+        if(qSucursal) qSucursal.value = String(prefill.sucursal);
+      }
+      if(prefill && prefill.newClient) NS.toggleClientMode('new');
+      else NS.toggleClientMode('existing');
+      try { if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); } catch(e) {}
+    } catch(err) {
+      console.error('showNewQuoteModal.root', err);
+      alert('No se pudo abrir Nueva Cotización: ' + (err.message || err));
+    }
+  };
+
+  window.saveNewQuote = async function(btn){
+    const sb = window.supabaseClient || window.supabase;
+    const original = btn ? btn.textContent : '';
+    try {
+      if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
+      const { payload } = await collectQuotePayload(null);
+      payload.created_by = window.currentUser?.id || null;
+      payload.created_by_email = window.currentUser?.email || '';
+      payload.created_by_name = window.currentUserDisplayName || shortName(window.currentUser?.email || '');
+      const { data: inserted, error } = await sb.from('quotes').insert([payload]).select('id').single();
+      if(error) throw error;
+      if(window.pendingOTToLink && inserted?.id){
+        try { await sb.from('ots').update({ quote_id: inserted.id }).eq('id', window.pendingOTToLink); } catch(e) { console.warn('No se pudo vincular OT', e); }
+        window.pendingOTToLink = null;
+      }
+      closeSystemModal();
+      if(typeof window.loadData === 'function') await window.loadData();
+      try { if(typeof window.renderQuotes === 'function') window.renderQuotes(); } catch(e) {}
+      try { if(typeof window.renderOTs === 'function') window.renderOTs(); } catch(e) {}
+      notify('Cotización guardada ✅');
+    } catch(err) {
+      console.error('saveNewQuote.root', err);
+      alert('Error al guardar la cotización: ' + (err.message || err));
+    } finally {
+      if(btn){ btn.disabled = false; btn.textContent = original || 'GUARDAR COTIZACIÓN'; }
+    }
+  };
+
+  window.editQuote = async function(quoteId){
+    try {
+      const quote = await fetchQuoteFull(quoteId);
+      openModal(buildModal('edit', quote, null));
+      fillQuoteForm(quote, null);
+      const qClient = document.getElementById('qClient');
+      if(qClient) qClient.value = String(quote.clientId || '');
+      const qSucursal = document.getElementById('qSucursal');
+      if(qSucursal) qSucursal.value = quote.sucursal || quote.direccion || '';
+      const discountInput = document.getElementById('descuento_pct');
+      if(discountInput) discountInput.value = Number(quote.descuento_pct || 0);
+      NS.recalculate();
+      try { if(typeof window.updateSucursalPreview === 'function') window.updateSucursalPreview(); } catch(e) {}
+    } catch(err) {
+      console.error('editQuote.root', err);
+      alert('No se pudo abrir la cotización para editar: ' + (err.message || err));
+    }
+  };
+
+  window.saveUpdatedQuote = async function(quoteId, btn){
+    const sb = window.supabaseClient || window.supabase;
+    const original = btn ? btn.textContent : '';
+    try {
+      if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
+      const existing = await fetchQuoteFull(quoteId);
+      const { payload } = await collectQuotePayload(existing);
+      const { error } = await sb.from('quotes').update(payload).eq('id', quoteId);
+      if(error) throw error;
+      closeSystemModal();
+      if(typeof window.loadData === 'function') await window.loadData();
+      try { if(typeof window.renderQuotes === 'function') window.renderQuotes(); } catch(e) {}
+      try { if(typeof window.renderOTs === 'function') window.renderOTs(); } catch(e) {}
+      notify('Cotización actualizada ✅');
+    } catch(err) {
+      console.error('saveUpdatedQuote.root', err);
+      alert('No se pudo guardar la cotización: ' + (err.message || err));
+    } finally {
+      if(btn){ btn.disabled = false; btn.textContent = original || 'GUARDAR CAMBIOS'; }
+    }
+  };
+
+  window.buildQuotePDFDoc = async function(quoteId){
+    const q = await fetchQuoteFull(quoteId);
+    if(!window.jspdf || !window.jspdf.jsPDF) throw new Error('La librería PDF no está disponible.');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    try { if(typeof window.addLogoToPdf === 'function') await window.addLogoToPdf(doc); } catch(e) {}
+    try { if(typeof window.addCompanyHeaderRight === 'function') window.addCompanyHeaderRight(doc); } catch(e) {}
+    const totals = computeTotalsForView(q);
+    const folio = q.numeroCotizacion || q.numero || 'S/N';
+    const fecha = typeof window.formatDDMMYY === 'function' ? window.formatDDMMYY(q.fecha || q.created_at) : txt(q.fecha || q.created_at);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(20);
+    doc.text('COTIZACIÓN', 14, 22);
+    doc.setFontSize(11);
+    doc.setFont('helvetica','normal');
+    doc.text(`N° ${String(folio)}`, 14, 30);
+    doc.text(`Fecha: ${String(fecha || '—')}`, 14, 36);
+    let y = 46;
+    const lines = [
+      ['Cliente', q.clientName || q.razonSocial || '—'],
+      ['RUT', q.rut || '—'],
+      ['Sucursal', q.sucursal || q.direccion || '—'],
+      ['Tipo', q.tipo_servicio || '—'],
+      ['Obra', q.obra || q.descripcion || '—']
+    ];
+    lines.forEach(([label, value]) => {
+      doc.setFont('helvetica','bold');
+      doc.text(`${label}:`, 14, y);
+      doc.setFont('helvetica','normal');
+      const wrapped = doc.splitTextToSize(String(value || '—'), 150);
+      doc.text(wrapped, 38, y);
+      y += Math.max(7, wrapped.length * 6);
+    });
+    const body = (q.items || []).map((it, idx) => [
+      String(idx + 1),
+      String(it.descripcion || '—'),
+      String(Number(it.cantidad || 0)),
+      clp(Number(it.precio || 0)),
+      clp(Number(it.subtotal || (Number(it.cantidad || 0) * Number(it.precio || 0))))
+    ]);
+    if(typeof doc.autoTable === 'function'){
+      doc.autoTable({
+        startY: y + 3,
+        head: [['#','Descripción','Cant.','Valor Unit.','Subtotal']],
+        body,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [133,175,40] }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    } else {
+      body.forEach(row => { doc.text(row.join(' | '), 14, y); y += 6; });
+      y += 4;
+    }
+    doc.setFont('helvetica','normal');
+    doc.text(`Bruto: ${clp(totals.bruto)}`, 140, y);
+    y += 6;
+    doc.text(`Descuento (${Number(totals.descPct || 0).toLocaleString('es-CL')}%): -${clp(totals.descMonto)}`, 140, y);
+    y += 6;
+    doc.text(`Neto: ${clp(totals.neto)}`, 140, y);
+    y += 6;
+    doc.text(`IVA: ${clp(totals.iva)}`, 140, y);
+    y += 8;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(14);
+    doc.text(`TOTAL: ${clp(totals.total)}`, 140, y);
+    return doc;
+  };
+
+  window.generateQuotePDF = async function(quoteId){
+    try {
+      const doc = await window.buildQuotePDFDoc(quoteId);
+      const quote = await fetchQuoteFull(quoteId);
+      doc.save(`Cotizacion_${quote.numeroCotizacion || quote.numero || 'S_N'}.pdf`);
+    } catch(err) {
+      console.error('generateQuotePDF.root', err);
+      alert('No se pudo generar el PDF: ' + (err.message || err));
+    }
+  };
+
+  window.previewQuote = async function(quoteId){
+    try {
+      const q = await fetchQuoteFull(quoteId);
+      const totals = computeTotalsForView(q);
+      const itemsRows = (q.items || []).map((it, idx) => `
+        <tr class="border-b border-slate-100">
+          <td class="p-3 text-center">${idx + 1}</td>
+          <td class="p-3">${esc(it.descripcion || '—')}</td>
+          <td class="p-3 text-center">${esc(Number(it.cantidad || 0))}</td>
+          <td class="p-3 text-right">${esc(clp(Number(it.precio || 0)))}</td>
+          <td class="p-3 text-right font-bold">${esc(clp(Number(it.subtotal || (Number(it.cantidad || 0) * Number(it.precio || 0)))))}</td>
+        </tr>`).join('');
+      openModal(`
+        <div class="p-6 md:p-8">
+          <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-2xl font-black text-slate-800">Vista de Cotización</h2>
+              <p class="text-sm text-slate-500 mt-1">Cotización N° ${esc(q.numeroCotizacion || q.numero || 'S/N')}</p>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" onclick="window.generateQuotePDF('${esc(q.id)}')" class="px-4 py-2 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700">PDF</button>
+              <button type="button" onclick="window.editQuote('${esc(q.id)}')" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700">Editar</button>
+              <button type="button" onclick="window.__quoteRoot.close()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold">Cerrar</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+              <div class="text-xs uppercase font-bold text-slate-500 mb-2">Cliente</div>
+              <div class="font-black text-slate-800">${esc(q.clientName || q.razonSocial || '—')}</div>
+              <div class="text-sm text-slate-600 mt-1">RUT: ${esc(q.rut || '—')}</div>
+              <div class="text-sm text-slate-600 mt-1">Sucursal: ${esc(q.sucursal || q.direccion || '—')}</div>
+            </div>
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+              <div class="text-xs uppercase font-bold text-slate-500 mb-2">Documento</div>
+              <div class="text-sm text-slate-700"><b>Fecha:</b> ${esc(typeof window.formatDDMMYY === 'function' ? window.formatDDMMYY(q.fecha || q.created_at) : txt(q.fecha || q.created_at))}</div>
+              <div class="text-sm text-slate-700 mt-1"><b>Tipo:</b> ${esc(q.tipo_servicio || '—')}</div>
+              <div class="text-sm text-slate-700 mt-1"><b>Creado por:</b> ${esc(q.createdByName || q.createdByEmail || '—')}</div>
+            </div>
+          </div>
+          <div class="mb-6 bg-white border border-slate-200 rounded-2xl p-4">
+            <div class="text-xs uppercase font-bold text-slate-500 mb-2">Obra / Descripción</div>
+            <div class="text-slate-800 whitespace-pre-wrap">${esc(q.obra || q.descripcion || '—')}</div>
+          </div>
+          <div class="overflow-x-auto rounded-2xl border border-slate-200 mb-6">
+            <table class="w-full bg-white">
+              <thead class="bg-slate-50"><tr><th class="p-3 text-center">#</th><th class="p-3 text-left">Descripción</th><th class="p-3 text-center">Cant.</th><th class="p-3 text-right">Valor Unit.</th><th class="p-3 text-right">Subtotal</th></tr></thead>
+              <tbody>${itemsRows || '<tr><td colspan="5" class="p-4 text-center text-slate-500">Sin ítems</td></tr>'}</tbody>
+            </table>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div></div>
+            <div class="bg-emerald-50 rounded-2xl border border-emerald-100 p-4 text-right space-y-2">
+              <div class="text-sm text-slate-500">Bruto <span class="font-bold text-slate-700 ml-3">${esc(clp(totals.bruto))}</span></div>
+              <div class="text-sm text-slate-500">Descuento <span class="font-bold text-slate-700 ml-3">-${esc(clp(totals.descMonto))}</span></div>
+              <div class="text-sm text-slate-500">Neto <span class="font-bold text-slate-700 ml-3">${esc(clp(totals.neto))}</span></div>
+              <div class="text-sm text-slate-500">IVA <span class="font-bold text-slate-700 ml-3">${esc(clp(totals.iva))}</span></div>
+              <div class="pt-2 text-2xl font-black text-emerald-700">TOTAL ${esc(clp(totals.total))}</div>
+            </div>
+          </div>
+        </div>`);
+    } catch(err) {
+      console.error('previewQuote.root', err);
+      alert('No se pudo abrir la cotización: ' + (err.message || err));
+    }
+  };
+
+
+  // === MODELO DE COTIZACIÓN CLÁSICO (PDF + vista previa) ===
+  window.buildQuotePDFDoc = async function(quoteId){
+    const q = await fetchQuoteFull(quoteId);
+    if(!q) throw new Error('No se encontró la cotización.');
+    if(!window.jspdf || !window.jspdf.jsPDF) throw new Error('La librería PDF no está disponible.');
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginL = 16;
+    const marginR = 16;
+    const usableWidth = pageWidth - marginL - marginR;
+
+    const folio = txt(q.numeroCotizacion || q.numero || 'S/N');
+    const fecha = (typeof window.formatDDMMYY === 'function')
+      ? window.formatDDMMYY(q.fecha || q.created_at || (typeof todayISO === 'function' ? todayISO() : ''))
+      : txt(q.fecha || q.created_at || '');
+    const creadoPor = (typeof formatShortName === 'function')
+      ? formatShortName(q.createdByName || q.createdBy || q.createdByEmail || '')
+      : txt(q.createdByName || q.createdBy || q.createdByEmail || '');
+    const cliente = txt(q.clientName || q.razonSocial || 'Cliente no encontrado');
+    const rut = txt(q.rut || '-');
+    const sucursal = txt(q.sucursal || q.direccion || q.data?.sucursal || q.data?.direccion || '');
+    const obra = txt(q.obra || q.descripcion || q.data?.obra || q.data?.descripcion || '-');
+    const totals = computeTotalsForView(q);
+
+    const logoData = (typeof loadLogoDataUrl === 'function') ? await loadLogoDataUrl() : null;
+    if(logoData){
+      doc.addImage(logoData, 'PNG', marginL, 10, 42, 14);
+    } else {
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(16);
+      doc.setTextColor(133,175,40);
+      doc.text('ECOLUZ SERVICIOS', marginL, 18);
+    }
+
+    const rightX = pageWidth - marginR;
+    doc.setTextColor(0,0,0);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.text('ECOLUZ SERVICIOS', rightX, 12, { align:'right' });
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.7);
+    doc.text('21 de Mayo #1223, Iquique.', rightX, 18, { align:'right' });
+    doc.text('contacto@ecoluzservicios.cl', rightX, 23, { align:'right' });
+    doc.text('www.ecoluzservicios.cl', rightX, 28, { align:'right' });
+    doc.text('WhatsApp: +56 9 3698 3772', rightX, 33, { align:'right' });
+
+    let y = 48;
+    doc.setTextColor(17,24,39);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(17);
+    doc.text(`COTIZACIÓN N° ${folio}`, marginL, y);
+
+    y += 8;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9.5);
+    doc.text(`Fecha: ${fecha}  |  Creado por: ${creadoPor || '-'}`, marginL, y);
+
+    y += 12;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10.5);
+    doc.text('Cliente', marginL, y);
+
+    y += 6;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9.6);
+    const clientLines = [
+      `Nombre / Razón Social: ${cliente}`,
+      `RUT: ${rut}`
+    ];
+    if(sucursal) clientLines.push(`Sucursal / Dirección: ${sucursal}`);
+    clientLines.forEach(line => {
+      const wrapped = doc.splitTextToSize(line, usableWidth - 10);
+      doc.text(wrapped, marginL, y);
+      y += wrapped.length * 4.6;
+    });
+
+    y += 8;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10.5);
+    doc.text('Descripción de Obra', marginL, y);
+
+    y += 6;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9.8);
+    const obraWrapped = doc.splitTextToSize(obra || '-', usableWidth - 10);
+    doc.text(obraWrapped, marginL, y);
+    y += obraWrapped.length * 4.8 + 8;
+
+    const items = Array.isArray(q.items) ? q.items : [];
+    const body = items.map((it, idx) => [
+      String(idx + 1),
+      String(it.descripcion || '—'),
+      String(Number(it.cantidad || 0)),
+      clp(Number(it.precio || 0)),
+      clp(Number(it.subtotal || (Number(it.cantidad || 0) * Number(it.precio || 0))))
+    ]);
+
+    if(typeof doc.autoTable === 'function'){
+      doc.autoTable({
+        startY: y,
+        head: [['#','Descripción','Cant.','V. Unit.','Subtotal']],
+        body: body.length ? body : [['','Sin ítems','','','']],
+        theme: 'grid',
+        styles: {
+          font: 'helvetica',
+          fontSize: 8.8,
+          cellPadding: { top: 2.3, right: 2.2, bottom: 2.3, left: 2.2 },
+          textColor: [17,24,39],
+          lineColor: [225,231,238],
+          lineWidth: 0.1,
+          overflow: 'linebreak',
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [133,175,40],
+          textColor: [255,255,255],
+          fontStyle: 'bold',
+          lineColor: [133,175,40],
+          lineWidth: 0.1
+        },
+        alternateRowStyles: { fillColor: [247,248,250] },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 106 },
+          2: { cellWidth: 16, halign: 'center' },
+          3: { cellWidth: 26, halign: 'right' },
+          4: { cellWidth: 28, halign: 'right' }
+        },
+        margin: { left: marginL, right: marginR }
+      });
+      y = (doc.lastAutoTable?.finalY || y) + 8;
+    }
+
+    const totalsXLabel = 148;
+    const totalsXValue = pageWidth - marginR;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10.5);
+    doc.text('Neto:', totalsXLabel, y);
+    doc.text(clp(totals.neto || 0), totalsXValue, y, { align:'right' });
+    doc.text('IVA (19%):', totalsXLabel, y + 6.5);
+    doc.text(clp(totals.iva || 0), totalsXValue, y + 6.5, { align:'right' });
+    doc.setFontSize(12.5);
+    doc.text('TOTAL:', totalsXLabel, y + 14.5);
+    doc.text(clp(totals.total || 0), totalsXValue, y + 14.5, { align:'right' });
+
+    y += 29;
+    if(y > pageHeight - 52){
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10.5);
+    doc.text('Alcances y Consideraciones del Servicio', marginL, y);
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.2);
+    let yy = y + 5.5;
+    const alcances = [
+      '1. La aceptación del presente presupuesto no implica ejecución inmediata del servicio. Los trabajos se programan de acuerdo con la disponibilidad de agenda y la correcta coordinación con el cliente.',
+      '2. Algunos servicios pueden requerir la adquisición previa de insumos o equipos específicos, lo que podría afectar los plazos de ejecución.',
+      '3. El plazo estimado de ejecución será informado una vez aceptado el presupuesto y confirmada la disponibilidad de materiales.',
+      '4. El servicio cuenta con una garantía de 30 días corridos, la cual comienza a regir desde la fecha de instalación.',
+      '5. Finalizado el período de garantía, cualquier revisión o visita técnica será evaluada y podrá tener un costo asociado.',
+      '6. No se considerarán cubiertas por garantía las fallas derivadas de mal uso, falta de mantención, modificaciones realizadas por terceros o causas externas al servicio contratado.',
+      '7. La programación del servicio se realizará una vez recibido el pago correspondiente, según lo acordado en el presente presupuesto.'
+    ];
+    alcances.forEach(line => {
+      const wrapped = doc.splitTextToSize(line, usableWidth);
+      if(yy + (wrapped.length * 3.8) > pageHeight - 16){
+        doc.addPage();
+        yy = 20;
+      }
+      doc.text(wrapped, marginL, yy);
+      yy += (wrapped.length * 3.8) + 1.8;
+    });
+
+    const pages = doc.getNumberOfPages();
+    const stamp = (typeof window.formatDDMMYY === 'function')
+      ? window.formatDDMMYY(typeof todayISO === 'function' ? todayISO() : '')
+      : '';
+    for(let i = 1; i <= pages; i++){
+      doc.setPage(i);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100,116,139);
+      doc.text(`ECOLUZ · Cotización · Página ${i} de ${pages}`, marginL, pageHeight - 6);
+      if(stamp) doc.text(stamp, pageWidth - marginR, pageHeight - 6, { align:'right' });
+    }
+
+    return doc;
+  };
+window.generateQuotePDF = async function(quoteId){
+    try{
+      const doc = await window.buildQuotePDFDoc(quoteId);
+      const q = await fetchQuoteFull(quoteId);
+      doc.save(`Cotizacion_${q.numeroCotizacion || q.numero || 'S_N'}.pdf`);
+    }catch(err){
+      console.error('generateQuotePDF.classic', err);
+      alert('No se pudo generar el PDF: ' + (err.message || err));
+    }
+  };
+
+  window.previewQuote = async function(quoteId){
+    try{
+      const doc = await window.buildQuotePDFDoc(quoteId);
+      const blobUrl = (location.protocol === 'file:') ? doc.output('datauristring') : doc.output('bloburl');
+
+      const existing = document.getElementById('quotePreviewModal');
+      if(existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'quotePreviewModal';
+      modal.className = 'fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4';
+      modal.innerHTML = `
+        <div class="w-full max-w-6xl h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <div>
+              <h3 class="text-2xl font-black text-slate-800">Previsualización de cotización</h3>
+              <p class="text-slate-500 text-sm">Usando el formato clásico de ECOLUZ.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="quotePreviewDownloadBtn" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Descargar PDF</button>
+              <button type="button" id="quotePreviewCloseBtn" class="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 text-2xl leading-none">×</button>
+            </div>
+          </div>
+          <div class="flex-1 bg-slate-100">
+            <iframe src="${blobUrl}" class="w-full h-full border-0" title="Vista previa de cotización"></iframe>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.body.style.overflow = 'hidden';
+
+      const closePreview = () => {
+        modal.remove();
+        document.body.style.overflow = '';
+      };
+
+      modal.querySelector('#quotePreviewCloseBtn')?.addEventListener('click', closePreview);
+      modal.addEventListener('click', (e) => { if(e.target === modal) closePreview(); });
+      const escHandler = (ev) => {
+        if(ev.key === 'Escape' && document.getElementById('quotePreviewModal')){
+          closePreview();
+          document.removeEventListener('keydown', escHandler);
+        }
+      };
+      document.addEventListener('keydown', escHandler);
+      modal.querySelector('#quotePreviewDownloadBtn')?.addEventListener('click', async () => { await window.generateQuotePDF(quoteId); });
+    }catch(err){
+      console.error('previewQuote.classic', err);
+      alert('No se pudo abrir la cotización: ' + (err.message || err));
+    }
+  };
+
+
+  function bindHeaderButton(){
+    const btn = document.querySelector('#view-quotes > div.flex.justify-between.mb-6 button');
+    if(!btn) return;
+    btn.setAttribute('onclick', 'window.showNewQuoteModal()');
+  }
+
+  window.__quoteRoot = NS;
+  try { bindHeaderButton(); } catch(e) {}
+  document.addEventListener('DOMContentLoaded', bindHeaderButton);
+  window.addEventListener('load', function(){ setTimeout(bindHeaderButton, 100); });
+})();
+</script>
+
 </body>
 </html>
