@@ -1954,7 +1954,7 @@ function toggleEditOTFacturaField(){
 
     // ================= CONFIGURACIÓN SUPABASE =================
 
-const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
+const SUPABASE_URL = "https://nejantpyxyfnlemnyeft.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_eRDH1ES-6dQllBIaIHECDg_uYyQJWxT";
 
 var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -2159,11 +2159,11 @@ window.supabaseClient = supabaseClient;
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
-          console.error("Login error:", error);
           if (errorEl) {
             errorEl.textContent = 'Usuario o contraseña incorrectos';
             errorEl.classList.remove('hidden');
           }
+          console.error("Login error:", error);
           return;
         }
 
