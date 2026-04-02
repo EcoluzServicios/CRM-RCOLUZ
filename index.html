@@ -2143,13 +2143,10 @@ window.supabaseClient = supabaseClient;
       const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('loginButton');
 
-      if (errorEl) {
-        errorEl.textContent = 'Usuario o contraseña incorrectos';
-        errorEl.classList.add('hidden');
-      }
+      if (errorEl) errorEl.classList.add('hidden');
 
       if (!email || !password) {
-        alert('Ingresa correo y contraseña');
+        alert("Ingresa correo y contraseña");
         return;
       }
 
@@ -2162,7 +2159,7 @@ window.supabaseClient = supabaseClient;
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
-          console.error('Login error:', error);
+          console.error("Login error:", error);
           if (errorEl) {
             errorEl.textContent = 'Usuario o contraseña incorrectos';
             errorEl.classList.remove('hidden');
@@ -2171,6 +2168,7 @@ window.supabaseClient = supabaseClient;
         }
 
         if (errorEl) {
+          errorEl.textContent = 'Usuario o contraseña incorrectos';
           errorEl.classList.add('hidden');
         }
 
