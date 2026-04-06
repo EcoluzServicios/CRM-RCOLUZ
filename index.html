@@ -952,7 +952,7 @@ function toggleEditOTFacturaField(){
     <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
       <div class="flex justify-center mb-6"><img src="logo ecoluz.png" alt="ECOLUZ Servicios" class="brand-logo"></div>
       <div class="space-y-4">
-        <input id="username" type="email" placeholder="Correo electrónico" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600">
+        <input id="username" type="text" placeholder="Usuario" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600">
         <input id="password" type="password" placeholder="Contraseña" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600">
         <button id="loginButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl">Ingresar</button>
       </div>
@@ -1954,8 +1954,8 @@ function toggleEditOTFacturaField(){
 
     // ================= CONFIGURACIÓN SUPABASE =================
 
-const SUPABASE_URL = "https://nejantpyxyfnlemnyeft.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_eRDH1ES-6dQllBIaIHECDg_uYyQJWxT";
+const SUPABASE_URL = "https://svluevddfulqpszkdoya.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_2SwhwjkZgs64HCalGisj_w_khx1_oEm";
 
 var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -2143,7 +2143,7 @@ window.supabaseClient = supabaseClient;
       const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('loginButton');
 
-      if (errorEl) errorEl.classList.add('hidden');
+      if(errorEl) errorEl.classList.add('hidden');
 
       if (!email || !password) {
         alert("Ingresa correo y contraseña");
@@ -2151,7 +2151,7 @@ window.supabaseClient = supabaseClient;
       }
 
       try {
-        if (btn) {
+        if(btn){
           btn.disabled = true;
           btn.textContent = 'Ingresando...';
         }
@@ -2159,15 +2159,13 @@ window.supabaseClient = supabaseClient;
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
-          if (errorEl) {
-            errorEl.textContent = 'Usuario o contraseña incorrectos';
-            errorEl.classList.remove('hidden');
-          }
+          if(errorEl) errorEl.classList.remove('hidden');
           console.error("Login error:", error);
           return;
         }
 
-        if (errorEl) {
+        const errorEl = document.getElementById('loginError');
+        if(errorEl){
           errorEl.textContent = 'Usuario o contraseña incorrectos';
           errorEl.classList.add('hidden');
         }
@@ -2175,12 +2173,9 @@ window.supabaseClient = supabaseClient;
         await completeLoginFlow(data?.user || null, email);
       } catch (err) {
         console.error('Error al iniciar sesión:', err);
-        if (errorEl) {
-          errorEl.textContent = 'Error al iniciar sesión';
-          errorEl.classList.remove('hidden');
-        }
+        if(errorEl) errorEl.classList.remove('hidden');
       } finally {
-        if (btn) {
+        if(btn){
           btn.disabled = false;
           btn.textContent = 'Ingresar';
         }
