@@ -2332,7 +2332,7 @@ window.supabaseClient = supabaseClient;
     var reportStorageMode = 'supabase';
     var REPORTS_TABLE = 'informes';
     var REPORTS_LOCAL_KEY = 'ecoluz_reports_local_v1';
-    const OT_LIGHT_SELECT = 'id, client_id, quote_id, numero_ot, descripcion, sucursal, direccion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data';
+    const OT_LIGHT_SELECT = 'id, client_id, quote_id, numero_ot, descripcion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data';
 
     const OT_LIGHT_SELECT_MIN = 'id, client_id, quote_id, numero_ot, descripcion, estado, pago_estado, fecha, monto, created_by_name, created_by_email, created_by, created_at, data';
 
@@ -7341,8 +7341,11 @@ function showQuoteMoreOptions(quoteId){
         <button onclick="generateQuotePDF('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
           <i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF
         </button>
-        ${['aceptada','aprobada','aceptado'].includes(qState) ? `
-        <button onclick="showActaRecepcionModal('quote','${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
+                <button onclick="if(confirm('¿Eliminar esta cotización?')){ closeModal(); deleteQuote('${quoteId}'); }" class="w-full text-left px-4 py-3 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">
+          <i class="fa-solid fa-trash-can mr-2"></i> Eliminar cotización
+        </button>
+${['aceptada','aprobada','aceptado'].includes(qState) ? `
+        <button onclick="showActaRecepcionModal('quote','${quoteId}');" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
           <i class="fa-solid fa-file-signature mr-2 text-emerald-700"></i> Generar acta de recepción
         </button>` : ``}
         ${['aceptada','aprobada','aceptado'].includes(qState) && !quoteHasLinkedOT(q) ? `
@@ -7447,19 +7450,19 @@ function renderQuotes() {
     if (st === 'aceptada') {
       const hasOT = typeof quoteHasLinkedOT === 'function' ? quoteHasLinkedOT(q) : false;
       actions = `
-        <div class="flex items-center justify-center gap-3 flex-wrap">
+        <div class="flex items-center justify-center gap-3 flex-nowrap whitespace-nowrap">
           ${hasOT
             ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>`
             : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
           <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
-            <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
+            <i class="fa-solid fa-ellipsis text-xl"></i>
           </button>
         </div>`;
     } else if (st === 'rechazada') {
       actions = `
         <div class="flex items-center justify-center gap-5">
           <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
-            <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
+            <i class="fa-solid fa-ellipsis text-xl"></i>
           </button>
         </div>`;
     } else {
@@ -7472,7 +7475,7 @@ function renderQuotes() {
             <i class="fas fa-times text-2xl"></i>
           </button>
           <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
-            <i class="fas fa-ellipsis-v text-2xl"></i>
+            <i class="fas fa-ellipsis text-2xl"></i>
           </button>
         </div>`;
     }
@@ -12300,29 +12303,40 @@ const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
         const ok = confirm(`¿Enviar a papelera la cotización ${folio} de ${cliente}?`);
         if(!ok) return;
 
-        await window.moveRecordToRecycleBin({
-          entityType: 'quote',
-          sourceTable: 'quotes',
-          recordId: q.id,
-          payload: window.sanitizeRecyclePayload({ entity_type: 'quote', payload: q }),
-          displayName: `N° ${folio} · ${cliente}`
-        });
+        try{
+          if(typeof window.moveRecordToRecycleBin === 'function'){
+            await window.moveRecordToRecycleBin({
+              entityType: 'quote',
+              sourceTable: 'quotes',
+              recordId: q.id,
+              payload: window.sanitizeRecyclePayload
+                ? window.sanitizeRecyclePayload({ entity_type: 'quote', payload: q })
+                : { entity_type: 'quote', payload: q },
+              displayName: `N° ${folio} · ${cliente}`
+            });
+          }
+        }catch(recycleErr){
+          console.warn('No se pudo enviar cotización a papelera, se intentará eliminar igual.', recycleErr);
+        }
 
         const { error } = await supabaseClient.from('quotes').delete().eq('id', quoteId);
         if(error) throw error;
+
+        quotes = (quotes || []).filter(x => String(x.id) !== String(quoteId));
+        window.quotes = quotes;
 
         if(opts && opts.fromEdit){
           try{ closeModal(); }catch(e){}
         }
 
-        await loadData();
         try{ renderQuotes(); }catch(e){}
         try{ renderOTs(); }catch(e){}
+        try{ renderDashboard(); }catch(e){}
         try{ renderTrash(); }catch(e){}
         toastInfo('Cotización enviada a papelera ✅');
       }catch(err){
-        console.error(err);
-        alert('Error al enviar cotización a papelera: ' + (err.message || err));
+        console.error('deleteQuote error:', err);
+        alert('Error al enviar cotización a papelera: ' + (err?.message || err));
       }
     }
 
@@ -12742,6 +12756,12 @@ function showQuoteMoreOptions(quoteId){
         <button onclick="generateQuotePDF('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
           <i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF
         </button>
+               <button onclick="if(confirm('¿Eliminar esta cotización?')){ closeModal(); deleteQuote('${quoteId}'); }" class="w-full text-left px-4 py-3 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">
+          <i class="fa-solid fa-trash-can mr-2"></i> Eliminar cotización
+        </button>
+ <button onclick="if(confirm('¿Eliminar esta cotización?')){ closeModal(); deleteQuote('${quoteId}'); }" class="w-full text-left px-4 py-3 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">
+          <i class="fa-solid fa-trash-can mr-2"></i> Eliminar cotización
+        </button>
         ${canBackToPending ? `
         <button onclick="setQuoteStatus('${quoteId}','pendiente', true); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold">
           <i class="fa-solid fa-rotate-left mr-2 text-slate-700"></i> Volver a pendiente
@@ -12793,19 +12813,19 @@ function renderQuotes() {
         if (st === 'aceptada') {
           const hasOT = typeof quoteHasLinkedOT === 'function' ? quoteHasLinkedOT(q) : false;
           actions = `
-            <div class="flex items-center justify-center gap-3 flex-wrap">
+            <div class="flex items-center justify-center gap-3 flex-nowrap whitespace-nowrap">
               ${hasOT
                 ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>`
                 : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
               <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
-                <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
+                <i class="fa-solid fa-ellipsis text-xl"></i>
               </button>
             </div>`;
         } else if (st === 'rechazada') {
           actions = `
             <div class="flex items-center justify-center gap-5">
               <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
-                <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
+                <i class="fa-solid fa-ellipsis text-xl"></i>
               </button>
             </div>`;
         } else {
@@ -12818,7 +12838,7 @@ function renderQuotes() {
                 <i class="fas fa-times text-2xl"></i>
               </button>
               <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones">
-                <i class="fas fa-ellipsis-v text-2xl"></i>
+                <i class="fas fa-ellipsis text-2xl"></i>
               </button>
             </div>`;
         }
@@ -13145,7 +13165,38 @@ window.showNewOTModal = function(prefill = {}) {
   return showNewOTManualModal(prefill || {});
 };
 
+
+async function goToCreatedOTAndEdit(otId, numeroOT){
+  try {
+    if (typeof showView === 'function') showView('ots');
+  } catch(e) {}
+
+  const targetId = String(otId || '').trim();
+  const targetNum = String(numeroOT || '').trim();
+
+  try {
+    const found = (Array.isArray(ots) ? ots : []).find(o => {
+      const oid = String(o?.id || '').trim();
+      const onum = String(o?.numeroOT || o?.numero_ot || o?.data?.numeroOT || o?.data?.numero_ot || '').trim();
+      return (targetId && oid === targetId) || (targetNum && onum === targetNum);
+    });
+
+    const editId = found?.id || targetId;
+    if (editId && typeof editOT === 'function') {
+      setTimeout(() => {
+        try { editOT(editId); } catch(err) { console.error('No se pudo abrir la OT recién creada:', err); }
+      }, 120);
+      return true;
+    }
+  } catch(err) {
+    console.warn('No se pudo ubicar la OT recién creada en memoria:', err);
+  }
+
+  return false;
+}
+
 async function saveNewOTManual(btn) {
+  const originalText = btn ? btn.innerText : 'Guardar OT';
   if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
   try{
     const otNumEl = document.getElementById('mOtNum');
@@ -13172,10 +13223,16 @@ async function saveNewOTManual(btn) {
     const otClientMode = document.querySelector('input[name="otClientMode"]:checked')?.value || 'existing';
 
     if(linkedQuote){
-      const quoteClient = inferQuoteClientDataForOT(linkedQuote);
-      client = quoteClient?.clientId ? ((clients || []).find(c => String(c.id) === String(quoteClient.clientId)) || null) : null;
+      const quoteClient = (typeof inferQuoteClientDataForOT === 'function') ? inferQuoteClientDataForOT(linkedQuote) : null;
+      const quoteClientId = String(
+        quoteClient?.clientId || linkedQuote?.clientId || linkedQuote?.client_id || linkedQuote?.data?.clientId || linkedQuote?.data?.client_id || ''
+      ).trim();
+      if(quoteClientId){
+        client = (clients || []).find(c => String(c.id) === quoteClientId) || null;
+      }
       if(!client && quoteClient?.clientName){
-        client = { id: quoteClient.clientId || null, name: quoteClient.clientName, rut: quoteClient.clientRut || '' };
+        const byName = String(quoteClient.clientName).trim().toLowerCase();
+        client = (clients || []).find(c => String(c.name || '').trim().toLowerCase() === byName) || null;
       }
     } else if(otClientMode === 'existing'){
       const clientId = String(document.getElementById('mOtClient')?.value || '').trim();
@@ -13195,26 +13252,45 @@ async function saveNewOTManual(btn) {
         return;
       }
 
-      const insertClientPayload = {
-        name: newName,
-        rut: newRut || generateProvisionalRut(),
-        telefono: newPhone,
-        tipo: newType,
-        created_by: currentUser?.id || null,
-        created_by_email: currentUser?.email || '',
-        created_by_name: currentUserDisplayName || ''
-      };
+      const normalizedRut = newRut || generateProvisionalRut();
+      const existingByRut = (clients || []).find(c => String(normalizeRut(c.rut || '')) === String(normalizeRut(normalizedRut)));
+      if(existingByRut){
+        client = existingByRut;
+      } else {
+        const insertClientPayload = {
+          name: newName,
+          rut: normalizedRut,
+          telefono: newPhone,
+          tipo: newType,
+          created_by: currentUser?.id || null,
+          created_by_email: currentUser?.email || '',
+          created_by_name: currentUserDisplayName || '',
+          data: {
+            telefono: newPhone,
+            tipo: newType
+          }
+        };
 
-      const { data: newClient, error: clientErr } = await supabaseClient.from('clients').insert([insertClientPayload]).select().single();
-      if(clientErr) throw clientErr;
-      client = newClient;
-      try{
-        if(Array.isArray(clients)) clients.push(newClient);
-        if(clientsById && typeof clientsById.set === 'function') clientsById.set(String(newClient.id), newClient);
-      }catch(e){}
+        let clientRes;
+        if(typeof safeInsertWithAutoDrop === 'function'){
+          clientRes = await safeInsertWithAutoDrop('clients', insertClientPayload);
+        } else {
+          const res = await supabaseClient.from('clients').insert([insertClientPayload]).select().single();
+          clientRes = { data: res.data, error: res.error };
+        }
+        if(clientRes?.error) throw clientRes.error;
+        client = clientRes?.data || null;
+
+        try{
+          if(client && Array.isArray(clients) && !clients.some(c => String(c.id) === String(client.id))){
+            clients.push(client);
+          }
+          if(client && clientsById && typeof clientsById.set === 'function') clientsById.set(String(client.id), client);
+        }catch(e){}
+      }
     }
 
-    if(!client){
+    if(!client || !client.id){
       alert('No se pudo resolver el cliente para la OT.');
       return;
     }
@@ -13241,18 +13317,19 @@ async function saveNewOTManual(btn) {
       ? window.collectModalAttachments('ot')
       : [];
 
+    const addressValue = direccionOT || client?.direccion || client?.data?.direccion || '';
+
     const payload = {
       client_id: client.id,
       numero_ot: numeroOT,
       quote_id: linkedQuote ? linkedQuote.id : null,
       descripcion: desc,
-      sucursal: direccionOT,
-      direccion: direccionOT,
       oc,
       hes,
       guia_despacho: guia,
       estado: 'pendiente',
       pago_estado: initialCobroState,
+      cobro_estado: initialCobroState,
       fecha: fechaOT,
       monto,
       created_by: currentUser?.id || null,
@@ -13273,8 +13350,8 @@ async function saveNewOTManual(btn) {
         oc,
         hes,
         guia_despacho: guia,
-        direccion: direccionOT,
-        sucursal: direccionOT,
+        direccion: addressValue,
+        sucursal: addressValue,
         attachments: otAttachments,
         abonos: [],
         modalidadCobro: cobroMode,
@@ -13309,30 +13386,98 @@ async function saveNewOTManual(btn) {
       payload.data.quote_id = linkedQuote.id;
     }
 
-    const { data: inserted, error } = await supabaseClient.from('ots').insert([payload]).select().single();
-    if(error) throw error;
+    let saveRes;
+    if(typeof safeInsertWithAutoDrop === 'function'){
+      saveRes = await safeInsertWithAutoDrop('ots', payload);
+    } else {
+      const res = await supabaseClient.from('ots').insert([payload]).select().single();
+      saveRes = { data: res.data, error: res.error };
+    }
+    if(saveRes?.error) throw saveRes.error;
+
+    const inserted = saveRes?.data || null;
 
     try{
-      if(linkedQuote){
+      if(linkedQuote && typeof safeUpdateWithAutoDrop === 'function'){
+        const qData = Object.assign({}, linkedQuote?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
+        await safeUpdateWithAutoDrop('quotes', linkedQuote.id, { data: qData });
+        linkedQuote.data = qData;
+      } else if(linkedQuote){
         const qData = Object.assign({}, linkedQuote?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
         await supabaseClient.from('quotes').update({ data: qData }).eq('id', linkedQuote.id);
+        linkedQuote.data = qData;
       }
     }catch(e){ console.error('No se pudo marcar la cotización como OT creada:', e); }
 
-    await loadData();
+    let otModel = null;
+    try{
+      if(inserted && typeof hydrateOTRows === 'function'){
+        otModel = hydrateOTRows([inserted])[0] || null;
+      }
+    }catch(e){ console.error('No se pudo hidratar la OT insertada:', e); }
+
+    if(!otModel){
+      otModel = {
+        id: inserted?.id || ('local_ot_' + Date.now()),
+        clientId: client.id,
+        quoteId: linkedQuote ? linkedQuote.id : null,
+        quote_id: linkedQuote ? linkedQuote.id : null,
+        clientName: client.name || '',
+        clientRut: client.rut || '',
+        numeroCotizacion: linkedQuote ? String(linkedQuote.numeroCotizacion || linkedQuote.numero || '') : (hasLegacyQuote ? legacyQuoteNumber : 'Sin Cotización'),
+        numeroOT: numeroOT,
+        numero_ot: numeroOT,
+        descripcion: desc,
+        sucursal: addressValue,
+        direccion: addressValue,
+        oc,
+        hes,
+        guia_despacho: guia,
+        estado: 'pendiente',
+        pago_estado: initialCobroState,
+        cobro_estado: initialCobroState,
+        fecha: fechaOT,
+        monto,
+        total: monto,
+        facturaNumero: null,
+        factura_num: null,
+        modalidadCobro: cobroMode,
+        createdByName: currentUserDisplayName || 'Admin',
+        createdByEmail: currentUser?.email || '',
+        created_by: currentUser?.id || null,
+        created_at: inserted?.created_at || new Date().toISOString(),
+        data: payload.data
+      };
+    }
+
+    try{
+      const idx = Array.isArray(ots) ? ots.findIndex(o => String(o.id) === String(otModel.id)) : -1;
+      if(Array.isArray(ots)){
+        if(idx >= 0) ots[idx] = otModel;
+        else ots.unshift(otModel);
+      }
+      window.ots = ots;
+    }catch(e){}
+
+    pendingQuoteToLinkOT = null;
+    pendingMaintenanceToLinkOT = null;
+
     try{ renderOTs(); }catch(e){}
     try{ renderQuotes(); }catch(e){}
     try{ renderMaintenancePrograms(); }catch(e){}
-    pendingQuoteToLinkOT = null;
-    pendingMaintenanceToLinkOT = null;
+    try{ renderDashboard(); }catch(e){}
+    try{ renderClients(); }catch(e){}
+
     toastInfo(`OT creada: ${inserted?.numero_ot || numeroOT}`);
-    await goToCreatedOTAndEdit(inserted?.id, inserted?.numero_ot || numeroOT);
+    if(inserted?.id){
+      if (typeof goToCreatedOTAndEdit === 'function') await goToCreatedOTAndEdit(inserted?.id, inserted?.numero_ot || numeroOT);
+    }
 
   }catch(error){
     console.error('Error al guardar OT:', error);
     alert('Error al guardar OT: ' + (error?.message || error));
   }finally{
-    if(btn){ btn.disabled = false; btn.innerText = 'Guardar OT'; }
+    if(btn){ btn.disabled = false; btn.innerText = originalText; }
   }
 }
 
@@ -13393,7 +13538,7 @@ async function saveNewOTManual(btn) {
       await supabaseClient.from('quotes').update({ data: Object.assign({}, q?.data || {}, { ot_created: true, ot_numero: numOT }) }).eq('id', quoteId);
     }catch(e){ console.error(e); }
     await loadData(); renderQuotes(); renderOTs(); toastInfo(`OT creada: ${inserted?.numero_ot || numOT}`);
-    await goToCreatedOTAndEdit(inserted?.id, inserted?.numero_ot || numOT);
+    if (typeof goToCreatedOTAndEdit === 'function') await goToCreatedOTAndEdit(inserted?.id, inserted?.numero_ot || numOT);
     }
 
     // ... (El resto de funciones editOT, saveOTEdits y renderOTS que mandaste están bien)
@@ -14546,7 +14691,7 @@ async function savePagoFinal(otId, btn) {
 
       const rows = (ots || [])
         .filter(ot => Number(ot.monto || ot.total || ot.data?.total || 0) > 0)
-        .filter(ot => normalizeOTTrabajoEstado(ot.estado) === 'realizada')
+        .filter(ot => normalizeOTTrabajoEstado(ot.estado) !== 'cancelada')
         .filter(ot => normalizeOTCobroEstado(ot) !== 'pagado')
         .filter(ot => {
           const numero = String(ot.numeroOT || ot.numero_ot || '').toLowerCase();
@@ -14584,7 +14729,7 @@ async function savePagoFinal(otId, btn) {
             <td class="p-4 ${saldo > 0 ? 'text-amber-600' : 'text-emerald-600'} font-semibold">${fmtMoney(saldo)}</td>
             <td class="p-4">${getCobranzaBadgeOT(ot)}</td>
             <td class="p-4 text-center">
-              <div class="flex items-center justify-center gap-4 flex-wrap">
+              <div class="flex items-center justify-center gap-4 flex-nowrap whitespace-nowrap">
                 <button onclick="showHistorialAbonos('${ot.id}')" class="text-slate-700 hover:scale-110 transition" title="Historial abonos"><i class="fas fa-clock-rotate-left text-lg"></i></button>
                 <button onclick="showCobranzaGestionModal('${ot.id}')" class="text-blue-700 hover:scale-110 transition" title="Gestión cobranza"><i class="fas fa-comments-dollar text-lg"></i></button>
               </div>
@@ -14597,7 +14742,7 @@ async function savePagoFinal(otId, btn) {
           trCobro.className = 'border-t hover:bg-gray-50';
 
           const acciones = `
-            <div class="flex items-center justify-center gap-4 flex-wrap">
+            <div class="flex items-center justify-center gap-4 flex-nowrap whitespace-nowrap">
               <button onclick="showRegistrarAbono('${ot.id}')" class="text-emerald-600 hover:scale-110 transition" title="Nuevo abono"><i class="fas fa-plus-circle text-lg"></i></button>
               <button onclick="showHistorialAbonos('${ot.id}')" class="text-slate-700 hover:scale-110 transition" title="Historial abonos"><i class="fas fa-clock-rotate-left text-lg"></i></button>
               <button onclick="showCobranzaGestionModal('${ot.id}')" class="text-rose-700 hover:scale-110 transition" title="Gestión cobranza"><i class="fas fa-comments-dollar text-lg"></i></button>
@@ -14620,7 +14765,7 @@ async function savePagoFinal(otId, btn) {
       });
 
       if(!rows.length){
-        tbody.innerHTML = getAbonoEmptyRow('No se encontraron trabajos realizados para ese criterio.');
+        tbody.innerHTML = getAbonoEmptyRow('No se encontraron OTs pendientes para ese criterio.');
         tbodyClosed.innerHTML = getAbonoEmptyRow('No se encontraron abonos para ese criterio.');
         setTimeout(() => {
           try{ if(typeof applyAbonos==='function') applyAbonos(); }catch(e){}
@@ -14652,13 +14797,13 @@ async function savePagoFinal(otId, btn) {
     
     function showNuevoAbonoSelector() {
       const candidatos = (ots || [])
-        .filter(ot => normalizeOTTrabajoEstado(ot.estado) === 'realizada')
+        .filter(ot => normalizeOTTrabajoEstado(ot.estado) !== 'cancelada')
         .filter(ot => normalizeOTCobroEstado(ot) !== 'pagado')
         .filter(ot => Number(ot.monto || ot.total || ot.data?.total || 0) > 0)
 .sort((a, b) => compareOTNumberDesc(a, b));
 
       if(!candidatos.length){
-        alert('No hay OTs realizadas disponibles para registrar abonos.');
+        alert('No hay OTs disponibles para registrar abonos.');
         return;
       }
 
@@ -14668,7 +14813,10 @@ async function savePagoFinal(otId, btn) {
           const cliente = escapeHtml(ot.clientName || '—');
           const cotizacion = escapeHtml(String(ot.numeroCotizacion || ot.quoteNumber || ot.data?.numeroCotizacion || '—'));
           const monto = formatCLP(Number(ot.monto || ot.total || ot.data?.total || 0));
-          return `<option value="${escapeHtml(String(ot.id))}">OT ${numero} · Cot. ${cotizacion} · ${cliente} · ${escapeHtml(monto)}</option>`;
+          const estadoTrabajo = normalizeOTTrabajoEstado(ot.estado) === 'en_curso'
+            ? 'En curso'
+            : (normalizeOTTrabajoEstado(ot.estado) === 'pendiente' ? 'Pendiente' : 'Realizada');
+          return `<option value="${escapeHtml(String(ot.id))}">OT ${numero} · ${estadoTrabajo} · Cot. ${cotizacion} · ${cliente} · ${escapeHtml(monto)}</option>`;
         }).join('');
         const sel = document.getElementById('nuevoAbonoOtId');
         if(sel) sel.innerHTML = html || '<option value="">Sin resultados</option>';
@@ -14679,7 +14827,7 @@ async function savePagoFinal(otId, btn) {
           <div class="flex items-start justify-between gap-4 mb-6">
             <div>
               <h2 class="text-2xl font-bold">Nuevo abono</h2>
-              <p class="text-sm text-slate-500 mt-1">Busca libremente por OT, cotización, cliente o monto.</p>
+              <p class="text-sm text-slate-500 mt-1">Busca libremente por OT, cotización, cliente, estado o monto.</p>
             </div>
             <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
           </div>
@@ -17424,7 +17572,7 @@ function renderOTs() {
   orderedFallback.forEach(o => {
     try {
       const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
-      const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
+      const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button>`;
       const groupId = `ot-${String(o.id || '')}`;
       const tr = document.createElement('tr');
       tr.className = 'ot-main-row border-t hover:bg-gray-50';
@@ -17512,7 +17660,7 @@ function showOTMoreOptions(otId){
         <button onclick="editOT('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar OT</button>
         <button onclick="programCalendarFromOT('${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-calendar-plus mr-2 text-indigo-700"></i> Programar en calendario</button>
         <button onclick="${reportAction}" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-lines mr-2 text-cyan-700"></i> ${reportLabel}</button>
-        <button onclick="showActaRecepcionModal('ot','${otId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-signature mr-2 text-emerald-700"></i> Generar acta de recepción</button>
+        <button onclick="showActaRecepcionModal('ot','${otId}');" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-signature mr-2 text-emerald-700"></i> Generar acta de recepción</button>
         <button onclick="openOTLibroFromMenu('${otId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-book-open mr-2 text-slate-700"></i> Bitácora de documento / envío / pago</button>
       </div>
     </div>`);
@@ -17522,6 +17670,13 @@ window.showOTMoreOptions = showOTMoreOptions;
 
 function getActaSourceContext(sourceType, sourceId){
   const safe = (v) => safeText(v);
+  const pickTecnico = (...values) => {
+    for(const value of values){
+      const t = safeText(value || '');
+      if(t) return t;
+    }
+    return currentUserDisplayName || '________________';
+  };
   if(String(sourceType) === 'ot'){
     const ot = (window.ots || []).find(x => String(x.id) === String(sourceId));
     if(!ot) return null;
@@ -17538,7 +17693,8 @@ function getActaSourceContext(sourceType, sourceId){
       clientRut: formatRut(safe(linkedQuote?.clientRut || linkedQuote?.rut || client?.rut || '')),
       direccion: safe(ot.direccion || ot.data?.direccion || linkedQuote?.sucursal || linkedQuote?.direccion || client?.direccion || client?.address || '—'),
       tipoTrabajo: safe((typeof getQuoteServiceType === 'function' ? getQuoteServiceType(linkedQuote) : '') || ot.tipo_servicio || ot.data?.tipo_servicio || 'Servicio técnico'),
-      descripcion: safe(ot.descripcion || ot.data?.descripcion_trabajo || ot.data?.descripcion || linkedQuote?.obra || linkedQuote?.descripcion || '')
+      descripcion: safe(ot.descripcion || ot.data?.descripcion_trabajo || ot.data?.descripcion || linkedQuote?.obra || linkedQuote?.descripcion || ''),
+      tecnico: pickTecnico(ot.tecnico, ot.data?.tecnico, ot.data?.tecnicoAsignado, ot.data?.tecnico_asignado, ot.createdByName, linkedQuote?.createdByName)
     };
   }
   const quote = (window.quotes || []).find(x => String(x.id) === String(sourceId));
@@ -17557,10 +17713,111 @@ function getActaSourceContext(sourceType, sourceId){
     clientRut: formatRut(safe(quote.clientRut || quote.rut || client?.rut || '')),
     direccion: safe(quote.sucursal || quote.direccion || quote.data?.sucursal || quote.data?.direccion || client?.direccion || client?.address || '—'),
     tipoTrabajo: safe((typeof getQuoteServiceType === 'function' ? getQuoteServiceType(quote) : '') || quote.tipo_servicio || quote.data?.tipo_servicio || 'Servicio técnico'),
-    descripcion: safe(quote.obra || quote.descripcion || quote.data?.obra || quote.data?.descripcion || '')
+    descripcion: safe(quote.obra || quote.descripcion || quote.data?.obra || quote.data?.descripcion || ''),
+    tecnico: pickTecnico(primaryOT?.tecnico, primaryOT?.data?.tecnico, primaryOT?.data?.tecnicoAsignado, primaryOT?.data?.tecnico_asignado, quote.createdByName, primaryOT?.createdByName)
   };
 }
 window.getActaSourceContext = getActaSourceContext;
+
+function getActaContextItems(ctx){
+  const quoteItems = Array.isArray(ctx?.quote?.items) ? ctx.quote.items : (Array.isArray(ctx?.quote?.data?.items) ? ctx.quote.data.items : []);
+  const otItems = Array.isArray(ctx?.ot?.items) ? ctx.ot.items : (Array.isArray(ctx?.ot?.data?.items) ? ctx.ot.data.items : []);
+  return quoteItems.length ? quoteItems : otItems;
+}
+window.getActaContextItems = getActaContextItems;
+
+function getActaEquipmentCount(ctx){
+  const items = getActaContextItems(ctx);
+  let total = 0;
+  if(items.length){
+    items.forEach(it => {
+      const qty = Number(it?.cantidad ?? it?.cant ?? it?.qty ?? 0) || 0;
+      if(qty > 0) total += qty;
+    });
+  }
+  if(total > 0) return total;
+
+  const haystack = [
+    ctx?.descripcion,
+    ctx?.tipoTrabajo,
+    ctx?.quote?.obra,
+    ctx?.quote?.descripcion,
+    ctx?.quote?.data?.obra,
+    ctx?.quote?.data?.descripcion,
+    ctx?.ot?.descripcion,
+    ctx?.ot?.data?.descripcion,
+    ctx?.ot?.data?.descripcion_trabajo
+  ].filter(Boolean).join(' | ');
+
+  const mEquip = String(haystack).match(/(\d+)\s*(?:equipos?|eq\.?)/i);
+  if(mEquip) return Number(mEquip[1]) || 0;
+  return 0;
+}
+window.getActaEquipmentCount = getActaEquipmentCount;
+
+function getActaEquipmentObjectLabel(ctx, count){
+  const haystack = normalizeDashText([
+    ctx?.tipoTrabajo,
+    ctx?.descripcion,
+    ctx?.quote?.obra,
+    ctx?.quote?.descripcion,
+    ctx?.quote?.data?.obra,
+    ctx?.quote?.data?.descripcion,
+    ...(getActaContextItems(ctx).map(it => it?.descripcion || it?.detalle || it?.name || ''))
+  ].filter(Boolean).join(' | '));
+
+  const singular = Number(count || 0) === 1;
+
+  if(
+    haystack.includes('aire acondicionado') ||
+    haystack.includes('ac ') ||
+    haystack.endsWith(' ac') ||
+    haystack.includes('climatizacion') ||
+    haystack.includes('climatización')
+  ){
+    return singular ? 'equipo de aire acondicionado' : 'equipos de aire acondicionado';
+  }
+
+  if(haystack.includes('camara de frio') || haystack.includes('camara frigorifica') || haystack.includes('camara frigorífica')){
+    return singular ? 'cámara de frío' : 'cámaras de frío';
+  }
+
+  return singular ? 'equipo' : 'equipos';
+}
+window.getActaEquipmentObjectLabel = getActaEquipmentObjectLabel;
+
+function getActaTipoTrabajoLabel(value){
+  const raw = safeText(value || '');
+  const t = normalizeDashText(raw);
+  if(t.includes('mant')) return 'Mantención';
+  if(t.includes('sumin')) return 'Suministro e instalación';
+  if(t.includes('instal')) return 'Instalación';
+  if(t.includes('repar')) return 'Reparación';
+  if(t.includes('visita')) return 'Visita técnica';
+  return raw || 'Servicio técnico';
+}
+window.getActaTipoTrabajoLabel = getActaTipoTrabajoLabel;
+
+function getActaTrabajoDetalleLabel(ctx){
+  const base = getActaTipoTrabajoLabel(ctx?.tipoTrabajo || ctx?.descripcion || 'Servicio técnico');
+  const count = getActaEquipmentCount(ctx);
+  const objectLabel = getActaEquipmentObjectLabel(ctx, count);
+
+  if(base === 'Mantención'){
+    return count > 0 ? `Mantención de ${count} ${objectLabel}` : `Mantención de ${objectLabel}`;
+  }
+  if(base === 'Suministro e instalación'){
+    return count > 0 ? `Suministro e instalación de ${count} ${objectLabel}` : `Suministro e instalación de ${objectLabel}`;
+  }
+  if(base === 'Instalación'){
+    return count > 0 ? `Instalación de ${count} ${objectLabel}` : `Instalación de ${objectLabel}`;
+  }
+  if(base === 'Reparación'){
+    return count > 0 ? `Reparación de ${count} ${objectLabel}` : `Reparación de ${objectLabel}`;
+  }
+  return safeText(ctx?.descripcion || ctx?.tipoTrabajo || 'Servicio técnico');
+}
+window.getActaTrabajoDetalleLabel = getActaTrabajoDetalleLabel;
 
 function initActaSignaturePad(){
   const canvas = document.getElementById('actaSignaturePad');
@@ -17637,54 +17894,128 @@ function showActaRecepcionModal(sourceType, sourceId){
     <div class="p-6 sm:p-7">
       <div class="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h2 class="text-2xl font-black text-slate-900">Acta de recepción de servicio ejecutado</h2>
-          <p class="text-sm text-gray-500 mt-1">Se prepara localmente en tu navegador para impresión física. No se guarda ni se sube a Supabase.</p>
+          <h2 class="text-2xl font-black text-slate-900">Actas de recepción / terreno</h2>
+          <p class="text-sm text-gray-500 mt-1">Aquí puedes imprimir dos formatos distintos: uno formal para entregar al cliente y otro tipo hoja de terreno para que lo lleve y devuelva el técnico.</p>
         </div>
         <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
       </div>
 
-      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-5 space-y-2">
-        <div class="text-xs uppercase font-bold tracking-[0.18em] text-slate-500 mb-2">Datos del servicio</div>
-        <p class="text-sm text-slate-700"><b>Cliente:</b> ${escapeHtml(ctx.clientName)}</p>
-        <p class="text-sm text-slate-700"><b>RUT cliente:</b> ${escapeHtml(ctx.clientRut || '—')}</p>
-        <p class="text-sm text-slate-700"><b>Dirección:</b> ${escapeHtml(ctx.direccion || '—')}</p>
-        <p class="text-sm text-slate-700"><b>Cotización:</b> ${escapeHtml(ctx.numeroCotizacion || '—')} &nbsp;&nbsp; <b>OT:</b> ${escapeHtml(ctx.numeroOT || '—')}</p>
-        <p class="text-sm text-slate-700"><b>Tipo:</b> ${escapeHtml(ctx.tipoTrabajo || '—')}</p>
-        <p class="text-sm text-slate-700"><b>Trabajo ejecutado:</b> ${escapeHtml(ctx.descripcion || ctx.tipoTrabajo || 'Servicio ejecutado')}</p>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+        <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <div class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Versión cliente</div>
+              <h3 class="text-xl font-black text-slate-900 mt-1">Formal y empresarial</h3>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-white border border-emerald-200 flex items-center justify-center text-emerald-700">
+              <i class="fa-solid fa-file-lines text-lg"></i>
+            </div>
+          </div>
+          <ul class="text-sm text-slate-700 space-y-2 leading-relaxed">
+            <li>• Presentación más limpia y profesional.</li>
+            <li>• Pensada para dejarla al cliente firmada en papel.</li>
+            <li>• Incluye bloque elegante para detalle manual del servicio.</li>
+          </ul>
+        </div>
+
+        <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <div class="text-xs font-black uppercase tracking-[0.2em] text-amber-700">Versión técnico</div>
+              <h3 class="text-xl font-black text-slate-900 mt-1">Hoja de terreno</h3>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-white border border-amber-200 flex items-center justify-center text-amber-700">
+              <i class="fa-solid fa-helmet-safety text-lg"></i>
+            </div>
+          </div>
+          <ul class="text-sm text-slate-700 space-y-2 leading-relaxed">
+            <li>• Más operativa y práctica para uso en terreno.</li>
+            <li>• Con área amplia para escribir requerimientos, trabajo y observaciones.</li>
+            <li>• Ideal para que el técnico la lleve y luego la devuelva firmada.</li>
+          </ul>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">Empresa / cliente</label>
+          <input type="text" value="${escapeHtml(ctx.clientName)}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+        </div>
+        <div>
           <label class="block text-sm font-bold text-slate-700 mb-1">Fecha del acta</label>
           <input id="actaFecha" type="date" value="${todayISO()}" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" />
         </div>
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">Nombre de quien recibe</label>
-          <input id="actaRecibeNombre" type="text" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" placeholder="Nombre y apellido" />
+        <div class="md:col-span-2">
+          <label class="block text-sm font-bold text-slate-700 mb-1">Dirección</label>
+          <input type="text" value="${escapeHtml(ctx.direccion || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
         </div>
         <div class="md:col-span-2">
-          <label class="block text-sm font-bold text-slate-700 mb-1">RUT de quien recibe</label>
-          <input id="actaRecibeRut" type="text" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" placeholder="12.345.678-9" />
+          <label class="block text-sm font-bold text-slate-700 mb-1">Detalle del trabajo</label>
+          <input type="text" value="${escapeHtml(getActaTrabajoDetalleLabel(ctx))}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">Cotización asociada</label>
+          <input type="text" value="${escapeHtml(ctx.numeroCotizacion || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">OT asociada</label>
+          <input type="text" value="${escapeHtml(ctx.numeroOT || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-bold text-slate-700 mb-1">Técnico asignado</label>
+          <input id="actaTecnico" type="text" value="${escapeHtml(ctx.tecnico || currentUserDisplayName || '')}" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" placeholder="Nombre del técnico" />
         </div>
       </div>
 
-      <div class="mb-3">
-        <div class="flex items-center justify-between gap-3 mb-2">
-          <label class="block text-sm font-bold text-slate-700">Firma del cliente / receptor</label>
-          <button type="button" onclick="clearActaSignaturePad()" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm font-semibold">Limpiar firma</button>
+      <div class="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="rounded-3xl border border-slate-200 bg-white p-4">
+          <div class="text-sm font-black text-slate-800 mb-2">Vista rápida del formato formal</div>
+          <div class="rounded-2xl border border-slate-200 p-3 bg-slate-50">
+            <div class="h-2 rounded-full bg-emerald-600 mb-3"></div>
+            <div class="flex justify-between items-start gap-3 mb-3">
+              <div>
+                <div class="h-3 w-40 rounded bg-slate-800 mb-2"></div>
+                <div class="h-2.5 w-28 rounded bg-slate-300"></div>
+              </div>
+              <div class="space-y-2 w-28">
+                <div class="h-2.5 rounded bg-slate-300"></div>
+                <div class="h-2.5 rounded bg-slate-300"></div>
+              </div>
+            </div>
+            <div class="space-y-2 mb-3">
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+            </div>
+            <div class="h-24 rounded-2xl bg-white border border-dashed border-slate-300"></div>
+          </div>
         </div>
-        <div class="border-2 border-dashed border-slate-300 rounded-2xl bg-white p-3">
-          <canvas id="actaSignaturePad" style="width:100%;height:160px;display:block;border-radius:12px;background:#fff"></canvas>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-4">
+          <div class="text-sm font-black text-slate-800 mb-2">Vista rápida hoja de terreno</div>
+          <div class="rounded-2xl border border-slate-200 p-3 bg-slate-50">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div class="h-3 w-36 rounded bg-amber-700"></div>
+              <div class="h-7 w-24 rounded-xl bg-white border border-slate-200"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+            </div>
+            <div class="h-24 rounded-2xl bg-white border-2 border-slate-300"></div>
+          </div>
         </div>
       </div>
 
       <div class="flex flex-wrap gap-3 pt-4">
-        <button onclick="printActaRecepcion('${sourceType}','${sourceId}')" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-print mr-2"></i>Imprimir acta</button>
+        <button onclick="printActaRecepcion('${sourceType}','${sourceId}','formal')" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-print mr-2"></i>Imprimir versión cliente</button>
+        <button onclick="printActaRecepcion('${sourceType}','${sourceId}','terreno')" class="px-5 py-3 rounded-2xl bg-amber-600 text-white font-semibold hover:bg-amber-700"><i class="fa-solid fa-print mr-2"></i>Imprimir hoja de terreno</button>
         <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">Cancelar</button>
       </div>
     </div>
   `);
-  setTimeout(() => { try { initActaSignaturePad(); } catch(e){ console.error(e); } }, 50);
 }
 window.showActaRecepcionModal = showActaRecepcionModal;
 
@@ -17693,97 +18024,264 @@ function actaRecepcionTextLines(text, maxLen){
   return doc.splitTextToSize(String(text || ''), maxLen || 170);
 }
 
-function buildActaRecepcionPrintHtml(data){
-  const cliente = escapeHtml(data.clientName || 'Cliente');
+function buildActaRecepcionFormalHtml(data){
+  const logoSrc = escapeHtml(data.logoSrc || window.LOGO_FILE || 'logo ecoluz.png');
+  const empresa = escapeHtml(data.clientName || 'Cliente');
   const rutCliente = escapeHtml(data.clientRut || '—');
   const direccion = escapeHtml(data.direccion || '—');
   const numeroCotizacion = escapeHtml(data.numeroCotizacion || '—');
   const numeroOT = escapeHtml(data.numeroOT || '—');
-  const tipoTrabajo = escapeHtml(data.tipoTrabajo || 'Servicio técnico');
-  const descripcion = escapeHtml(data.descripcion || data.tipoTrabajo || 'Servicio ejecutado');
-  const recibeNombre = escapeHtml(data.recibeNombre || '');
-  const recibeRut = escapeHtml(data.recibeRut || '');
+  const tecnico = escapeHtml(data.tecnico || '________________');
   const fecha = escapeHtml(formatDDMMYY(data.fecha) || data.fecha || '');
-  const signatureSrc = data.signatureDataUrl || '';
-  const declaracion = escapeHtml('Se deja constancia de que el servicio indicado fue ejecutado por ECOLUZ en la fecha señalada y recibido por la persona individualizada en este documento.');
+  const tipoTrabajo = escapeHtml(getActaTipoTrabajoLabel(data.tipoTrabajo || data.descripcion || 'Servicio técnico'));
+  const detalleTrabajo = escapeHtml(getActaTrabajoDetalleLabel(data));
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Acta de recepción de servicio ejecutado</title>
 <style>
-  @page { size: Letter; margin: 16mm; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; margin: 0; }
-  .page { max-width: 760px; margin: 0 auto; }
-  .top-line { height: 6px; background: #85af28; border-radius: 999px; margin-bottom: 16px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
-  .header h1 { margin: 0; color: #2d561f; font-size: 24px; line-height: 1.1; }
-  .header .meta { text-align: right; font-size: 12px; color: #475569; }
-  .section-title { color: #2d561f; font-weight: 700; font-size: 15px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #cbd5e1; }
-  .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-  .info-grid td { padding: 7px 8px; vertical-align: top; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-  .label { width: 145px; font-weight: 700; color: #334155; }
-  .box { border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; background: #fff; font-size: 13px; line-height: 1.45; }
-  .signature-wrap { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: end; }
-  .signature-box { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; min-height: 110px; display: flex; align-items: center; justify-content: center; background: #fff; }
-  .signature-box img { max-width: 100%; max-height: 90px; }
-  .line-box { padding-top: 26px; }
-  .line { border-bottom: 1px solid #334155; height: 1px; margin-bottom: 8px; }
-  .small { font-size: 12px; color: #475569; }
-  .footer { margin-top: 20px; text-align: center; font-size: 11px; color: #64748b; }
-  @media print {
-    .page { max-width: none; }
-  }
+  @page { size: Letter; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #ffffff; }
+  .page { width: 100%; max-width: 191mm; margin: 0 auto; }
+  .top-accent { height: 6px; border-radius: 999px; background: linear-gradient(90deg, #85af28 0%, #30551d 100%); margin-bottom: 10px; }
+  .header { display: grid; grid-template-columns: 54mm 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .logo-wrap { min-height: 24mm; display:flex; align-items:center; justify-content:flex-start; }
+  .logo { max-width: 50mm; max-height: 22mm; object-fit: contain; }
+  .logo-fallback { font-size: 18px; font-weight: 900; letter-spacing: .08em; color: #2d561f; text-transform: uppercase; }
+  .head-copy { text-align: right; }
+  .brand-kicker { font-size: 10.5px; letter-spacing: .2em; font-weight: 800; color: #5f7d1d; text-transform: uppercase; }
+  h1 { margin: 3px 0 0; font-size: 20px; line-height: 1.05; font-weight: 900; color: #111827; }
+  .subtitle { margin-top: 4px; font-size: 11px; color: #64748b; }
+  .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+  .meta-box { border: 1px solid #d9e2ec; border-radius: 12px; padding: 7px 9px; background: #f8fafc; min-height: 44px; }
+  .meta-label { font-size: 9.5px; color: #64748b; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+  .meta-value { margin-top: 4px; font-size: 12.5px; font-weight: 800; color: #0f172a; }
+  .section-title { margin: 0 0 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .16em; font-weight: 900; color: #2d561f; }
+  .service-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+  .service-box { border: 1px solid #d9e2ec; border-radius: 12px; padding: 8px 10px; min-height: 49px; }
+  .service-box.wide { grid-column: span 3; }
+  .service-box.wide-2 { grid-column: span 2; }
+  .service-label { font-size: 9.5px; color: #64748b; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+  .service-value { margin-top: 4px; font-size: 12.5px; line-height: 1.25; font-weight: 700; color: #111827; }
+  .statement { border: 1px solid #d9e2ec; border-radius: 12px; padding: 9px 10px; background: #fbfdff; font-size: 11.5px; line-height: 1.4; margin-bottom: 10px; }
+  .signature-wrap { margin-top: 10px; border: 1px solid #d9e2ec; border-radius: 14px; padding: 10px; background: #f8fafc; }
+  .signature-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 12px; align-items: end; }
+  .signature-box { min-height: 74px; border: 1px solid #cbd5e1; border-radius: 12px; background: #ffffff; }
+  .sig-small { font-size: 9.5px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: .11em; margin-bottom: 6px; }
+  .line-label { margin-top: 14px; }
+  .line { border-bottom: 1px solid #334155; height: 1px; margin-bottom: 5px; }
+  .small { font-size: 10px; color: #64748b; }
+  .footer { margin-top: 8px; display: flex; justify-content: space-between; gap: 10px; font-size: 9.5px; color: #94a3b8; }
 </style>
 </head>
 <body onload="setTimeout(function(){ try { window.print(); } catch(e) {} }, 250)">
   <div class="page">
-    <div class="top-line"></div>
+    <div class="top-accent"></div>
+
     <div class="header">
-      <div>
-        <h1>Acta de recepción de servicio ejecutado</h1>
-        <div class="small" style="margin-top:6px;">ECOLUZ Servicios</div>
+      <div class="logo-wrap">
+        <img src="${logoSrc}" alt="ECOLUZ" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="logo-fallback" style="display:none;">ECOLUZ</div>
       </div>
-      <div class="meta">
-        <div><strong>Fecha:</strong> ${fecha}</div>
-        <div style="margin-top:4px;"><strong>Cotización:</strong> ${numeroCotizacion}</div>
-        <div style="margin-top:4px;"><strong>OT:</strong> ${numeroOT}</div>
+      <div class="head-copy">
+        <h1>Acta de recepción de servicio ejecutado</h1>
       </div>
     </div>
 
-    <div class="section-title">Datos del cliente y servicio</div>
-    <table class="info-grid">
-      <tr><td class="label">Cliente</td><td>${cliente}</td></tr>
-      <tr><td class="label">RUT cliente</td><td>${rutCliente}</td></tr>
-      <tr><td class="label">Dirección</td><td>${direccion}</td></tr>
-      <tr><td class="label">Tipo de servicio</td><td>${tipoTrabajo}</td></tr>
-      <tr><td class="label">Trabajo ejecutado</td><td>${descripcion}</td></tr>
-    </table>
+    <div class="meta-grid">
+      <div class="meta-box"><div class="meta-label">Fecha</div><div class="meta-value">${fecha}</div></div>
+      <div class="meta-box"><div class="meta-label">Cotización</div><div class="meta-value">${numeroCotizacion}</div></div>
+      <div class="meta-box"><div class="meta-label">OT</div><div class="meta-value">${numeroOT}</div></div>
+    </div>
 
-    <div class="section-title">Constancia</div>
-    <div class="box">${declaracion}</div>
+    <div class="section-title">Datos del servicio</div>
+    <div class="service-grid">
+      <div class="service-box wide-2"><div class="service-label">Empresa / cliente</div><div class="service-value">${empresa}</div></div>
+      <div class="service-box"><div class="service-label">RUT</div><div class="service-value">${rutCliente}</div></div>
+      <div class="service-box wide"><div class="service-label">Dirección</div><div class="service-value">${direccion}</div></div>
+      <div class="service-box wide"><div class="service-label">Detalle del trabajo</div><div class="service-value">${detalleTrabajo}</div></div>
+      <div class="service-box"><div class="service-label">Técnico asignado</div><div class="service-value">${tecnico}</div></div>
+      <div class="service-box"><div class="service-label">Cotización asociada</div><div class="service-value">${numeroCotizacion}</div></div>
+      <div class="service-box"><div class="service-label">OT asociada</div><div class="service-value">${numeroOT}</div></div>
+    </div>
 
-    <div class="section-title">Datos de quien recibe</div>
-    <table class="info-grid">
-      <tr><td class="label">Nombre</td><td>${recibeNombre}</td></tr>
-      <tr><td class="label">RUT</td><td>${recibeRut}</td></tr>
-    </table>
+    <div class="statement">
+      Se deja constancia de que el servicio correspondiente a <strong>${detalleTrabajo}</strong> fue ejecutado por <strong>ECOLUZ Servicios</strong>.
+    </div>
 
     <div class="signature-wrap">
-      <div>
-        <div class="small" style="margin-bottom:8px;font-weight:700;color:#2d561f;">Firma del cliente / receptor</div>
-        <div class="signature-box">${signatureSrc ? `<img src="${signatureSrc}" alt="Firma">` : ''}</div>
-      </div>
-      <div class="line-box">
-        <div class="line"></div>
-        <div class="small">Nombre y RUT de quien recibe</div>
+      <div class="section-title" style="margin-top:0;">Recepción conforme del cliente</div>
+      <div class="signature-grid">
+        <div>
+          <div class="sig-small">Firma del cliente / receptor</div>
+          <div class="signature-box"></div>
+        </div>
+        <div>
+          <div class="line-label"><div class="line"></div><div class="small">Nombre completo del cliente / receptor</div></div>
+          <div class="line-label"><div class="line"></div><div class="small">RUT del cliente / receptor</div></div>
+        </div>
       </div>
     </div>
 
-    <div class="footer">ECOLUZ · Acta de recepción de servicio ejecutado</div>
+    <div class="footer">
+      <div>ECOLUZ · Acta formal para cliente</div>
+      <div>Cotización ${numeroCotizacion} · OT ${numeroOT}</div>
+    </div>
   </div>
 </body>
 </html>`;
+}
+
+function buildActaRecepcionTerrenoHtml(data){
+  const logoSrc = escapeHtml(data.logoSrc || window.LOGO_FILE || 'logo ecoluz.png');
+  const empresa = escapeHtml(data.clientName || 'Cliente');
+  const rutCliente = escapeHtml(data.clientRut || '—');
+  const direccion = escapeHtml(data.direccion || '—');
+  const numeroCotizacion = escapeHtml(data.numeroCotizacion || '—');
+  const numeroOT = escapeHtml(data.numeroOT || '—');
+  const tecnico = escapeHtml(data.tecnico || '________________');
+  const fecha = escapeHtml(formatDDMMYY(data.fecha) || data.fecha || '');
+  const tipoTrabajo = escapeHtml(getActaTipoTrabajoLabel(data.tipoTrabajo || data.descripcion || 'Servicio técnico'));
+  const detalleTrabajo = escapeHtml(getActaTrabajoDetalleLabel(data));
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Hoja de terreno</title>
+<style>
+  @page { size: Letter; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; }
+  .page { width: 100%; max-width: 195mm; margin: 0 auto; }
+  .header { border: 2px solid #0f172a; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  .header-top { display: grid; grid-template-columns: 44mm 1fr auto; gap: 10px; align-items: center; }
+  .logo-wrap { min-height: 20mm; display:flex; align-items:center; }
+  .logo { max-width: 40mm; max-height: 18mm; object-fit: contain; }
+  .logo-fallback { font-size: 16px; font-weight: 900; letter-spacing: .08em; color: #2d561f; text-transform: uppercase; }
+  .title-wrap h1 { margin: 0; font-size: 19px; line-height: 1.02; font-weight: 900; letter-spacing: .02em; }
+  .title-wrap .sub { margin-top: 3px; font-size: 10px; color: #4b5563; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
+  .status-chip { border: 2px solid #92400e; color: #92400e; border-radius: 999px; padding: 6px 10px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; white-space: nowrap; }
+  .info-strip { display: grid; grid-template-columns: 1.2fr .75fr .75fr .95fr .9fr; gap: 6px; margin-top: 8px; }
+  .strip-box { border: 1.4px solid #cbd5e1; border-radius: 10px; padding: 6px 8px; min-height: 42px; }
+  .strip-box.wide { grid-column: span 2; }
+  .strip-label { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .11em; font-weight: 800; }
+  .strip-value { margin-top: 4px; font-size: 11.5px; font-weight: 800; line-height: 1.2; color: #111827; }
+  .main-grid { display: grid; grid-template-columns: .92fr 1.08fr; gap: 8px; }
+  .panel { border: 2px solid #0f172a; border-radius: 14px; padding: 10px; }
+  .panel-title { margin: 0 0 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .14em; color: #0f172a; font-weight: 900; }
+  .mini-table { width: 100%; border-collapse: collapse; }
+  .mini-table td { border-bottom: 1px solid #d1d5db; padding: 5px 2px; font-size: 11px; vertical-align: top; }
+  .mini-table tr:last-child td { border-bottom: none; }
+  .mini-label { width: 82px; color: #6b7280; font-weight: 800; text-transform: uppercase; font-size: 9px; letter-spacing: .08em; }
+  .checks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .check-box { border: 1.4px solid #cbd5e1; border-radius: 10px; padding: 8px; min-height: 88px; }
+  .check-title { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; margin-bottom: 6px; }
+  .line-item { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; font-size: 11px; }
+  .square { width: 12px; height: 12px; border: 1.5px solid #111827; border-radius: 3px; flex: 0 0 auto; }
+  .lined-area { border: 2px solid #0f172a; border-radius: 14px; margin-top: 8px; padding: 9px; min-height: 150px; background: repeating-linear-gradient(to bottom, #ffffff 0px, #ffffff 18px, #dbe3ef 19px); }
+  .lined-area .hint { font-size: 9.2px; color: #6b7280; font-weight: 800; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; background: rgba(255,255,255,.95); display: inline-block; padding-right: 6px; }
+  .bottom-grid { display: grid; grid-template-columns: .95fr 1.05fr; gap: 8px; margin-top: 8px; }
+  .signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .sig-box { border: 2px solid #0f172a; border-radius: 14px; padding: 8px; min-height: 74px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .sig-line { border-bottom: 1px solid #111827; margin-top: 28px; }
+  .sig-label { margin-top: 5px; font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
+  .small-box { border: 2px solid #0f172a; border-radius: 14px; padding: 10px; min-height: 74px; }
+  .small-box .title { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; margin-bottom: 12px; }
+  .footer { margin-top: 6px; display: flex; justify-content: space-between; gap: 10px; font-size: 9px; color: #6b7280; }
+</style>
+</head>
+<body onload="setTimeout(function(){ try { window.print(); } catch(e) {} }, 250)">
+  <div class="page">
+    <div class="header">
+      <div class="header-top">
+        <div class="logo-wrap">
+          <img src="${logoSrc}" alt="ECOLUZ" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <div class="logo-fallback" style="display:none;">ECOLUZ</div>
+        </div>
+        <div class="title-wrap">
+          <div class="sub">ECOLUZ Servicios</div>
+          <h1>Hoja de terreno / acta interna</h1>
+        </div>
+        <div class="status-chip">Uso operativo</div>
+      </div>
+      <div class="info-strip">
+        <div class="strip-box wide"><div class="strip-label">Empresa / cliente</div><div class="strip-value">${empresa}</div></div>
+        <div class="strip-box"><div class="strip-label">Fecha</div><div class="strip-value">${fecha}</div></div>
+        <div class="strip-box"><div class="strip-label">Técnico</div><div class="strip-value">${tecnico}</div></div>
+        <div class="strip-box"><div class="strip-label">OT</div><div class="strip-value">${numeroOT}</div></div>
+        <div class="strip-box"><div class="strip-label">Cotización</div><div class="strip-value">${numeroCotizacion}</div></div>
+        <div class="strip-box wide"><div class="strip-label">Dirección</div><div class="strip-value">${direccion}</div></div>
+        <div class="strip-box wide"><div class="strip-label">Detalle del trabajo</div><div class="strip-value">${detalleTrabajo}</div></div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="panel">
+        <h2 class="panel-title">Control rápido</h2>
+        <div class="checks">
+          <div class="check-box">
+            <div class="check-title">Estado</div>
+            <div class="line-item"><span class="square"></span><span>Pendiente</span></div>
+            <div class="line-item"><span class="square"></span><span>En curso</span></div>
+            <div class="line-item"><span class="square"></span><span>Terminado</span></div>
+          </div>
+          <div class="check-box">
+            <div class="check-title">Resultado</div>
+            <div class="line-item"><span class="square"></span><span>Conforme</span></div>
+            <div class="line-item"><span class="square"></span><span>Con observaciones</span></div>
+            <div class="line-item"><span class="square"></span><span>Pendiente visita</span></div>
+          </div>
+        </div>
+        <h2 class="panel-title" style="margin-top:10px;">Resumen rápido</h2>
+        <table class="mini-table">
+          <tr><td class="mini-label">Empresa</td><td>${empresa}</td></tr>
+          <tr><td class="mini-label">Dirección</td><td>${direccion}</td></tr>
+          <tr><td class="mini-label">Trabajo</td><td>${detalleTrabajo}</td></tr>
+          <tr><td class="mini-label">OT / Cot.</td><td>${numeroOT} / ${numeroCotizacion}</td></tr>
+          <tr><td class="mini-label">Técnico</td><td>${tecnico}</td></tr>
+        </table>
+      </div>
+
+      <div class="lined-area">
+        <div class="hint">${detalleTrabajo} · trabajo realizado / requerimiento / observaciones / materiales / pendientes</div>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="small-box">
+        <div class="title">Notas de cierre / coordinación</div>
+      </div>
+      <div class="signatures">
+        <div class="sig-box">
+          <div class="sig-line"></div>
+          <div class="sig-label">Firma técnico</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-line"></div>
+          <div class="sig-label">Firma cliente / receptor</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-line"></div>
+          <div class="sig-label">Nombre y RUT cliente / fecha cierre</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>ECOLUZ · Hoja de terreno</div>
+      <div>OT ${numeroOT} · Cotización ${numeroCotizacion}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildActaRecepcionPrintHtml(data, variant){
+  const type = String(variant || 'formal').toLowerCase().trim();
+  if(type === 'terreno') return buildActaRecepcionTerrenoHtml(data);
+  return buildActaRecepcionFormalHtml(data);
 }
 window.buildActaRecepcionPrintHtml = buildActaRecepcionPrintHtml;
 
@@ -17793,37 +18291,20 @@ function removeActaPrintHost(){
 }
 window.removeActaPrintHost = removeActaPrintHost;
 
-function printActaRecepcion(sourceType, sourceId){
+function printActaRecepcion(sourceType, sourceId, variant){
   const ctxData = getActaSourceContext(sourceType, sourceId);
   if(!ctxData){
     alert('No se encontraron los datos base para el acta.');
     return;
   }
-  const recibeNombre = safeText(document.getElementById('actaRecibeNombre')?.value || '');
-  const recibeRutRaw = safeText(document.getElementById('actaRecibeRut')?.value || '');
-  const recibeRut = formatRut(recibeRutRaw);
   const fecha = safeText(document.getElementById('actaFecha')?.value || todayISO());
-  const signCanvas = document.getElementById('actaSignaturePad');
-  if(!recibeNombre){
-    alert('Ingresa el nombre de quien recibe.');
-    return;
-  }
-  if(!recibeRut){
-    alert('Ingresa el RUT de quien recibe.');
-    return;
-  }
-  if(!signCanvas || signCanvas.dataset.signed !== '1'){
-    alert('Debes incorporar la firma del cliente o receptor.');
-    return;
-  }
-  const signatureDataUrl = signCanvas.toDataURL('image/png');
+  const tecnico = safeText(document.getElementById('actaTecnico')?.value || ctxData.tecnico || currentUserDisplayName || '');
+  const selectedVariant = String(variant || 'formal').toLowerCase().trim() === 'terreno' ? 'terreno' : 'formal';
   const printHtml = buildActaRecepcionPrintHtml({
     ...ctxData,
-    recibeNombre,
-    recibeRut,
     fecha,
-    signatureDataUrl
-  });
+    tecnico
+  }, selectedVariant);
 
   const printFrame = document.createElement('iframe');
   printFrame.style.position = 'fixed';
@@ -17834,49 +18315,28 @@ function printActaRecepcion(sourceType, sourceId){
   printFrame.style.border = '0';
   printFrame.setAttribute('aria-hidden', 'true');
   document.body.appendChild(printFrame);
-
-  const frameDoc = printFrame.contentWindow?.document;
-  if(!frameDoc){
-    printFrame.remove();
+  const doc = printFrame.contentWindow?.document;
+  if(!doc){
     alert('No se pudo preparar la impresión del acta.');
+    printFrame.remove();
     return;
   }
+  doc.open();
+  doc.write(printHtml);
+  doc.close();
 
   const cleanup = () => {
-    setTimeout(() => {
-      try { printFrame.remove(); } catch(e) {}
-    }, 300);
+    try { printFrame.remove(); } catch(e) {}
   };
-
-  frameDoc.open();
-  frameDoc.write(printHtml);
-  frameDoc.close();
-
-  closeModal();
-
-  const doPrint = () => {
+  printFrame.onload = () => {
     try {
-      const win = printFrame.contentWindow;
-      if(!win){
-        cleanup();
-        alert('No se pudo abrir la impresión del acta.');
-        return;
+      const w = printFrame.contentWindow;
+      if(w){
+        w.onafterprint = cleanup;
       }
-      win.focus();
-      win.print();
-      cleanup();
-    } catch(e) {
-      console.error('No se pudo imprimir el acta:', e);
-      cleanup();
-      alert('No se pudo abrir la impresión del acta.');
-    }
+    } catch(e) {}
+    setTimeout(cleanup, 30000);
   };
-
-  if (printFrame.contentWindow?.document?.readyState === 'complete') {
-    setTimeout(doPrint, 150);
-  } else {
-    printFrame.onload = () => setTimeout(doPrint, 150);
-  }
 }
 window.printActaRecepcion = printActaRecepcion;
 
@@ -20641,23 +21101,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if(bucket === 'aceptada'){
       const hasOT = typeof quoteHasLinkedOT === 'function' ? quoteHasLinkedOT(q) : false;
       return `
-        <div class="flex items-center justify-center gap-3 flex-wrap">
+        <div class="flex items-center justify-center gap-3 flex-nowrap whitespace-nowrap">
           ${viewBtn}
           ${hasOT
             ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>`
             : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
-          <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>
+          <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button>
         </div>`;
     }
     if(bucket === 'rechazada' || bucket === 'historica'){
-      return `<div class="flex items-center justify-center gap-5">${viewBtn}<button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button></div>`;
+      return `<div class="flex items-center justify-center gap-5">${viewBtn}<button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button></div>`;
     }
     return `
       <div class="flex items-center justify-center gap-5">
         ${viewBtn}
         <button onclick="acceptQuote('${q.id}')" class="text-green-600 hover:text-green-800" title="Aceptar"><i class="fas fa-check text-2xl"></i></button>
         <button onclick="rejectQuote('${q.id}')" class="text-red-600 hover:text-red-800" title="Rechazar"><i class="fas fa-times text-2xl"></i></button>
-        <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fas fa-ellipsis-v text-2xl"></i></button>
+        <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fas fa-ellipsis text-2xl"></i></button>
       </div>`;
   }
 
@@ -20929,7 +21389,10 @@ async function persistQuoteHistoricalData(quoteId, extra, silent){
           <button onclick="previewQuote('${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-eye mr-2 text-slate-700"></i> Ver cotización</button>
           <button onclick="editQuote('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-pen-to-square mr-2 text-blue-700"></i> Editar cotización</button>
           <button onclick="generateQuotePDF('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-file-pdf mr-2 text-red-600"></i> Descargar PDF</button>
-          ${['aceptada'].includes(qState) && !quoteHasLinkedOT(q) ? `<button onclick="showNewOTFromQuoteModal('${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-screwdriver-wrench mr-2 text-emerald-700"></i> Crear OT</button>` : ``}
+                  <button onclick="if(confirm('¿Eliminar esta cotización?')){ closeModal(); deleteQuote('${quoteId}'); }" class="w-full text-left px-4 py-3 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">
+          <i class="fa-solid fa-trash-can mr-2"></i> Eliminar cotización
+        </button>
+${['aceptada'].includes(qState) && !quoteHasLinkedOT(q) ? `<button onclick="showNewOTFromQuoteModal('${quoteId}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-screwdriver-wrench mr-2 text-emerald-700"></i> Crear OT</button>` : ``}
           <button onclick="markQuoteExpired('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-regular fa-clock mr-2 text-slate-700"></i> Marcar como vencida</button>
           <button onclick="markQuoteReplaced('${quoteId}')" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-rotate mr-2 text-indigo-700"></i> Marcar como reemplazada</button>
           ${canBackToPending ? `<button onclick="setQuoteStatus('${quoteId}','pendiente', true); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fa-solid fa-rotate-left mr-2 text-slate-700"></i> Volver a pendiente</button>` : ``}
@@ -22942,7 +23405,7 @@ function toggleSidebarTools(forceOpen = null){
     'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, data',
     'id, client_id, numero, monto, descripcion, obra, fecha, estado, created_by_name, created_by_email, created_by, created_at, data'
   ];
-  const OT_SELECTS = [window.OT_LIGHT_SELECT || 'id, client_id, quote_id, numero_ot, descripcion, sucursal, direccion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data',
+  const OT_SELECTS = [window.OT_LIGHT_SELECT || 'id, client_id, quote_id, numero_ot, descripcion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data',
                       window.OT_LIGHT_SELECT_MIN || 'id, client_id, quote_id, numero_ot, descripcion, estado, pago_estado, fecha, monto, created_by_name, created_by_email, created_by, created_at, data'];
 
   const missingCacheRegex = /Could not find the '([^']+)' column of '([^']+)'/i;
@@ -23256,18 +23719,18 @@ function toggleSidebarTools(forceOpen = null){
       if (st === 'aceptada') {
         const hasOT = typeof quoteHasLinkedOT === 'function' ? quoteHasLinkedOT(q) : false;
         actions = `
-          <div class="flex items-center justify-center gap-3 flex-wrap">
+          <div class="flex items-center justify-center gap-3 flex-nowrap whitespace-nowrap">
             ${hasOT ? `<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OT creada</span>` : `<button onclick="showNewOTFromQuoteModal('${q.id}')" class="inline-flex items-center px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700" title="Crear OT"><i class="fa-solid fa-screwdriver-wrench mr-2"></i>Crear OT</button>`}
-            <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>
+            <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button>
           </div>`;
       } else if (st === 'rechazada') {
-        actions = `<div class="flex items-center justify-center gap-5"><button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button></div>`;
+        actions = `<div class="flex items-center justify-center gap-3 flex-nowrap whitespace-nowrap"><button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button></div>`;
       } else {
         actions = `
-          <div class="flex items-center justify-center gap-5">
+          <div class="flex items-center justify-center gap-4 flex-nowrap whitespace-nowrap">
             <button onclick="acceptQuote('${q.id}')" class="text-green-600 hover:text-green-800" title="Aceptar"><i class="fas fa-check text-2xl"></i></button>
             <button onclick="rejectQuote('${q.id}')" class="text-red-600 hover:text-red-800" title="Rechazar"><i class="fas fa-times text-2xl"></i></button>
-            <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fas fa-ellipsis-v text-2xl"></i></button>
+            <button onclick="showQuoteMoreOptions('${q.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fas fa-ellipsis text-2xl"></i></button>
           </div>`;
       }
       const monto = Number(q.monto || q.total || q.data?.total || q.data?.monto || 0);
@@ -23372,7 +23835,7 @@ function toggleSidebarTools(forceOpen = null){
     rows.forEach(o => {
       try {
         const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
-        const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis-vertical text-xl"></i></button>`;
+        const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button>`;
         const groupId = `ot-${String(o.id || '')}`;
         const tr = document.createElement('tr');
         tr.className = 'ot-main-row border-t hover:bg-gray-50';
