@@ -9275,9 +9275,7 @@ window.renderQuotes = renderQuotes;
       return normalizeReportEquipment(merged);
     }
 
-    function buildReportEffectiveEquipmentsFromForm(){
-      const items = collectReportItemsFromForm();
-      if(items.length) return buildReportEffectiveEquipmentsFromItems(items);
+    function buildReportExceptionEquipmentsFromForm(){
       const rows = collectReportEquipmentsFromForm();
       const tpl = getReportBulkTemplateFromForm();
       const totalRows = (tpl.areasList && tpl.areasList.length) ? tpl.areasList.length : (tpl.count || rows.length || 1);
@@ -9286,6 +9284,13 @@ window.renderQuotes = renderQuotes;
       }
       if(!hasMeaningfulReportBulkTemplate(tpl)) return [];
       return Array.from({ length: totalRows }, (_, idx) => mergeReportEquipmentWithTemplate({}, tpl, idx, totalRows)).filter(eq => [eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, eq.trabajoRealizado, eq.detalleMantencion, eq.observaciones, eq.sugerencias].some(Boolean));
+    }
+
+    function buildReportEffectiveEquipmentsFromForm(){
+      const items = collectReportItemsFromForm();
+      const baseItems = items.length ? buildReportEffectiveEquipmentsFromItems(items) : [];
+      const exceptions = buildReportExceptionEquipmentsFromForm();
+      return normalizeReportEquipmentArray([].concat(baseItems, exceptions));
     }
 
     function summarizeReportEquipments(equipments = []){
@@ -9370,7 +9375,9 @@ window.renderQuotes = renderQuotes;
       const client = clientId ? ((clients || []).find(c => String(c.id) === clientId) || null) : null;
       const bulkTemplate = getReportBulkTemplateFromForm();
       const reportItems = collectReportItemsFromForm();
-      const equipments = reportItems.length ? buildReportEffectiveEquipmentsFromItems(reportItems) : buildReportEffectiveEquipmentsFromForm();
+      const itemEquipments = reportItems.length ? buildReportEffectiveEquipmentsFromItems(reportItems) : [];
+      const exceptionEquipments = buildReportExceptionEquipmentsFromForm();
+      const equipments = normalizeReportEquipmentArray([].concat(itemEquipments, exceptionEquipments));
       const summary = summarizeReportEquipments(equipments);
       const tempEvidencias = [];
       window.currentReportAttachments = [];
@@ -9407,13 +9414,13 @@ window.renderQuotes = renderQuotes;
           ...payloadData,
           evidencia_temporal_count: tempEvidencias.length,
           equipos: payloadData.equipos,
-          exceptions: payloadData.equipos,
+          exceptions: exceptionEquipments,
           createdByName: currentUserDisplayName || 'Usuario',
           createdByEmail: currentUser?.email || '',
           bulkTemplate,
           items: reportItems,
           itemsIntervenidos: reportItems,
-          captureMode: bulkTemplate && hasMeaningfulReportBulkTemplate(bulkTemplate) ? 'common-first' : 'detailed'
+          captureMode: (bulkTemplate && hasMeaningfulReportBulkTemplate(bulkTemplate)) || exceptionEquipments.length ? 'common-first' : 'detailed'
         }
       };
     }
@@ -9881,106 +9888,107 @@ window.renderQuotes = renderQuotes;
       if(!rep){ alert('Informe no encontrado'); return; }
       const s = getReportOperationalSummary(rep);
       const reportItems = getReportItemsForReport(rep);
-      const consolidation = getReportConsolidationInfo(rep);
-      const equipments = consolidation.equipments;
-      const eqRows = consolidation.mode === 'consolidated' ? consolidation.groups.map((group, idx) => {
-        const commonLines = getReportCommonLines(group.common).map(([label, value]) => `<div class="py-2 border-b border-slate-100 last:border-b-0"><div class="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">${escapeHtml(label)}</div><div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(value)}</div></div>`).join('');
-        const areasTable = getReportAreasTableRows(group.items).map(row => `<tr><td class="px-3 py-2 border-b border-slate-100 text-slate-500">${escapeHtml(row[0])}</td><td class="px-3 py-2 border-b border-slate-100 text-slate-700">${escapeHtml(row[1])}</td><td class="px-3 py-2 border-b border-slate-100 text-slate-700">${escapeHtml(row[2])}</td></tr>`).join('');
-        return `
-          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
-              <div>
-                <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Grupo ${idx + 1}</div>
-                <div class="text-lg font-bold text-slate-800 mt-1">${group.items.length} equipo(s) con el mismo servicio</div>
-                <div class="text-sm text-slate-500 mt-1">La información repetida se muestra una sola vez y abajo queda la lista de áreas o equipos revisados.</div>
-              </div>
-              <div>${getEquipmentStateBadge(group.common.estadoFinal)}</div>
-            </div>
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">${commonLines || '<div class="text-sm text-slate-500">Sin detalle común ingresado.</div>'}</div>
-              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Áreas / equipos incluidos</div>
-                <table class="w-full text-sm"><thead><tr class="text-slate-400 text-xs uppercase tracking-wide"><th class="text-left px-3 py-2">#</th><th class="text-left px-3 py-2">Referencia</th><th class="text-left px-3 py-2">Estado</th></tr></thead><tbody>${areasTable}</tbody></table>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('') : (equipments.length ? equipments.map((eq, idx) => {
-        const refParts = [eq.area, eq.marcaModelo, eq.btu ? `${eq.btu} BTU` : ''].filter(Boolean);
-        const serviceText = [eq.trabajoRealizado, eq.detalleMantencion].filter(Boolean).join('\n');
-        const notesText = [eq.observaciones, eq.sugerencias ? `Sugerencia: ${eq.sugerencias}` : ''].filter(Boolean).join('\n');
-        return `
-          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
-              <div>
-                <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Equipo ${idx + 1}</div>
-                <div class="text-lg font-bold text-slate-800 mt-1">${escapeHtml(eq.tipoEquipo || 'Equipo intervenido')}</div>
-                <div class="text-sm text-slate-500 mt-1">${escapeHtml(refParts.join(' · ') || 'Referencia técnica no informada')}</div>
-              </div>
-              <div>${getEquipmentStateBadge(eq.estadoFinal)}</div>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Servicio realizado</div>
-                <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(serviceText || 'Sin detalle ingresado.')}</div>
-              </div>
-              <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Observaciones y recomendaciones</div>
-                <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(notesText || 'Sin observaciones ni sugerencias registradas.')}</div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('') : '<div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">No hay equipos cargados.</div>');
-      const itemsTable = reportItems.length ? `<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide"><tr><th class="px-4 py-3 text-left">Ítem</th><th class="px-4 py-3 text-left">Cant.</th><th class="px-4 py-3 text-left">Ubicación</th><th class="px-4 py-3 text-left">Estado</th><th class="px-4 py-3 text-left">Observación</th></tr></thead><tbody>${reportItems.map(it => `<tr class="border-t border-slate-100"><td class="px-4 py-3 text-slate-700">${escapeHtml(it.descripcion || 'Servicio')}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(String(it.cantidad || 1))}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(it.ubicacion || '—')}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td><td class="px-4 py-3 text-slate-700">${escapeHtml(it.observacion || '—')}</td></tr>`).join('')}</tbody></table></div>` : '';
+      const chartDataUrl = buildReportChartDataUrl(rep);
+      const logoSrc = escapeHtml(window.LOGO_FILE || 'logo ecoluz.png');
+      const rowsHtml = reportItems.length
+        ? reportItems.map(it => `
+            <tr>
+              <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(it.descripcion || 'Servicio')}</td>
+              <td style="padding:7px 8px;border:1px solid #d7dee9;text-align:center;">${escapeHtml(String(it.cantidad || 1))}</td>
+              <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(it.ubicacion || '—')}</td>
+              <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td>
+              <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(it.observacion || 'Sin observaciones.')}</td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="5" style="padding:10px;border:1px solid #d7dee9;color:#64748b;text-align:center;">No hay ítems intervenidos cargados.</td></tr>`;
+
       openModal(`
-        <div class="p-6 sm:p-8">
-          <div class="flex items-start justify-between gap-4 mb-6">
-            <div>
-              <h2 class="text-2xl font-black text-slate-900">${escapeHtml(rep.titulo || rep.numeroInforme || 'Informe técnico')}</h2>
-              <p class="text-sm text-slate-500 mt-1">${escapeHtml(rep.numeroInforme || '—')} · ${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))} · ${escapeHtml(rep.clientName || 'Cliente')}</p>
+        <div class="p-4 sm:p-6 bg-slate-100">
+          <div class="mx-auto bg-white shadow-sm" style="max-width:880px;border:1px solid #d7dee9;padding:26px 28px 22px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:10px;">
+              <div style="display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1;">
+                <div style="width:86px;height:56px;display:flex;align-items:flex-start;justify-content:flex-start;flex:0 0 auto;">
+                  <img src="${logoSrc}" alt="ECOLUZ" style="max-width:86px;max-height:56px;object-fit:contain;" onerror="this.style.display='none'">
+                </div>
+                <div style="min-width:0;flex:1;">
+                  <div style="font-size:15px;font-weight:800;color:#0f172a;line-height:1.2;">Informe técnico de servicio</div>
+                  <div style="font-size:13px;font-weight:700;color:#111827;margin-top:4px;">${escapeHtml(rep.titulo || `Informe técnico ${rep.numeroOT || ''}`.trim() || 'Informe técnico')}</div>
+                </div>
+              </div>
+              <div style="text-align:right;white-space:nowrap;font-size:12px;font-weight:800;color:#5c7a39;">${escapeHtml(rep.numeroInforme || 'INF-S/N')}</div>
             </div>
-            <div class="flex gap-2">
-              <button onclick="generateReportWord('${rep.id}')" class="px-4 py-2 rounded-xl bg-blue-700 text-white font-semibold hover:bg-blue-800">Word</button>
-              <button onclick="showNewReportModal({id:'${rep.id}'})" class="px-4 py-2 rounded-xl border font-semibold hover:bg-gray-50">Editar</button>
-              <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
-            </div>
+
+            <table style="width:100%;border-collapse:collapse;font-size:12px;color:#111827;margin-bottom:12px;">
+              <tr>
+                <td style="padding:2px 0;width:58%;"><strong>Cliente:</strong> ${escapeHtml(rep.clientName || '—')}</td>
+                <td style="padding:2px 0;text-align:right;"><strong>Fecha:</strong> ${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))}</td>
+              </tr>
+              <tr>
+                <td style="padding:2px 0;"><strong>OT:</strong> ${escapeHtml(rep.numeroOT || '—')} &nbsp;&nbsp; <strong>Cotización:</strong> ${escapeHtml(rep.numeroCotizacion || '—')}</td>
+                <td style="padding:2px 0;text-align:right;"><strong>Tipo:</strong> ${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</td>
+              </tr>
+              <tr>
+                <td style="padding:2px 0;"><strong>Dirección:</strong> ${escapeHtml(rep.direccion || '—')}</td>
+                <td style="padding:2px 0;text-align:right;"><strong>Técnico responsable:</strong> ${escapeHtml(rep.tecnicoResponsable || '—')}</td>
+              </tr>
+            </table>
+
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;">
+              <tr>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Equipos revisados</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.total}</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Estado general</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(getReportGeneralState(rep))}</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Operativos</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.operativos}</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Con observación</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.observacion}</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">No operativos</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.noOperativos}</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Técnico responsable</td>
+                <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(rep.tecnicoResponsable || '—')}</td>
+              </tr>
+            </table>
+
+            <div style="font-size:11px;font-weight:800;color:#355f1c;border-top:3px solid #85af28;padding-top:10px;margin-bottom:8px;">Resumen ejecutivo</div>
+            <div style="font-size:12px;line-height:1.45;color:#111827;white-space:pre-wrap;margin-bottom:14px;">${escapeHtml(rep.resumenEjecutivo || 'Sin resumen ejecutivo.')}</div>
+
+            ${chartDataUrl ? `
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:800;color:#355f1c;margin-bottom:8px;">Estado de equipos</div>
+                <img src="${chartDataUrl}" alt="Gráfico estado de equipos" style="display:block;width:100%;border:1px solid #d7dee9;">
+              </div>
+            ` : ''}
+
+            <div style="font-size:11px;font-weight:800;color:#111827;margin-bottom:8px;">Ítems intervenidos</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+              <thead>
+                <tr style="background:#f3f7eb;">
+                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Ítem</th>
+                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Cant.</th>
+                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Ubicación</th>
+                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Estado</th>
+                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Observación</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+
+            <div style="font-size:11px;font-weight:800;color:#111827;margin-bottom:4px;">Observaciones generales</div>
+            <div style="font-size:12px;line-height:1.45;color:#111827;white-space:pre-wrap;margin-bottom:12px;">${escapeHtml(rep.observacionesGenerales || 'Sin observaciones.')}</div>
+
+            <div style="font-size:11px;font-weight:800;color:#111827;margin-bottom:4px;">Sugerencias de mejora</div>
+            <div style="font-size:12px;line-height:1.45;color:#111827;white-space:pre-wrap;">${escapeHtml(rep.sugerenciasMejora || 'Sin sugerencias.')}</div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Tipo</div><div class="text-lg font-black text-slate-800 mt-1">${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</div></div>
-            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">OT</div><div class="text-lg font-black text-slate-800 mt-1">${escapeHtml(rep.numeroOT || '—')}</div></div>
-            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Técnico</div><div class="text-lg font-black text-slate-800 mt-1">${escapeHtml(rep.tecnicoResponsable || '—')}</div></div>
-            <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs uppercase tracking-wide text-slate-500 font-black">Estado general</div><div class="mt-2">${getReportStateBadge(rep)}</div></div>
-          </div>
-
-          <div class="mb-6">${getReportVisualSummaryHTML(s)}</div>
-
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-            <div class="border rounded-2xl p-4 bg-white xl:col-span-2">
-              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Resumen ejecutivo</div>
-              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.resumenEjecutivo || 'Sin resumen ejecutivo')}</div>
-            </div>
-            <div class="border rounded-2xl p-4 bg-white">
-              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Observaciones generales</div>
-              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.observacionesGenerales || 'Sin observaciones')}</div>
-            </div>
-            <div class="border rounded-2xl p-4 bg-white">
-              <div class="text-xs uppercase tracking-wide text-slate-500 font-black mb-2">Sugerencias</div>
-              <div class="text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(rep.sugerenciasMejora || 'Sin sugerencias')}</div>
-            </div>
-          </div>
-
-          <div class="mb-6">
-            <div class="flex items-center justify-between gap-3 mb-3">
-              <h3 class="text-lg font-black text-slate-800">Ítems intervenidos</h3>
-              <div class="text-sm text-slate-500">${reportItems.length ? reportItems.length : equipments.length} registro(s)</div>
-            </div>
-            ${itemsTable || `<div class="space-y-4">${eqRows}</div>`}
-          </div>
-
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            Este informe se guarda y se descarga solo en texto. Si necesitas agregar fotografías, puedes insertarlas manualmente en Word después de descargarlo.
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <button onclick="generateReportWord('${rep.id}')" class="px-4 py-2 rounded-xl bg-blue-700 text-white font-semibold hover:bg-blue-800">Word</button>
+            <button onclick="showNewReportModal({id:'${rep.id}'})" class="px-4 py-2 rounded-xl border font-semibold hover:bg-gray-50">Editar</button>
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
           </div>
         </div>
       `);
@@ -10039,44 +10047,33 @@ window.renderQuotes = renderQuotes;
 
     function getReportWordStyles(){
       return `
-        @page{margin:18mm 16mm 18mm 16mm;}
-        body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:0;padding:0;font-size:10.5pt;line-height:1.45;background:#ffffff;}
-        .doc{max-width:900px;margin:0 auto;padding:0;}
-        .topline{width:100%;border-collapse:collapse;margin:0 0 8px 0;}
-        .topline td{padding:0 0 4px 0;vertical-align:bottom;}
-        .topline .left{font-size:14pt;font-weight:800;color:#1f2937;}
-        .topline .right{font-size:12pt;font-weight:800;color:#355f1c;text-align:right;white-space:nowrap;}
-        .subcode{font-size:12pt;font-weight:700;color:#334155;margin:2px 0 12px 0;}
-        .meta{width:100%;border-collapse:collapse;margin:0 0 14px 0;}
-        .meta td{padding:5px 6px;border-bottom:1px solid #dbe3ef;vertical-align:top;}
-        .meta .label{font-weight:700;color:#334155;white-space:nowrap;width:1%;}
-        .meta .value{color:#111827;}
-        .meta .spacer{width:18px;border-bottom:0;padding:0;}
-        .summary-wrap{border:1px solid #dbe3ef;border-top:4px solid #85af28;border-radius:12px;padding:12px 14px 10px 14px;background:linear-gradient(180deg,#f8fbf1 0%,#ffffff 100%);margin:0 0 14px 0;}
-        .summary-grid{width:100%;border-collapse:separate;border-spacing:10px 0;margin-top:6px;}
-        .summary-grid td{padding:0;vertical-align:top;}
-        .mini-kpi{border:1px solid #dbe3ef;border-radius:12px;padding:10px 8px;text-align:center;min-height:62px;}
-        .mini-kpi .k{display:block;font-size:8.6pt;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
-        .mini-kpi .v{display:block;font-size:16pt;font-weight:900;line-height:1;}
-        .kpi-total{background:#f8fafc;color:#334155;border-color:#cbd5e1;}
-        .kpi-ok{background:#ecfdf3;color:#166534;border-color:#bbf7d0;}
-        .kpi-obs{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
-        .kpi-bad{background:#fef2f2;color:#b91c1c;border-color:#fecaca;}
-        .kpi-tech{background:#eef6df;color:#355f1c;border-color:#d1e7a1;}
-        .section{margin:14px 0 0 0;}
-        .section-title{font-size:11.5pt;font-weight:800;color:#355f1c;margin:0 0 6px 0;padding:0 0 4px 0;border-bottom:2px solid #dbe3ef;}
-        .text-box{padding:2px 0 0 0;background:transparent;border:none;border-radius:0;line-height:1.5;}
-        .grid{width:100%;border-collapse:collapse;margin:8px 0 0 0;}
-        .grid th,.grid td{border:1px solid #dbe3ef;padding:8px;vertical-align:top;}
-        .grid th{background:#eef6df;color:#355f1c;text-align:left;font-weight:800;}
-        .muted{color:#64748b;}
-        .chart-box{margin:10px 0 0 0;border:1px solid #dbe3ef;border-radius:12px;padding:10px;background:#ffffff;}
-        .chart-box .chart-title{font-size:9pt;font-weight:800;color:#355f1c;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:.04em;}
-        .chart-box img{width:100%;height:auto;display:block;}
-                .bullet-list{margin:0;padding-left:18px;}
-        .bullet-list li{margin:0 0 4px 0;}
-        .footer-note{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;font-size:9pt;color:#64748b;text-align:center;}
-        .small{font-size:9pt;}
+        @page{margin:12mm 12mm 12mm 12mm;}
+        body{font-family:Arial,Helvetica,sans-serif;color:#111827;margin:0;padding:0;font-size:10pt;line-height:1.38;background:#ffffff;}
+        .doc{max-width:860px;margin:0 auto;padding:0;}
+        .header{margin-bottom:8px;}
+        .header-main{width:100%;border-collapse:collapse;}
+        .header-main td{vertical-align:top;}
+        .logo-cell{width:90px;padding:0 10px 0 0;}
+        .logo-wrap{width:84px;height:54px;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;}
+        .logo-img{max-width:84px;max-height:54px;object-fit:contain;display:block;}
+        .doc-title{font-size:16pt;font-weight:800;color:#0f172a;line-height:1.15;margin:0 0 4px 0;}
+        .doc-subtitle{font-size:12pt;font-weight:700;color:#111827;line-height:1.2;margin:0;}
+        .number-box{text-align:right;white-space:nowrap;font-size:10pt;font-weight:800;color:#5c7a39;}
+        .meta{width:100%;border-collapse:collapse;font-size:10pt;margin:0 0 10px 0;}
+        .meta td{padding:2px 0;vertical-align:top;}
+        .summary-label{font-size:8.3pt;font-weight:800;color:#355f1c;border-top:2px solid #85af28;padding-top:7px;margin:10px 0 6px 0;text-transform:none;}
+        .info-grid{width:100%;border-collapse:collapse;font-size:10pt;margin:0 0 10px 0;}
+        .info-grid td,.info-grid th{border:1px solid #d7dee9;padding:6px 7px;vertical-align:top;}
+        .info-grid th{background:#f8fafc;text-align:left;font-weight:700;}
+        .section-title{font-size:9pt;font-weight:800;color:#111827;margin:10px 0 5px 0;}
+        .text-block{font-size:10pt;line-height:1.42;color:#111827;white-space:pre-wrap;}
+        .chart-wrap{margin:8px 0 10px 0;}
+        .chart-img{display:block;width:100%;border:1px solid #d7dee9;}
+        .table-title{font-size:9pt;font-weight:800;color:#111827;margin:10px 0 5px 0;}
+        .grid{width:100%;border-collapse:collapse;font-size:10pt;}
+        .grid th,.grid td{border:1px solid #d7dee9;padding:6px 7px;vertical-align:top;}
+        .grid th{background:#f3f7eb;text-align:left;font-weight:700;}
+        .footer-note{margin-top:10px;font-size:8.5pt;color:#64748b;}
       `;
     }
 
@@ -10097,12 +10094,9 @@ window.renderQuotes = renderQuotes;
       return `<ul class="bullet-list">${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
     }
 
-    function buildReportWordHTML(rep){
+    function buildReportWordHTML(rep, assets = {}){
       const summary = getReportOperationalSummary(rep);
       const reportItems = getReportItemsForReport(rep);
-      const consolidation = getReportConsolidationInfo(rep);
-      const equipments = consolidation.equipments || [];
-      const chartDataUrl = buildReportChartDataUrl(rep);
       const infoNumber = escapeHtml(rep.numeroInforme || 'INF-S/N');
       const techDocTitle = escapeHtml(rep.titulo || `Informe técnico ${rep.numeroOT || ''}`.trim() || 'Informe técnico');
       const clientName = escapeHtml(rep.clientName || '—');
@@ -10112,31 +10106,17 @@ window.renderQuotes = renderQuotes;
       const serviceType = escapeHtml(getReportServiceLabel(rep.tipoServicio));
       const address = escapeHtml(rep.direccion || '—');
       const techName = escapeHtml(rep.tecnicoResponsable || '—');
+      const generalState = escapeHtml(getReportGeneralState(rep));
+      const logoDataUrl = assets.logoDataUrl || '';
+      const chartDataUrl = assets.chartDataUrl || buildReportChartDataUrl(rep) || '';
+
+      const logoHtml = logoDataUrl
+        ? `<div class="logo-wrap"><img src="${logoDataUrl}" alt="ECOLUZ" class="logo-img"></div>`
+        : '';
 
       const itemsHtml = reportItems.length
-        ? `<table class="grid"><thead><tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr></thead><tbody>${reportItems.map(it => `<tr><td>${escapeHtml(it.descripcion || 'Servicio')}</td><td>${escapeHtml(String(it.cantidad || 1))}</td><td>${escapeHtml(it.ubicacion || '—')}</td><td>${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td><td>${escapeHtml(it.observacion || 'Sin observaciones.')}</td></tr>`).join('')}</tbody></table>`
-        : '';
-
-      const consolidatedHtml = !reportItems.length && consolidation.mode === 'consolidated'
-        ? consolidation.groups.map((group) => {
-            const commonText = getReportCommonLines(group.common).map(([label, value]) => `<div><b>${escapeHtml(label)}:</b> ${nl2brSafe(value)}</div>`).join('') || '<div>Sin detalle común ingresado.</div>';
-            const rows = getReportAreasTableRows(group.items).map(row => `<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>Sin observaciones.</td></tr>`).join('');
-            return `<div class="text-box small" style="margin-bottom:8px;">${commonText}</div><table class="grid"><thead><tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr></thead><tbody>${rows}</tbody></table>`;
-          }).join('')
-        : '';
-
-      const equipmentHtml = !reportItems.length && consolidation.mode !== 'consolidated'
-        ? (equipments.length
-            ? `<table class="grid"><thead><tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr></thead><tbody>${equipments.map(eq => {
-                const itemName = eq.trabajoRealizado || eq.detalleMantencion || eq.tipoEquipo || 'Servicio técnico';
-                const ubicacion = [eq.area, eq.marcaModelo, eq.btu ? `${eq.btu} BTU` : ''].filter(Boolean).join(' · ') || '—';
-                const obs = [eq.observaciones, eq.sugerencias ? `Sugerencia: ${eq.sugerencias}` : ''].filter(Boolean).join(' · ') || 'Sin observaciones.';
-                return `<tr><td>${escapeHtml(itemName)}</td><td>1</td><td>${escapeHtml(ubicacion)}</td><td>${escapeHtml(getEquipmentStateLabel(eq.estadoFinal))}</td><td>${escapeHtml(obs)}</td></tr>`;
-              }).join('')}</tbody></table>`
-            : '<div class="text-box">No hay ítems intervenidos cargados.</div>')
-        : '';
-
-      const chartHtml = chartDataUrl ? `<div class="chart-box"><div class="chart-title">Gráfico estado de equipos</div><img src="${chartDataUrl}" alt="Gráfico estado de equipos"></div>` : '';
+        ? reportItems.map(it => `<tr><td>${escapeHtml(it.descripcion || 'Servicio')}</td><td style="text-align:center;">${escapeHtml(String(it.cantidad || 1))}</td><td>${escapeHtml(it.ubicacion || '—')}</td><td>${escapeHtml(getEquipmentStateLabel(it.estadoFinal))}</td><td>${escapeHtml(it.observacion || 'Sin observaciones.')}</td></tr>`).join('')
+        : `<tr><td colspan="5" style="text-align:center;color:#64748b;">No hay ítems intervenidos cargados.</td></tr>`;
 
       return `<!DOCTYPE html>
 <html>
@@ -10147,73 +10127,76 @@ window.renderQuotes = renderQuotes;
 </head>
 <body>
   <div class="doc">
-    <table class="topline">
-      <tr>
-        <td class="left">Informe técnico de servicio</td>
-        <td class="right">N° ${infoNumber}</td>
-      </tr>
-    </table>
-
-    <div class="subcode">${techDocTitle}</div>
+    <div class="header">
+      <table class="header-main">
+        <tr>
+          <td class="logo-cell">${logoHtml}</td>
+          <td>
+            <div class="doc-title">Informe técnico de servicio</div>
+            <div class="doc-subtitle">${techDocTitle}</div>
+          </td>
+          <td class="number-box">${infoNumber}</td>
+        </tr>
+      </table>
+    </div>
 
     <table class="meta">
       <tr>
-        <td class="label">Cliente:</td><td class="value">${clientName}</td>
-        <td class="spacer"></td>
-        <td class="label">Fecha:</td><td class="value">${reportDate}</td>
+        <td style="width:58%;"><strong>Cliente:</strong> ${clientName}</td>
+        <td style="text-align:right;"><strong>Fecha:</strong> ${reportDate}</td>
       </tr>
       <tr>
-        <td class="label">OT:</td><td class="value">${otNum}</td>
-        <td class="spacer"></td>
-        <td class="label">Cotización:</td><td class="value">${quoteNum}</td>
+        <td><strong>OT:</strong> ${otNum} &nbsp;&nbsp; <strong>Cotización:</strong> ${quoteNum}</td>
+        <td style="text-align:right;"><strong>Tipo:</strong> ${serviceType}</td>
       </tr>
       <tr>
-        <td class="label">Tipo:</td><td class="value">${serviceType}</td>
-        <td class="spacer"></td>
-        <td class="label">Técnico responsable:</td><td class="value">${techName}</td>
-      </tr>
-      <tr>
-        <td class="label">Dirección:</td><td class="value" colspan="4">${address}</td>
+        <td><strong>Dirección:</strong> ${address}</td>
+        <td style="text-align:right;"><strong>Técnico responsable:</strong> ${techName}</td>
       </tr>
     </table>
 
-    <div class="summary-wrap">
-      <div class="section-title" style="margin-top:0;border-bottom:0;padding-bottom:0;">Resumen del estado general</div>
-      <table class="summary-grid">
-        <tr>
-          <td><div class="mini-kpi kpi-total"><span class="k">Equipos revisados</span><span class="v">${summary.total}</span></div></td>
-          <td><div class="mini-kpi kpi-slate"><span class="k">Estado general</span><span class="v" style="font-size:11pt;line-height:1.25;">${escapeHtml(getReportGeneralState(rep))}</span></div></td>
-          <td><div class="mini-kpi kpi-ok"><span class="k">Operativos</span><span class="v">${summary.operativos}</span></div></td>
-          <td><div class="mini-kpi kpi-obs"><span class="k">Con observación</span><span class="v">${summary.observacion}</span></div></td>
-          <td><div class="mini-kpi kpi-bad"><span class="k">No operativos</span><span class="v">${summary.noOperativos}</span></div></td>
-        </tr>
-      </table>
-      ${chartHtml}
-    </div>
+    <div class="summary-label">Resumen del estado general</div>
+    <table class="info-grid">
+      <tr>
+        <th>Equipos revisados</th><td>${summary.total}</td>
+        <th>Estado general</th><td>${generalState}</td>
+      </tr>
+      <tr>
+        <th>Operativos</th><td>${summary.operativos}</td>
+        <th>Con observación</th><td>${summary.observacion}</td>
+      </tr>
+      <tr>
+        <th>No operativos</th><td>${summary.noOperativos}</td>
+        <th>Técnico responsable</th><td>${techName}</td>
+      </tr>
+    </table>
 
-    <div class="section">
-      <div class="section-title">Resumen ejecutivo</div>
-      <div class="text-box">${nl2brSafe(rep.resumenEjecutivo || rep.detalleGeneral || 'Sin resumen ejecutivo.')}</div>
-    </div>
+    <div class="section-title">Resumen ejecutivo</div>
+    <div class="text-block">${nl2brSafe(rep.resumenEjecutivo || 'Sin resumen ejecutivo.')}</div>
 
-    <div class="section">
-      <div class="section-title">Ítems intervenidos</div>
-      ${itemsHtml || consolidatedHtml || equipmentHtml}
-    </div>
+    ${chartDataUrl ? `
+      <div class="chart-wrap">
+        <div class="section-title">Estado de equipos</div>
+        <img src="${chartDataUrl}" alt="Gráfico estado de equipos" class="chart-img">
+      </div>
+    ` : ''}
 
-    <div class="section">
-      <div class="section-title">Observaciones generales</div>
-      <div class="text-box">${nl2brSafe(rep.observacionesGenerales || 'Sin Observaciones.')}</div>
-    </div>
+    <div class="table-title">Ítems intervenidos</div>
+    <table class="grid">
+      <thead>
+        <tr><th>Ítem</th><th>Cant.</th><th>Ubicación</th><th>Estado</th><th>Observación</th></tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
 
-    <div class="section">
-      <div class="section-title">Sugerencias de mejora</div>
-      ${reportSuggestionsToListHtml(rep.sugerenciasMejora || '')}
-    </div>
+    <div class="section-title">Observaciones generales</div>
+    <div class="text-block">${nl2brSafe(rep.observacionesGenerales || 'Sin observaciones.')}</div>
 
-    <div class="footer-note">ECOLUZ · Informe técnico de servicio</div>
+    <div class="section-title">Sugerencias de mejora</div>
+    <div class="text-block">${nl2brSafe(rep.sugerenciasMejora || 'Sin sugerencias.')}</div>
+
+    <div class="footer-note">ECOLUZ · Informe técnico</div>
   </div>
-
 </body>
 </html>`;
     }
@@ -10222,7 +10205,9 @@ window.renderQuotes = renderQuotes;
       try {
         const rep = (reportRef && typeof reportRef === 'object') ? reportRef : await ensureReportLoaded(reportRef);
         if(!rep){ alert('Informe no encontrado'); return; }
-        const html = buildReportWordHTML(rep);
+        const logoDataUrl = await loadLogoDataUrl();
+        const chartDataUrl = buildReportChartDataUrl(rep);
+        const html = buildReportWordHTML(rep, { logoDataUrl, chartDataUrl });
         const blob = new Blob(['﻿', html], { type: 'application/msword' });
         const fileName = `Informe_${String(rep.numeroInforme || 'sin_numero').replace(/[^\w-]+/g,'_')}.doc`;
         const url = URL.createObjectURL(blob);
@@ -10240,6 +10225,7 @@ window.renderQuotes = renderQuotes;
         alert('No se pudo generar el Word del informe: ' + (err?.message || err));
       }
     }
+
 
     const generateReportPDF = generateReportWord;
 
