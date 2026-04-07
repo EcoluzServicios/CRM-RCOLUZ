@@ -20044,6 +20044,8 @@ document.addEventListener('DOMContentLoaded', () => {
       bruto: Number(row.bruto || data.bruto || 0),
       descuento_pct: Number(row.descuento_pct || data.descuento_pct || 0),
       descuento_monto: Number(row.descuento_monto || data.descuento_monto || 0),
+      include_maintenance_specifications: !!(data.include_maintenance_specifications || data.include_mantencion_specs),
+      maintenance_specifications: Array.isArray(data.maintenance_specifications) ? data.maintenance_specifications : (Array.isArray(data.mantencion_specs) ? data.mantencion_specs : []),
       neto: Number(row.neto || data.neto || 0),
       iva: Number(row.iva || data.iva || 0),
       createdByName: txt(row.created_by_name) || shortName(row.created_by_email || ''),
@@ -24299,6 +24301,59 @@ function toggleSidebarTools(forceOpen = null){
     return `<datalist id="quoteItemPresetsList">${presets.map(item => `<option value="${esc(item)}"></option>`).join('')}</datalist>`;
   }
 
+
+  const MAINTENANCE_SPEC_CATALOG = [
+    'Hidrolavado de Evaporador y Condensador.',
+    'Limpieza de Filtros de Aire.',
+    'Limpieza de Desagüe.',
+    'Limpieza y Lubricación de Turbina y Ventilador.',
+    'Revisión Placa Electrónica.',
+    'Medición y Nivelación de Carga Gas Refrigerante.',
+    'Revisión y Reapriete de Circuito Eléctrico.',
+    'Calibración de Temperatura de Funcionamiento y Control Remoto.',
+    'Tratamiento Anticorrosivo de Condensador (Unidad Exterior).',
+    'Pruebas Funcionales.'
+  ];
+
+  function getMaintenanceSpecsCatalog(){
+    return Array.isArray(MAINTENANCE_SPEC_CATALOG) ? MAINTENANCE_SPEC_CATALOG.slice() : [];
+  }
+
+  function getSelectedMaintenanceSpecs(source, fallback){
+    const src = source || {};
+    const data = src.data || {};
+    const arr = src.maintenance_specifications || src.mantencion_specs || data.maintenance_specifications || data.mantencion_specs || fallback?.maintenance_specifications || fallback?.mantencion_specs || fallback?.data?.maintenance_specifications || fallback?.data?.mantencion_specs || [];
+    const valid = Array.isArray(arr) ? arr.map(v => txt(v)).filter(Boolean) : [];
+    return valid.length ? valid : getMaintenanceSpecsCatalog();
+  }
+
+  function shouldIncludeMaintenanceSpecs(source, fallback){
+    const src = source || {};
+    const data = src.data || {};
+    const raw = src.include_maintenance_specifications;
+    const raw2 = src.include_mantencion_specs;
+    const dataRaw = data.include_maintenance_specifications;
+    const dataRaw2 = data.include_mantencion_specs;
+    const fb = fallback || {};
+    const fbData = fb.data || {};
+    const fbRaw = fb.include_maintenance_specifications;
+    const fbRaw2 = fb.include_mantencion_specs;
+    const fbDataRaw = fbData.include_maintenance_specifications;
+    const fbDataRaw2 = fbData.include_mantencion_specs;
+    if([raw, raw2, dataRaw, dataRaw2, fbRaw, fbRaw2, fbDataRaw, fbDataRaw2].some(v => v === true)) return true;
+    const arr = src.maintenance_specifications || src.mantencion_specs || data.maintenance_specifications || data.mantencion_specs || fb.maintenance_specifications || fb.mantencion_specs || fbData.maintenance_specifications || fbData.mantencion_specs || [];
+    return Array.isArray(arr) && arr.length > 0 && (raw || raw2 || dataRaw || dataRaw2 || fbRaw || fbRaw2 || fbDataRaw || fbDataRaw2 || false);
+  }
+
+  function renderMaintenanceSpecsCheckboxes(selected){
+    const set = new Set((Array.isArray(selected) ? selected : []).map(v => txt(v)).filter(Boolean));
+    return getMaintenanceSpecsCatalog().map((item, idx) => `
+      <label class="flex items-start gap-3 rounded-xl border border-emerald-100 bg-white px-3 py-3 text-sm text-slate-700 hover:border-emerald-300">
+        <input type="checkbox" class="q-maint-spec mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" value="${esc(item)}" ${set.has(item) ? 'checked' : ''}>
+        <span><span class="font-bold text-emerald-700 mr-1">${idx + 1})</span>${esc(item)}</span>
+      </label>`).join('');
+  }
+
   function buildModal(mode, quote, prefill){
     const editing = mode === 'edit';
     const q = quote || {};
@@ -24312,6 +24367,8 @@ function toggleSidebarTools(forceOpen = null){
     const quoteSucursal = txt(fill.sucursal || q.sucursal || q.direccion || '');
     const selectedClient = fill.clientId || q.clientId || '';
     const discountPct = Number(q.descuento_pct || fill.descuento_pct || 0);
+    const includeMaintenanceSpecs = shouldIncludeMaintenanceSpecs(q, fill);
+    const selectedMaintenanceSpecs = getSelectedMaintenanceSpecs(q, fill);
     const quoteManualChecked = !!(fill.documento_antiguo || fill.manual_folio || q.documento_antiguo || q.manual_folio || q.data?.documento_antiguo || q.data?.manual_folio);
     const quoteManualDate = toInputDate(fill.fecha_documento || fill.fechaDocumento || q.fecha_documento || q.fechaDocumento || q.data?.fecha_documento || q.data?.fechaDocumento || q.fecha || today());
     return `
@@ -24386,6 +24443,22 @@ function toggleSidebarTools(forceOpen = null){
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Descripción de Obra *</label>
               <textarea id="qObra" rows="2" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="¿Qué se va a realizar?">${esc(quoteObra)}</textarea>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <label class="inline-flex items-center gap-3 text-sm font-bold text-emerald-900 cursor-pointer">
+                <input id="qIncludeMaintenanceSpecs" type="checkbox" class="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" ${includeMaintenanceSpecs ? 'checked' : ''}>
+                <span>Mostrar en la cotización lo que incluye la mantención</span>
+              </label>
+              <span class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Opcional</span>
+            </div>
+            <p class="text-xs text-emerald-800/80 mt-2">Activa esta opción para que el cliente vea claramente qué incluye la mantención dentro de la cotización.</p>
+            <div id="qMaintenanceSpecsWrap" class="mt-4 ${includeMaintenanceSpecs ? '' : 'hidden'}">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${renderMaintenanceSpecsCheckboxes(selectedMaintenanceSpecs)}
+              </div>
             </div>
           </div>
 
@@ -24512,6 +24585,13 @@ function toggleSidebarTools(forceOpen = null){
 
   function bindQuoteModalEnhancements(){
     document.getElementById('descuento_pct')?.addEventListener('input', NS.recalculate);
+    const qIncludeMaintenanceSpecs = document.getElementById('qIncludeMaintenanceSpecs');
+    const qMaintenanceSpecsWrap = document.getElementById('qMaintenanceSpecsWrap');
+    const syncMaintenanceSpecsUi = () => {
+      if(qMaintenanceSpecsWrap) qMaintenanceSpecsWrap.classList.toggle('hidden', !qIncludeMaintenanceSpecs?.checked);
+    };
+    qIncludeMaintenanceSpecs?.addEventListener('change', syncMaintenanceSpecsUi);
+    syncMaintenanceSpecsUi();
     document.getElementById('qClient')?.addEventListener('change', function(){
       try { if(typeof window.populateQuoteSucursales === 'function') window.populateQuoteSucursales(); } catch(e) {}
     });
@@ -24572,6 +24652,15 @@ function toggleSidebarTools(forceOpen = null){
     const rut = txt(client.rut) || txt(data.rut) || txt(row.rut);
     const sucursal = txt(row.sucursal) || txt(data.sucursal) || txt(data.sucursal_direccion) || txt(data.direccion_sucursal) || txt(row.direccion) || txt(data.direccion);
     const items = Array.isArray(row.items) ? row.items : (Array.isArray(data.items) ? data.items : []);
+    const includeMaintenanceSpecs = !!(data.include_maintenance_specifications || data.include_mantencion_specs);
+    const storedMaintenanceSpecs = Array.isArray(data.maintenance_specifications)
+      ? data.maintenance_specifications
+      : (Array.isArray(data.mantencion_specs) ? data.mantencion_specs : []);
+    const maintenanceSpecs = storedMaintenanceSpecs.length
+      ? storedMaintenanceSpecs
+      : (includeMaintenanceSpecs && /manten/i.test(txt(row.tipo_servicio) || txt(data.tipo_servicio) || txt(row.descripcion) || txt(data.descripcion) || '') && typeof getMaintenanceSpecsCatalog === 'function'
+          ? getMaintenanceSpecsCatalog()
+          : []);
     return {
       id: row.id,
       clientId: row.client_id,
@@ -24592,12 +24681,27 @@ function toggleSidebarTools(forceOpen = null){
       bruto: Number(row.bruto || data.bruto || 0),
       descuento_pct: Number(row.descuento_pct || data.descuento_pct || 0),
       descuento_monto: Number(row.descuento_monto || data.descuento_monto || 0),
+      include_maintenance_specifications: includeMaintenanceSpecs,
+      maintenance_specifications: maintenanceSpecs,
       neto: Number(row.neto || data.neto || 0),
       iva: Number(row.iva || data.iva || 0),
       createdByName: txt(row.created_by_name) || shortName(row.created_by_email || ''),
       createdByEmail: txt(row.created_by_email),
       created_at: row.created_at || null,
-      data: Object.assign({}, data, { clientId: row.client_id, client_id: row.client_id, clientName, razonSocial: clientName, rut, sucursal, direccion: txt(row.direccion) || txt(data.direccion) || sucursal, items })
+      data: Object.assign({}, data, {
+        clientId: row.client_id,
+        client_id: row.client_id,
+        clientName,
+        razonSocial: clientName,
+        rut,
+        sucursal,
+        direccion: txt(row.direccion) || txt(data.direccion) || sucursal,
+        items,
+        include_maintenance_specifications: includeMaintenanceSpecs,
+        include_mantencion_specs: includeMaintenanceSpecs,
+        maintenance_specifications: maintenanceSpecs,
+        mantencion_specs: maintenanceSpecs
+      })
     };
   }
 
@@ -24651,6 +24755,13 @@ function toggleSidebarTools(forceOpen = null){
     if(manualLegacy && !txt(document.getElementById('qFecha')?.value || '')) throw new Error('Si marcas cotización antigua, debes ingresar la fecha antigua.');
     const totals = NS.recalculate();
     const attachments = collectAttachments();
+    const includeMaintenanceSpecs = !!document.getElementById('qIncludeMaintenanceSpecs')?.checked;
+    const maintenanceSpecifications = includeMaintenanceSpecs
+      ? (() => {
+          const picked = Array.from(document.querySelectorAll('.q-maint-spec:checked')).map(el => txt(el.value)).filter(Boolean);
+          return picked.length ? picked : getMaintenanceSpecsCatalog();
+        })()
+      : [];
     const payload = {
       numero: folio,
       client_id: client.id,
@@ -24668,7 +24779,27 @@ function toggleSidebarTools(forceOpen = null){
       sucursal: sucursal || null,
       direccion: sucursal || client.direccion || null,
       fecha: toSaveDate(fecha),
-      data: Object.assign({}, existingQuote?.data || {}, { clientId: client.id, client_id: client.id, clientName: client.name, razonSocial: client.name, rut: client.rut, sucursal, direccion: sucursal || client.direccion || '', obra, descripcion: obra, tipo_servicio: tipo, items, attachments, documento_antiguo: manualLegacy, manual_folio: manualLegacy, fecha_documento: fecha })
+      data: Object.assign({}, existingQuote?.data || {}, {
+        clientId: client.id,
+        client_id: client.id,
+        clientName: client.name,
+        razonSocial: client.name,
+        rut: client.rut,
+        sucursal,
+        direccion: sucursal || client.direccion || '',
+        obra,
+        descripcion: obra,
+        tipo_servicio: tipo,
+        items,
+        attachments,
+        include_maintenance_specifications: includeMaintenanceSpecs,
+        include_mantencion_specs: includeMaintenanceSpecs,
+        maintenance_specifications: maintenanceSpecifications,
+        mantencion_specs: maintenanceSpecifications,
+        documento_antiguo: manualLegacy,
+        manual_folio: manualLegacy,
+        fecha_documento: fecha
+      })
     };
     return { payload, client };
   }
@@ -24848,6 +24979,26 @@ function toggleSidebarTools(forceOpen = null){
       body.forEach(row => { doc.text(row.join(' | '), 14, y); y += 6; });
       y += 4;
     }
+    const maintenanceSpecs = Array.isArray(q.maintenance_specifications) ? q.maintenance_specifications : [];
+    if(q.include_maintenance_specifications && maintenanceSpecs.length){
+      if(y > 245){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10.5);
+      doc.text('La mantención incluye:', 14, y);
+      y += 5;
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8.8);
+      const maintIntro = doc.splitTextToSize('El servicio de mantención considera las siguientes actividades:', 178);
+      doc.text(maintIntro, 14, y);
+      y += maintIntro.length * 4.2 + 1.5;
+      doc.setFontSize(9);
+      maintenanceSpecs.forEach((item, idx) => {
+        const wrapped = doc.splitTextToSize(`${idx + 1}) ${String(item || '')}`, 178);
+        doc.text(wrapped, 16, y);
+        y += wrapped.length * 4.5 + 1.5;
+      });
+      y += 3;
+    }
     doc.setFont('helvetica','normal');
     doc.text(`Bruto: ${clp(totals.bruto)}`, 140, y);
     y += 6;
@@ -24923,6 +25074,7 @@ function toggleSidebarTools(forceOpen = null){
               <tbody>${itemsRows || '<tr><td colspan="5" class="p-4 text-center text-slate-500">Sin ítems</td></tr>'}</tbody>
             </table>
           </div>
+          ${Array.isArray(q.maintenance_specifications) && q.maintenance_specifications.length && q.include_maintenance_specifications ? `<div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4"><div class="text-xs uppercase font-bold tracking-[0.18em] text-emerald-700 mb-3">La mantención incluye</div><p class="text-sm text-slate-700 mb-3">El servicio de mantención considera las siguientes actividades:</p><ol class="list-decimal pl-5 space-y-1.5 text-sm text-slate-800">${q.maintenance_specifications.map(item => `<li>${esc(item)}</li>`).join('')}</ol></div>` : ''}
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div></div>
             <div class="bg-emerald-50 rounded-2xl border border-emerald-100 p-4 text-right space-y-2">
@@ -25076,6 +25228,9 @@ function toggleSidebarTools(forceOpen = null){
       y = (doc.lastAutoTable?.finalY || y) + 8;
     }
 
+    const maintenanceSpecs = Array.isArray(q.maintenance_specifications) ? q.maintenance_specifications : [];
+    const showMaintenanceSpecs = !!q.include_maintenance_specifications && maintenanceSpecs.length > 0;
+
     const totalsXLabel = 142;
     const totalsXValue = pageWidth - marginR;
     const showDiscount = Number(totals.descPct || 0) > 0 || Number(totals.descMonto || 0) > 0;
@@ -25107,6 +25262,37 @@ function toggleSidebarTools(forceOpen = null){
       doc.text(clp(totals.total || 0), totalsXValue, y + 14.5, { align:'right' });
       y += 29;
     }
+    if(showMaintenanceSpecs){
+      const estimatedLines = maintenanceSpecs.reduce((sum, item) => {
+        const wrapped = doc.splitTextToSize(`${sum + 1}) ${String(item || '')}`, usableWidth - 4);
+        return sum + Math.max(1, wrapped.length);
+      }, 0);
+      const estimatedHeight = 12 + (estimatedLines * 3.2) + (maintenanceSpecs.length * 0.8);
+      if(y + estimatedHeight > pageHeight - 42){
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10.2);
+      doc.text('La mantención incluye', marginL, y);
+      y += 5;
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8.1);
+      const maintIntro = doc.splitTextToSize('El servicio de mantención considera las siguientes actividades:', usableWidth - 2);
+      doc.text(maintIntro, marginL, y);
+      y += maintIntro.length * 3.5 + 1.2;
+      maintenanceSpecs.forEach((item, idx) => {
+        const wrapped = doc.splitTextToSize(`${idx + 1}) ${String(item || '')}`, usableWidth - 4);
+        if(y + (wrapped.length * 3.5) > pageHeight - 24){
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(wrapped, marginL + 1, y);
+        y += (wrapped.length * 3.5) + 1;
+      });
+      y += 5;
+    }
+
     if(y > pageHeight - 52){
       doc.addPage();
       y = 20;
@@ -25206,6 +25392,18 @@ window.generateQuotePDF = async function(quoteId){
       const pctRaw = Number(totals.descPct || 0);
       const pctText = Number.isInteger(pctRaw) ? String(pctRaw) : pctRaw.toLocaleString('es-CL', { maximumFractionDigits: 2 });
       const showDiscount = Number(totals.descMonto || 0) > 0 || pctRaw > 0;
+      const maintenanceSpecs = Array.isArray(q.maintenance_specifications) ? q.maintenance_specifications : [];
+      const showMaintenanceSpecs = (!!q.include_maintenance_specifications || maintenanceSpecs.length > 0) && maintenanceSpecs.length > 0;
+      const maintenanceSpecsHtml = showMaintenanceSpecs ? `
+              <div class="px-8 pb-2">
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5">
+                  <div class="text-xs uppercase tracking-[0.18em] text-emerald-700 font-black mb-2">La mantención incluye</div>
+                  <p class="text-sm text-slate-700 mb-3">El servicio de mantención considera las siguientes actividades:</p>
+                  <ol class="list-decimal pl-5 space-y-1.5 text-sm text-slate-800">
+                    ${maintenanceSpecs.map(item => `<li>${esc(item)}</li>`).join('')}
+                  </ol>
+                </div>
+              </div>` : '';
 
       const existing = document.getElementById('quotePreviewModal');
       if(existing) existing.remove();
@@ -25267,6 +25465,8 @@ window.generateQuotePDF = async function(quoteId){
                   </table>
                 </div>
               </div>
+
+              ${maintenanceSpecsHtml}
 
               <div class="px-8 pb-8 flex justify-end">
                 <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-2">
