@@ -7366,15 +7366,24 @@ window.showQuoteMoreOptions = showQuoteMoreOptions;
 
 function quoteHasLinkedOT(q){
   try{
-    const quoteId = String(q?.id || '');
-    const quoteNum = String(q?.numeroCotizacion || q?.numero || '');
-    const byOT = (ots || []).some(o => {
-      const linkedId = String(o?.quoteId || o?.quote_id || o?.data?.quoteId || o?.data?.quote_id || '');
-      const linkedNum = String(o?.numeroCotizacion || o?.data?.numeroCotizacion || '');
-      return (quoteId && linkedId === quoteId) || (quoteNum && linkedNum === quoteNum);
+    const quoteId = String(q?.id || '').trim();
+    const otNumeroMarcado = String(q?.data?.ot_numero || q?.data?.otNumero || q?.ot_numero || q?.otNumero || '').trim();
+
+    const byRealLink = (window.ots || ots || []).some(o => {
+      const linkedId = String(o?.quoteId || o?.quote_id || o?.data?.quoteId || o?.data?.quote_id || '').trim();
+      return !!quoteId && linkedId === quoteId;
     });
-    const byQuoteFlag = !!(q?.data?.ot_created || q?.data?.otCreada || q?.ot_created);
-    return byOT || byQuoteFlag;
+    if(byRealLink) return true;
+
+    if(otNumeroMarcado){
+      const byOTNumber = (window.ots || ots || []).some(o => {
+        const num = String(o?.numeroOT || o?.numero_ot || o?.data?.numeroOT || o?.data?.numero_ot || '').trim();
+        return num && num === otNumeroMarcado;
+      });
+      if(byOTNumber) return true;
+    }
+
+    return false;
   }catch(e){
     return false;
   }
@@ -20299,7 +20308,9 @@ document.addEventListener('DOMContentLoaded', () => {
         descripcion: obra,
         tipo_servicio: tipo,
         items,
-        attachments
+        attachments,
+        ot_created: !!existingQuote?.data?.ot_created,
+        ot_numero: txt(existingQuote?.data?.ot_numero || '')
       })
     };
     return { payload, client };
@@ -20344,6 +20355,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if(typeof pendingOTToLink !== 'undefined' && pendingOTToLink && inserted?.id){
         try{ await supabaseClient.from('ots').update({ quote_id: inserted.id }).eq('id', pendingOTToLink); }catch(e){ console.warn('No se pudo vincular OT', e); }
         pendingOTToLink = null;
+      } else if(inserted?.id){
+        try{ await supabaseClient.from('quotes').update({ data: { ...(payload.data || {}), ot_created: false, ot_numero: '' } }).eq('id', inserted.id); }catch(e){ console.warn('No se pudo normalizar flag OT creada', e); }
       }
       closeSystemModal();
       await loadData();
@@ -24798,7 +24811,9 @@ function toggleSidebarTools(forceOpen = null){
         mantencion_specs: maintenanceSpecifications,
         documento_antiguo: manualLegacy,
         manual_folio: manualLegacy,
-        fecha_documento: fecha
+        fecha_documento: fecha,
+        ot_created: !!existingQuote?.data?.ot_created,
+        ot_numero: txt(existingQuote?.data?.ot_numero || '')
       })
     };
     return { payload, client };
@@ -24862,6 +24877,8 @@ function toggleSidebarTools(forceOpen = null){
       if(window.pendingOTToLink && inserted?.id){
         try { await sb.from('ots').update({ quote_id: inserted.id }).eq('id', window.pendingOTToLink); } catch(e) { console.warn('No se pudo vincular OT', e); }
         window.pendingOTToLink = null;
+      } else if(inserted?.id){
+        try { await sb.from('quotes').update({ data: { ...(payload.data || {}), ot_created: false, ot_numero: '' } }).eq('id', inserted.id); } catch(e) { console.warn('No se pudo normalizar flag OT creada', e); }
       }
       closeSystemModal();
       if(typeof window.loadData === 'function') await window.loadData();
