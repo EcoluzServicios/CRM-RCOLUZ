@@ -7759,6 +7759,7 @@ window.renderQuotes = renderQuotes;
         startMonth: Number(p.startMonth || p.start_month || 1),
         programYear: Number(p.programYear || p.program_year || maintenanceProgramYear || new Date().getFullYear()),
         responsible: p.responsible || '',
+        equipmentCount: Number(p.equipmentCount || p.equipment_count || getMaintenanceEquipmentCount(p) || 0),
         notes: p.notes || '',
         status: String(p.status || 'vigente').toLowerCase(),
         completedMonths: Array.isArray(p.completedMonths) ? p.completedMonths.map(n => Number(n)) :
@@ -7787,6 +7788,7 @@ window.renderQuotes = renderQuotes;
           startMonth: Number(r.start_month || 1),
           programYear: Number(r.program_year || new Date().getFullYear()),
           responsible: r.responsible || '',
+          equipmentCount: Number(r.equipment_count || getMaintenanceEquipmentCount(r) || 0),
           notes: r.notes || '',
           status: String(r.status || 'vigente').toLowerCase(),
           completedMonths: Array.isArray(r.completed_months) ? r.completed_months.map(n => Number(n)) : [],
@@ -7894,7 +7896,7 @@ window.renderQuotes = renderQuotes;
           <div class="flex items-center justify-between gap-3 border rounded-2xl p-3">
             <div>
               <div class="font-semibold text-slate-800">${escapeHtml(getMaintenanceProgramTitle(p))}</div>
-              <div class="text-sm text-slate-500">${escapeHtml(getMaintenanceFrequencyLabel(p.frequency))} · ${escapeHtml(getMaintenanceMonthName(month))}</div>
+              <div class="text-sm text-slate-500">${escapeHtml(getMaintenanceFrequencyLabel(p.frequency))} · ${escapeHtml(getMaintenanceMonthName(month))}${getMaintenanceEquipmentCount(p) ? ' · ' + escapeHtml(String(getMaintenanceEquipmentCount(p))) + ' equipos' : ''}</div>
             </div>
             <button onclick="showMaintenanceMonthActions('${p.id}', ${month})" class="px-3 py-2 rounded-xl ${type === 'overdue' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white text-sm font-semibold">
               Historial / realizar
@@ -7937,6 +7939,7 @@ window.renderQuotes = renderQuotes;
               <div class="font-black text-slate-800">${escapeHtml(getMaintenanceProgramTitle(p))}</div>
               <div class="text-sm text-slate-500 mt-1">${escapeHtml(meta)}</div>
               ${p.siteName ? `<div class="text-xs text-slate-400 mt-1">Sucursal: ${escapeHtml(p.siteName)}</div>` : ``}
+              ${getMaintenanceEquipmentCount(p) ? `<div class="text-xs text-slate-400 mt-1">Cantidad de equipos: ${escapeHtml(String(getMaintenanceEquipmentCount(p)))}</div>` : ``}
               ${p.responsible ? `<div class="text-xs text-slate-400 mt-1">Responsable: ${escapeHtml(p.responsible)}</div>` : ``}
               <div class="flex flex-wrap items-center gap-2 mt-3">
                 <button
@@ -8064,9 +8067,13 @@ window.renderQuotes = renderQuotes;
               <label class="block text-sm font-semibold text-slate-700 mb-2">Responsable</label>
               <input id="maintResponsible" type="text" value="${escapeHtml(program?.responsible || '')}" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: Kimberly">
             </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Cantidad de equipos</label>
+              <input id="maintEquipmentCount" type="number" min="1" step="1" value="${escapeHtml(String(getMaintenanceEquipmentCount(program) || ''))}" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: 8">
+            </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-semibold text-slate-700 mb-2">Observaciones</label>
-              <textarea id="maintNotes" rows="3" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Notas, equipos, sucursal, etc.">${escapeHtml(program?.notes || '')}</textarea>
+              <textarea id="maintNotes" rows="3" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Notas, sucursal, observaciones, etc.">${escapeHtml(getMaintenanceNotesWithoutMeta(program?.notes || ''))}</textarea>
             </div>
           </div>
 
@@ -8081,6 +8088,29 @@ window.renderQuotes = renderQuotes;
       `);
     }
 
+
+
+    function getMaintenanceEquipmentCount(program){
+      const direct = Number(program?.equipmentCount || program?.equipment_count || 0);
+      if(Number.isFinite(direct) && direct > 0) return direct;
+      const notes = String(program?.notes || '');
+      const match = notes.match(/\[EQUIPOS:(\d+)\]/i);
+      const parsed = Number(match?.[1] || 0);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    function getMaintenanceNotesWithoutMeta(notesValue){
+      return String(notesValue || '')
+        .replace(/\[EQUIPOS:\d+\]\s*/ig, '')
+        .trim();
+    }
+
+    function encodeMaintenanceNotes(notesValue, equipmentCount){
+      const cleanNotes = getMaintenanceNotesWithoutMeta(notesValue);
+      const qty = Number(equipmentCount || 0);
+      const meta = (Number.isFinite(qty) && qty > 0) ? `[EQUIPOS:${Math.round(qty)}]` : '';
+      return [meta, cleanNotes].filter(Boolean).join(' ').trim();
+    }
 
     function getMaintenanceProgramById(programId){
       return (maintenancePrograms || []).find(x => String(x.id) === String(programId));
@@ -8186,12 +8216,12 @@ window.renderQuotes = renderQuotes;
         };
 
         if(typeof showNewOTManualModal === 'function'){
-          showNewOTManualModal(otPrefill);
+          try { showNewOTManualModal(otPrefill); } catch(openErr){ console.error(openErr); }
           return;
         }
 
         if(typeof showNewOTModal === 'function'){
-          showNewOTModal(otPrefill);
+          try { showNewOTModal(otPrefill); } catch(openErr){ console.error(openErr); }
           return;
         }
 
@@ -8245,7 +8275,7 @@ window.renderQuotes = renderQuotes;
             </button>
             ${linkedOT
               ? `<button onclick="previewOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-eye mr-2 text-slate-700"></i>Abrir OT vinculada</button>`
-              : `<button onclick="createOTFromMaintenance('${program.id}', ${month}); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde este mes</button>`}
+              : `<button onclick="createOTFromMaintenance('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde este mes</button>`}
           </div>
         </div>
       `);
@@ -8452,7 +8482,10 @@ window.renderQuotes = renderQuotes;
           start_month: Number(document.getElementById('maintStartMonth')?.value || 1),
           program_year: Number(document.getElementById('maintProgramYear')?.value || maintenanceProgramYear || new Date().getFullYear()),
           responsible: String(document.getElementById('maintResponsible')?.value || '').trim(),
-          notes: String(document.getElementById('maintNotes')?.value || '').trim(),
+          notes: encodeMaintenanceNotes(
+            String(document.getElementById('maintNotes')?.value || '').trim(),
+            document.getElementById('maintEquipmentCount')?.value || ''
+          ),
           status: (programId ? ((maintenancePrograms || []).find(x => String(x.id) === String(programId))?.status || 'vigente') : 'vigente'),
           completed_months: programId ? (((maintenancePrograms || []).find(x => String(x.id) === String(programId))?.completedMonths || []).map(Number)) : [],
           created_by_name: currentUserDisplayName || 'Usuario',
