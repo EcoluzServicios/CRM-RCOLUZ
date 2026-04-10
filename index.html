@@ -14758,6 +14758,7 @@ async function savePagoFinal(otId, btn) {
             <td class="p-4">${getCobranzaBadgeOT(ot)}</td>
             <td class="p-4 text-center">
               <div class="flex items-center justify-center gap-4 flex-nowrap whitespace-nowrap">
+                <button onclick="showRegistrarAbono('${ot.id}')" class="text-emerald-600 hover:scale-110 transition" title="Agregar otro abono"><i class="fas fa-plus-circle text-lg"></i></button>
                 <button onclick="showHistorialAbonos('${ot.id}')" class="text-slate-700 hover:scale-110 transition" title="Historial abonos"><i class="fas fa-clock-rotate-left text-lg"></i></button>
                 <button onclick="showCobranzaGestionModal('${ot.id}')" class="text-blue-700 hover:scale-110 transition" title="Gestión cobranza"><i class="fas fa-comments-dollar text-lg"></i></button>
               </div>
@@ -14997,10 +14998,12 @@ function showRegistrarAbono(otId) {
     async function actualizarEstadoPagoDesdeAbonos(ot) {
       const abonos = getOTAbonos(ot);
       const abonadoActual = abonos.reduce((s, a) => s + (Number(a.monto) || 0), 0);
-      const montoTotal = Number(ot.monto) || 0;
+      const montoTotal = Number(ot.monto || ot.total || ot.data?.total || 0) || 0;
       const pagoCompleto = montoTotal > 0 && abonadoActual >= montoTotal;
 
       if(!ot.data) ot.data = {};
+      ot.data.abonos = Array.isArray(abonos) ? abonos.slice() : [];
+
       if(pagoCompleto) {
         const ultimo = abonos[abonos.length - 1] || {};
         ot.data.fechaPago = ultimo.fecha || ot.data.fechaPago || null;
@@ -15023,8 +15026,26 @@ function showRegistrarAbono(otId) {
         pago_estado: pagoCompleto ? 'pagado' : (getFacturaNumeroOT(ot) ? 'pendiente_pago' : 'pendiente_facturar'),
         cobro_estado: pagoCompleto ? 'pagado' : (getFacturaNumeroOT(ot) ? 'pendiente_pago' : 'pendiente_facturar')
       };
-      const { error } = await supabaseClient.from('ots').update(payload).eq('id', ot.id);
-      return { error, pagoCompleto };
+
+      let res;
+      if(typeof safeUpdateWithAutoDrop === 'function') {
+        res = await safeUpdateWithAutoDrop('ots', ot.id, payload);
+      } else {
+        const raw = await supabaseClient.from('ots').update(payload).eq('id', ot.id).select().single();
+        res = { data: raw.data, error: raw.error };
+      }
+
+      if(!res?.error && res?.data) {
+        const updated = (typeof hydrateOTRows === 'function') ? (hydrateOTRows([res.data])[0] || null) : null;
+        if(updated && Array.isArray(ots)) {
+          const idx = ots.findIndex(o => String(o.id) === String(updated.id));
+          if(idx >= 0) ots[idx] = updated;
+          else ots.unshift(updated);
+          window.ots = ots;
+        }
+      }
+
+      return { error: res?.error || null, pagoCompleto, updated: res?.data || null };
     }
 
     async function actualizarAbono(otId, index, btn) {
@@ -15053,27 +15074,55 @@ function showRegistrarAbono(otId) {
     }
 
     async function guardarAbono(otId, btn) {
-      const monto = Number(document.getElementById('abonoMonto').value);
-      if(!monto || monto<=0) return alert("Monto inválido");
+      const monto = Number(document.getElementById('abonoMonto')?.value || 0);
+      if(!monto || monto <= 0) return alert("Monto inválido");
+      const originalText = btn ? (btn.innerText || 'Registrar Abono') : 'Registrar Abono';
       if(btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
-      
-      const ot = ots.find(o => o.id === otId);
-      if (!ot.data) ot.data = {};
 
-      const abono = { fecha: toCLDateFromISO(document.getElementById('abonoFecha').value), monto: monto, metodo: document.getElementById('abonoMetodo').value };
-      if(!ot.data.abonos) ot.data.abonos = [];
-      ot.data.abonos.push(abono);
-      
-      const { error, pagoCompleto } = await actualizarEstadoPagoDesdeAbonos(ot);
-      if(error) {
-         alert("Error al guardar Abono en la base de datos: " + error.message);
-         if(btn) { btn.disabled = false; btn.innerText = "Registrar Abono"; }
-         return;
+      try {
+        const ot = (ots || []).find(o => String(o.id) === String(otId));
+        if(!ot) throw new Error('OT no encontrada');
+        if (!ot.data) ot.data = {};
+        if(!Array.isArray(ot.data.abonos)) ot.data.abonos = Array.isArray(ot.abonos) ? [...ot.abonos] : [];
+
+        const abono = {
+          fecha: toCLDateFromISO(document.getElementById('abonoFecha')?.value),
+          monto: monto,
+          metodo: document.getElementById('abonoMetodo')?.value || 'Transferencia'
+        };
+        ot.data.abonos.push(abono);
+
+        const { error, pagoCompleto, updated } = await actualizarEstadoPagoDesdeAbonos(ot);
+        if(error) throw error;
+
+        ot.abonos = Array.isArray(ot.data.abonos) ? [...ot.data.abonos] : [];
+        if(updated && typeof hydrateOTRows === 'function') {
+          const hydrated = hydrateOTRows([updated])[0] || null;
+          if(hydrated && Array.isArray(ots)) {
+            const idx = ots.findIndex(o => String(o.id) === String(hydrated.id));
+            if(idx >= 0) ots[idx] = hydrated;
+            else ots.unshift(hydrated);
+            window.ots = ots;
+          }
+        }
+
+        closeModal();
+        try{ renderAbonos(); }catch(e){}
+        try{ renderOTs(); }catch(e){}
+        try{ renderDashboard(); }catch(e){}
+        toastInfo(pagoCompleto ? "Pago completo registrado" : "Abono registrado");
+        if(pagoCompleto) celebrarPago();
+        return { ok:true, pagoCompleto };
+      } catch (error) {
+        console.error('Error al guardar abono:', error);
+        alert("Error al guardar Abono: " + (error?.message || error));
+        return { ok:false, error };
+      } finally {
+        if(btn && document.body.contains(btn)) {
+          btn.disabled = false;
+          btn.innerText = originalText;
+        }
       }
-
-      await loadData(); renderAbonos(); renderOTs(); closeModal();
-      toastInfo(pagoCompleto ? "Pago completo registrado" : "Abono registrado");
-      if(pagoCompleto) celebrarPago();
     }
 
     function parseMissingColumnFromSupabaseError(error, tableName){
@@ -22146,12 +22195,22 @@ ${['aceptada'].includes(qState) && !quoteHasLinkedOT(q) ? `<button onclick="show
       const fecha = document.getElementById('abonoFecha')?.value || crmTodayISO();
       const metodo = document.getElementById('abonoMetodo')?.value || 'Transferencia';
       const r = await origGuardarAbono.apply(this, arguments);
+      if(!r || r.ok === false) return r;
       const ot = getEntityRecord('ots', otId);
       const estadoCobro = ot && typeof window.prettyOTCobroEstado === 'function' ? window.prettyOTCobroEstado(ot) : '—';
-      await appendEntityHistory('ots', otId, { type:'payment', title: (ot && typeof window.normalizeOTCobroEstado === 'function' && window.normalizeOTCobroEstado(ot) === 'pagado') ? 'Pago completado' : 'Abono registrado', detail:`Monto: ${typeof window.formatCLP === 'function' ? window.formatCLP(monto) : monto}\nFecha: ${crmFmtDate(fecha)}\nMétodo: ${metodo}\nEstado de cobro: ${estadoCobro}` });
-      await window.loadData();
+      try{
+        await appendEntityHistory('ots', otId, {
+          type:'payment',
+          title: (ot && typeof window.normalizeOTCobroEstado === 'function' && window.normalizeOTCobroEstado(ot) === 'pagado') ? 'Pago completado' : 'Abono registrado',
+          detail:`Monto: ${typeof window.formatCLP === 'function' ? window.formatCLP(monto) : monto}
+Fecha: ${crmFmtDate(fecha)}
+Método: ${metodo}
+Estado de cobro: ${estadoCobro}`
+        });
+      }catch(e){ console.error(e); }
       try{ window.renderAbonos(); }catch(e){}
       try{ window.renderOTs(); }catch(e){}
+      try{ if(typeof window.renderDashboard === 'function') window.renderDashboard(); }catch(e){}
       return r;
     };
     try{ guardarAbono = window.guardarAbono; }catch(e){}
