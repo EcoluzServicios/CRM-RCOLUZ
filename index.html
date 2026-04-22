@@ -13547,75 +13547,6 @@ window.calcularTotal = function() {
 
 
 
-
-
-function normalizeQuoteFolioValue(value){
-  return String(value || '').trim().toUpperCase();
-}
-
-function getQuoteConflictClientName(record){
-  if(!record) return 'otro cliente';
-  const localClient = (Array.isArray(clients) ? clients : []).find(c => String(c?.id || '') === String(record?.clientId || record?.client_id || ''));
-  return safeText(
-    localClient?.name ||
-    record?.clientName ||
-    record?.razonSocial ||
-    record?.name ||
-    record?.data?.clientName ||
-    record?.data?.razonSocial ||
-    record?.data?.name ||
-    'otro cliente'
-  );
-}
-
-async function getQuoteFolioConflict(folio, excludeId = null){
-  const normalized = normalizeQuoteFolioValue(folio);
-  if(!normalized) return null;
-
-  const localHit = (Array.isArray(quotes) ? quotes : []).find(q => {
-    const current = normalizeQuoteFolioValue(q?.numeroCotizacion || q?.numero || q?.folio || q?.data?.numeroCotizacion || q?.data?.numero || q?.data?.folio || '');
-    if(!current) return false;
-    if(String(q?.id || '') === String(excludeId || '')) return false;
-    return current === normalized;
-  });
-  if(localHit){
-    return {
-      id: localHit?.id || null,
-      numero: normalized,
-      client_id: localHit?.clientId || localHit?.client_id || localHit?.data?.clientId || localHit?.data?.client_id || null,
-      clientName: getQuoteConflictClientName(localHit),
-      source: 'local'
-    };
-  }
-
-  try{
-    const { data, error } = await supabaseClient
-      .from('quotes')
-      .select('id, numero, client_id, data')
-      .eq('numero', normalized)
-      .limit(10);
-    if(error) throw error;
-    const remoteHit = (data || []).find(row => String(row?.id || '') !== String(excludeId || ''));
-    if(!remoteHit) return null;
-    const remoteClient = (Array.isArray(clients) ? clients : []).find(c => String(c?.id || '') === String(remoteHit?.client_id || ''));
-    return {
-      id: remoteHit?.id || null,
-      numero: normalized,
-      client_id: remoteHit?.client_id || null,
-      clientName: safeText(remoteClient?.name || remoteHit?.data?.clientName || remoteHit?.data?.razonSocial || 'otro cliente'),
-      source: 'supabase'
-    };
-  }catch(err){
-    console.warn('No se pudo validar folio de cotización en Supabase, se usará validación local.', err);
-    return null;
-  }
-}
-
-async function quoteFolioExists(folio, excludeId = null){
-  const conflict = await getQuoteFolioConflict(folio, excludeId);
-  return !!conflict;
-}
-
 // --- EL MODAL (TU DISEÑO ACTUALIZADO) ---
 
 
@@ -13826,10 +13757,8 @@ async function saveNewQuote(btn) {
         const fechaDocumento = document.getElementById('qFecha')?.value || todayISO();
         if(esDocumentoAntiguo && !folioRaw) throw new Error("Si marcas cotización antigua, debes ingresar el folio.");
         if(esDocumentoAntiguo && !fechaDocumento) throw new Error("Si marcas cotización antigua, debes ingresar la fecha.");
-        if(!folioRaw) throw new Error("Debes ingresar el N° de folio de la cotización.");
-        const folio = normalizeQuoteFolioValue(folioRaw);
-        const folioConflict = await getQuoteFolioConflict(folio);
-        if(folioConflict) throw new Error(`El folio de cotización ${folio} ya existe y está asignado a ${folioConflict.clientName || 'otro cliente'}. Debes usar otro.`);
+        // Folio manual por ahora. Si viene vacío, guardamos 'S/N'.
+        const folio = folioRaw || 'S/N';
         const obraDesc = document.getElementById('qObra').value.trim();
         const tipoServ = document.getElementById('qTipo') ? document.getElementById('qTipo').value : "General";
         const sucursal = (document.getElementById('qSucursal')?.value || '').trim();
@@ -14103,12 +14032,7 @@ window.calcularTotal();
         const selectedClient = (clients || []).find(c => String(c.id) === String(selectedClientId));
         if(!selectedClient) throw new Error('No se encontró el cliente seleccionado.');
 
-        const esDocumentoAntiguo = !!document.getElementById('qManualFolio')?.checked;
-        const folioRaw = (document.getElementById('qNum')?.value || '').trim();
-        if(!folioRaw) throw new Error('Debes ingresar el N° de folio de la cotización.');
-        const folio = normalizeQuoteFolioValue(folioRaw);
-        const folioConflict = await getQuoteFolioConflict(folio, quoteId);
-        if(folioConflict) throw new Error(`El folio de cotización ${folio} ya existe y está asignado a ${folioConflict.clientName || 'otro cliente'}. Debes usar otro.`);
+const folio = (document.getElementById('qNum')?.value || '').trim() || 'S/N';
         const obra  = (document.getElementById('qObra')?.value || '').trim();
         const tipo  = (document.getElementById('qTipo')?.value || '').trim() || (q.tipo_servicio || 'General');
         const sucursal = (document.getElementById('qSucursal')?.value || '').trim();
@@ -19756,8 +19680,9 @@ function getActaEquipmentCount(ctx){
       const qty = Number(it?.cantidad ?? it?.cant ?? it?.qty ?? 0) || 0;
       if(qty > 0) total += qty;
     });
+    if(total > 0) return total;
+    if(items.length > 0) return items.length;
   }
-  if(total > 0) return total;
 
   const haystack = [
     ctx?.descripcion,
@@ -19973,7 +19898,14 @@ function showActaRecepcionModal(sourceType, sourceId){
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-bold text-slate-700 mb-1">Detalle del trabajo</label>
-          <input type="text" value="${escapeHtml(getActaTrabajoDetalleLabel(ctx))}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+          <textarea id="actaDetalleTrabajo" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600 min-h-[92px]">${escapeHtml(getActaTrabajoDetalleLabel(ctx))}</textarea>
+          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <i class="fa-solid fa-layer-group"></i>
+              Equipos detectados: <strong>${escapeHtml(String(getActaEquipmentCount(ctx) || 0))}</strong>
+            </span>
+            <span>Puedes ajustar el texto antes de imprimir. Ejemplo: “Mantención preventiva de 15 equipos de aire acondicionado”.</span>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-bold text-slate-700 mb-1">Cotización asociada</label>
@@ -20056,7 +19988,7 @@ function buildActaRecepcionFormalHtml(data){
   const tecnico = escapeHtml(data.tecnico || '________________');
   const fecha = escapeHtml(formatDDMMYY(data.fecha) || data.fecha || '');
   const tipoTrabajo = escapeHtml(getActaTipoTrabajoLabel(data.tipoTrabajo || data.descripcion || 'Servicio técnico'));
-  const detalleTrabajo = escapeHtml(getActaTrabajoDetalleLabel(data));
+  const detalleTrabajo = escapeHtml(safeText(data.detalleTrabajo || data.descripcionTrabajo || getActaTrabajoDetalleLabel(data)));
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -20166,7 +20098,7 @@ function buildActaRecepcionTerrenoHtml(data){
   const tecnico = escapeHtml(data.tecnico || '________________');
   const fecha = escapeHtml(formatDDMMYY(data.fecha) || data.fecha || '');
   const tipoTrabajo = escapeHtml(getActaTipoTrabajoLabel(data.tipoTrabajo || data.descripcion || 'Servicio técnico'));
-  const detalleTrabajo = escapeHtml(getActaTrabajoDetalleLabel(data));
+  const detalleTrabajo = escapeHtml(safeText(data.detalleTrabajo || data.descripcionTrabajo || getActaTrabajoDetalleLabel(data)));
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -20321,11 +20253,14 @@ function printActaRecepcion(sourceType, sourceId, variant){
   }
   const fecha = safeText(document.getElementById('actaFecha')?.value || todayISO());
   const tecnico = safeText(document.getElementById('actaTecnico')?.value || ctxData.tecnico || currentUserDisplayName || '');
+  const detalleTrabajo = safeText(document.getElementById('actaDetalleTrabajo')?.value || getActaTrabajoDetalleLabel(ctxData));
   const selectedVariant = String(variant || 'formal').toLowerCase().trim() === 'terreno' ? 'terreno' : 'formal';
   const printHtml = buildActaRecepcionPrintHtml({
     ...ctxData,
     fecha,
-    tecnico
+    tecnico,
+    detalleTrabajo,
+    descripcionTrabajo: detalleTrabajo
   }, selectedVariant);
 
   const printFrame = document.createElement('iframe');
@@ -26831,8 +26766,7 @@ function toggleSidebarTools(forceOpen = null){
     const isEdit = !!existingQuote;
     const client = await ensureClientForQuote(isEdit);
     const manualLegacy = !!document.getElementById('qManualFolio')?.checked;
-    const folioInput = txt(document.getElementById('qNum')?.value || '');
-    const folio = normalizeQuoteFolioValue(folioInput || 'S/N');
+    const folio = txt(document.getElementById('qNum')?.value || '') || 'S/N';
     const obra = txt(document.getElementById('qObra')?.value || '');
     const tipo = txt(document.getElementById('qTipo')?.value || 'Mantención') || 'Mantención';
     const fecha = txt(document.getElementById('qFecha')?.value || today()) || today();
@@ -26843,7 +26777,6 @@ function toggleSidebarTools(forceOpen = null){
     if(!items.length) throw new Error('Debes ingresar al menos un ítem.');
     if(manualLegacy && !txt(document.getElementById('qNum')?.value || '')) throw new Error('Si marcas cotización antigua, debes ingresar el folio manual.');
     if(manualLegacy && !txt(document.getElementById('qFecha')?.value || '')) throw new Error('Si marcas cotización antigua, debes ingresar la fecha antigua.');
-    if(await quoteFolioExists(folio, existingQuote?.id || null)) throw new Error(`El folio de cotización ${folio} ya existe. Debes usar otro.`);
     const totals = NS.recalculate();
     const attachments = collectAttachments();
     const includeMaintenanceSpecs = !!document.getElementById('qIncludeMaintenanceSpecs')?.checked;
@@ -27637,6 +27570,101 @@ window.generateQuotePDF = async function(quoteId){
   try { bindHeaderButton(); } catch(e) {}
   document.addEventListener('DOMContentLoaded', bindHeaderButton);
   window.addEventListener('load', function(){ setTimeout(bindHeaderButton, 100); });
+})();
+</script>
+
+
+<script>
+(function(){
+  async function ensureOTLoadedForEdit(otId){
+    var id = String(otId || '').trim();
+    if(!id) throw new Error('OT inválida');
+    var found = (window.ots || []).find(function(x){ return String((x && x.id) || '') === id; });
+    if(found) return found;
+    if(!window.supabaseClient) throw new Error('No está disponible Supabase');
+    var res = await window.supabaseClient.from('ots').select('*').eq('id', id).single();
+    if(res.error) throw res.error;
+    if(!res.data) throw new Error('OT no encontrada');
+    var mapped = null;
+    if(typeof window.hydrateOTRows === 'function') mapped = window.hydrateOTRows([res.data])[0] || null;
+    if(!mapped){
+      mapped = {
+        id: res.data.id,
+        clientId: res.data.client_id || null,
+        quoteId: res.data.quote_id || null,
+        quote_id: res.data.quote_id || null,
+        clientName: (res.data.data && (res.data.data.clientName || res.data.data.nombre)) || '—',
+        clientRut: (res.data.data && res.data.data.rut) || '',
+        numeroCotizacion: (res.data.data && res.data.data.numeroCotizacion) || '',
+        numeroOT: res.data.numero_ot || ((res.data.data && res.data.data.numeroOT) || 'S/N'),
+        numero_ot: res.data.numero_ot || ((res.data.data && res.data.data.numeroOT) || 'S/N'),
+        descripcion: res.data.descripcion || ((res.data.data && (res.data.data.descripcion || res.data.data.descripcion_trabajo)) || ''),
+        sucursal: (res.data.data && (res.data.data.sucursal || res.data.data.sucursal_direccion || res.data.data.direccion_sucursal)) || '',
+        direccion: (res.data.data && (res.data.data.direccion || res.data.data.address)) || '',
+        oc: res.data.oc || ((res.data.data && res.data.data.oc) || ''),
+        hes: res.data.hes || ((res.data.data && res.data.data.hes) || ''),
+        guia_despacho: res.data.guia_despacho || ((res.data.data && (res.data.data.guia_despacho || res.data.data.guiaDespacho)) || ''),
+        estado: String(res.data.estado || ((res.data.data && res.data.data.estado) || 'pendiente')).toLowerCase(),
+        pago_estado: String(res.data.pago_estado || ((res.data.data && res.data.data.pago_estado) || '')).toLowerCase(),
+        fecha: res.data.fecha || ((res.data.data && (res.data.data.fecha || res.data.data.fechaDocumento)) || ''),
+        monto: Number(res.data.monto || ((res.data.data && (res.data.data.total || res.data.data.monto)) || 0)),
+        total: Number(res.data.monto || ((res.data.data && (res.data.data.total || res.data.data.monto)) || 0)),
+        abonos: (res.data.data && Array.isArray(res.data.data.abonos)) ? res.data.data.abonos : [],
+        facturaNumero: res.data.factura_num || res.data.documento_numero || ((res.data.data && (res.data.data.facturaNumero || res.data.data.documentoNumero)) || null),
+        factura_num: res.data.factura_num || res.data.documento_numero || null,
+        factura_enviada_fecha: res.data.factura_enviada_fecha || null,
+        factura_registro_fecha: res.data.factura_registro_fecha || null,
+        cobro_estado: String(res.data.cobro_estado || ((res.data.data && res.data.data.cobro_estado) || '')).toLowerCase(),
+        modalidadCobro: (res.data.data && (res.data.data.modalidadCobro || res.data.data.modalidad_cobro)) || 'factura',
+        createdByName: res.data.created_by_name || '—',
+        createdByEmail: res.data.created_by_email || '',
+        created_by: res.data.created_by || null,
+        created_at: res.data.created_at || null,
+        data: res.data.data || {}
+      };
+    }
+    if(!Array.isArray(window.ots)) window.ots = [];
+    var idx = window.ots.findIndex(function(x){ return String((x && x.id) || '') === id; });
+    if(idx >= 0) window.ots[idx] = mapped; else window.ots.unshift(mapped);
+    try { ots = window.ots; } catch(e) {}
+    return mapped;
+  }
+
+  function closeBlockingOverlays(){
+    try{
+      ['otPreviewModal','quotePreviewModal'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(el) el.remove();
+      });
+    }catch(e){}
+    try{ if(typeof closeModal === 'function') closeModal(); }catch(e){}
+    try{
+      var modal = document.getElementById('modal');
+      if(modal) modal.classList.add('hidden');
+    }catch(e){}
+    try{ document.body.style.overflow = ''; }catch(e){}
+  }
+
+  window.editOT = async function(otId){
+    try{
+      var id = String(otId || '').trim();
+      if(!id) throw new Error('OT inválida');
+      await ensureOTLoadedForEdit(id);
+      closeBlockingOverlays();
+      setTimeout(function(){
+        try{
+          if(typeof openEditOT !== 'function') throw new Error('No está disponible el formulario de edición de OT');
+          openEditOT(id);
+        }catch(err){
+          console.error('editOT.open', err);
+          alert('No se pudo abrir la edición de la OT: ' + (err && err.message ? err.message : err));
+        }
+      }, 50);
+    }catch(err){
+      console.error('editOT.safe', err);
+      alert('No se pudo abrir la edición de la OT: ' + (err && err.message ? err.message : err));
+    }
+  };
 })();
 </script>
 
