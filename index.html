@@ -1869,10 +1869,10 @@ body[data-ui-color-mode="dark"] .facturacion-row-annulled td{background:#4a3411!
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <h1 class="text-3xl font-bold">Informes técnicos</h1>
-            <p class="text-sm text-slate-500 mt-1">Genera informes livianos en texto para descargar en Word. Las imágenes se agregan manualmente fuera del sistema para reducir consumo de datos.</p>
+            <p class="text-sm text-slate-500 mt-1">Genera informes por bloques: instalación, mantención AC masiva, cámaras de frío, máquina de café y servicios mixtos en una misma OT o cotización.</p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <button onclick="showNewReportModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo informe</span></button>
+            <button onclick="showNewReportModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> <span class="sidebar-label">Nuevo informe por bloques</span></button>
           </div>
         </div>
 
@@ -11941,91 +11941,103 @@ window.renderQuotes = renderQuotes;
         : `<tr><td colspan="5" style="padding:10px;border:1px solid #d7dee9;color:#64748b;text-align:center;">No hay ítems intervenidos cargados.</td></tr>`;
 
       openModal(`
-        <div class="p-4 sm:p-6 bg-slate-100">
-          <div class="mx-auto bg-white shadow-sm" style="max-width:880px;border:1px solid #d7dee9;padding:26px 28px 22px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:10px;">
-              <div style="display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1;">
-                <div style="width:86px;height:56px;display:flex;align-items:flex-start;justify-content:flex-start;flex:0 0 auto;">
-                  <img src="${logoSrc}" alt="ECOLUZ" style="max-width:86px;max-height:56px;object-fit:contain;" onerror="this.style.display='none'">
+        <div class="p-3 sm:p-5 bg-slate-100">
+          <div class="mx-auto bg-white shadow-sm" style="max-width:760px;border:1px solid #dbe7ca;border-radius:20px;padding:18px 20px 18px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-bottom:10px;margin-bottom:12px;border-bottom:3px solid #85af28;">
+              <div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1;">
+                <div style="width:72px;height:48px;display:flex;align-items:flex-start;justify-content:flex-start;flex:0 0 auto;">
+                  <img src="${logoSrc}" alt="ECOLUZ" style="max-width:72px;max-height:48px;object-fit:contain;" onerror="this.style.display='none'">
                 </div>
                 <div style="min-width:0;flex:1;">
-                  <div style="font-size:15px;font-weight:800;color:#0f172a;line-height:1.2;">Informe técnico de servicio</div>
-                  <div style="font-size:13px;font-weight:700;color:#111827;margin-top:4px;">${escapeHtml(rep.titulo || `Informe técnico ${rep.numeroOT || ''}`.trim() || 'Informe técnico')}</div>
+                  <div style="font-size:13px;font-weight:900;color:#1f2a1c;line-height:1.15;letter-spacing:.01em;">Informe técnico de servicio</div>
+                  <div style="font-size:12px;font-weight:700;color:#5f728c;margin-top:3px;">${escapeHtml(rep.titulo || `Informe técnico ${rep.numeroOT || ''}`.trim() || 'Informe técnico')}</div>
                 </div>
               </div>
-              <div style="text-align:right;white-space:nowrap;font-size:12px;font-weight:800;color:#5c7a39;">${escapeHtml(rep.numeroInforme || 'INF-S/N')}</div>
+              <div style="text-align:right;white-space:nowrap;font-size:11px;font-weight:900;color:#4f6f1b;background:#f2f7e8;border:1px solid #d7e6bd;border-radius:999px;padding:6px 10px;">${escapeHtml(rep.numeroInforme || 'INF-S/N')}</div>
             </div>
 
-            <table style="width:100%;border-collapse:collapse;font-size:12px;color:#111827;margin-bottom:12px;">
+            <table style="width:100%;border-collapse:collapse;font-size:11px;color:#1f2937;margin-bottom:12px;">
               <tr>
-                <td style="padding:2px 0;width:58%;"><strong>Cliente:</strong> ${escapeHtml(rep.clientName || '—')}</td>
-                <td style="padding:2px 0;text-align:right;"><strong>Fecha:</strong> ${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;width:26%;">Cliente</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;width:24%;">${escapeHtml(rep.clientName || '—')}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;width:26%;">RUT</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;width:24%;">${escapeHtml(rep.clientRut || '—')}</td>
               </tr>
               <tr>
-                <td style="padding:2px 0;"><strong>OT:</strong> ${escapeHtml(rep.numeroOT || '—')} &nbsp;&nbsp; <strong>Cotización:</strong> ${escapeHtml(rep.numeroCotizacion || '—')}</td>
-                <td style="padding:2px 0;text-align:right;"><strong>Tipo:</strong> ${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;">Fecha</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;">${escapeHtml(formatDDMMYY(rep.fecha || rep.created_at))}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;">N° informe</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;">${escapeHtml(rep.numeroInforme || 'INF-S/N')}</td>
               </tr>
               <tr>
-                <td style="padding:2px 0;"><strong>Dirección:</strong> ${escapeHtml(rep.direccion || '—')}</td>
-                <td style="padding:2px 0;text-align:right;"><strong>Técnico responsable:</strong> ${escapeHtml(rep.tecnicoResponsable || '—')}</td>
-              </tr>
-            </table>
-
-            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;">
-              <tr>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Equipos revisados</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.total}</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Estado general</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(getReportGeneralState(rep))}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;">OT</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;">${escapeHtml(rep.numeroOT || '—')}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;">Cotización</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;">${escapeHtml(rep.numeroCotizacion || '—')}</td>
               </tr>
               <tr>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Operativos</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.operativos}</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Con observación</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.observacion}</td>
-              </tr>
-              <tr>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">No operativos</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;">${s.noOperativos}</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;background:#f8fafc;font-weight:700;">Técnico responsable</td>
-                <td style="padding:7px 8px;border:1px solid #d7dee9;">${escapeHtml(rep.tecnicoResponsable || '—')}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;">Técnico responsable</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;">${escapeHtml(rep.tecnicoResponsable || '—')}</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;background:#f7fbf1;font-weight:700;">Dirección / sucursal</td>
+                <td style="padding:7px 8px;border:1px solid #dbe7ca;">${escapeHtml(rep.direccion || '—')}</td>
               </tr>
             </table>
 
-            <div style="font-size:11px;font-weight:800;color:#355f1c;border-top:3px solid #85af28;padding-top:10px;margin-bottom:8px;">Resumen ejecutivo</div>
-            <div style="font-size:12px;line-height:1.45;color:#111827;white-space:pre-wrap;margin-bottom:14px;">${escapeHtml(rep.resumenEjecutivo || 'Sin resumen ejecutivo.')}</div>
+            <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;">
+              <tr>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;background:#f2f7e8;font-weight:800;color:#426018;">Equipos revisados</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;">${s.total}</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;background:#f2f7e8;font-weight:800;color:#426018;">Estado general</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;">${escapeHtml(getReportGeneralState(rep))}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;background:#f2f7e8;font-weight:800;color:#426018;">Operativos</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;">${s.operativos}</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;background:#f2f7e8;font-weight:800;color:#426018;">Con observación</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;">${s.observacion}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;background:#f2f7e8;font-weight:800;color:#426018;">No operativos</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;">${s.noOperativos}</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;background:#f2f7e8;font-weight:800;color:#426018;">Tipo de servicio</td>
+                <td style="padding:6px 8px;border:1px solid #dbe7ca;">${escapeHtml(getReportServiceLabel(rep.tipoServicio))}</td>
+              </tr>
+            </table>
+
+            <div style="font-size:10px;font-weight:900;color:#4f6f1b;border-top:2px solid #85af28;padding-top:8px;margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase;">Resumen ejecutivo</div>
+            <div style="font-size:11px;line-height:1.4;color:#1f2937;white-space:pre-wrap;margin-bottom:12px;">${escapeHtml(rep.resumenEjecutivo || 'Sin resumen ejecutivo.')}</div>
 
             ${chartDataUrl ? `
-              <div style="margin-bottom:14px;">
-                <div style="font-size:11px;font-weight:800;color:#355f1c;margin-bottom:8px;">Estado de equipos</div>
-                <img src="${chartDataUrl}" alt="Gráfico estado de equipos" style="display:block;width:100%;border:1px solid #d7dee9;">
+              <div style="margin-bottom:12px;">
+                <div style="font-size:10px;font-weight:900;color:#4f6f1b;margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase;">Estado de equipos</div>
+                <img src="${chartDataUrl}" alt="Gráfico estado de equipos" style="display:block;width:100%;border:1px solid #dbe7ca;border-radius:12px;">
               </div>
             ` : ''}
 
-            <div style="font-size:11px;font-weight:800;color:#111827;margin-bottom:8px;">Ítems intervenidos</div>
-            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+            <div style="font-size:10px;font-weight:900;color:#4f6f1b;margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase;">Ítems intervenidos</div>
+            <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;">
               <thead>
-                <tr style="background:#f3f7eb;">
-                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Ítem</th>
-                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Cant.</th>
-                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Ubicación</th>
-                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Estado</th>
-                  <th style="padding:7px 8px;border:1px solid #d7dee9;text-align:left;">Observación</th>
+                <tr style="background:#f2f7e8;">
+                  <th style="padding:6px 8px;border:1px solid #dbe7ca;text-align:left;">Ítem</th>
+                  <th style="padding:6px 8px;border:1px solid #dbe7ca;text-align:left;">Cant.</th>
+                  <th style="padding:6px 8px;border:1px solid #dbe7ca;text-align:left;">Ubicación</th>
+                  <th style="padding:6px 8px;border:1px solid #dbe7ca;text-align:left;">Estado</th>
+                  <th style="padding:6px 8px;border:1px solid #dbe7ca;text-align:left;">Observación</th>
                 </tr>
               </thead>
               <tbody>${rowsHtml}</tbody>
             </table>
 
-            <div style="font-size:11px;font-weight:800;color:#111827;margin-bottom:4px;">Observaciones generales</div>
-            <div style="font-size:12px;line-height:1.45;color:#111827;white-space:pre-wrap;margin-bottom:12px;">${escapeHtml(rep.observacionesGenerales || 'Sin observaciones.')}</div>
+            <div style="font-size:10px;font-weight:900;color:#4f6f1b;margin-bottom:4px;letter-spacing:.03em;text-transform:uppercase;">Observaciones generales</div>
+            <div style="font-size:11px;line-height:1.4;color:#1f2937;white-space:pre-wrap;margin-bottom:10px;">${escapeHtml(rep.observacionesGenerales || 'Sin observaciones.')}</div>
 
-            <div style="font-size:11px;font-weight:800;color:#111827;margin-bottom:4px;">Sugerencias de mejora</div>
-            <div style="font-size:12px;line-height:1.45;color:#111827;white-space:pre-wrap;">${escapeHtml(rep.sugerenciasMejora || 'Sin sugerencias.')}</div>
+            <div style="font-size:10px;font-weight:900;color:#4f6f1b;margin-bottom:4px;letter-spacing:.03em;text-transform:uppercase;">Sugerencias de mejora</div>
+            <div style="font-size:11px;line-height:1.4;color:#1f2937;white-space:pre-wrap;">${escapeHtml(rep.sugerenciasMejora || 'Sin sugerencias.')}</div>
           </div>
 
           <div class="mt-4 flex flex-wrap justify-end gap-2">
-            <button onclick="generateReportWord('${rep.id}')" class="px-4 py-2 rounded-xl bg-blue-700 text-white font-semibold hover:bg-blue-800">Word</button>
-            <button onclick="showNewReportModal({id:'${rep.id}'})" class="px-4 py-2 rounded-xl border font-semibold hover:bg-gray-50">Editar</button>
+            <button onclick="generateReportWord('${rep.id}')" class="px-4 py-2 rounded-xl text-white font-semibold" style="background:#85af28;">Word</button>
+            <button onclick="showNewReportModal({id:'${rep.id}'})" class="px-4 py-2 rounded-xl border font-semibold hover:bg-gray-50" style="border-color:#dbe7ca;">Editar</button>
             <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
           </div>
         </div>
@@ -12085,33 +12097,33 @@ window.renderQuotes = renderQuotes;
 
     function getReportWordStyles(){
       return `
-        @page{margin:12mm 12mm 12mm 12mm;}
-        body{font-family:Arial,Helvetica,sans-serif;color:#111827;margin:0;padding:0;font-size:10pt;line-height:1.38;background:#ffffff;}
-        .doc{max-width:860px;margin:0 auto;padding:0;}
+        @page{margin:10mm 10mm 10mm 10mm;}
+        body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:0;padding:0;font-size:9.2pt;line-height:1.34;background:#ffffff;}
+        .doc{max-width:760px;margin:0 auto;padding:0;}
         .header{margin-bottom:8px;}
-        .header-main{width:100%;border-collapse:collapse;}
+        .header-main{width:100%;border-collapse:collapse;border-bottom:2px solid #85af28;padding-bottom:6px;}
         .header-main td{vertical-align:top;}
-        .logo-cell{width:90px;padding:0 10px 0 0;}
-        .logo-wrap{width:84px;height:54px;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;}
-        .logo-img{max-width:84px;max-height:54px;object-fit:contain;display:block;}
-        .doc-title{font-size:16pt;font-weight:800;color:#0f172a;line-height:1.15;margin:0 0 4px 0;}
-        .doc-subtitle{font-size:12pt;font-weight:700;color:#111827;line-height:1.2;margin:0;}
-        .number-box{text-align:right;white-space:nowrap;font-size:10pt;font-weight:800;color:#5c7a39;}
-        .meta{width:100%;border-collapse:collapse;font-size:10pt;margin:0 0 10px 0;}
+        .logo-cell{width:76px;padding:0 10px 0 0;}
+        .logo-wrap{width:72px;height:46px;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;}
+        .logo-img{max-width:72px;max-height:46px;object-fit:contain;display:block;}
+        .doc-title{font-size:13pt;font-weight:900;color:#1f2a1c;line-height:1.12;margin:0 0 3px 0;}
+        .doc-subtitle{font-size:10.2pt;font-weight:700;color:#5f728c;line-height:1.2;margin:0;}
+        .number-box{text-align:right;white-space:nowrap;font-size:9pt;font-weight:900;color:#4f6f1b;background:#f2f7e8;border:1px solid #d7e6bd;border-radius:999px;padding:5px 9px;}
+        .meta{width:100%;border-collapse:collapse;font-size:9.2pt;margin:0 0 9px 0;}
         .meta td{padding:2px 0;vertical-align:top;}
-        .summary-label{font-size:8.3pt;font-weight:800;color:#355f1c;border-top:2px solid #85af28;padding-top:7px;margin:10px 0 6px 0;text-transform:none;}
-        .info-grid{width:100%;border-collapse:collapse;font-size:10pt;margin:0 0 10px 0;}
-        .info-grid td,.info-grid th{border:1px solid #d7dee9;padding:6px 7px;vertical-align:top;}
-        .info-grid th{background:#f8fafc;text-align:left;font-weight:700;}
-        .section-title{font-size:9pt;font-weight:800;color:#111827;margin:10px 0 5px 0;}
-        .text-block{font-size:10pt;line-height:1.42;color:#111827;white-space:pre-wrap;}
-        .chart-wrap{margin:8px 0 10px 0;}
-        .chart-img{display:block;width:100%;border:1px solid #d7dee9;}
-        .table-title{font-size:9pt;font-weight:800;color:#111827;margin:10px 0 5px 0;}
-        .grid{width:100%;border-collapse:collapse;font-size:10pt;}
-        .grid th,.grid td{border:1px solid #d7dee9;padding:6px 7px;vertical-align:top;}
-        .grid th{background:#f3f7eb;text-align:left;font-weight:700;}
-        .footer-note{margin-top:10px;font-size:8.5pt;color:#64748b;}
+        .summary-label{font-size:8.1pt;font-weight:900;color:#4f6f1b;border-top:2px solid #85af28;padding-top:6px;margin:9px 0 5px 0;text-transform:uppercase;letter-spacing:.04em;}
+        .info-grid{width:100%;border-collapse:collapse;font-size:9.1pt;margin:0 0 9px 0;}
+        .info-grid td,.info-grid th{border:1px solid #dbe7ca;padding:5px 6px;vertical-align:top;}
+        .info-grid th{background:#f7fbf1;text-align:left;font-weight:800;color:#426018;}
+        .section-title{font-size:8.5pt;font-weight:900;color:#4f6f1b;margin:9px 0 4px 0;text-transform:uppercase;letter-spacing:.03em;}
+        .text-block{font-size:9.2pt;line-height:1.38;color:#1f2937;white-space:pre-wrap;}
+        .chart-wrap{margin:8px 0 9px 0;}
+        .chart-img{display:block;width:100%;border:1px solid #dbe7ca;}
+        .table-title{font-size:8.5pt;font-weight:900;color:#4f6f1b;margin:9px 0 4px 0;text-transform:uppercase;letter-spacing:.03em;}
+        .grid{width:100%;border-collapse:collapse;font-size:9.1pt;}
+        .grid th,.grid td{border:1px solid #dbe7ca;padding:5px 6px;vertical-align:top;}
+        .grid th{background:#f2f7e8;text-align:left;font-weight:800;color:#426018;}
+        .footer-note{margin-top:9px;font-size:8pt;color:#64748b;}
       `;
     }
 
@@ -28990,6 +29002,979 @@ window.generateQuotePDF = async function(quoteId){
   window.addEventListener('load', () => setTimeout(bootFixes, 250));
   window.addEventListener('resize', () => setTimeout(activateAutoSidebarFix, 120));
 })();
+
+/* ===== ECOLUZ: INFORMES POR BLOQUES / FORMATOS DINÁMICOS ===== */
+(function(){
+  const oldShowNewReportModal = window.showNewReportModal;
+  const oldGenerateReportWord = window.generateReportWord;
+  const oldPreviewReport = window.previewReport;
+
+  function brEsc(v){ return (typeof escapeHtml === 'function') ? escapeHtml(v ?? '') : String(v ?? '').replace(/[&<>'"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m])); }
+  function brSafe(v){ return String(v ?? '').trim(); }
+  function brMoney(n){ try { return typeof formatCLP === 'function' ? formatCLP(Number(n||0)) : '$' + Number(n||0).toLocaleString('es-CL'); } catch(e){ return '$0'; } }
+  function brToday(){ return typeof todayISO === 'function' ? todayISO() : new Date().toISOString().slice(0,10); }
+  function brDate(v){ return typeof formatDDMMYY === 'function' ? formatDDMMYY(v) : brSafe(v); }
+  function brId(){ return 'blk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+
+  const blockLabels = {
+    instalacion_ac: 'Instalación de aire acondicionado',
+    mantencion_ac: 'Mantención de aire acondicionado',
+    reparacion_ac: 'Reparación de aire acondicionado',
+    camara_frio: 'Cámara de frío',
+    maquina_cafe: 'Máquina de café',
+    mantencion_maquina_cafe: 'Mantención de máquina de café',
+    tecnico_general: 'Informe técnico general'
+  };
+  const stateLabels = {
+    operativo: 'Operativo',
+    operativo_observacion: 'Operativo con observación',
+    no_operativo: 'No operativo',
+    pendiente: 'Pendiente',
+    instalado_operativo: 'Instalado y operativo'
+  };
+  const checklistLabels = {
+    filtros: 'Limpieza de filtros',
+    evaporador: 'Limpieza/revisión de evaporador',
+    condensador: 'Limpieza/revisión de condensador',
+    drenaje: 'Revisión de drenaje',
+    electrico: 'Revisión eléctrica',
+    control: 'Revisión de control remoto/controlador',
+    funcionamiento: 'Prueba de funcionamiento',
+    temperatura: 'Verificación de temperatura',
+    sellos: 'Revisión de sellos/puertas',
+    ventiladores: 'Revisión de ventiladores',
+    limpieza_general: 'Limpieza general',
+    bomba: 'Revisión de bomba',
+    vaporizador: 'Revisión de vaporizador',
+    molino: 'Revisión de molino',
+    grupo: 'Limpieza/revisión de grupo',
+    filtros_cafe: 'Revisión de filtros de agua/café'
+  };
+
+  function extendedReportServiceLabel(value){
+    const s = String(value || '').toLowerCase().trim().replace(/\s+/g,'_');
+    const map = {
+      mixto: 'Informe mixto',
+      instalacion_ac: 'Instalación AC',
+      mantencion_ac: 'Mantención AC',
+      reparacion_ac: 'Reparación AC',
+      camara_frio: 'Cámara de frío',
+      camara_basura: 'Cámara de basura',
+      camara_postres: 'Cámara de postres',
+      maquina_cafe: 'Máquina de café',
+      mantencion_maquina_cafe: 'Mantención máquina de café',
+      tecnico_general: 'Técnico general',
+      mantencion: 'Mantención',
+      instalacion: 'Instalación',
+      suministro: 'Suministro',
+      otro: 'Otro'
+    };
+    return map[s] || map[(typeof normalizeReportServiceType === 'function' ? normalizeReportServiceType(value) : s)] || (value ? String(value) : 'Sin definir');
+  }
+  try { window.getReportServiceLabel = extendedReportServiceLabel; getReportServiceLabel = extendedReportServiceLabel; } catch(e) {}
+
+  function ensureBlockReportStyles(){
+    if(document.getElementById('blockReportStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'blockReportStyles';
+    style.textContent = `
+      .br-modal{padding:1.35rem;}
+      .br-stepper{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem;margin:0 0 1rem;}
+      .br-step-chip{border:1px solid #e2e8f0;background:#fff;border-radius:1rem;padding:.72rem .85rem;display:flex;align-items:center;gap:.65rem;color:#64748b;font-weight:850;}
+      .br-step-num{width:1.75rem;height:1.75rem;border-radius:999px;background:#f1f5f9;color:#475569;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:950;flex:0 0 auto;}
+      .br-step-chip.active{border-color:#85af28;background:#f3f8e8;color:#264018;box-shadow:0 10px 22px rgba(133,175,40,.12);}
+      .br-step-chip.active .br-step-num{background:#85af28;color:#fff;}
+      .br-step-chip.done{border-color:#bbf7d0;background:#f0fdf4;color:#166534;}
+      .br-step-chip.done .br-step-num{background:#22c55e;color:#fff;}
+      .br-step-title{font-size:.82rem;line-height:1.1;}
+      .br-step-sub{font-size:.68rem;font-weight:650;color:#94a3b8;margin-top:.08rem;}
+      [data-br-step]{display:none!important;}
+      [data-br-step].br-step-active{display:block!important;}
+      .br-wizard-controls{position:sticky;bottom:0;z-index:20;margin-top:1rem;padding:.9rem;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border:1px solid #e2e8f0;border-radius:1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;box-shadow:0 -8px 26px rgba(15,23,42,.08);}
+      .br-wizard-hint{font-size:.82rem;color:#64748b;font-weight:650;}
+      .br-selected-overview{margin-top:.9rem;border:1px solid #e2e8f0;border-radius:1rem;background:#f8fafc;padding:.85rem;}
+      .br-selected-title{font-size:.78rem;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:.45rem;}
+      .br-selected-list{display:flex;flex-wrap:wrap;gap:.45rem;}
+      .br-selected-empty{font-size:.84rem;color:#94a3b8;}
+      .br-step-empty{border:1px dashed #cbd5e1;border-radius:1rem;background:#f8fafc;padding:1.1rem;text-align:center;color:#64748b;font-weight:700;}
+
+      .br-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;}
+      .br-title{font-size:1.55rem;font-weight:950;color:#0f172a;line-height:1.1;}
+      .br-sub{font-size:.88rem;color:#64748b;margin-top:.28rem;max-width:900px;}
+      .br-card{border:1px solid #e2e8f0;border-radius:1.15rem;background:#fff;overflow:hidden;box-shadow:0 10px 24px rgba(15,23,42,.06);}
+      .br-card-head{padding:.95rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:.8rem;}
+      .br-block-title{font-weight:950;color:#0f172a;font-size:1rem;}
+      .br-block-sub{font-size:.78rem;color:#64748b;margin-top:.15rem;}
+      .br-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;}
+      .br-grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}
+      .br-common-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:.75rem;}
+      .br-span-2{grid-column:span 2 / span 2;}
+      .br-span-3{grid-column:span 3 / span 3;}
+      .br-span-4{grid-column:span 4 / span 4;}
+      .br-span-5{grid-column:span 5 / span 5;}
+      .br-span-6{grid-column:span 6 / span 6;}
+      .br-span-8{grid-column:span 8 / span 8;}
+      .br-inline-note{font-size:.72rem;color:#64748b;margin-top:.28rem;line-height:1.25;}
+      .br-field label{display:block;font-size:.7rem;font-weight:850;letter-spacing:.04em;text-transform:uppercase;color:#64748b;margin-bottom:.32rem;}
+      .br-field input,.br-field select,.br-field textarea{width:100%;border:1px solid #dbe3ef;border-radius:.85rem;padding:.68rem .76rem;background:#fff;color:#0f172a;font-size:.88rem;}
+      .br-field textarea{min-height:84px;resize:vertical;}
+      .br-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid #dbe3ef;border-radius:.85rem;background:#fff;padding:.62rem .85rem;font-weight:850;font-size:.84rem;color:#334155;white-space:nowrap;}
+      .br-btn:hover{background:#f8fafc;}
+      .br-btn.primary{background:#2563eb;color:#fff;border-color:#2563eb;}
+      .br-btn.green{background:#16a34a;color:#fff;border-color:#16a34a;}
+      .br-btn.dark{background:#0f172a;color:#fff;border-color:#0f172a;}
+      .br-btn.danger{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+      .br-mini{font-size:.76rem;padding:.42rem .58rem;border-radius:.7rem;}
+      .br-add-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;}
+      .br-add-btn{border:1px dashed #cbd5e1;background:#fff;border-radius:1rem;padding:.9rem;text-align:left;font-weight:900;color:#0f172a;}
+      .br-add-btn:hover{background:#f8fafc;border-color:#85af28;}
+      .br-add-btn span{display:block;font-size:.75rem;color:#64748b;font-weight:650;margin-top:.2rem;}
+      .br-table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;}
+      .br-table{width:100%;min-width:980px;border-collapse:collapse;}
+      .br-table th{position:sticky;top:0;background:#f8fafc;color:#334155;text-transform:uppercase;letter-spacing:.03em;font-size:.68rem;font-weight:900;padding:.55rem;border-bottom:1px solid #e2e8f0;text-align:left;}
+      .br-table td{padding:.4rem .45rem;border-bottom:1px solid #edf2f7;vertical-align:top;}
+      .br-table input,.br-table select,.br-table textarea{width:100%;border:1px solid #dbe3ef;border-radius:.55rem;padding:.42rem .48rem;font-size:.8rem;background:#fff;}
+      .br-table textarea{min-height:38px;resize:vertical;}
+      .br-pill{display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;padding:.32rem .65rem;font-size:.72rem;font-weight:900;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;}
+      .br-pill.green{background:#ecfdf5;color:#047857;border-color:#a7f3d0;}
+      .br-pill.amber{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+      .br-pill.rose{background:#fff1f2;color:#be123c;border-color:#fecdd3;}
+      .br-check-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem .75rem;}
+      .br-check{display:flex;align-items:center;gap:.45rem;font-size:.82rem;color:#334155;font-weight:650;}
+      .br-check input{width:auto;}
+      .br-toolbar{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;}
+      .br-import{display:none;margin-top:.65rem;}
+      .br-import.show{display:block;}
+      body[data-ui-color-mode="dark"] .br-card, body[data-ui-color-mode="dark"] .br-add-btn, body[data-ui-color-mode="dark"] .br-table-wrap{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important;}
+      body[data-ui-color-mode="dark"] .br-card-head, body[data-ui-color-mode="dark"] .br-table th{background:var(--ui-table-head)!important;color:var(--ui-text)!important;border-color:var(--ui-border)!important;}
+      body[data-ui-color-mode="dark"] .br-field input, body[data-ui-color-mode="dark"] .br-field select, body[data-ui-color-mode="dark"] .br-field textarea, body[data-ui-color-mode="dark"] .br-table input, body[data-ui-color-mode="dark"] .br-table select, body[data-ui-color-mode="dark"] .br-table textarea{background:var(--ui-input-bg)!important;color:var(--ui-text)!important;border-color:var(--ui-border)!important;}
+      body[data-ui-color-mode="dark"] .br-step-chip, body[data-ui-color-mode="dark"] .br-wizard-controls, body[data-ui-color-mode="dark"] .br-selected-overview, body[data-ui-color-mode="dark"] .br-step-empty{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important;}
+      @media(max-width:1100px){.br-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.br-common-grid{grid-template-columns:repeat(6,minmax(0,1fr));}.br-add-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.br-check-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+      @media(max-width:720px){.br-grid,.br-grid-2,.br-common-grid,.br-add-grid,.br-check-grid{grid-template-columns:1fr;}.br-span-2,.br-span-3,.br-span-4,.br-span-5,.br-span-6,.br-span-8{grid-column:auto;}.br-modal{padding:1rem;}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function getBlockDefault(type){
+    const base = { id: brId(), tipo:type, titulo:blockLabels[type] || 'Servicio técnico', resumen:'', trabajoRealizado:'', observaciones:'', recomendaciones:'', equipos:[] };
+    if(type === 'mantencion_ac'){
+      base.resumen = 'Se realiza mantención preventiva a equipos de aire acondicionado, considerando limpieza general, revisión de componentes principales y pruebas de funcionamiento.';
+      base.checklist = ['filtros','evaporador','condensador','drenaje','electrico','control','funcionamiento'];
+      base.common = { tipoEquipo:'Split muro', marcaModelo:'', btu:'', estadoFinal:'operativo', trabajoRealizado:'Mantención preventiva estándar', observaciones:'', sugerencias:'' };
+      base.cantidad = 1;
+    }
+    if(type === 'instalacion_ac'){
+      base.resumen = 'Se realiza instalación de equipo(s) de aire acondicionado, considerando montaje, conexión, pruebas de operación y verificación de funcionamiento.';
+      base.checklist = ['electrico','drenaje','control','funcionamiento'];
+      base.common = { tipoEquipo:'Split muro', marcaModelo:'', btu:'', estadoFinal:'instalado_operativo', trabajoRealizado:'Instalación y puesta en marcha', observaciones:'', sugerencias:'' };
+      base.cantidad = 1;
+      base.equipos = [defaultEquipment(base.common, 1)];
+    }
+    if(type === 'reparacion_ac'){
+      base.resumen = 'Se realiza revisión y/o reparación de equipo(s) de aire acondicionado según requerimiento informado por el cliente.';
+      base.checklist = ['electrico','drenaje','control','funcionamiento'];
+      base.common = { tipoEquipo:'', marcaModelo:'', btu:'', estadoFinal:'operativo_observacion', trabajoRealizado:'Revisión técnica / reparación', observaciones:'', sugerencias:'' };
+      base.cantidad = 1;
+    }
+    if(type === 'camara_frio'){
+      base.subtipoCamara = 'postres';
+      base.resumen = 'Se realiza revisión técnica de cámara de frío, verificando temperatura de operación, evaporador, condensador, ventiladores, sellos, drenaje y controlador.';
+      base.checklist = ['temperatura','evaporador','condensador','ventiladores','sellos','drenaje','electrico','control','funcionamiento'];
+      base.temperaturaInicial = '';
+      base.temperaturaFinal = '';
+      base.estadoFinal = 'operativo';
+    }
+    if(type === 'maquina_cafe' || type === 'mantencion_maquina_cafe'){
+      base.resumen = type === 'mantencion_maquina_cafe'
+        ? 'Se realiza mantención preventiva a máquina(s) de café, considerando limpieza general, revisión de grupo, bomba, vaporizador, molino, filtros y pruebas de funcionamiento.'
+        : 'Se realiza revisión técnica de máquina de café según requerimiento informado por el cliente.';
+      base.checklist = ['limpieza_general','grupo','bomba','vaporizador','molino','filtros_cafe','temperatura','funcionamiento'];
+      base.common = { tipoEquipo:'Máquina de café', marcaModelo:'', btu:'', estadoFinal:'operativo', trabajoRealizado:type === 'mantencion_maquina_cafe' ? 'Mantención preventiva' : 'Revisión técnica', observaciones:'', sugerencias:'' };
+      base.cantidad = 1;
+      base.equipos = [defaultEquipment(base.common, 1)];
+    }
+    if(type === 'tecnico_general'){
+      base.resumen = 'Se realiza revisión técnica general de acuerdo con el requerimiento informado por el cliente.';
+      base.checklist = ['funcionamiento'];
+      base.estadoFinal = 'operativo_observacion';
+    }
+    return base;
+  }
+
+  function defaultEquipment(common = {}, number = 1){
+    return {
+      numero:number,
+      area:'',
+      tipoEquipo: common.tipoEquipo || '',
+      marcaModelo: common.marcaModelo || '',
+      btu: common.btu || '',
+      estadoFinal: common.estadoFinal || 'operativo',
+      trabajoRealizado: common.trabajoRealizado || '',
+      observaciones: common.observaciones || '',
+      sugerencias: common.sugerencias || ''
+    };
+  }
+
+  function blockFromLegacyReport(rep){
+    const data = rep?.data || {};
+    if(Array.isArray(data.bloques) && data.bloques.length) return data.bloques;
+    const type = (() => {
+      const t = String(rep?.tipoServicio || data.tipoServicio || '').toLowerCase();
+      if(t.includes('camara')) return 'camara_frio';
+      if(t.includes('instal')) return 'instalacion_ac';
+      if(t.includes('mant')) return 'mantencion_ac';
+      return 'tecnico_general';
+    })();
+    const block = getBlockDefault(type);
+    block.titulo = rep?.titulo || block.titulo;
+    block.resumen = rep?.resumenEjecutivo || data.resumenEjecutivo || block.resumen;
+    block.observaciones = rep?.observacionesGenerales || data.observacionesGenerales || '';
+    block.recomendaciones = rep?.sugerenciasMejora || data.sugerenciasMejora || '';
+    block.equipos = Array.isArray(data.equipos) ? data.equipos : (Array.isArray(rep?.equipos) ? rep.equipos : []);
+    return [block];
+  }
+
+  function buildOptionHTML(items, selected){
+    return items.map(([value,label]) => `<option value="${brEsc(value)}" ${String(value)===String(selected)?'selected':''}>${brEsc(label)}</option>`).join('');
+  }
+
+  function getClientOptions(selected){
+    return ['<option value="">Selecciona cliente</option>'].concat((window.clients || clients || []).map(c => `<option value="${brEsc(c.id)}" ${String(c.id)===String(selected)?'selected':''}>${brEsc(c.name || 'Sin nombre')} · ${brEsc(c.rut || 'Sin RUT')}</option>`)).join('');
+  }
+  function getOTOptions(selected){
+    return ['<option value="">Sin OT vinculada</option>'].concat((window.ots || ots || []).map(o => `<option value="${brEsc(o.id)}" ${String(o.id)===String(selected)?'selected':''}>OT ${brEsc(o.numeroOT || o.numero_ot || 'S/N')} · ${brEsc(o.clientName || 'Cliente')}${o.numeroCotizacion ? ' · Cot. ' + brEsc(o.numeroCotizacion) : ''}</option>`)).join('');
+  }
+
+  function setupBlockReportWizard(){
+    const modal = document.querySelector('#modalContent .br-modal');
+    if(!modal) return;
+
+    const top = modal.querySelector('.br-top');
+    if(top && !document.getElementById('brWizardStepper')){
+      const stepper = document.createElement('div');
+      stepper.id = 'brWizardStepper';
+      stepper.className = 'br-stepper';
+      stepper.innerHTML = [
+        ['1','Datos básicos','Cliente, OT y fecha'],
+        ['2','Servicios','Bloques incluidos'],
+        ['3','Detalle','Equipos y observaciones'],
+        ['4','Resumen','Guardar o descargar']
+      ].map(([num,title,sub]) => `
+        <div class="br-step-chip" data-step-chip="${num}">
+          <span class="br-step-num">${num}</span>
+          <span><span class="br-step-title">${title}</span><span class="br-step-sub">${sub}</span></span>
+        </div>`).join('');
+      top.insertAdjacentElement('afterend', stepper);
+    }
+
+    const directCards = Array.from(modal.children).filter(el => el.classList && el.classList.contains('br-card'));
+    if(directCards[0]) directCards[0].dataset.brStep = '1';
+    if(directCards[1]) directCards[1].dataset.brStep = '2';
+    if(directCards[2]) directCards[2].dataset.brStep = '4';
+
+    const blocks = document.getElementById('brBlocks');
+    if(blocks) blocks.dataset.brStep = '3';
+
+    const actionBar = Array.from(modal.children).find(el => {
+      const cls = String(el.className || '');
+      return cls.includes('flex') && cls.includes('flex-wrap') && cls.includes('gap-3') && el.querySelector('[onclick^="saveBlockReport"]');
+    });
+    if(actionBar){
+      actionBar.dataset.brStep = '4';
+      actionBar.classList.add('br-final-actions');
+    }
+
+    if(!document.getElementById('brWizardControls')){
+      const controls = document.createElement('div');
+      controls.id = 'brWizardControls';
+      controls.className = 'br-wizard-controls';
+      controls.innerHTML = `
+        <div id="brWizardHint" class="br-wizard-hint">Paso 1 de 4 · Completa los datos básicos.</div>
+        <div class="br-toolbar">
+          <button type="button" id="brWizardBackBtn" class="br-btn" onclick="setBlockReportWizardStep((window.blockReportWizardStep || 1) - 1)">Anterior</button>
+          <button type="button" id="brWizardNextBtn" class="br-btn primary" onclick="setBlockReportWizardStep((window.blockReportWizardStep || 1) + 1)">Siguiente</button>
+        </div>`;
+      modal.appendChild(controls);
+    }
+
+    setBlockReportWizardStep(window.blockReportWizardStep || 1);
+  }
+
+  function updateBlockWizardOverview(){
+    const empty = document.getElementById('brBlocksEmpty');
+    const blockEls = Array.from(document.querySelectorAll('[data-report-block]'));
+    if(empty) empty.style.display = blockEls.length ? 'none' : 'block';
+
+    const overview = document.getElementById('brSelectedBlocksOverview');
+    if(!overview) return;
+
+    if(!blockEls.length){
+      overview.innerHTML = `<div class="br-selected-title">Bloques agregados</div><div class="br-selected-empty">Aún no has agregado bloques. Elige uno o más servicios y luego presiona Siguiente.</div>`;
+      return;
+    }
+
+    const chips = blockEls.map((el, idx) => {
+      const type = el.dataset.blockType || '';
+      const title = el.querySelector('[data-field="titulo"]')?.value || blockLabels[type] || 'Bloque';
+      const qty = el.querySelectorAll('[data-equipment-tbody] tr').length;
+      return `<span class="br-pill ${qty ? 'green' : ''}">${idx + 1}. ${brEsc(title)}${qty ? ` · ${qty} equipo(s)` : ''}</span>`;
+    }).join('');
+    overview.innerHTML = `<div class="br-selected-title">Bloques agregados</div><div class="br-selected-list">${chips}</div>`;
+  }
+
+  window.setBlockReportWizardStep = function(step){
+    const max = 4;
+    step = Math.max(1, Math.min(max, Number(step || 1)));
+    window.blockReportWizardStep = step;
+
+    document.querySelectorAll('[data-br-step]').forEach(el => {
+      el.classList.toggle('br-step-active', String(el.dataset.brStep) === String(step));
+    });
+
+    document.querySelectorAll('[data-step-chip]').forEach(chip => {
+      const n = Number(chip.dataset.stepChip || 0);
+      chip.classList.toggle('active', n === step);
+      chip.classList.toggle('done', n < step);
+    });
+
+    const hintText = {
+      1: 'Paso 1 de 4 · Completa cliente, OT, fecha y datos generales.',
+      2: 'Paso 2 de 4 · Agrega solo los servicios que realmente se realizaron.',
+      3: 'Paso 3 de 4 · Completa el detalle de cada bloque. Puedes contraer lo que no estés editando.',
+      4: 'Paso 4 de 4 · Revisa el resumen y guarda o descarga el Word.'
+    };
+
+    const hint = document.getElementById('brWizardHint');
+    if(hint) hint.textContent = hintText[step] || '';
+
+    const back = document.getElementById('brWizardBackBtn');
+    const next = document.getElementById('brWizardNextBtn');
+    if(back) back.style.visibility = step === 1 ? 'hidden' : 'visible';
+    if(next){
+      next.textContent = step === max ? 'Volver al resumen' : 'Siguiente';
+      next.style.display = step === max ? 'none' : 'inline-flex';
+    }
+
+    updateBlockWizardOverview();
+  };
+
+  async function showBlockReportModal(prefill = {}){
+    ensureBlockReportStyles();
+    const report = prefill && prefill.id ? await ensureReportLoaded(prefill.id) : null;
+    const linkedOTId = brSafe(prefill.otId || report?.otId || '');
+    const linkedOT = linkedOTId ? (window.ots || ots || []).find(o => String(o.id) === linkedOTId) : null;
+    const linkedQuote = report ? (typeof getLinkedQuoteForReport === 'function' ? getLinkedQuoteForReport(report) : null) : (linkedOT && typeof getLinkedQuoteForOT === 'function' ? getLinkedQuoteForOT(linkedOT) : null);
+    const selectedClientId = report?.clientId || linkedOT?.clientId || '';
+    const blocks = report ? blockFromLegacyReport(report) : [];
+    const numero = report?.numeroInforme || (typeof getNextReportNumber === 'function' ? getNextReportNumber() : 'INF-0001');
+    const fecha = report?.fecha || brToday();
+    const titulo = report?.titulo || 'Informe técnico de servicio';
+    openModal(`
+      <div class="br-modal">
+        <div class="br-top">
+          <div>
+            <div class="br-title">${report ? 'Editar informe técnico' : 'Nuevo informe técnico'}</div>
+            <div class="br-sub">Crea informes simples o mixtos por bloques: instalación, mantención AC masiva, cámaras de frío, máquina de café y observaciones técnicas. Solo agrega lo que realmente se hizo.</div>
+          </div>
+          <button onclick="closeModal()" class="br-btn">Cerrar</button>
+        </div>
+
+        <div class="br-card mb-4">
+          <div class="br-card-head"><div><div class="br-block-title">1. Datos generales</div><div class="br-block-sub">Estos datos se usan para todo el informe.</div></div><span class="br-pill">Base del informe</span></div>
+          <div class="p-4">
+            <div class="br-grid">
+              <div class="br-field"><label>N° informe</label><input id="brNumero" value="${brEsc(numero)}" readonly class="bg-slate-50"></div>
+              <div class="br-field"><label>Fecha</label><input id="brFecha" type="date" value="${brEsc(fecha)}"></div>
+              <div class="br-field"><label>OT asociada</label><select id="brOT" onchange="populateBlockReportFromOT()">${getOTOptions(linkedOTId)}</select></div>
+              <div class="br-field"><label>Cliente</label><select id="brClient">${getClientOptions(selectedClientId)}</select></div>
+              <div class="br-field md:col-span-2"><label>Título</label><input id="brTitulo" value="${brEsc(titulo)}" placeholder="Ej: Informe técnico mixto de instalación y mantención"></div>
+              <div class="br-field"><label>Técnico responsable</label><input id="brTecnico" value="${brEsc(report?.tecnicoResponsable || currentUserDisplayName || 'ECOLUZ')}"></div>
+              <div class="br-field"><label>Cotización</label><input id="brCotizacion" value="${brEsc(report?.numeroCotizacion || linkedQuote?.numeroCotizacion || linkedOT?.numeroCotizacion || '')}" placeholder="N° cotización"></div>
+              <div class="br-field md:col-span-4"><label>Dirección / sucursal</label><input id="brDireccion" value="${brEsc(report?.direccion || linkedOT?.direccion || linkedOT?.sucursal || linkedQuote?.direccion || linkedQuote?.sucursal || '')}" placeholder="Lugar donde se realizó el trabajo"></div>
+              <div class="br-field md:col-span-4"><label>Resumen general del informe</label><textarea id="brResumenGeneral" placeholder="Resumen corto del servicio realizado.">${brEsc(report?.resumenEjecutivo || '')}</textarea></div>
+              <div class="br-field md:col-span-2"><label>Observaciones generales</label><textarea id="brObsGeneral" placeholder="Opcional. Observaciones generales para todo el informe.">${brEsc(report?.observacionesGenerales || '')}</textarea></div>
+              <div class="br-field md:col-span-2"><label>Conclusión / recomendaciones generales</label><textarea id="brConclusion" placeholder="Opcional. Cierre o recomendaciones generales.">${brEsc(report?.sugerenciasMejora || '')}</textarea></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="br-card mb-4">
+          <div class="br-card-head"><div><div class="br-block-title">2. Agregar bloques de servicio</div><div class="br-block-sub">Agrega solo los servicios que correspondan. Por ejemplo: instalación AC + mantención AC + cámara de postres.</div></div></div>
+          <div class="p-4">
+            <div class="br-add-grid">
+              ${Object.entries(blockLabels).map(([type,label]) => `<button type="button" class="br-add-btn" onclick="addBlockReportBlock('${type}')">${brEsc(label)}<span>Agregar este bloque al informe</span></button>`).join('')}
+            </div>
+            <div id="brSelectedBlocksOverview" class="br-selected-overview">
+              <div class="br-selected-title">Bloques agregados</div>
+              <div class="br-selected-empty">Aún no has agregado bloques. Elige uno o más servicios y luego presiona Siguiente.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="brBlocks" class="space-y-4 mb-4"><div id="brBlocksEmpty" class="br-step-empty">Agrega al menos un bloque de servicio en el paso anterior para completar el detalle.</div></div>
+
+        <div class="br-card mb-4">
+          <div class="br-card-head"><div><div class="br-block-title">3. Resumen automático</div><div class="br-block-sub">Se actualiza según los equipos/cámaras/máquinas ingresadas.</div></div></div>
+          <div id="brSummary" class="p-4"></div>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <button onclick="saveBlockReport('${brEsc(report?.id || '')}')" class="br-btn primary">Guardar informe</button>
+          <button onclick="saveBlockReport('${brEsc(report?.id || '')}', { generateWord:true })" class="br-btn green">Guardar y descargar Word</button>
+          ${report ? `<button onclick="previewBlockReport('${brEsc(report.id)}')" class="br-btn">Vista previa</button>` : ''}
+          <button onclick="closeModal()" class="br-btn">Cancelar</button>
+        </div>
+      </div>
+    `);
+    setupBlockReportWizard();
+    if(blocks.length){ blocks.forEach(b => addBlockReportBlock(b.tipo || 'tecnico_general', b)); }
+    updateBlockReportSummary();
+    updateBlockWizardOverview();
+    populateBlockReportFromOT(false);
+    setBlockReportWizardStep(1);
+  }
+
+  window.showBlockReportModal = showBlockReportModal;
+  window.showNewReportModal = showBlockReportModal;
+  try { showNewReportModal = showBlockReportModal; } catch(e) {}
+
+  window.populateBlockReportFromOT = function(shouldUpdate = true){
+    const otId = brSafe(document.getElementById('brOT')?.value || '');
+    if(!otId) return;
+    const ot = (window.ots || ots || []).find(o => String(o.id) === otId);
+    if(!ot) return;
+    const q = typeof getLinkedQuoteForOT === 'function' ? getLinkedQuoteForOT(ot) : null;
+    const client = document.getElementById('brClient');
+    if(client && ot.clientId) client.value = ot.clientId;
+    const cot = document.getElementById('brCotizacion');
+    if(cot && !cot.value) cot.value = q?.numeroCotizacion || ot.numeroCotizacion || '';
+    const dir = document.getElementById('brDireccion');
+    if(dir && !dir.value) dir.value = ot.direccion || ot.sucursal || q?.direccion || q?.sucursal || '';
+    const title = document.getElementById('brTitulo');
+    if(title && (!title.value || title.value === 'Informe técnico de servicio')) title.value = `Informe técnico OT ${ot.numeroOT || ot.numero_ot || ''}`.trim();
+    if(shouldUpdate) updateBlockReportSummary();
+  };
+
+  window.addBlockReportBlock = function(type, existing = null){
+    const box = document.getElementById('brBlocks');
+    if(!box) return;
+    const block = Object.assign(getBlockDefault(type), existing || {});
+    block.id = block.id || brId();
+    const div = document.createElement('div');
+    div.className = 'br-card';
+    div.dataset.reportBlock = '1';
+    div.dataset.blockType = block.tipo || type;
+    div.dataset.blockId = block.id;
+    div.innerHTML = getBlockReportBlockHTML(block);
+    box.appendChild(div);
+    renderBlockEquipmentRows(div, block.equipos || []);
+    updateBlockReportSummary();
+    updateBlockWizardOverview();
+  };
+
+  function getBlockReportBlockHTML(block){
+    const type = block.tipo;
+    const cameraOptions = buildOptionHTML([
+      ['frio_general','Cámara de frío general'],['basura','Cámara de basura'],['postres','Cámara de postres'],['conservacion','Cámara de conservación'],['congelados','Cámara de congelados'],['otra','Otra cámara']
+    ], block.subtipoCamara || 'postres');
+    const stateOptions = buildOptionHTML(Object.entries(stateLabels), block.estadoFinal || 'operativo');
+    const common = block.common || {};
+    const commonStateOptions = buildOptionHTML(Object.entries(stateLabels), common.estadoFinal || 'operativo');
+    return `
+      <div class="br-card-head">
+        <div>
+          <div class="br-block-title">${brEsc(blockLabels[type] || 'Servicio técnico')}</div>
+          <div class="br-block-sub">Puedes contraer este bloque si no lo estás editando.</div>
+        </div>
+        <div class="br-toolbar"><button type="button" onclick="this.closest('[data-report-block]').querySelector('[data-block-body]').classList.toggle('hidden')" class="br-btn br-mini">Mostrar/Ocultar</button><button type="button" onclick="removeBlockReportBlock(this)" class="br-btn br-mini danger">Eliminar</button></div>
+      </div>
+      <div data-block-body class="p-4 space-y-4">
+        <div class="br-grid">
+          <div class="br-field md:col-span-2"><label>Título del bloque</label><input data-field="titulo" value="${brEsc(block.titulo || blockLabels[type] || '')}"></div>
+          ${type === 'camara_frio' ? `<div class="br-field"><label>Tipo de cámara</label><select data-field="subtipoCamara">${cameraOptions}</select></div>` : ''}
+          ${type === 'camara_frio' ? `<div class="br-field"><label>Estado final</label><select data-field="estadoFinal">${stateOptions}</select></div>` : ''}
+          <div class="br-field ${type==='camara_frio'?'md:col-span-4':'md:col-span-2'}"><label>Resumen / alcance</label><textarea data-field="resumen">${brEsc(block.resumen || '')}</textarea></div>
+          <div class="br-field md:col-span-2"><label>Trabajo realizado</label><textarea data-field="trabajoRealizado" placeholder="Describe lo realizado en este bloque.">${brEsc(block.trabajoRealizado || '')}</textarea></div>
+          <div class="br-field"><label>Observaciones</label><textarea data-field="observaciones" placeholder="Solo si aplica.">${brEsc(block.observaciones || '')}</textarea></div>
+          <div class="br-field"><label>Recomendaciones</label><textarea data-field="recomendaciones" placeholder="Solo si aplica.">${brEsc(block.recomendaciones || '')}</textarea></div>
+        </div>
+        ${getChecklistHTML(block)}
+        ${type === 'camara_frio' || type === 'tecnico_general' ? getSimpleBlockFieldsHTML(block, type) : getEquipmentBlockHTML(block, common, commonStateOptions)}
+      </div>
+    `;
+  }
+
+  function getChecklistHTML(block){
+    const selected = new Set(block.checklist || []);
+    const keys = (() => {
+      if(block.tipo === 'camara_frio') return ['temperatura','evaporador','condensador','ventiladores','sellos','drenaje','electrico','control','funcionamiento'];
+      if(block.tipo === 'maquina_cafe' || block.tipo === 'mantencion_maquina_cafe') return ['limpieza_general','grupo','bomba','vaporizador','molino','filtros_cafe','temperatura','funcionamiento'];
+      if(block.tipo === 'instalacion_ac') return ['electrico','drenaje','control','funcionamiento'];
+      return ['filtros','evaporador','condensador','drenaje','electrico','control','funcionamiento'];
+    })();
+    return `<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3"><div class="text-xs font-black uppercase tracking-wide text-slate-500 mb-2">Checklist aplicado</div><div class="br-check-grid">${keys.map(k => `<label class="br-check"><input data-checklist="${brEsc(k)}" type="checkbox" ${selected.has(k)?'checked':''} onchange="updateBlockReportSummary()">${brEsc(checklistLabels[k] || k)}</label>`).join('')}</div></div>`;
+  }
+
+  function getSimpleBlockFieldsHTML(block, type){
+    if(type === 'camara_frio'){
+      return `<div class="br-grid">
+        <div class="br-field"><label>Temperatura encontrada</label><input data-field="temperaturaInicial" value="${brEsc(block.temperaturaInicial || '')}" placeholder="Ej: 8°C"></div>
+        <div class="br-field"><label>Temperatura final</label><input data-field="temperaturaFinal" value="${brEsc(block.temperaturaFinal || '')}" placeholder="Ej: 4°C"></div>
+        <div class="br-field md:col-span-2"><label>Ubicación / detalle</label><input data-field="ubicacion" value="${brEsc(block.ubicacion || '')}" placeholder="Ej: cocina, sector postres, sala basura"></div>
+      </div>`;
+    }
+    return `<div class="br-field"><label>Detalle técnico</label><textarea data-field="detalleTecnico" placeholder="Diagnóstico, revisión realizada o detalle del requerimiento.">${brEsc(block.detalleTecnico || '')}</textarea></div>`;
+  }
+
+  function getEquipmentBlockHTML(block, common, commonStateOptions){
+    const qty = Number(block.cantidad || (block.equipos || []).length || 1);
+    return `
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+        <div class="rounded-2xl border border-emerald-100 bg-white p-3">
+          <div class="text-xs font-black uppercase tracking-wide text-slate-500 mb-3">Datos comunes para varios equipos</div>
+          <div class="br-common-grid">
+            <div class="br-field br-span-2"><label>Cantidad de equipos</label><input data-field="cantidad" type="number" min="1" value="${brEsc(qty)}"><div class="br-inline-note">Indica cuántos equipos quieres crear.</div></div>
+            <div class="br-field br-span-3"><label>Área base</label><input data-common="areaBase" value="${brEsc(common.areaBase || '')}" placeholder="Ej: Oficina, Habitación, Equipo"><div class="br-inline-note">Se usará para nombrar automáticamente: Área base 1, 2, 3...</div></div>
+            <div class="br-field br-span-3"><label>Estado común</label><select data-common="estadoFinal">${commonStateOptions}</select><div class="br-inline-note">Estado que se aplicará por defecto.</div></div>
+            <div class="br-field br-span-4"><label>Trabajo común</label><input data-common="trabajoRealizado" value="${brEsc(common.trabajoRealizado || '')}" placeholder="Ej: Mantención preventiva estándar"><div class="br-inline-note">Este texto se puede copiar a todos los equipos.</div></div>
+
+            <div class="br-field br-span-4"><label>Tipo común</label><input data-common="tipoEquipo" value="${brEsc(common.tipoEquipo || '')}" placeholder="Ej: Split muro"></div>
+            <div class="br-field br-span-4"><label>Marca / modelo común</label><input data-common="marcaModelo" value="${brEsc(common.marcaModelo || '')}" placeholder="Opcional"></div>
+            <div class="br-field br-span-4"><label>BTU / capacidad común</label><input data-common="btu" value="${brEsc(common.btu || '')}" placeholder="Ej: 12.000 BTU"></div>
+          </div>
+        </div>
+        <div class="br-toolbar" style="justify-content:flex-start;flex-wrap:wrap;gap:.5rem;">
+          <button type="button" class="br-btn br-mini green" onclick="createBlockEquipmentRows(this)">Crear equipos</button>
+          <button type="button" class="br-btn br-mini" onclick="applyBlockCommonToRows(this, 'empty')">Aplicar a vacíos</button>
+          <button type="button" class="br-btn br-mini" onclick="applyBlockCommonToRows(this, 'all')">Aplicar a todos</button>
+          <button type="button" class="br-btn br-mini" onclick="markBlockRowsOperative(this)">Todos operativos</button>
+          <button type="button" class="br-btn br-mini" onclick="toggleBlockExcelImport(this)">Pegar Excel</button>
+        </div>
+        <div class="br-import" data-excel-import>
+          <div class="br-field"><label>Pegar desde Excel</label><textarea data-excel-text placeholder="Puedes pegar columnas: Ubicación | Tipo | Marca/modelo | BTU | Estado | Observación | Recomendación"></textarea></div>
+          <button type="button" class="br-btn br-mini" onclick="importBlockRowsFromExcel(this)">Cargar filas pegadas</button>
+        </div>
+        <div class="br-table-wrap">
+          <table class="br-table">
+            <thead><tr><th style="width:54px">N°</th><th>Ubicación</th><th>Tipo</th><th>Marca / modelo</th><th>BTU / capacidad</th><th>Estado</th><th>Trabajo</th><th>Observación</th><th>Recomendación</th><th style="width:56px"></th></tr></thead>
+            <tbody data-equipment-tbody></tbody>
+          </table>
+        </div>
+        <button type="button" class="br-btn br-mini" onclick="addBlockEquipmentRowButton(this)"><i class="fa-solid fa-plus"></i>Agregar equipo</button>
+      </div>`;
+  }
+
+  window.removeBlockReportBlock = function(btn){ btn.closest('[data-report-block]')?.remove(); updateBlockReportSummary(); updateBlockWizardOverview(); };
+  window.toggleBlockExcelImport = function(btn){ btn.closest('[data-report-block]')?.querySelector('[data-excel-import]')?.classList.toggle('show'); };
+
+  function renderBlockEquipmentRows(blockEl, equipments){
+    const tbody = blockEl.querySelector('[data-equipment-tbody]');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    const rows = Array.isArray(equipments) && equipments.length ? equipments : [];
+    rows.forEach((eq, idx) => addBlockEquipmentRow(tbody, eq, idx + 1));
+  }
+
+  function getCommonFromBlock(blockEl){
+    const common = {};
+    blockEl.querySelectorAll('[data-common]').forEach(el => common[el.dataset.common] = el.value || '');
+    return common;
+  }
+
+  function addBlockEquipmentRow(tbody, eq = {}, number = null){
+    const n = number || tbody.querySelectorAll('tr').length + 1;
+    const tr = document.createElement('tr');
+    tr.dataset.blockEquipment = '1';
+    tr.innerHTML = `
+      <td><input data-eq="numero" value="${brEsc(eq.numero || n)}"></td>
+      <td><input data-eq="area" value="${brEsc(eq.area || eq.ubicacion || '')}" placeholder="Ubicación / área"></td>
+      <td><input data-eq="tipoEquipo" value="${brEsc(eq.tipoEquipo || eq.tipo || '')}" placeholder="Split, cassette, máquina..."></td>
+      <td><input data-eq="marcaModelo" value="${brEsc(eq.marcaModelo || eq.marca || '')}" placeholder="Marca / modelo"></td>
+      <td><input data-eq="btu" value="${brEsc(eq.btu || '')}" placeholder="BTU / capacidad"></td>
+      <td><select data-eq="estadoFinal">${buildOptionHTML(Object.entries(stateLabels), eq.estadoFinal || 'operativo')}</select></td>
+      <td><textarea data-eq="trabajoRealizado" placeholder="Trabajo realizado">${brEsc(eq.trabajoRealizado || eq.trabajo || '')}</textarea></td>
+      <td><textarea data-eq="observaciones" placeholder="Solo si aplica">${brEsc(eq.observaciones || eq.observacion || '')}</textarea></td>
+      <td><textarea data-eq="sugerencias" placeholder="Solo si aplica">${brEsc(eq.sugerencias || eq.recomendacion || '')}</textarea></td>
+      <td><button type="button" onclick="this.closest('tr').remove(); renumberBlockRows(this); updateBlockReportSummary();" class="br-btn br-mini danger" title="Eliminar"><i class="fa-solid fa-xmark"></i></button></td>
+    `;
+    tr.addEventListener('input', updateBlockReportSummary);
+    tr.addEventListener('change', updateBlockReportSummary);
+    tbody.appendChild(tr);
+  }
+
+  window.addBlockEquipmentRowButton = function(btn){
+    const block = btn.closest('[data-report-block]');
+    const tbody = block?.querySelector('[data-equipment-tbody]');
+    if(!tbody) return;
+    addBlockEquipmentRow(tbody, defaultEquipment(getCommonFromBlock(block), tbody.querySelectorAll('tr').length + 1));
+    updateBlockReportSummary();
+  };
+
+  window.renumberBlockRows = function(btn){
+    const block = btn.closest('[data-report-block]');
+    block?.querySelectorAll('[data-block-equipment], tr[data-block-equipment]').forEach((tr, idx) => {
+      const n = tr.querySelector('[data-eq="numero"]');
+      if(n) n.value = idx + 1;
+    });
+  };
+
+  window.createBlockEquipmentRows = function(btn){
+    const block = btn.closest('[data-report-block]');
+    const tbody = block?.querySelector('[data-equipment-tbody]');
+    if(!block || !tbody) return;
+    const qty = Math.max(1, Number(block.querySelector('[data-field="cantidad"]')?.value || 1));
+    const common = getCommonFromBlock(block);
+    tbody.innerHTML = '';
+    for(let i=1;i<=qty;i++){
+      const eq = defaultEquipment(common, i);
+      if(common.areaBase) eq.area = `${common.areaBase} ${i}`.trim();
+      addBlockEquipmentRow(tbody, eq, i);
+    }
+    updateBlockReportSummary();
+  };
+
+  window.applyBlockCommonToRows = function(btn, mode = 'empty'){
+    const block = btn.closest('[data-report-block]');
+    if(!block) return;
+    const common = getCommonFromBlock(block);
+    const rows = block.querySelectorAll('[data-equipment-tbody] tr');
+    rows.forEach((tr, idx) => {
+      const set = (field, value) => {
+        if(value === '' || value == null) return;
+        const el = tr.querySelector(`[data-eq="${field}"]`);
+        if(!el) return;
+        if(mode === 'empty' && brSafe(el.value)) return;
+        el.value = value;
+      };
+      set('tipoEquipo', common.tipoEquipo);
+      set('marcaModelo', common.marcaModelo);
+      set('btu', common.btu);
+      set('estadoFinal', common.estadoFinal);
+      set('trabajoRealizado', common.trabajoRealizado);
+      if(common.areaBase) set('area', `${common.areaBase} ${idx + 1}`.trim());
+    });
+    updateBlockReportSummary();
+  };
+
+  window.markBlockRowsOperative = function(btn){
+    const block = btn.closest('[data-report-block]');
+    block?.querySelectorAll('[data-eq="estadoFinal"]').forEach(el => el.value = 'operativo');
+    updateBlockReportSummary();
+  };
+
+  window.importBlockRowsFromExcel = function(btn){
+    const block = btn.closest('[data-report-block]');
+    const text = block?.querySelector('[data-excel-text]')?.value || '';
+    const tbody = block?.querySelector('[data-equipment-tbody]');
+    if(!tbody || !text.trim()) return;
+    tbody.innerHTML = '';
+    text.split(/\r?\n/).map(x => x.trim()).filter(Boolean).forEach((line, idx) => {
+      const parts = line.split(/\t|;|\|/).map(x => x.trim());
+      const stateRaw = (parts[4] || '').toLowerCase();
+      const estado = stateRaw.includes('no') ? 'no_operativo' : (stateRaw.includes('obs') ? 'operativo_observacion' : 'operativo');
+      addBlockEquipmentRow(tbody, { numero: idx + 1, area:parts[0]||'', tipoEquipo:parts[1]||'', marcaModelo:parts[2]||'', btu:parts[3]||'', estadoFinal:estado, observaciones:parts[5]||'', sugerencias:parts[6]||'' }, idx + 1);
+    });
+    updateBlockReportSummary();
+  };
+
+  function collectBlockReport(){
+    const otId = brSafe(document.getElementById('brOT')?.value || '');
+    const linkedOT = otId ? (window.ots || ots || []).find(o => String(o.id) === otId) : null;
+    const clientId = brSafe(document.getElementById('brClient')?.value || linkedOT?.clientId || '');
+    const client = clientId ? (window.clients || clients || []).find(c => String(c.id) === clientId) : null;
+    const blocks = Array.from(document.querySelectorAll('[data-report-block]')).map(blockEl => collectBlock(blockEl));
+    const equipments = getAllEquipmentFromBlocks(blocks);
+    const summary = summarizeBlockEquipment(equipments);
+    const tipoServicio = blocks.length > 1 ? 'mixto' : (blocks[0]?.tipo || 'tecnico_general');
+    const general = {
+      numeroInforme: brSafe(document.getElementById('brNumero')?.value || (typeof getNextReportNumber === 'function' ? getNextReportNumber() : 'INF-0001')),
+      fecha: document.getElementById('brFecha')?.value || brToday(),
+      clientId: clientId || null,
+      clientName: client?.name || linkedOT?.clientName || '',
+      clientRut: client?.rut || linkedOT?.clientRut || '',
+      otId: linkedOT?.id || otId || null,
+      quoteId: linkedOT?.quoteId || linkedOT?.quote_id || null,
+      numeroOT: linkedOT?.numeroOT || linkedOT?.numero_ot || '',
+      numeroCotizacion: brSafe(document.getElementById('brCotizacion')?.value || linkedOT?.numeroCotizacion || ''),
+      tipoServicio,
+      titulo: brSafe(document.getElementById('brTitulo')?.value || 'Informe técnico de servicio'),
+      tecnicoResponsable: brSafe(document.getElementById('brTecnico')?.value || currentUserDisplayName || 'ECOLUZ'),
+      direccion: brSafe(document.getElementById('brDireccion')?.value || ''),
+      resumenEjecutivo: brSafe(document.getElementById('brResumenGeneral')?.value || ''),
+      observacionesGenerales: brSafe(document.getElementById('brObsGeneral')?.value || ''),
+      sugerenciasMejora: brSafe(document.getElementById('brConclusion')?.value || ''),
+      totalEquipos: summary.total,
+      equiposOperativos: summary.operativos,
+      equiposObservacion: summary.observacion,
+      equiposNoOperativos: summary.noOperativos,
+      estadoGeneral: summary.total ? (summary.noOperativos >= summary.total ? 'No operativo' : ((summary.noOperativos > 0 || summary.observacion > 0) ? 'Operativo parcial' : 'Operativo')) : 'Sin equipos',
+      equipos: equipments,
+      bloques: blocks
+    };
+    general.detalleGeneral = blocks.map(b => `${blockLabels[b.tipo] || b.titulo}: ${b.resumen || b.trabajoRealizado || ''}`).filter(Boolean).join('\n');
+    general.data = {
+      formatoInforme: 'bloques_servicio_v1',
+      tipoInforme: 'mixto_por_bloques',
+      ...general,
+      bloques: blocks,
+      equipos: equipments,
+      createdByName: currentUserDisplayName || 'Usuario',
+      createdByEmail: currentUser?.email || ''
+    };
+    return general;
+  }
+
+  function collectBlock(blockEl){
+    const type = blockEl.dataset.blockType || 'tecnico_general';
+    const get = (f) => brSafe(blockEl.querySelector(`[data-field="${f}"]`)?.value || '');
+    const checklist = Array.from(blockEl.querySelectorAll('[data-checklist]:checked')).map(el => el.dataset.checklist);
+    const common = getCommonFromBlock(blockEl);
+    const equipos = Array.from(blockEl.querySelectorAll('[data-equipment-tbody] tr')).map((tr, idx) => {
+      const read = (f) => brSafe(tr.querySelector(`[data-eq="${f}"]`)?.value || '');
+      return {
+        numero: read('numero') || idx + 1,
+        area: read('area'),
+        tipoEquipo: read('tipoEquipo'),
+        marcaModelo: read('marcaModelo'),
+        btu: read('btu'),
+        estadoFinal: read('estadoFinal') || 'operativo',
+        trabajoRealizado: read('trabajoRealizado'),
+        observaciones: read('observaciones'),
+        sugerencias: read('sugerencias')
+      };
+    });
+    return {
+      id: blockEl.dataset.blockId || brId(),
+      tipo:type,
+      titulo:get('titulo') || blockLabels[type] || 'Servicio técnico',
+      resumen:get('resumen'),
+      trabajoRealizado:get('trabajoRealizado'),
+      observaciones:get('observaciones'),
+      recomendaciones:get('recomendaciones'),
+      subtipoCamara:get('subtipoCamara'),
+      temperaturaInicial:get('temperaturaInicial'),
+      temperaturaFinal:get('temperaturaFinal'),
+      ubicacion:get('ubicacion'),
+      estadoFinal:get('estadoFinal') || 'operativo',
+      detalleTecnico:get('detalleTecnico'),
+      checklist,
+      common,
+      cantidad:Number(get('cantidad') || equipos.length || 0),
+      equipos
+    };
+  }
+
+  function getAllEquipmentFromBlocks(blocks){
+    const list = [];
+    (blocks || []).forEach(block => {
+      if(Array.isArray(block.equipos) && block.equipos.length){
+        block.equipos.forEach(eq => list.push({ ...eq, bloqueTipo:block.tipo, bloqueTitulo:block.titulo }));
+      } else if(block.tipo === 'camara_frio'){
+        list.push({ numero:1, area:block.ubicacion || (block.subtipoCamara ? 'Cámara ' + block.subtipoCamara : 'Cámara'), tipoEquipo:block.titulo, marcaModelo:'', btu: block.temperaturaInicial || block.temperaturaFinal || '', estadoFinal:block.estadoFinal || 'operativo', trabajoRealizado:block.trabajoRealizado || block.resumen || '', observaciones:block.observaciones || '', sugerencias:block.recomendaciones || '', bloqueTipo:block.tipo, bloqueTitulo:block.titulo });
+      }
+    });
+    return list;
+  }
+
+  function summarizeBlockEquipment(equipments){
+    return (equipments || []).reduce((acc, eq) => {
+      acc.total += 1;
+      const st = String(eq.estadoFinal || '').toLowerCase();
+      const hasObs = brSafe(eq.observaciones || eq.sugerencias);
+      if(st.includes('no_operativo')) acc.noOperativos += 1;
+      else if(st.includes('observ') || hasObs) acc.observacion += 1;
+      else acc.operativos += 1;
+      return acc;
+    }, { total:0, operativos:0, observacion:0, noOperativos:0 });
+  }
+
+  window.updateBlockReportSummary = function(){
+    const box = document.getElementById('brSummary');
+    if(!box) return;
+    const blocks = Array.from(document.querySelectorAll('[data-report-block]')).map(collectBlock);
+    const eqs = getAllEquipmentFromBlocks(blocks);
+    const s = summarizeBlockEquipment(eqs);
+    box.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div class="br-pill">Bloques: ${blocks.length}</div>
+      <div class="br-pill green">Operativos: ${s.operativos}</div>
+      <div class="br-pill amber">Con observación: ${s.observacion}</div>
+      <div class="br-pill rose">No operativos: ${s.noOperativos}</div>
+    </div>
+    <div class="text-sm text-slate-500 mt-3">Total equipos/cámaras/máquinas considerados: <b>${s.total}</b>. Para mantenciones grandes, llena datos comunes y edita solo los equipos con observación.</div>`;
+    updateBlockWizardOverview();
+  };
+
+  window.saveBlockReport = async function(reportId = '', options = {}){
+    try{
+      const model = collectBlockReport();
+      if(!model.clientId){ alert('Selecciona un cliente o una OT asociada para el informe.'); return; }
+      if(!model.bloques.length){ alert('Agrega al menos un bloque de servicio.'); return; }
+      const payload = {
+        numero_informe: model.numeroInforme,
+        fecha: model.fecha,
+        client_id: model.clientId,
+        client_name: model.clientName,
+        client_rut: model.clientRut,
+        ot_id: model.otId,
+        quote_id: model.quoteId,
+        numero_ot: model.numeroOT,
+        numero_cotizacion: model.numeroCotizacion,
+        tipo_servicio: model.tipoServicio,
+        titulo: model.titulo,
+        tecnico_responsable: model.tecnicoResponsable,
+        direccion: model.direccion,
+        resumen_ejecutivo: model.resumenEjecutivo,
+        detalle_general: model.detalleGeneral,
+        observaciones_generales: model.observacionesGenerales,
+        sugerencias_mejora: model.sugerenciasMejora,
+        total_equipos: model.totalEquipos,
+        equipos_operativos: model.equiposOperativos,
+        equipos_no_operativos: model.equiposNoOperativos,
+        equipos_con_observacion: model.equiposObservacion,
+        estado_general: model.estadoGeneral,
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: currentUserDisplayName || 'Usuario',
+        data: model.data
+      };
+      let data, error;
+      if(reportId){
+        ({ data, error } = await supabaseClient.from(REPORTS_TABLE).update(payload).eq('id', reportId).select('*').single());
+      } else {
+        ({ data, error } = await supabaseClient.from(REPORTS_TABLE).insert([payload]).select('*').single());
+      }
+      if(error) throw error;
+      const saved = typeof mapReportRowToModel === 'function' ? mapReportRowToModel(data) : { ...model, id: data.id, created_at: data.created_at };
+      reports = replaceRecordInCollection(reports || [], saved);
+      window.reports = reports;
+      try{ renderReports(); }catch(e){}
+      try{ renderDashboard(); }catch(e){}
+      closeModal();
+      toastInfo(options.generateWord ? 'Informe guardado y Word descargado ✅' : 'Informe guardado correctamente ✅');
+      if(options.generateWord) generateBlockReportWord(saved);
+    }catch(err){
+      console.error('saveBlockReport error:', err);
+      alert('No se pudo guardar en la base de datos. No cierres esta ventana. Detalle: ' + (err?.message || err));
+    }
+  };
+
+  function getReportBlocks(rep){ return Array.isArray(rep?.data?.bloques) ? rep.data.bloques : []; }
+  function reportHasBlocks(rep){ return getReportBlocks(rep).length > 0; }
+
+  function wordTable(headers, rows){
+    return `<table style="width:100%;border-collapse:collapse;font-size:10.5pt;margin:8px 0 12px;">${headers ? `<thead><tr>${headers.map(h => `<th style="background:#eef6df;border:1px solid #cbd5c0;padding:6px;text-align:left;">${brEsc(h)}</th>`).join('')}</tr></thead>` : ''}<tbody>${rows.map(r => `<tr>${r.map(c => `<td style="border:1px solid #d7dee9;padding:5px;vertical-align:top;">${brEsc(c || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  function para(text){ return text ? `<p style="font-size:11pt;line-height:1.38;margin:6px 0 10px;">${brEsc(text)}</p>` : ''; }
+  function sectionTitle(text){ return `<h2 style="font-size:14pt;color:#35511f;border-bottom:1px solid #dbe7cc;padding-bottom:4px;margin:18px 0 8px;">${brEsc(text)}</h2>`; }
+  function subTitle(text){ return `<h3 style="font-size:12pt;color:#0f172a;margin:12px 0 6px;">${brEsc(text)}</h3>`; }
+  function blockChecklistText(block){ return (block.checklist || []).map(k => checklistLabels[k] || k).join(', '); }
+
+  function generateBlockReportHTML(rep){
+    const blocks = getReportBlocks(rep);
+    const equipos = getAllEquipmentFromBlocks(blocks);
+    const s = summarizeBlockEquipment(equipos);
+    const logo = window.LOGO_FILE || 'logo ecoluz.png';
+    const servicio = extendedReportServiceLabel(rep.tipoServicio);
+    let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${brEsc(rep.titulo || 'Informe técnico')}</title></head><body style="font-family:Arial,sans-serif;color:#0f172a;background:#fff;">
+      <div style="max-width:820px;margin:0 auto;padding:8px 4px 24px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:12px;border-bottom:3px solid #85af28;margin-bottom:14px;">
+          <div style="display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1;">
+            <img src="${brEsc(logo)}" style="max-width:185px;max-height:74px;object-fit:contain;display:block;" alt="ECOLUZ">
+            <div style="min-width:0;flex:1;">
+              <div style="font-size:17pt;line-height:1.15;font-weight:900;color:#0f172a;">Informe técnico de servicio</div>
+              <div style="font-size:13pt;line-height:1.2;font-weight:800;color:#0f172a;margin-top:4px;">${brEsc(rep.titulo || 'Informe técnico')}</div>
+            </div>
+          </div>
+          <div style="white-space:nowrap;text-align:right;font-size:11.5pt;font-weight:900;color:#5b7f27;">${brEsc(rep.numeroInforme || 'INF-S/N')}</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:32px;row-gap:12px;font-size:11pt;margin-bottom:18px;">
+          <div><span style="font-weight:900;color:#0f172a;">Cliente:</span> ${brEsc(rep.clientName || '—')}</div>
+          <div style="text-align:right;"><span style="font-weight:900;color:#0f172a;">Fecha:</span> ${brEsc(brDate(rep.fecha || rep.created_at))}</div>
+          <div><span style="font-weight:900;color:#0f172a;">OT:</span> ${brEsc(rep.numeroOT || '—')} &nbsp;&nbsp; <span style="font-weight:900;color:#0f172a;">Cotización:</span> ${brEsc(rep.numeroCotizacion || '—')}</div>
+          <div style="text-align:right;"><span style="font-weight:900;color:#0f172a;">Tipo:</span> ${brEsc(servicio || '—')}</div>
+          <div><span style="font-weight:900;color:#0f172a;">Dirección:</span> ${brEsc(rep.direccion || '—')}</div>
+          <div style="text-align:right;"><span style="font-weight:900;color:#0f172a;">Técnico responsable:</span> ${brEsc(rep.tecnicoResponsable || '—')}</div>
+        </div>
+
+        ${sectionTitle('1. Resumen general')}
+        ${para(rep.resumenEjecutivo || 'Se emite informe técnico de acuerdo con los trabajos realizados y antecedentes levantados en terreno.')}
+        ${wordTable(['Resumen de equipos / cámaras / máquinas','Cantidad'], [['Total revisados/intervenidos', s.total], ['Operativos', s.operativos], ['Operativos con observación', s.observacion], ['No operativos', s.noOperativos]])}`;
+
+    blocks.forEach((block, index) => {
+      html += sectionTitle(`${index + 2}. ${block.titulo || blockLabels[block.tipo] || 'Servicio técnico'}`);
+      html += para(block.resumen);
+      if(blockChecklistText(block)) html += para('Checklist aplicado: ' + blockChecklistText(block) + '.');
+      if(block.trabajoRealizado) html += subTitle('Trabajo realizado') + para(block.trabajoRealizado);
+      if(block.tipo === 'camara_frio'){
+        html += wordTable(['Cámara','Ubicación','Temp. encontrada','Temp. final','Estado'], [[block.subtipoCamara || 'Cámara', block.ubicacion || '—', block.temperaturaInicial || '—', block.temperaturaFinal || '—', stateLabels[block.estadoFinal] || block.estadoFinal || '—']]);
+      }
+      if(Array.isArray(block.equipos) && block.equipos.length){
+        const bs = summarizeBlockEquipment(block.equipos);
+        if(block.tipo === 'mantencion_ac' && block.equipos.length >= 10){
+          html += subTitle('Resumen del bloque') + wordTable(['Estado','Cantidad'], [['Operativos', bs.operativos], ['Con observación', bs.observacion], ['No operativos', bs.noOperativos], ['Total', bs.total]]);
+          const obsRows = block.equipos.filter(eq => brSafe(eq.observaciones || eq.sugerencias) || String(eq.estadoFinal || '').includes('no_operativo') || String(eq.estadoFinal || '').includes('observ')).map(eq => [eq.numero, eq.area, stateLabels[eq.estadoFinal] || eq.estadoFinal, eq.observaciones, eq.sugerencias]);
+          html += subTitle('Equipos con observación') + (obsRows.length ? wordTable(['N°','Ubicación','Estado','Observación','Recomendación'], obsRows) : para('No se registran observaciones particulares en los equipos intervenidos.'));
+          html += subTitle('Anexo completo de equipos') + wordTable(['N°','Ubicación','Tipo','Marca/modelo','BTU/capacidad','Estado'], block.equipos.map(eq => [eq.numero, eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, stateLabels[eq.estadoFinal] || eq.estadoFinal]));
+        } else {
+          html += subTitle('Equipos / elementos intervenidos') + wordTable(['N°','Ubicación','Tipo','Marca/modelo','BTU/capacidad','Estado','Trabajo','Observación','Recomendación'], block.equipos.map(eq => [eq.numero, eq.area, eq.tipoEquipo, eq.marcaModelo, eq.btu, stateLabels[eq.estadoFinal] || eq.estadoFinal, eq.trabajoRealizado, eq.observaciones, eq.sugerencias]));
+        }
+      }
+      if(block.observaciones) html += subTitle('Observaciones del bloque') + para(block.observaciones);
+      if(block.recomendaciones) html += subTitle('Recomendaciones del bloque') + para(block.recomendaciones);
+    });
+    html += sectionTitle('Observaciones generales') + para(rep.observacionesGenerales || 'Sin observaciones generales adicionales.');
+    html += sectionTitle('Conclusión / recomendaciones') + para(rep.sugerenciasMejora || 'Se deja constancia del servicio realizado según lo informado en el presente documento.');
+    html += `<div style="margin-top:34px;font-size:10pt;color:#64748b;">ECOLUZ Servicios · Informe generado desde sistema interno.</div></div></body></html>`;
+    return html;
+  }
+
+  function downloadWordHTML(html, filename){
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 800);
+  }
+
+  window.generateBlockReportWord = function(rep){
+    const html = generateBlockReportHTML(rep);
+    const name = `${brSafe(rep.numeroInforme || 'informe')}_${brSafe(rep.clientName || 'cliente').replace(/[^\w\-]+/g,'_')}.doc`;
+    downloadWordHTML(html, name);
+  };
+
+  window.generateReportWord = async function(reportRef){
+    const rep = typeof reportRef === 'object' ? reportRef : await ensureReportLoaded(reportRef);
+    if(rep && reportHasBlocks(rep)) return generateBlockReportWord(rep);
+    return oldGenerateReportWord ? oldGenerateReportWord(reportRef) : alert('No se pudo generar el Word.');
+  };
+  try { generateReportWord = window.generateReportWord; } catch(e) {}
+
+  window.previewBlockReport = async function(reportId){
+    const rep = await ensureReportLoaded(reportId);
+    if(!rep) return alert('Informe no encontrado');
+    if(!reportHasBlocks(rep)) return oldPreviewReport ? oldPreviewReport(reportId) : null;
+    const html = generateBlockReportHTML(rep);
+    openModal(`<div class="p-4 bg-slate-100"><div class="bg-white mx-auto p-5 shadow-sm" style="max-width:920px;max-height:82vh;overflow:auto;border:1px solid #dbe7ca;border-radius:22px;">${html.replace(/<!DOCTYPE html>|<html>|<head>[\s\S]*?<\/head>|<body[^>]*>|<\/body>|<\/html>/g,'')}<div class="mt-4 flex gap-3 justify-end"><button onclick="generateReportWord('${brEsc(rep.id)}')" class="br-btn green">Descargar Word</button><button onclick="closeModal()" class="br-btn">Cerrar</button></div></div></div>`);
+  };
+  window.previewReport = async function(reportId){
+    const rep = await ensureReportLoaded(reportId);
+    if(rep && reportHasBlocks(rep)) return previewBlockReport(reportId);
+    return oldPreviewReport ? oldPreviewReport(reportId) : null;
+  };
+  try { previewReport = window.previewReport; } catch(e) {}
+
+  // Mejorar texto del botón cuando exista la vista de informes.
+  window.addEventListener('DOMContentLoaded', () => {
+    const reportBtn = document.querySelector('#view-reports button[onclick="showNewReportModal()"] span');
+    if(reportBtn) reportBtn.textContent = 'Nuevo informe por bloques';
+  });
+})();
+
 </script>
 
 </body>
