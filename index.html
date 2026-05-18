@@ -1161,6 +1161,95 @@ body[data-ui-color-mode="dark"] .facturacion-row-pending td{background:#4c1d24!i
 body[data-ui-color-mode="dark"] .facturacion-row-annulled td{background:#4a3411!important;color:#fde68a!important}
 
 /* ===== Programa de mantención estilo pizarra anual ===== */
+
+/* ===== Programa de mantención: vista mensual limpia ===== */
+.maintenance-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.1rem}
+.maintenance-page-title{font-size:1.85rem;font-weight:950;letter-spacing:-.03em;color:#0f172a;line-height:1.05}
+.maintenance-page-sub{font-size:.9rem;color:#64748b;margin-top:.35rem;max-width:860px}
+.maintenance-action-row{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center;justify-content:flex-end;position:relative}
+.maintenance-soft-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid #dbe7ca;background:#fff;border-radius:1rem;padding:.72rem .95rem;font-weight:800;color:#334155;box-shadow:0 8px 18px rgba(15,23,42,.04)}
+.maintenance-soft-btn:hover{background:#f7fbf1}
+.maintenance-primary-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid #85af28;background:#85af28;border-radius:1rem;padding:.72rem .95rem;font-weight:900;color:#fff;box-shadow:0 10px 22px rgba(133,175,40,.22)}
+.maintenance-tabs{display:inline-flex;gap:.35rem;background:#eef6df;border:1px solid #dbe7ca;border-radius:1.15rem;padding:.35rem;margin-bottom:1rem}
+.maintenance-tab-btn{border:0;background:transparent;border-radius:.9rem;padding:.7rem 1rem;font-weight:900;color:#4c627a}
+.maintenance-tab-btn.active{background:#85af28;color:#fff;box-shadow:0 10px 20px rgba(133,175,40,.24)}
+.maintenance-view-panel{display:none}
+.maintenance-view-panel.active{display:block}
+.maintenance-control-shell{background:#fff;border:1px solid #dbe7ca;border-radius:1.35rem;box-shadow:0 12px 28px rgba(15,23,42,.06);padding:1rem;margin-bottom:1rem}
+.maintenance-control-grid{display:grid;grid-template-columns:180px 190px minmax(260px,1fr) auto;gap:.65rem;align-items:end}
+.maintenance-field label{display:block;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:.35rem}
+.maintenance-field input,.maintenance-field select{width:100%;border:1px solid #dbe3ef;border-radius:1rem;padding:.78rem .9rem;background:#fff;color:#0f172a;font-weight:700}
+.maintenance-month-nav{display:flex;align-items:center;gap:.45rem}
+.maintenance-mini-nav{width:2.7rem;height:2.7rem;border-radius:.9rem;border:1px solid #dbe7ca;background:#fff;color:#4f6f1b;display:inline-flex;align-items:center;justify-content:center;font-weight:900}
+.maintenance-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}
+.maintenance-kpi-card{background:#fff;border:1px solid #dbe7ca;border-radius:1.15rem;padding:.85rem 1rem;box-shadow:0 10px 22px rgba(15,23,42,.05)}
+.maintenance-kpi-label{font-size:.72rem;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+.maintenance-kpi-value{font-size:1.5rem;font-weight:950;line-height:1;margin-top:.35rem;color:#0f172a}
+.maintenance-month-table-shell{background:#fff;border:1px solid #dbe7ca;border-radius:1.35rem;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden}
+.maintenance-month-table-wrap{overflow:auto;max-height:68vh}
+.maintenance-month-table{width:100%;min-width:920px;border-collapse:separate;border-spacing:0}
+.maintenance-month-table th{position:sticky;top:0;z-index:6;background:#f2f7e8;border-bottom:1px solid #dbe7ca;color:#203017;text-transform:uppercase;letter-spacing:.03em;font-size:.76rem;font-weight:950;padding:.8rem .85rem;text-align:left;white-space:nowrap}
+.maintenance-month-table td{border-bottom:1px solid #edf2e6;padding:.62rem .78rem;vertical-align:middle;font-size:.86rem;color:#0f172a}
+.maintenance-month-table tr:hover td{background:#fbfdf7}
+.maintenance-status-pill{display:inline-flex;align-items:center;gap:.38rem;padding:.42rem .65rem;border-radius:999px;font-size:.75rem;font-weight:900;border:1px solid transparent;white-space:nowrap}
+.maintenance-status-done{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.maintenance-status-shifted{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}
+.maintenance-status-overdue{background:#ffe4e6;color:#be123c;border-color:#fecdd3}
+.maintenance-status-current{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.maintenance-status-planned{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.maintenance-status-paused{background:#f1f5f9;color:#475569;border-color:#cbd5e1}
+.maintenance-action-icons{display:flex;align-items:center;justify-content:center;gap:.35rem;white-space:nowrap}
+.maintenance-icon-btn{width:2.15rem;height:2.15rem;border-radius:.75rem;border:1px solid #dbe3ef;background:#fff;display:inline-flex;align-items:center;justify-content:center;color:#334155;font-weight:900}
+.maintenance-icon-btn:hover{background:#f7fbf1;color:#4f6f1b;border-color:#dbe7ca}
+
+.maintenance-header-menu{position:absolute;right:0;top:calc(100% + .5rem);z-index:40;background:#fff;border:1px solid #dbe7ca;border-radius:1rem;box-shadow:0 18px 36px rgba(15,23,42,.12);padding:.45rem;min-width:210px}
+.maintenance-header-menu button{width:100%;display:flex;align-items:center;gap:.6rem;padding:.68rem .78rem;border-radius:.78rem;font-weight:800;color:#334155;text-align:left}
+.maintenance-header-menu button:hover{background:#f7fbf1;color:#4f6f1b}
+.maintenance-search-field{order:5}
+.maintenance-search-field label{color:#94a3b8}
+.maintenance-search-field input{background:#fbfcf8!important;border-color:#e5edd8!important;font-weight:650;padding-top:.65rem!important;padding-bottom:.65rem!important}
+.maintenance-search-field input::placeholder{color:#a8b3c2}
+.maintenance-actions-field{order:6}
+.maintenance-main-action{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid #85af28;background:#85af28;color:#fff;border-radius:.85rem;padding:.55rem .75rem;font-weight:900;white-space:nowrap}
+.maintenance-more-wrap{position:relative;display:inline-flex}
+.maintenance-more-menu{position:absolute;right:0;top:calc(100% + .35rem);z-index:30;background:#fff;border:1px solid #dbe7ca;border-radius:.9rem;box-shadow:0 16px 32px rgba(15,23,42,.12);padding:.35rem;min-width:170px}
+.maintenance-more-menu button{width:100%;display:flex;align-items:center;gap:.55rem;border:0;background:#fff;border-radius:.7rem;padding:.55rem .65rem;color:#334155;font-size:.78rem;font-weight:850;text-align:left}
+.maintenance-more-menu button:hover{background:#f7fbf1;color:#4f6f1b}
+.maintenance-month-main-meta{font-size:.76rem;color:#64748b;margin-top:.18rem;line-height:1.25}
+.maintenance-month-side-info{font-size:.76rem;color:#64748b;margin-top:.28rem;line-height:1.25}
+body[data-ui-color-mode="dark"] .maintenance-header-menu,
+body[data-ui-color-mode="dark"] .maintenance-more-menu{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+
+.maintenance-program-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.maintenance-program-card{background:#fff;border:1px solid #dbe7ca;border-radius:1.15rem;padding:.95rem;box-shadow:0 10px 22px rgba(15,23,42,.05)}
+.maintenance-program-title{font-size:.98rem;font-weight:950;color:#0f172a;line-height:1.15}
+.maintenance-program-meta{font-size:.78rem;color:#64748b;margin-top:.32rem;line-height:1.35}
+.maintenance-annual-shell{background:#fff;border:1px solid #dbe7ca;border-radius:1.35rem;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden}
+.maintenance-annual-top-scroll{overflow-x:auto;overflow-y:hidden;height:14px;background:#fff;border-bottom:1px solid #dbe7ca}
+.maintenance-annual-top-scroll-inner{height:1px}
+.maintenance-annual-wrap{overflow:auto;max-height:68vh}
+.maintenance-annual-table{width:100%;min-width:1280px;border-collapse:separate;border-spacing:0}
+.maintenance-annual-table th{position:sticky;top:0;z-index:6;background:#f2f7e8;border-bottom:1px solid #dbe7ca;color:#203017;text-transform:uppercase;letter-spacing:.03em;font-size:.76rem;font-weight:950;padding:.75rem .8rem;text-align:center;white-space:nowrap}
+.maintenance-annual-table th:first-child,.maintenance-annual-table td:first-child{position:sticky;left:0;z-index:8;text-align:left}
+.maintenance-annual-table td:first-child{background:#fff;box-shadow:8px 0 14px rgba(15,23,42,.05)}
+.maintenance-annual-table th:first-child{background:#f2f7e8}
+.maintenance-annual-table td{border-bottom:1px solid #edf2e6;padding:.5rem .55rem;vertical-align:middle}
+.maintenance-annual-company{min-width:280px;max-width:320px}
+.maintenance-annual-title{font-weight:950;color:#0f172a;line-height:1.1}
+.maintenance-annual-meta{font-size:.76rem;color:#64748b;margin-top:.25rem}
+.maintenance-annual-cell-btn{width:100%;height:2.35rem;border-radius:.75rem;border:1px solid #dbe3ef;font-weight:950;font-size:.82rem}
+body[data-ui-color-mode="dark"] .maintenance-control-shell,
+body[data-ui-color-mode="dark"] .maintenance-kpi-card,
+body[data-ui-color-mode="dark"] .maintenance-month-table-shell,
+body[data-ui-color-mode="dark"] .maintenance-annual-shell,
+body[data-ui-color-mode="dark"] .maintenance-program-card{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+body[data-ui-color-mode="dark"] .maintenance-month-table th,
+body[data-ui-color-mode="dark"] .maintenance-annual-table th{background:var(--ui-table-head)!important;color:var(--ui-text)!important;border-color:var(--ui-border)!important}
+body[data-ui-color-mode="dark"] .maintenance-month-table td,
+body[data-ui-color-mode="dark"] .maintenance-annual-table td{border-color:var(--ui-border)!important}
+@media(max-width:1280px){.maintenance-control-grid{grid-template-columns:1fr 180px 150px 1fr}.maintenance-control-grid .maintenance-actions-field{grid-column:1 / -1}.maintenance-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.maintenance-program-list{grid-template-columns:1fr}}
+@media(max-width:720px){.maintenance-page-head{flex-direction:column}.maintenance-control-grid{grid-template-columns:1fr}.maintenance-summary-grid{grid-template-columns:1fr}.maintenance-tabs{display:flex;width:100%;overflow:auto}.maintenance-tab-btn{white-space:nowrap}}
+
 .maintenance-board-shell{background:#fff;border:1px solid #d9e2cf;border-radius:1.25rem;overflow:hidden;box-shadow:0 10px 26px rgba(15,23,42,.06)}
 .maintenance-board-topbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;background:#f6f8f1;border-bottom:1px solid #d9e2cf}
 .maintenance-board-title{font-size:1.55rem;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:#264018;text-align:center;flex:1}
@@ -2135,162 +2224,114 @@ body[data-ui-color-mode="dark"] .facturacion-row-annulled td{background:#4a3411!
 
 
             <div id="view-maintenance" class="hidden w-full">
-        <div class="flex items-start justify-between gap-4 mb-6">
+        <div class="maintenance-page-head">
           <div>
-            <h1 class="text-3xl font-black">Programa de mantención</h1>
-            <p class="text-sm text-gray-500 mt-1">Tablero anual para ver a quién le toca, marcar lo realizado y detectar mantenciones atrasadas.</p>
+            <h1 class="maintenance-page-title">Programa de mantención</h1>
+            <p class="maintenance-page-sub">Tablero anual compacto para revisar, gestionar y editar los programas de mantención sin duplicar vistas.</p>
           </div>
-          <div class="flex flex-wrap gap-3">
-            <button onclick="showNewClientMaintenanceProposalModal()" class="px-5 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">
-              <i class="fas fa-file-signature mr-2"></i>Propuesta comercial
+          <div class="maintenance-action-row">
+            <button onclick="showMaintenanceProgramModal()" class="maintenance-primary-btn">
+              <i class="fas fa-plus"></i><span>Nueva programación</span>
             </button>
-            <button onclick="showMaintenanceExportModal()" class="px-5 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">
-              <i class="fas fa-download mr-2"></i>Descargar planes
+            <button type="button" onclick="toggleMaintenanceHeaderMenu(this)" class="maintenance-soft-btn" title="Más acciones">
+              <i class="fas fa-ellipsis"></i><span>Más acciones</span>
             </button>
-            <button onclick="showDuplicateMaintenanceYearModal()" class="px-5 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">
-              <i class="fas fa-copy mr-2"></i>Duplicar año
-            </button>
-            <button onclick="showMaintenanceProgramModal()" class="bg-blue-600 text-white px-5 py-3 rounded-2xl font-semibold">
-              <i class="fas fa-plus mr-2"></i>Nueva programación
-            </button>
-          </div>
-        </div>
-
-        <div class="mb-6">
-          <label class="block text-sm font-semibold text-slate-700 mb-2">Buscar libremente</label>
-          <div class="relative">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input id="maintenanceSearchFree" type="text" placeholder="Busca por cliente, frecuencia, mes, OT o mantención" class="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200" oninput="renderMaintenancePrograms()" autocomplete="off" />
-          </div>
-        </div>
-
-        <div class="bg-white rounded-3xl shadow p-4 mb-6">
-          <div class="flex flex-col gap-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-semibold text-slate-700">Año visualizado</span>
-                <button type="button" onclick="changeMaintenanceYear(-1)" class="w-10 h-10 rounded-xl border bg-white hover:bg-gray-50 inline-flex items-center justify-center" title="Año anterior"><i class="fas fa-chevron-left"></i></button>
-                <span id="maintenanceYearLabel" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-800 font-black">2026</span>
-                <button type="button" onclick="changeMaintenanceYear(1)" class="w-10 h-10 rounded-xl border bg-white hover:bg-gray-50 inline-flex items-center justify-center" title="Año siguiente"><i class="fas fa-chevron-right"></i></button>
-                <button type="button" onclick="goToCurrentMaintenanceYear()" class="px-4 py-2 rounded-xl border bg-white hover:bg-gray-50 font-semibold">Hoy</button>
-              </div>
-              <div class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold" id="maintenanceFilterResultCount">0 programas</div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-2">Frecuencia</label>
-                <select id="maintenanceFilterFrequency" onchange="renderMaintenancePrograms()" class="w-full px-4 py-3 border rounded-2xl bg-white">
-                  <option value="all">Todas</option>
-                  <option value="mensual">Mensual</option>
-                  <option value="bimestral">Bimestral</option>
-                  <option value="trimestral">Trimestral</option>
-                  <option value="semestral">Semestral</option>
-                  <option value="anual">Anual</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-2">Estado</label>
-                <select id="maintenanceFilterState" onchange="renderMaintenancePrograms()" class="w-full px-4 py-3 border rounded-2xl bg-white">
-                  <option value="all">Todos</option>
-                  <option value="due_this_month">Toca este mes</option>
-                  <option value="overdue">Atrasadas</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="done">Con realización</option>
-                  <option value="paused">Pausadas</option>
-                  <option value="vigente">Vigentes</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-2">Mes programado</label>
-                <select id="maintenanceFilterMonth" onchange="renderMaintenancePrograms()" class="w-full px-4 py-3 border rounded-2xl bg-white">
-                  <option value="all">Todos los meses</option>
-                  <option value="1">Enero</option>
-                  <option value="2">Febrero</option>
-                  <option value="3">Marzo</option>
-                  <option value="4">Abril</option>
-                  <option value="5">Mayo</option>
-                  <option value="6">Junio</option>
-                  <option value="7">Julio</option>
-                  <option value="8">Agosto</option>
-                  <option value="9">Septiembre</option>
-                  <option value="10">Octubre</option>
-                  <option value="11">Noviembre</option>
-                  <option value="12">Diciembre</option>
-                </select>
-              </div>
-            </div>
-            <div class="flex justify-end">
-              <button onclick="clearMaintenanceFilters()" class="px-4 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">
-                <i class="fas fa-eraser mr-2"></i>Limpiar filtros
-              </button>
+            <div id="maintenanceHeaderMenu" class="maintenance-header-menu hidden">
+              <button type="button" onclick="showNewClientMaintenanceProposalModal(); closeMaintenanceFloatingMenus();"><i class="fas fa-file-signature"></i>Propuesta comercial</button>
+              <button type="button" onclick="showMaintenanceExportModal(); closeMaintenanceFloatingMenus();"><i class="fas fa-download"></i>Descargar planes</button>
+              <button type="button" onclick="showDuplicateMaintenanceYearModal(); closeMaintenanceFloatingMenus();"><i class="fas fa-copy"></i>Duplicar año</button>
             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Toca este mes</p>
-            <p id="maintenanceCountDueMonth" class="text-3xl font-black text-amber-700 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Atrasadas</p>
-            <p id="maintenanceCountOverdue" class="text-3xl font-black text-rose-700 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <p class="text-sm text-gray-500">Realizadas este mes</p>
-            <p id="maintenanceCountDoneMonth" class="text-3xl font-black text-emerald-700 mt-1">0</p>
+        <div class="maintenance-tabs">
+          <button id="maintenanceTabAnnual" class="maintenance-tab-btn active" onclick="setMaintenanceViewTab('annual')"><i class="fas fa-table mr-2"></i>Vista anual</button>
+          <button id="maintenanceTabPrograms" class="maintenance-tab-btn" onclick="setMaintenanceViewTab('programs')"><i class="fas fa-list-check mr-2"></i>Programas</button>
+        </div>
+
+        <div class="maintenance-control-shell">
+          <input id="maintenanceFilterMonth" type="hidden" value="all">
+          <input id="maintenanceFilterState" type="hidden" value="all">
+          <input id="maintenanceMonthlyStatusFilter" type="hidden" value="all">
+          <input id="maintenanceMonthSelect" type="hidden" value="1">
+          <div class="maintenance-control-grid">
+            <div class="maintenance-field">
+              <label>Año</label>
+              <div class="maintenance-month-nav">
+                <button type="button" onclick="changeMaintenanceYear(-1)" class="maintenance-mini-nav" title="Año anterior"><i class="fas fa-chevron-left"></i></button>
+                <span id="maintenanceYearLabel" class="inline-flex items-center justify-center min-w-[82px] px-3 h-[2.7rem] rounded-xl bg-[#f2f7e8] border border-[#dbe7ca] font-black text-[#4f6f1b]">2026</span>
+                <button type="button" onclick="changeMaintenanceYear(1)" class="maintenance-mini-nav" title="Año siguiente"><i class="fas fa-chevron-right"></i></button>
+              </div>
+            </div>
+            <div class="maintenance-field">
+              <label>Frecuencia</label>
+              <select id="maintenanceFilterFrequency" onchange="renderMaintenancePrograms()">
+                <option value="all">Todas</option>
+                <option value="mensual">Mensual</option>
+                <option value="bimestral">Bimestral</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="semestral">Semestral</option>
+                <option value="anual">Anual</option>
+              </select>
+            </div>
+            <div class="maintenance-field maintenance-search-field">
+              <label>Buscar</label>
+              <div class="relative">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input id="maintenanceSearchFree" type="text" placeholder="Buscar si es necesario" class="pl-11" oninput="renderMaintenancePrograms()" autocomplete="off" />
+              </div>
+            </div>
+            <div class="maintenance-field maintenance-actions-field">
+              <label>Acciones</label>
+              <div class="flex gap-2">
+                <button type="button" onclick="goToCurrentMaintenanceYear()" class="maintenance-soft-btn w-full" title="Volver al año actual"><i class="fas fa-location-crosshairs"></i>Hoy</button>
+                <button type="button" onclick="clearMaintenanceFilters()" class="maintenance-soft-btn w-full" title="Limpiar filtros"><i class="fas fa-eraser"></i>Limpiar</button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-          <div class="bg-white rounded-3xl shadow p-5">
-            <h2 class="text-lg font-black text-amber-700 mb-3">Toca este mes</h2>
-            <p class="text-sm text-slate-500 mb-3">Puedes marcar realizada, mandarla al calendario o crear una OT desde cada registro.</p>
-            <div id="maintenanceDueMonthList" class="space-y-2"></div>
+
+
+        <div id="maintenancePanelAnnual" class="maintenance-view-panel active">
+          <div class="bg-white rounded-3xl shadow p-4 mb-4 border border-[#dbe7ca]">
+            <div class="flex flex-wrap gap-3 text-sm">
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-emerald-200 border border-emerald-300"></span> Programada</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-amber-200 border border-amber-300"></span> Toca este mes / en gestión</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-rose-200 border border-rose-300"></span> Atrasada</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-emerald-500 border border-emerald-600"></span> Realizada</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-violet-100 border border-violet-300"></span> Desfasada</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-slate-100 border border-slate-200"></span> No aplica</span>
+            </div>
           </div>
-          <div class="bg-white rounded-3xl shadow p-5">
-            <h2 class="text-lg font-black text-rose-700 mb-3">Atrasadas</h2>
-            <div id="maintenanceOverdueList" class="space-y-2"></div>
+          <div class="maintenance-annual-shell">
+            <div id="maintenanceAnnualTopScroll" class="maintenance-annual-top-scroll"><div id="maintenanceAnnualTopScrollInner" class="maintenance-annual-top-scroll-inner"></div></div>
+            <div id="maintenanceAnnualWrap" class="maintenance-annual-wrap">
+              <table class="maintenance-annual-table">
+                <thead>
+                  <tr>
+                    <th class="maintenance-annual-company">Empresa / programa</th>
+                    <th>ENE</th><th>FEB</th><th>MAR</th><th>ABR</th><th>MAY</th><th>JUN</th><th>JUL</th><th>AGO</th><th>SEP</th><th>OCT</th><th>NOV</th><th>DIC</th>
+                  </tr>
+                </thead>
+                <tbody id="maintenanceProgramsTable"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-3xl shadow p-5 mb-4">
-          <div class="flex flex-wrap gap-3 text-sm">
-            <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-emerald-200 border border-emerald-300"></span> Programada</span>
-            <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-amber-200 border border-amber-300"></span> Toca este mes</span>
-            <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-rose-200 border border-rose-300"></span> Atrasada</span>
-            <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-emerald-500 border border-emerald-600"></span> Realizada</span>
-            <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-violet-100 border border-violet-300"></span> Desfasada / realizada otro mes</span>
-            <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded bg-slate-100 border border-slate-200"></span> No aplica</span>
-          </div>
+        <div id="maintenancePanelPrograms" class="maintenance-view-panel">
+          <div class="maintenance-program-list" id="maintenanceProgramsList"></div>
         </div>
 
-        <div class="bg-white rounded-3xl shadow overflow-hidden">
-          <div class="overflow-auto max-h-[70vh]">
-            <table class="w-full min-w-[1320px]">
-              <thead class="bg-emerald-50">
-                <tr>
-                  <th class="p-4 text-left min-w-[320px] sticky top-0 z-20 bg-emerald-50">Empresa / programa</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">ENE</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">FEB</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">MAR</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">ABR</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">MAY</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">JUN</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">JUL</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">AGO</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">SEP</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">OCT</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">NOV</th>
-                  <th class="p-4 text-center sticky top-0 z-10 bg-emerald-50">DIC</th>
-                </tr>
-              </thead>
-              <tbody id="maintenanceProgramsTable"></tbody>
-            </table>
-          </div>
+        <div class="hidden">
+          <span id="maintenanceCountDueMonth">0</span>
+          <span id="maintenanceCountOverdue">0</span>
+          <span id="maintenanceCountDoneMonth">0</span>
+          <div id="maintenanceDueMonthList"></div>
+          <div id="maintenanceOverdueList"></div>
         </div>
       </div>
-
 
       <div id="view-trash" class="hidden w-full">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -2816,6 +2857,8 @@ window.supabaseClient = supabaseClient;
     var selectedCalendarDate = null;
     var calendarViewMode = 'month';
     var maintenanceProgramYear = new Date().getFullYear();
+    var maintenanceProgramMonth = new Date().getMonth() + 1;
+    var maintenanceViewTab = 'annual';
     var maintenanceQuickFilters = { frequency:'all', state:'all', month:'all' };
     // Cuando creas una OT desde una cotización aceptada (documentos antiguos)
     var pendingQuoteToLinkOT = null; 
@@ -8406,10 +8449,12 @@ window.renderQuotes = renderQuotes;
       const frequency = document.getElementById('maintenanceFilterFrequency');
       const state = document.getElementById('maintenanceFilterState');
       const month = document.getElementById('maintenanceFilterMonth');
+      const monthlyStatus = document.getElementById('maintenanceMonthlyStatusFilter');
       if(search) search.value = '';
       if(frequency) frequency.value = 'all';
       if(state) state.value = 'all';
       if(month) month.value = 'all';
+      if(monthlyStatus) monthlyStatus.value = 'all';
       maintenanceQuickFilters = { frequency:'all', state:'all', month:'all' };
       renderMaintenancePrograms();
     }
@@ -8570,17 +8615,296 @@ window.renderQuotes = renderQuotes;
       }).join('');
     }
 
-        function renderMaintenancePrograms(){
+    
+
+    function closeMaintenanceFloatingMenus(){
+      document.querySelectorAll('.maintenance-more-menu,.maintenance-header-menu').forEach(menu => menu.classList.add('hidden'));
+    }
+
+    function toggleMaintenanceRowMenu(btn){
+      const menu = btn?.closest('.maintenance-more-wrap')?.querySelector('.maintenance-more-menu');
+      if(!menu) return;
+      const wasHidden = menu.classList.contains('hidden');
+      closeMaintenanceFloatingMenus();
+      if(wasHidden) menu.classList.remove('hidden');
+    }
+
+    function toggleMaintenanceHeaderMenu(btn){
+      const menu = document.getElementById('maintenanceHeaderMenu');
+      if(!menu) return;
+      const wasHidden = menu.classList.contains('hidden');
+      closeMaintenanceFloatingMenus();
+      if(wasHidden) menu.classList.remove('hidden');
+    }
+
+    document.addEventListener('click', (ev) => {
+      const target = ev.target;
+      if(target?.closest?.('.maintenance-more-wrap') || target?.closest?.('.maintenance-action-row')) return;
+      closeMaintenanceFloatingMenus();
+    });
+
+    function getMaintenanceSelectedMonth(){
+      const inputMonth = Number(document.getElementById('maintenanceMonthSelect')?.value || 0);
+      if(inputMonth >= 1 && inputMonth <= 12) return inputMonth;
+      const storedMonth = Number(maintenanceProgramMonth || 0);
+      if(storedMonth >= 1 && storedMonth <= 12) return storedMonth;
+      return new Date().getMonth() + 1;
+    }
+
+    function setMaintenanceMonthFromInput(){
+      maintenanceProgramMonth = getMaintenanceSelectedMonth();
+      renderMaintenancePrograms();
+    }
+
+    function changeMaintenanceMonth(delta){
+      let month = Number(getMaintenanceSelectedMonth()) + Number(delta || 0);
+      if(month < 1){
+        month = 12;
+        maintenanceProgramYear = Number(maintenanceProgramYear || new Date().getFullYear()) - 1;
+      } else if(month > 12){
+        month = 1;
+        maintenanceProgramYear = Number(maintenanceProgramYear || new Date().getFullYear()) + 1;
+      }
+      maintenanceProgramMonth = month;
+      renderMaintenancePrograms();
+    }
+
+    function setMaintenanceViewTab(tab){
+      maintenanceViewTab = ['annual','programs'].includes(tab) ? tab : 'annual';
+      ['annual','programs'].forEach(key => {
+        const panel = document.getElementById('maintenancePanel' + key.charAt(0).toUpperCase() + key.slice(1));
+        const btn = document.getElementById('maintenanceTab' + key.charAt(0).toUpperCase() + key.slice(1));
+        if(panel) panel.classList.toggle('active', key === maintenanceViewTab);
+        if(btn) btn.classList.toggle('active', key === maintenanceViewTab);
+      });
+      setTimeout(syncMaintenanceAnnualTopScrollbar, 0);
+    }
+
+    function getMaintenanceMonthlyStatusMeta(row){
+      const state = row.state;
+      if(row.shifted || state === 'shifted_actual') return { key:'shifted', label:'Realizada desfasada', cls:'maintenance-status-shifted', icon:'fa-right-left' };
+      if(state === 'done') return { key:'done', label:'Realizada', cls:'maintenance-status-done', icon:'fa-check' };
+      if(state === 'overdue') return { key:'overdue', label:'Atrasada', cls:'maintenance-status-overdue', icon:'fa-triangle-exclamation' };
+      if(state === 'current') return { key:'pending', label: row.linkedOT ? 'En gestión / con OT' : 'Pendiente del mes', cls:'maintenance-status-current', icon:'fa-clock' };
+      if(state === 'planned') return { key:'pending', label:'Programada', cls:'maintenance-status-planned', icon:'fa-calendar-check' };
+      if(state === 'paused') return { key:'paused', label:'Pausada', cls:'maintenance-status-paused', icon:'fa-pause' };
+      return { key:'none', label:'No aplica', cls:'maintenance-status-paused', icon:'fa-minus' };
+    }
+
+    function getMaintenanceMonthlyRows(year, month, programs){
+      const rows = [];
+      const rowKeys = new Set();
+      (programs || []).forEach(p => {
+        const dueMonths = getMaintenanceDueMonths(p);
+        const addRow = (scheduledMonth, extra = {}) => {
+          const key = `${p.id || getMaintenanceProgramTitle(p)}-${scheduledMonth}-${extra.actualMonth || ''}-${extra.state || ''}`;
+          if(rowKeys.has(key)) return;
+          rowKeys.add(key);
+          const state = extra.state || getMaintenanceCellState(p, scheduledMonth);
+          const history = extra.history || getMaintenanceHistoryForMonth(p, scheduledMonth);
+          const actualMonth = extra.actualMonth || (history ? getMaintenanceHistoryActualMonth(history, scheduledMonth) : (state === 'done' ? getMaintenanceCompletionActualMonth(p, scheduledMonth) : 0));
+          const actualYear = history ? getMaintenanceHistoryActualYear(history, Number(p.programYear || year)) : Number(p.programYear || year);
+          const linkedOT = getMaintenanceLinkedOT(p.id, scheduledMonth, Number(p.programYear || year));
+          const shifted = extra.shifted || (state === 'done' && actualMonth && Number(actualMonth) !== Number(scheduledMonth));
+          rows.push({ program:p, scheduledMonth, state, history, actualMonth, actualYear, linkedOT, shifted });
+        };
+
+        if(dueMonths.includes(Number(month))) addRow(Number(month));
+
+        // También se muestran en el mes real las mantenciones desfasadas, aunque su mes programado haya sido otro.
+        dueMonths.forEach(scheduledMonth => {
+          if(Number(scheduledMonth) === Number(month)) return;
+          if(!isMaintenanceCompletedInMonth(p, scheduledMonth)) return;
+          const history = getMaintenanceHistoryForMonth(p, scheduledMonth);
+          const actualMonth = history ? getMaintenanceHistoryActualMonth(history, scheduledMonth) : getMaintenanceCompletionActualMonth(p, scheduledMonth);
+          const actualYear = history ? getMaintenanceHistoryActualYear(history, Number(p.programYear || year)) : Number(p.programYear || year);
+          if(Number(actualMonth) === Number(month) && Number(actualYear) === Number(year)){
+            addRow(Number(scheduledMonth), { state:'shifted_actual', history, actualMonth, actualYear, shifted:true });
+          }
+        });
+      });
+
+      const statusFilter = String(document.getElementById('maintenanceMonthlyStatusFilter')?.value || 'all').toLowerCase();
+      return rows.filter(row => {
+        if(statusFilter === 'all') return true;
+        const meta = getMaintenanceMonthlyStatusMeta(row);
+        return meta.key === statusFilter;
+      }).sort((a,b) => {
+        const order = { overdue:0, pending:1, shifted:2, done:3, paused:4, none:9 };
+        const ma = getMaintenanceMonthlyStatusMeta(a);
+        const mb = getMaintenanceMonthlyStatusMeta(b);
+        const oa = order[ma.key] ?? 9;
+        const ob = order[mb.key] ?? 9;
+        if(oa !== ob) return oa - ob;
+        return String(getMaintenanceProgramTitle(a.program)).localeCompare(String(getMaintenanceProgramTitle(b.program)), 'es');
+      });
+    }
+
+    function renderMaintenanceMonthlyView(year, month, programs){
+      const select = document.getElementById('maintenanceMonthSelect');
+      if(select) select.value = String(month);
+      const monthTitle = document.getElementById('maintenanceMonthTitle');
+      if(monthTitle) monthTitle.textContent = `Mantenciones de ${getMaintenanceMonthName(month)} ${year}`;
+
+      const allRows = getMaintenanceMonthlyRows(year, month, programs);
+      const noStatusPrograms = (programs || []).filter(p => isMaintenanceDueInMonth(p, month));
+      const allMonthRowsNoStatus = getMaintenanceMonthlyRows(year, month, programs.map(p => p)); // already filtered by UI status
+      const unfilteredForKPI = (() => {
+        const saved = document.getElementById('maintenanceMonthlyStatusFilter')?.value;
+        const sel = document.getElementById('maintenanceMonthlyStatusFilter');
+        if(sel) sel.value = 'all';
+        const rows = getMaintenanceMonthlyRows(year, month, programs);
+        if(sel) sel.value = saved || 'all';
+        return rows;
+      })();
+
+      const counts = unfilteredForKPI.reduce((acc, row) => {
+        const meta = getMaintenanceMonthlyStatusMeta(row);
+        if(isMaintenanceDueInMonth(row.program, row.scheduledMonth)) acc.programadas += 1;
+        if(meta.key === 'done') acc.realizadas += 1;
+        if(meta.key === 'pending') acc.pendientes += 1;
+        if(meta.key === 'shifted') acc.desfasadas += 1;
+        if(meta.key === 'overdue') acc.atrasadas += 1;
+        return acc;
+      }, { programadas:0, realizadas:0, pendientes:0, desfasadas:0, atrasadas:0 });
+
+      const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
+      setText('maintenanceMonthlyProgramadas', counts.programadas);
+      setText('maintenanceMonthlyRealizadas', counts.realizadas);
+      setText('maintenanceMonthlyPendientes', counts.pendientes);
+      setText('maintenanceMonthlyDesfasadas', counts.desfasadas);
+      setText('maintenanceMonthlyAtrasadas', counts.atrasadas);
+
+      const tbody = document.getElementById('maintenanceMonthTable');
+      if(!tbody) return;
+      if(!allRows.length){
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">No hay mantenciones para ${escapeHtml(getMaintenanceMonthName(month))} ${year} con los filtros actuales.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = allRows.map(row => {
+        const p = row.program;
+        const meta = getMaintenanceMonthlyStatusMeta(row);
+        const actualMonthText = row.actualMonth ? getMaintenanceMonthName(row.actualMonth) : '—';
+        const realDate = row.history?.date || row.history?.fecha || row.history?.createdAt || '';
+        const otText = row.linkedOT ? (row.linkedOT.numeroOT || row.linkedOT.numero_ot || 'OT') : '—';
+        const tech = p.responsible || row.history?.responsible || row.history?.tecnico || '';
+        const service = `${getMaintenanceFrequencyLabel(p.frequency)}${getMaintenanceEquipmentCount(p) ? ' · ' + getMaintenanceEquipmentCount(p) + ' equipos' : ''}`;
+        return `
+          <tr>
+            <td>
+              <div class="font-black text-slate-900">${escapeHtml(getMaintenanceProgramTitle(p))}</div>
+              <div class="maintenance-month-main-meta">${escapeHtml(service)}${p.siteName || p.serviceType ? ' · ' + escapeHtml(p.siteName || p.serviceType || '') : ''}</div>
+            </td>
+            <td><span class="maintenance-status-pill ${meta.cls}"><i class="fas ${meta.icon}"></i>${escapeHtml(meta.label)}</span></td>
+            <td class="whitespace-nowrap">
+              <div><span class="font-black text-slate-700">Prog.:</span> ${escapeHtml(getMaintenanceMonthName(row.scheduledMonth))}</div>
+              <div class="maintenance-month-side-info"><span class="font-black">Real:</span> ${escapeHtml(actualMonthText)}${realDate ? ` · ${escapeHtml(formatDDMMYY(realDate))}` : ''}</div>
+            </td>
+            <td class="whitespace-nowrap">
+              <div>${row.linkedOT ? `<button onclick="previewOT('${row.linkedOT.id}')" class="font-black text-[#4f6f1b] hover:underline">${escapeHtml(otText)}</button>` : '<span class="text-slate-400">Sin OT</span>'}</div>
+              <div class="maintenance-month-side-info">${tech ? escapeHtml(tech) : 'Sin técnico asignado'}</div>
+            </td>
+            <td class="text-center">
+              <div class="maintenance-action-icons">
+                <button class="maintenance-main-action" onclick="showMaintenanceMonthActions('${p.id}', ${row.scheduledMonth})" title="Gestionar mes"><i class="fas fa-list-check"></i>Gestionar</button>
+                <span class="maintenance-more-wrap">
+                  <button type="button" class="maintenance-icon-btn" onclick="toggleMaintenanceRowMenu(this)" title="Más acciones"><i class="fas fa-ellipsis-vertical"></i></button>
+                  <div class="maintenance-more-menu hidden">
+                    <button type="button" onclick="createOTFromMaintenance('${p.id}', ${row.scheduledMonth}); closeMaintenanceFloatingMenus();"><i class="fas fa-screwdriver-wrench"></i>Crear OT</button>
+                    <button type="button" onclick="sendMaintenanceMonthToCalendar('${p.id}', ${row.scheduledMonth}); closeMaintenanceFloatingMenus();"><i class="fas fa-calendar-days"></i>Calendario</button>
+                    <button type="button" onclick="showMaintenanceProgramModal('${p.id}'); closeMaintenanceFloatingMenus();"><i class="fas fa-pen"></i>Editar programa</button>
+                    <button type="button" onclick="showMaintenanceHistoryModal('${p.id}'); closeMaintenanceFloatingMenus();"><i class="fas fa-clock-rotate-left"></i>Historial</button>
+                  </div>
+                </span>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderMaintenanceProgramsList(year, programs){
+      const box = document.getElementById('maintenanceProgramsList');
+      if(!box) return;
+      if(!programs.length){
+        box.innerHTML = `<div class="maintenance-program-card text-slate-500">No hay programas que coincidan con los filtros actuales.</div>`;
+        return;
+      }
+      box.innerHTML = programs.map(p => {
+        const dueMonths = getMaintenanceDueMonths(p).map(m => getMaintenanceMonthShortName(m)).join(' · ');
+        const matrix = getMaintenanceMatrixQuote(p);
+        return `
+          <div class="maintenance-program-card">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="maintenance-program-title">${escapeHtml(getMaintenanceProgramTitle(p))}</div>
+                <div class="maintenance-program-meta">${escapeHtml(getMaintenanceFrequencyLabel(p.frequency))} · ${escapeHtml(getMaintenanceStatusLabel(p.status))} · Meses: ${escapeHtml(dueMonths || '—')}</div>
+                ${getMaintenanceEquipmentCount(p) ? `<div class="maintenance-program-meta">${escapeHtml(String(getMaintenanceEquipmentCount(p)))} equipos</div>` : ''}
+                ${p.responsible ? `<div class="maintenance-program-meta">Responsable: ${escapeHtml(p.responsible)}</div>` : ''}
+                <div class="maintenance-program-meta ${matrix ? 'text-indigo-600 font-semibold' : ''}">${escapeHtml(matrix ? ('Cotización matriz ' + String(matrix.numeroCotizacion || matrix.numero || 'S/N')) : (getMaintenanceMatrixQuoteNumber(p) ? ('Cotización matriz ' + getMaintenanceMatrixQuoteNumber(p)) : 'Sin cotización matriz'))}</div>
+              </div>
+              <div class="maintenance-action-icons">
+                <button class="maintenance-icon-btn" onclick="showMaintenanceProgramModal('${p.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                <button class="maintenance-icon-btn" onclick="toggleMaintenanceProgramStatus('${p.id}')" title="${String(p.status) === 'vigente' ? 'Pausar' : 'Activar'}"><i class="fas ${String(p.status) === 'vigente' ? 'fa-pause' : 'fa-play'}"></i></button>
+                <button class="maintenance-icon-btn" onclick="showMaintenanceHistoryModal('${p.id}')" title="Historial"><i class="fas fa-clock-rotate-left"></i></button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    let maintenanceAnnualScrollLock = false;
+    function syncMaintenanceAnnualTopScrollbar(){
+      const wrap = document.getElementById('maintenanceAnnualWrap');
+      const top = document.getElementById('maintenanceAnnualTopScroll');
+      const inner = document.getElementById('maintenanceAnnualTopScrollInner');
+      const table = wrap?.querySelector('table');
+      if(!wrap || !top || !inner || !table) return;
+      inner.style.width = `${Math.max(table.scrollWidth, wrap.clientWidth)}px`;
+      if(!top.dataset.bound){
+        top.addEventListener('scroll', () => {
+          if(maintenanceAnnualScrollLock) return;
+          maintenanceAnnualScrollLock = true;
+          wrap.scrollLeft = top.scrollLeft;
+          maintenanceAnnualScrollLock = false;
+        });
+        wrap.addEventListener('scroll', () => {
+          if(maintenanceAnnualScrollLock) return;
+          maintenanceAnnualScrollLock = true;
+          top.scrollLeft = wrap.scrollLeft;
+          maintenanceAnnualScrollLock = false;
+        });
+        top.dataset.bound = '1';
+      }
+      top.scrollLeft = wrap.scrollLeft;
+    }
+
+    function renderMaintenancePrograms(){
+      closeMaintenanceFloatingMenus();
       normalizeMaintenancePrograms();
       const year = Number(maintenanceProgramYear || new Date().getFullYear());
+      const month = getMaintenanceSelectedMonth();
+      maintenanceProgramMonth = month;
+
       const title = document.getElementById('maintenanceYearTitle');
       if(title) title.textContent = year;
       const chip = document.getElementById('maintenanceYearChip');
       if(chip) chip.textContent = year;
       const yearLabel = document.getElementById('maintenanceYearLabel');
       if(yearLabel) yearLabel.textContent = year;
+      const monthSelect = document.getElementById('maintenanceMonthSelect');
+      if(monthSelect) monthSelect.value = String(month);
 
       const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
+
+      // La vista mensual maneja su propio filtro de estado/mes.
+      const legacyMonth = document.getElementById('maintenanceFilterMonth');
+      const legacyState = document.getElementById('maintenanceFilterState');
+      if(legacyMonth) legacyMonth.value = 'all';
+      if(legacyState) legacyState.value = 'all';
+
       const programs = getMaintenanceProgramsForBoard(year);
       const summary = getMaintenanceSummary(year, programs);
       setText('maintenanceCountDueMonth', summary.dueMonth.length);
@@ -8592,6 +8916,8 @@ window.renderQuotes = renderQuotes;
 
       renderMaintenanceAlertList(summary.dueMonth, 'maintenanceDueMonthList', 'due');
       renderMaintenanceAlertList(summary.overdue, 'maintenanceOverdueList', 'overdue');
+      renderMaintenanceProgramsList(year, programs);
+      setMaintenanceViewTab(maintenanceViewTab || 'annual');
 
       const tbody = document.getElementById('maintenanceProgramsTable');
       if(!tbody) return;
@@ -8599,6 +8925,7 @@ window.renderQuotes = renderQuotes;
       if(!programs.length){
         const hasAny = getMaintenanceProgramsForYear(year).length > 0;
         tbody.innerHTML = `<tr><td class="p-6 text-center text-gray-500" colspan="13">${hasAny ? 'No hay programas que coincidan con los filtros aplicados.' : `No hay programaciones para ${year}. Crea la primera con “Nueva programación”.`}</td></tr>`;
+        setTimeout(syncMaintenanceAnnualTopScrollbar, 0);
         return;
       }
 
@@ -8606,65 +8933,23 @@ window.renderQuotes = renderQuotes;
         const dueMonths = getMaintenanceDueMonths(p);
         const meta = `${getMaintenanceFrequencyLabel(p.frequency)} · inicio ${getMaintenanceMonthName(p.startMonth)} · ${getMaintenanceStatusLabel(p.status)}`;
         return `
-          <tr class="border-t hover:bg-slate-50/60">
-            <td class="p-4 align-top">
-              <div class="font-black text-slate-800">${escapeHtml(getMaintenanceProgramTitle(p))}</div>
-              <div class="text-sm text-slate-500 mt-1">${escapeHtml(meta)}</div>
-              ${p.siteName ? `<div class="text-xs text-slate-400 mt-1">Sucursal: ${escapeHtml(p.siteName)}</div>` : ``}
-              ${getMaintenanceEquipmentCount(p) ? `<div class="text-xs text-slate-400 mt-1">Cantidad de equipos: ${escapeHtml(String(getMaintenanceEquipmentCount(p)))}</div>` : ``}
-              ${p.responsible ? `<div class="text-xs text-slate-400 mt-1">Responsable: ${escapeHtml(p.responsible)}</div>` : ``}
-              <div class="text-xs mt-1 ${getMaintenanceMatrixQuote(p) ? 'text-indigo-600 font-semibold' : 'text-slate-400'}">${escapeHtml(getMaintenanceMatrixQuote(p) ? ('Cotización matriz ' + String(getMaintenanceMatrixQuote(p)?.numeroCotizacion || getMaintenanceMatrixQuote(p)?.numero || 'S/N')) : (getMaintenanceMatrixQuoteNumber(p) ? ('Cotización matriz ' + getMaintenanceMatrixQuoteNumber(p)) : 'Sin cotización matriz'))}</div>
-              <div class="flex flex-wrap items-center gap-2 mt-3">
-                <button
-                  onclick="showMaintenanceProgramModal('${p.id}')"
-                  title="Editar"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas fa-pen"></i>
-                </button>
-                <button
-                  onclick="toggleMaintenanceProgramStatus('${p.id}')"
-                  title="${String(p.status) === 'vigente' ? 'Pausar' : 'Activar'}"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas ${String(p.status) === 'vigente' ? 'fa-pause' : 'fa-play'}"></i>
-                </button>
-                <button
-                  onclick="sendMaintenanceMonthToCalendar('${p.id}', ${getSuggestedMaintenanceMonthForOT(p)})"
-                  title="Calendario"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas fa-calendar-days"></i>
-                </button>
-                <button
-                  onclick="showMaintenanceProposalModal('${p.id}')"
-                  title="Propuesta cliente"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas fa-file-lines"></i>
-                </button>
-                <button
-                  onclick="createOTFromMaintenance('${p.id}', ${getSuggestedMaintenanceMonthForOT(p)})"
-                  title="Crear OT"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas fa-screwdriver-wrench"></i>
-                </button>
-                <button
-                  onclick="${getMaintenanceMatrixQuote(p) ? `openMaintenanceMatrixQuote('${p.id}','edit')` : `showMaintenanceProgramModal('${p.id}')`}"
-                  title="Cotización matriz"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas fa-file-invoice"></i>
-                </button>
-                <button
-                  onclick="showMaintenanceHistoryModal('${p.id}')"
-                  title="Historial"
-                  class="w-11 h-11 rounded-xl border text-base font-semibold hover:bg-gray-50 inline-flex items-center justify-center">
-                  <i class="fas fa-clock-rotate-left"></i>
-                </button>
+          <tr>
+            <td class="maintenance-annual-company">
+              <div class="maintenance-annual-title">${escapeHtml(getMaintenanceProgramTitle(p))}</div>
+              <div class="maintenance-annual-meta">${escapeHtml(meta)}</div>
+              ${getMaintenanceEquipmentCount(p) ? `<div class="maintenance-annual-meta">${escapeHtml(String(getMaintenanceEquipmentCount(p)))} equipos</div>` : ``}
+              <div class="maintenance-action-icons mt-2 justify-start">
+                <button class="maintenance-icon-btn" onclick="showMaintenanceProgramModal('${p.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                <button class="maintenance-icon-btn" onclick="toggleMaintenanceProgramStatus('${p.id}')" title="${String(p.status) === 'vigente' ? 'Pausar' : 'Activar'}"><i class="fas ${String(p.status) === 'vigente' ? 'fa-pause' : 'fa-play'}"></i></button>
+                <button class="maintenance-icon-btn" onclick="showMaintenanceHistoryModal('${p.id}')" title="Historial"><i class="fas fa-clock-rotate-left"></i></button>
               </div>
             </td>
-            ${Array.from({length:12}, (_,i) => i+1).map(month => {
-              const state = getMaintenanceCellState(p, month);
-              const isDue = dueMonths.includes(month);
-              const linkedOT = getMaintenanceLinkedOT(p.id, month, p.programYear);
-              const shifted = state === 'done' && isMaintenanceCompletionShifted(p, month);
-              const actualMonth = shifted ? getMaintenanceCompletionActualMonth(p, month) : month;
+            ${Array.from({length:12}, (_,i) => i+1).map(monthNum => {
+              const state = getMaintenanceCellState(p, monthNum);
+              const isDue = dueMonths.includes(monthNum);
+              const linkedOT = getMaintenanceLinkedOT(p.id, monthNum, p.programYear);
+              const shifted = state === 'done' && isMaintenanceCompletionShifted(p, monthNum);
+              const actualMonth = shifted ? getMaintenanceCompletionActualMonth(p, monthNum) : monthNum;
               const label = state === 'done'
                 ? (shifted ? `<span class="text-[10px] leading-tight inline-flex flex-col items-center"><span>↪</span><span>${getMaintenanceMonthShortName(actualMonth)}</span></span>` : '<i class="fas fa-check"></i>')
                 : (linkedOT ? '<i class="fas fa-screwdriver-wrench text-xs"></i>' : (state === 'overdue' ? '!' : '<i class="fas fa-ellipsis text-xs"></i>'));
@@ -8672,17 +8957,17 @@ window.renderQuotes = renderQuotes;
                 ? 'No aplica'
                 : (state === 'done'
                     ? (shifted
-                        ? `Clic para gestionar ${getMaintenanceMonthName(month)} · ${getMaintenanceShiftedLabel(p, month)}`
-                        : `Clic para gestionar ${getMaintenanceMonthName(month)} · ya marcada como realizada`)
+                        ? `Clic para gestionar ${getMaintenanceMonthName(monthNum)} · ${getMaintenanceShiftedLabel(p, monthNum)}`
+                        : `Clic para gestionar ${getMaintenanceMonthName(monthNum)} · ya marcada como realizada`)
                     : (linkedOT
-                        ? `Clic para gestionar ${getMaintenanceMonthName(month)} · OT ${linkedOT.numeroOT || linkedOT.numero_ot || ''} vinculada`
-                        : `Clic para gestionar ${getMaintenanceMonthName(month)}`));
+                        ? `Clic para gestionar ${getMaintenanceMonthName(monthNum)} · OT ${linkedOT.numeroOT || linkedOT.numero_ot || ''} vinculada`
+                        : `Clic para gestionar ${getMaintenanceMonthName(monthNum)}`));
               return `
-                <td class="p-2">
+                <td>
                   <button
-                    ${isDue ? `onclick="showMaintenanceMonthActions('${p.id}', ${month})"` : 'disabled'}
-                    title="${title}"
-                    class="w-full h-12 rounded-xl border font-black text-sm ${getMaintenanceCellClass(state)} ${shifted ? 'maintenance-shifted-cell' : ''} ${isDue ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}">
+                    ${isDue ? `onclick="showMaintenanceMonthActions('${p.id}', ${monthNum})"` : 'disabled'}
+                    title="${escapeHtml(title)}"
+                    class="maintenance-annual-cell-btn ${getMaintenanceCellClass(state)} ${shifted ? 'maintenance-shifted-cell' : ''} ${isDue ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}">
                     ${isDue ? label : ''}
                   </button>
                 </td>
@@ -8691,6 +8976,7 @@ window.renderQuotes = renderQuotes;
           </tr>
         `;
       }).join('');
+      setTimeout(syncMaintenanceAnnualTopScrollbar, 0);
     }
 
     function changeMaintenanceYear(delta){
@@ -8698,8 +8984,13 @@ window.renderQuotes = renderQuotes;
       renderMaintenancePrograms();
     }
 
+    window.addEventListener('resize', () => setTimeout(syncMaintenanceAnnualTopScrollbar, 0));
+
     function goToCurrentMaintenanceYear(){
-      maintenanceProgramYear = new Date().getFullYear();
+      const now = new Date();
+      maintenanceProgramYear = now.getFullYear();
+      maintenanceProgramMonth = now.getMonth() + 1;
+      maintenanceViewTab = 'annual';
       renderMaintenancePrograms();
     }
 
