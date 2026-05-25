@@ -554,6 +554,73 @@ function toggleEditOTFacturaField(){
     #btn-visitas{ --section-color:#be123c; --section-bg:#fff1f2; }
     #btn-reqs{ --section-color:#475569; --section-bg:#f8fafc; }
     #btn-maintenance{ --section-color:#0f766e; --section-bg:#ecfeff; }
+
+    #btn-projects{ --section-color:#5b7f27; --section-bg:#f7fbf1; }
+
+/* ===== Proyectos internos: pizarra por etapas ===== */
+.projects-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.2rem}
+.projects-page-title{font-size:1.9rem;font-weight:950;letter-spacing:-.03em;color:#0f172a;line-height:1.05}
+.projects-page-sub{font-size:.92rem;color:#64748b;margin-top:.35rem;max-width:900px}
+.projects-primary-btn{display:inline-flex;align-items:center;justify-content:center;gap:.48rem;border:1px solid #85af28;background:#85af28;border-radius:1rem;padding:.78rem 1rem;font-weight:900;color:#fff;box-shadow:0 10px 22px rgba(133,175,40,.22)}
+.projects-soft-btn{display:inline-flex;align-items:center;justify-content:center;gap:.48rem;border:1px solid #dbe7ca;background:#fff;border-radius:1rem;padding:.72rem .95rem;font-weight:800;color:#334155;box-shadow:0 8px 18px rgba(15,23,42,.04)}
+.projects-soft-btn:hover{background:#f7fbf1}
+.projects-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
+.projects-kpi-card{background:#fff;border:1px solid #dbe7ca;border-radius:1.15rem;padding:1rem;box-shadow:0 10px 24px rgba(15,23,42,.05)}
+.projects-kpi-label{font-size:.74rem;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+.projects-kpi-value{font-size:1.65rem;font-weight:950;line-height:1;margin-top:.35rem;color:#0f172a}
+.projects-control-shell{background:#fff;border:1px solid #dbe7ca;border-radius:1.35rem;box-shadow:0 12px 28px rgba(15,23,42,.06);padding:1rem;margin-bottom:1rem}
+.projects-control-grid{display:grid;grid-template-columns:minmax(260px,1fr) 190px 170px auto;gap:.7rem;align-items:end}
+.projects-field label{display:block;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:.35rem}
+.projects-field input,.projects-field select,.projects-field textarea{width:100%;border:1px solid #dbe3ef;border-radius:1rem;padding:.78rem .9rem;background:#fff;color:#0f172a;font-weight:700}
+.projects-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.project-card{background:#fff;border:1px solid #dbe7ca;border-radius:1.25rem;padding:1rem;box-shadow:0 12px 28px rgba(15,23,42,.06);display:flex;flex-direction:column;min-height:230px}
+.project-card:hover{box-shadow:0 16px 34px rgba(15,23,42,.10);transform:translateY(-1px);transition:.12s ease}
+.project-card-title{font-size:1.06rem;font-weight:950;color:#0f172a;line-height:1.15;overflow-wrap:anywhere}
+.project-card-desc{font-size:.84rem;color:#64748b;line-height:1.35;margin-top:.45rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.project-badge{display:inline-flex;align-items:center;gap:.36rem;padding:.38rem .68rem;border-radius:999px;font-size:.72rem;font-weight:900;border:1px solid transparent;white-space:nowrap}
+.project-badge-pendiente{background:#fff7e6;color:#a16207;border-color:#f6c453}
+.project-badge-en_proceso{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
+.project-badge-pausado,.project-badge-en_espera{background:#f5f3ff;color:#6d28d9;border-color:#c4b5fd}
+.project-badge-finalizado,.project-badge-realizado{background:#ecfdf3;color:#166534;border-color:#86efac}
+.project-badge-cancelado{background:#fef2f2;color:#b91c1c;border-color:#fca5a5}
+.project-progress-wrap{height:.62rem;border-radius:999px;background:#eef2f7;overflow:hidden}
+.project-progress-bar{height:100%;background:#85af28;border-radius:999px;transition:width .18s ease}
+.project-board-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem}
+.project-board-title{font-size:1.65rem;font-weight:950;color:#0f172a;letter-spacing:-.02em;line-height:1.1}
+.project-board-meta{font-size:.86rem;color:#64748b;margin-top:.28rem;line-height:1.35}
+.project-board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:.85rem;align-items:start;overflow-x:auto;padding-bottom:.4rem}
+.project-column{background:#f8fafc;border:1px solid #dbe7ca;border-radius:1.1rem;min-height:360px;display:flex;flex-direction:column;max-height:72vh}
+.project-column-head{position:sticky;top:0;z-index:3;background:#f2f7e8;border-bottom:1px solid #dbe7ca;border-radius:1.1rem 1.1rem 0 0;padding:.85rem .9rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.project-column-title{font-size:.86rem;font-weight:950;color:#203017;text-transform:uppercase;letter-spacing:.03em}
+.project-column-count{font-size:.76rem;font-weight:950;color:#5b7f27;background:#fff;border:1px solid #dbe7ca;border-radius:999px;padding:.22rem .5rem}
+.project-column-body{padding:.75rem;display:flex;flex-direction:column;gap:.7rem;overflow:auto}
+.project-task-card{background:#fff;border:1px solid #e2e8f0;border-radius:1rem;padding:.85rem;box-shadow:0 8px 18px rgba(15,23,42,.05)}
+.project-task-title{font-weight:950;color:#0f172a;line-height:1.15;overflow-wrap:anywhere}
+.project-task-desc{font-size:.78rem;color:#64748b;line-height:1.32;margin-top:.4rem;white-space:pre-wrap}
+.project-task-meta{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;font-size:.72rem;color:#64748b}
+.project-task-chip{display:inline-flex;align-items:center;gap:.3rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:999px;padding:.28rem .48rem;font-weight:750}
+.project-task-actions{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem}
+.project-task-actions button{border:1px solid #dbe3ef;border-radius:.65rem;background:#fff;color:#334155;font-size:.72rem;font-weight:850;padding:.38rem .5rem}
+.project-task-actions button:hover{background:#f7fbf1;color:#4f6f1b}
+.project-empty{background:#fff;border:1px dashed #cbd5e1;border-radius:1rem;padding:1rem;text-align:center;color:#94a3b8;font-size:.82rem}
+.project-history-box{background:#fff;border:1px solid #dbe7ca;border-radius:1.15rem;padding:1rem;margin-top:1rem;box-shadow:0 10px 24px rgba(15,23,42,.05)}
+.project-history-item{display:grid;grid-template-columns:130px 1fr;gap:.75rem;padding:.65rem 0;border-bottom:1px solid #edf2e6;font-size:.84rem}
+.project-history-item:last-child{border-bottom:0}
+.project-history-date{font-weight:850;color:#64748b}
+.project-history-text{color:#334155}
+body[data-ui-color-mode="dark"] .projects-kpi-card,
+body[data-ui-color-mode="dark"] .projects-control-shell,
+body[data-ui-color-mode="dark"] .project-card,
+body[data-ui-color-mode="dark"] .project-task-card,
+body[data-ui-color-mode="dark"] .project-history-box{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+body[data-ui-color-mode="dark"] .project-column{background:var(--ui-surface)!important;border-color:var(--ui-border)!important}
+body[data-ui-color-mode="dark"] .project-column-head{background:var(--ui-table-head)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+body[data-ui-color-mode="dark"] .project-card-title,
+body[data-ui-color-mode="dark"] .project-task-title,
+body[data-ui-color-mode="dark"] .project-board-title{color:var(--ui-text)!important}
+@media(max-width:1350px){.projects-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.projects-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.projects-control-grid{grid-template-columns:1fr 180px 170px}.projects-control-grid .projects-field:last-child{grid-column:1 / -1}.project-board{grid-template-columns:repeat(5,260px)}}
+@media(max-width:760px){.projects-page-head,.project-board-head{flex-direction:column}.projects-grid,.projects-kpi-grid,.projects-control-grid{grid-template-columns:1fr}.project-history-item{grid-template-columns:1fr}.project-board{grid-template-columns:repeat(5,240px)}}
+
     #btn-trash{ --section-color:#dc2626; --section-bg:#fef2f2; }
     #sidebar nav .nav-btn.nav-active{ background: var(--section-bg, #e8f0ff); color:#111827; }
     .sidebar-secondary-btn{ width:100%; text-align:left; padding:.6rem .85rem; border-radius:.9rem; display:flex; align-items:center; gap:.6rem; justify-content:flex-start; border:1px solid #e5e7eb; background:rgba(255,255,255,.75); font-size:.95rem; color:#475569; transition:background-color .15s ease, border-color .15s ease, color .15s ease; }
@@ -1374,6 +1441,7 @@ body[data-ui-color-mode="dark"] .maintenance-annual-table td{border-color:var(--
         <button onclick="showView('abonos')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-abonos"><i class="fas fa-hand-holding-dollar"></i> <span class="sidebar-label">Facturación y Abonos</span></button>
         <button onclick="showView('visitas')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-visitas"><i class="fas fa-helmet-safety"></i> <span class="sidebar-label">Visitas Técnicas</span></button>
         <button onclick="showView('reqs')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-reqs"><i class="fas fa-clipboard-list"></i> <span class="sidebar-label">Requerimientos</span></button>
+        <button onclick="showView('projects')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-projects"><i class="fas fa-table-columns"></i> <span class="sidebar-label">Proyectos</span></button>
         <button onclick="showView('maintenance')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-maintenance"><i class="fas fa-table-cells-large"></i> <span class="sidebar-label">Programa Mantención</span></button>
         <button onclick="showView('trash')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3" id="btn-trash"><i class="fas fa-trash-can-arrow-up"></i> <span class="sidebar-label">Papelera</span></button>
       </nav>
@@ -2222,6 +2290,95 @@ body[data-ui-color-mode="dark"] .maintenance-annual-table td{border-color:var(--
       </div>
 
 
+
+
+
+      <div id="view-projects" class="hidden w-full">
+        <div id="projectsListPage">
+          <div class="projects-page-head">
+            <div>
+              <h1 class="projects-page-title">Proyectos internos</h1>
+              <p class="projects-page-sub">Pizarra para ordenar ideas y gestiones internas de oficina: vestimenta, compras, mejoras, trámites y acuerdos que necesitan seguimiento.</p>
+            </div>
+            <div class="flex flex-wrap gap-3 justify-end">
+              <button onclick="showNewInternalProjectModal()" class="projects-primary-btn"><i class="fas fa-plus"></i>Nuevo proyecto</button>
+            </div>
+          </div>
+
+          <div class="projects-kpi-grid">
+            <div class="projects-kpi-card"><div class="projects-kpi-label">Proyectos activos</div><div id="projectsKpiActive" class="projects-kpi-value text-[#5b7f27]">0</div></div>
+            <div class="projects-kpi-card"><div class="projects-kpi-label">Tareas pendientes</div><div id="projectsKpiPending" class="projects-kpi-value text-amber-700">0</div></div>
+            <div class="projects-kpi-card"><div class="projects-kpi-label">En proceso / espera</div><div id="projectsKpiWorking" class="projects-kpi-value text-blue-700">0</div></div>
+            <div class="projects-kpi-card"><div class="projects-kpi-label">Realizadas</div><div id="projectsKpiDone" class="projects-kpi-value text-emerald-700">0</div></div>
+          </div>
+
+          <div class="projects-control-shell">
+            <div class="projects-control-grid">
+              <div class="projects-field">
+                <label>Buscar</label>
+                <div class="relative">
+                  <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input id="projectsSearchFree" type="text" oninput="renderInternalProjects()" placeholder="Busca por nombre, responsable, estado, prioridad o descripción" class="pl-11" autocomplete="off">
+                </div>
+              </div>
+              <div class="projects-field">
+                <label>Estado</label>
+                <select id="projectsFilterStatus" onchange="renderInternalProjects()">
+                  <option value="all">Todos</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="en_proceso">En proceso</option>
+                  <option value="pausado">Pausado</option>
+                  <option value="finalizado">Finalizado</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
+              <div class="projects-field">
+                <label>Prioridad</label>
+                <select id="projectsFilterPriority" onchange="renderInternalProjects()">
+                  <option value="all">Todas</option>
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
+                </select>
+              </div>
+              <div class="projects-field">
+                <label>Acciones</label>
+                <button type="button" onclick="loadInternalProjects().then(renderInternalProjects)" class="projects-soft-btn w-full"><i class="fas fa-rotate"></i>Actualizar</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="projectsGrid" class="projects-grid"></div>
+          <div id="projectsEmpty" class="hidden bg-white rounded-3xl shadow p-10 text-center text-gray-500 border border-dashed border-slate-300">No hay proyectos para mostrar. Crea el primero con el botón <b>Nuevo proyecto</b>.</div>
+        </div>
+
+        <div id="projectBoardPage" class="hidden">
+          <div class="project-board-head">
+            <div>
+              <button onclick="backToInternalProjectsList()" class="mb-3 px-4 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold"><i class="fas fa-arrow-left mr-2"></i>Volver a proyectos</button>
+              <h1 id="projectBoardTitle" class="project-board-title">Proyecto</h1>
+              <p id="projectBoardSubtitle" class="project-board-meta">—</p>
+            </div>
+            <div class="flex flex-wrap gap-3 justify-end">
+              <button onclick="showInternalProjectTaskModal()" class="projects-primary-btn"><i class="fas fa-plus"></i>Nuevo paso</button>
+              <button onclick="showEditInternalProjectModal()" class="projects-soft-btn"><i class="fas fa-pen"></i>Editar proyecto</button>
+            </div>
+          </div>
+
+          <div id="projectBoardStats" class="projects-kpi-grid"></div>
+          <div id="projectBoardColumns" class="project-board"></div>
+          <div class="project-history-box">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <h2 class="text-lg font-black text-slate-800">Historial del proyecto</h2>
+                <p class="text-sm text-slate-500">Registro de avances, cambios de estado y comentarios.</p>
+              </div>
+              <button onclick="showInternalProjectHistoryModal()" class="projects-soft-btn"><i class="fas fa-comment-dots"></i>Agregar avance</button>
+            </div>
+            <div id="projectHistoryList"></div>
+          </div>
+        </div>
+      </div>
 
             <div id="view-maintenance" class="hidden w-full">
         <div class="maintenance-page-head">
@@ -7389,6 +7546,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     });
 
     await loadMaintenancePrograms();
+    try { await loadInternalProjects(); } catch(e) { console.warn('No se pudieron cargar proyectos internos', e); }
 
     // Exponer a window (para helpers/paginación)
     window.quotes = quotes;
@@ -7399,6 +7557,9 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     window.reports = reports;
     window.reportStorageMode = reportStorageMode;
     window.maintenancePrograms = maintenancePrograms;
+    window.internalProjects = internalProjects;
+    window.internalProjectTasks = internalProjectTasks;
+    window.internalProjectHistory = internalProjectHistory;
     window.clients = clients;
 
     // Render
@@ -7590,6 +7751,7 @@ async function refreshSelectiveSharedData(tables){
   if (refreshSet.has(REPORTS_TABLE)) await refreshReportsCollectionFromServer();
   if (refreshSet.has('calendar_events')) await loadCalendarEvents();
   if (refreshSet.has('maintenance_programs')) await loadMaintenancePrograms();
+  if (refreshSet.has('internal_projects') || refreshSet.has('internal_project_tasks') || refreshSet.has('internal_project_history')) await refreshInternalProjectsCollectionFromServer();
   if (refreshSet.has(RECYCLE_BIN_TABLE)) await loadRecycleBinItems();
 
   window.quotes = quotes;
@@ -7599,6 +7761,9 @@ async function refreshSelectiveSharedData(tables){
   window.reports = reports;
   window.reportStorageMode = reportStorageMode;
   window.maintenancePrograms = maintenancePrograms;
+  window.internalProjects = internalProjects;
+  window.internalProjectTasks = internalProjectTasks;
+  window.internalProjectHistory = internalProjectHistory;
   window.clients = clients;
 
   renderAll();
@@ -8120,6 +8285,9 @@ window.renderQuotes = renderQuotes;
       'visitas',
       'calendar_events',
       'maintenance_programs',
+      'internal_projects',
+      'internal_project_tasks',
+      'internal_project_history',
       REPORTS_TABLE,
       (window.RECYCLE_BIN_TABLE || 'recycle_bin')
     ];
@@ -8205,7 +8373,7 @@ window.renderQuotes = renderQuotes;
         let channel = supabaseClient.channel('public:shared-sync');
         SHARED_SYNC_TABLES.forEach((tableName) => {
           channel = channel.on('postgres_changes', { event: '*', schema: 'public', table: tableName }, async () => {
-            const lightweightTables = new Set(['quotes','ots','requerimientos','visitas', REPORTS_TABLE, 'calendar_events', 'maintenance_programs']);
+            const lightweightTables = new Set(['quotes','ots','requerimientos','visitas', REPORTS_TABLE, 'calendar_events', 'maintenance_programs', 'internal_projects', 'internal_project_tasks', 'internal_project_history']);
             scheduleSharedDataRefresh(true, 'realtime', lightweightTables.has(tableName) ? tableName : 'full');
           });
         });
@@ -12591,7 +12759,7 @@ window.renderQuotes = renderQuotes;
     
 function showView(view) {
   // Normalizar nombres de vistas (evita pantallas en blanco por alias)
-  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', mandantes:'mandantes', quotes:'quotes', ots:'ots', reports:'reports', informes:'reports', dashboard:'dashboard', calendario:'calendar', calendar:'calendar', maintenance:'maintenance', mantenciones:'maintenance', programa:'maintenance', trash:'trash', papelera:'trash' };
+  const alias = { payments:'abonos', abonos:'abonos', visits:'visitas', visitas:'visitas', reqs:'reqs', requirements:'reqs', requerimientos:'reqs', clients:'clients', mandantes:'mandantes', quotes:'quotes', ots:'ots', reports:'reports', informes:'reports', dashboard:'dashboard', calendario:'calendar', calendar:'calendar', maintenance:'maintenance', mantenciones:'maintenance', programa:'maintenance', trash:'trash', papelera:'trash', projects:'projects', proyectos:'projects' };
   view = alias[view] || view;
   window.currentMainView = view;
   try { updateTopbarSearchButton(view); } catch(e){}
@@ -12629,7 +12797,7 @@ function showView(view) {
   // Top title
   const t = document.getElementById('topbarTitle');
   if (t) {
-    const map = {dashboard:'Dashboard', calendar:'Calendario', maintenance:'Programa de mantención', clients:'Clientes', mandantes:'Mandantes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', reports:'Informes', informes:'Informes', payments:'Abonos & Cobranza', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos & Cobranza', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', trash:'Papelera', papelera:'Papelera'};
+    const map = {dashboard:'Dashboard', calendar:'Calendario', maintenance:'Programa de mantención', clients:'Clientes', mandantes:'Mandantes', quotes:'Cotizaciones', ots:'Órdenes de Trabajo', reports:'Informes', informes:'Informes', payments:'Abonos & Cobranza', visits:'Visitas Técnicas', reqs:'Requerimientos', abonos:'Abonos & Cobranza', visitas:'Visitas Técnicas', requerimientos:'Requerimientos', trash:'Papelera', papelera:'Papelera', projects:'Proyectos'};
     t.textContent = map[view] || '';
   }
 // Apply pagination when entering certain views
@@ -12711,6 +12879,9 @@ function showView(view) {
 
   if (view === 'maintenance') {
     try { renderMaintenancePrograms(); } catch(e){ console.error(e); }
+  }
+  if (view === 'projects') {
+    try { loadInternalProjects().then(() => { renderInternalProjects(); backToInternalProjectsList(); }); } catch(e){ console.error(e); }
   }
   if (view === 'trash') {
     try { renderTrash(); } catch(e){ console.error(e); }
@@ -13100,6 +13271,7 @@ function renderAll() {
   renderVisitas();
   renderReqs();
   try { renderMaintenancePrograms(); } catch(e) {}
+  try { renderInternalProjects(); } catch(e) {}
   try { if (typeof window.renderCalendar === 'function') window.renderCalendar(); } catch(e) {}
   // aplicar paginación si ya está definida
   setTimeout(() => { try { applyClients(); } catch(e){} }, 0);
@@ -30265,6 +30437,701 @@ window.generateQuotePDF = async function(quoteId){
     if(reportBtn) reportBtn.textContent = 'Nuevo informe por bloques';
   });
 })();
+
+
+
+// ================= PROYECTOS INTERNOS =================
+var INTERNAL_PROJECTS_TABLE = window.INTERNAL_PROJECTS_TABLE || 'internal_projects';
+var INTERNAL_PROJECT_TASKS_TABLE = window.INTERNAL_PROJECT_TASKS_TABLE || 'internal_project_tasks';
+var INTERNAL_PROJECT_HISTORY_TABLE = window.INTERNAL_PROJECT_HISTORY_TABLE || 'internal_project_history';
+var internalProjects = window.internalProjects || [];
+var internalProjectTasks = window.internalProjectTasks || [];
+var internalProjectHistory = window.internalProjectHistory || [];
+var currentInternalProjectId = window.currentInternalProjectId || null;
+var internalProjectFallbackSingleTable = false;
+
+const INTERNAL_PROJECT_STAGES = [
+  { key:'pendiente', label:'Pendiente', icon:'fa-list-check' },
+  { key:'en_proceso', label:'En proceso', icon:'fa-spinner' },
+  { key:'en_espera', label:'En espera', icon:'fa-clock' },
+  { key:'realizado', label:'Realizado', icon:'fa-circle-check' },
+  { key:'cancelado', label:'Cancelado', icon:'fa-ban' }
+];
+
+function projectSafeId(){
+  try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  return 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+}
+function projectText(v){ return (typeof safeText === 'function') ? safeText(v) : String(v || '').trim(); }
+function projectEsc(v){ return (typeof escapeHtml === 'function') ? escapeHtml(v) : String(v || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function projectDateLabel(v){
+  if(!v) return '—';
+  if(typeof formatDDMMYY === 'function') return formatDDMMYY(v);
+  const s = String(v); return s.length >= 10 ? s.slice(0,10) : s;
+}
+function normalizeProjectStatus(v){
+  const s = String(v || 'pendiente').toLowerCase().replace(/\s+/g,'_').replace(/-/g,'_').trim();
+  if(['en_curso','encurso','proceso'].includes(s)) return 'en_proceso';
+  if(['espera','en_espera','pausado','pausada'].includes(s)) return s === 'en_espera' ? 'en_espera' : 'pausado';
+  if(['finalizada','finalizado','realizado','realizada','terminado','terminada'].includes(s)) return 'finalizado';
+  if(['cancelada','cancelado','anulado','anulada'].includes(s)) return 'cancelado';
+  if(['pendiente','en_proceso','finalizado','cancelado','pausado'].includes(s)) return s;
+  return 'pendiente';
+}
+function normalizeProjectTaskStage(v){
+  const s = String(v || 'pendiente').toLowerCase().replace(/\s+/g,'_').replace(/-/g,'_').trim();
+  if(['en_curso','encurso','proceso'].includes(s)) return 'en_proceso';
+  if(['espera','pausado','pausada'].includes(s)) return 'en_espera';
+  if(['finalizado','finalizada','realizada','terminado','terminada'].includes(s)) return 'realizado';
+  if(['cancelada','cancelado','anulado','anulada'].includes(s)) return 'cancelado';
+  if(['pendiente','en_proceso','en_espera','realizado','cancelado'].includes(s)) return s;
+  return 'pendiente';
+}
+function projectStatusLabel(status){
+  const map = { pendiente:'Pendiente', en_proceso:'En proceso', pausado:'Pausado', finalizado:'Finalizado', cancelado:'Cancelado', en_espera:'En espera', realizado:'Realizado' };
+  return map[status] || projectText(status) || 'Pendiente';
+}
+function projectPriorityLabel(v){
+  const s = String(v || 'media').toLowerCase().trim();
+  if(s === 'alta') return 'Alta';
+  if(s === 'baja') return 'Baja';
+  return 'Media';
+}
+function projectBadge(status){
+  const s = normalizeProjectStatus(status);
+  return `<span class="project-badge project-badge-${s}">${projectStatusLabel(s)}</span>`;
+}
+function projectTaskBadge(stage){
+  const s = normalizeProjectTaskStage(stage);
+  const cls = s === 'en_espera' ? 'en_espera' : s;
+  return `<span class="project-badge project-badge-${cls}">${projectStatusLabel(s)}</span>`;
+}
+function mapInternalProjectRow(row){
+  const data = row?.data || {};
+  return {
+    id: row?.id,
+    title: row?.title || row?.nombre || data.title || data.nombre || 'Proyecto sin nombre',
+    description: row?.description || row?.descripcion || data.description || data.descripcion || '',
+    status: normalizeProjectStatus(row?.status || row?.estado || data.status || data.estado || 'pendiente'),
+    priority: String(row?.priority || row?.prioridad || data.priority || data.prioridad || 'media').toLowerCase(),
+    ownerName: row?.owner_name || row?.responsable || data.ownerName || data.owner_name || data.responsable || '',
+    startDate: row?.start_date || row?.fecha_inicio || data.startDate || data.fecha_inicio || '',
+    dueDate: row?.due_date || row?.fecha_objetivo || data.dueDate || data.fecha_objetivo || '',
+    createdByName: row?.created_by_name || data.created_by_name || formatShortName?.(row?.created_by_email || '') || '—',
+    createdByEmail: row?.created_by_email || data.created_by_email || '',
+    created_at: row?.created_at || data.created_at || '',
+    updated_at: row?.updated_at || data.updated_at || '',
+    data: data
+  };
+}
+function mapInternalProjectTaskRow(row){
+  const data = row?.data || {};
+  return {
+    id: row?.id || data.id || projectSafeId(),
+    projectId: row?.project_id || row?.projectId || data.project_id || data.projectId || '',
+    title: row?.title || row?.nombre || data.title || data.nombre || 'Paso sin nombre',
+    description: row?.description || row?.descripcion || data.description || data.descripcion || '',
+    stage: normalizeProjectTaskStage(row?.stage || row?.estado || data.stage || data.estado || 'pendiente'),
+    responsibleName: row?.responsible_name || row?.responsable || data.responsibleName || data.responsable || '',
+    dueDate: row?.due_date || row?.fecha_compromiso || data.dueDate || data.fecha_compromiso || '',
+    completedAt: row?.completed_at || data.completedAt || data.completed_at || '',
+    position: Number(row?.position ?? data.position ?? 0) || 0,
+    createdByName: row?.created_by_name || data.createdByName || data.created_by_name || '—',
+    created_at: row?.created_at || data.created_at || '',
+    data: data,
+    _fallback: !!row?._fallback
+  };
+}
+function mapInternalProjectHistoryRow(row){
+  const data = row?.data || {};
+  return {
+    id: row?.id || data.id || projectSafeId(),
+    projectId: row?.project_id || row?.projectId || data.project_id || data.projectId || '',
+    taskId: row?.task_id || row?.taskId || data.task_id || data.taskId || '',
+    action: row?.action || row?.accion || data.action || data.accion || 'avance',
+    comment: row?.comment || row?.comentario || data.comment || data.comentario || '',
+    createdByName: row?.created_by_name || data.createdByName || data.created_by_name || '—',
+    created_at: row?.created_at || data.created_at || new Date().toISOString(),
+    _fallback: !!row?._fallback
+  };
+}
+function getProjectById(projectId){ return (internalProjects || []).find(p => String(p.id) === String(projectId)); }
+function getProjectTasks(projectId){
+  return (internalProjectTasks || [])
+    .filter(t => String(t.projectId || t.project_id || '') === String(projectId || ''))
+    .sort((a,b) => (Number(a.position)||0) - (Number(b.position)||0) || String(a.created_at || '').localeCompare(String(b.created_at || '')));
+}
+function getProjectHistory(projectId){
+  return (internalProjectHistory || [])
+    .filter(h => String(h.projectId || h.project_id || '') === String(projectId || ''))
+    .sort((a,b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+}
+function getProjectProgress(projectId){
+  const tasks = getProjectTasks(projectId).filter(t => normalizeProjectTaskStage(t.stage) !== 'cancelado');
+  const done = tasks.filter(t => normalizeProjectTaskStage(t.stage) === 'realizado').length;
+  const total = tasks.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return { done, total, pct };
+}
+function setProjectsWindowRefs(){
+  window.internalProjects = internalProjects;
+  window.internalProjectTasks = internalProjectTasks;
+  window.internalProjectHistory = internalProjectHistory;
+  window.currentInternalProjectId = currentInternalProjectId;
+}
+
+async function loadInternalProjects(){
+  try{
+    const { data: pRows, error: pErr } = await supabaseClient
+      .from(INTERNAL_PROJECTS_TABLE)
+      .select('*')
+      .order('created_at', { ascending:false });
+    if(pErr) throw pErr;
+    internalProjects = (pRows || []).map(mapInternalProjectRow);
+
+    let taskRows = [];
+    let historyRows = [];
+    internalProjectFallbackSingleTable = false;
+
+    try{
+      const { data, error } = await supabaseClient
+        .from(INTERNAL_PROJECT_TASKS_TABLE)
+        .select('*')
+        .order('position', { ascending:true });
+      if(error) throw error;
+      taskRows = data || [];
+    }catch(taskErr){
+      internalProjectFallbackSingleTable = true;
+      console.warn('Proyectos: usando tareas guardadas dentro de data porque no se pudo leer tabla de tareas:', taskErr?.message || taskErr);
+      taskRows = [];
+      internalProjects.forEach(p => {
+        const list = Array.isArray(p.data?.tasks) ? p.data.tasks : [];
+        list.forEach(t => taskRows.push({ ...t, project_id: p.id, _fallback:true }));
+      });
+    }
+
+    try{
+      const { data, error } = await supabaseClient
+        .from(INTERNAL_PROJECT_HISTORY_TABLE)
+        .select('*')
+        .order('created_at', { ascending:false });
+      if(error) throw error;
+      historyRows = data || [];
+    }catch(histErr){
+      internalProjectFallbackSingleTable = true;
+      console.warn('Proyectos: usando historial guardado dentro de data porque no se pudo leer tabla de historial:', histErr?.message || histErr);
+      historyRows = [];
+      internalProjects.forEach(p => {
+        const list = Array.isArray(p.data?.history) ? p.data.history : [];
+        list.forEach(h => historyRows.push({ ...h, project_id: p.id, _fallback:true }));
+      });
+    }
+
+    internalProjectTasks = taskRows.map(mapInternalProjectTaskRow);
+    internalProjectHistory = historyRows.map(mapInternalProjectHistoryRow);
+    setProjectsWindowRefs();
+    return internalProjects;
+  }catch(err){
+    console.error('Error cargando proyectos internos:', err);
+    internalProjects = [];
+    internalProjectTasks = [];
+    internalProjectHistory = [];
+    setProjectsWindowRefs();
+    return [];
+  }
+}
+
+async function refreshInternalProjectsCollectionFromServer(){
+  await loadInternalProjects();
+}
+
+async function saveProjectDataFallback(projectId){
+  const project = getProjectById(projectId);
+  if(!project) return;
+  const data = { ...(project.data || {}) };
+  data.tasks = getProjectTasks(projectId).map(t => ({
+    id:t.id,
+    title:t.title,
+    description:t.description,
+    stage:t.stage,
+    responsibleName:t.responsibleName,
+    dueDate:t.dueDate,
+    completedAt:t.completedAt,
+    position:t.position,
+    createdByName:t.createdByName,
+    created_at:t.created_at,
+    data:t.data || {}
+  }));
+  data.history = getProjectHistory(projectId).map(h => ({
+    id:h.id,
+    taskId:h.taskId,
+    action:h.action,
+    comment:h.comment,
+    createdByName:h.createdByName,
+    created_at:h.created_at
+  }));
+  project.data = data;
+  const { error } = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).update({ data, updated_at:new Date().toISOString() }).eq('id', projectId);
+  if(error){
+    const fallback = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).update({ data }).eq('id', projectId);
+    if(fallback.error) throw fallback.error;
+  }
+}
+
+async function addProjectHistory(projectId, action, comment='', taskId=null){
+  const item = {
+    id: projectSafeId(),
+    projectId,
+    taskId: taskId || null,
+    action: action || 'avance',
+    comment: comment || '',
+    createdByName: currentUserDisplayName || formatShortName?.(currentUser?.email || '') || 'Usuario',
+    created_at: new Date().toISOString(),
+    _fallback: internalProjectFallbackSingleTable
+  };
+  if(!internalProjectFallbackSingleTable){
+    try{
+      const payload = {
+        project_id: projectId,
+        task_id: taskId || null,
+        action: item.action,
+        comment: item.comment,
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: item.createdByName
+      };
+      const { data, error } = await supabaseClient.from(INTERNAL_PROJECT_HISTORY_TABLE).insert([payload]).select().single();
+      if(error) throw error;
+      internalProjectHistory.unshift(mapInternalProjectHistoryRow(data));
+      setProjectsWindowRefs();
+      return;
+    }catch(err){
+      console.warn('Proyectos: no se pudo insertar historial en tabla separada, se usará data del proyecto:', err?.message || err);
+      internalProjectFallbackSingleTable = true;
+    }
+  }
+  internalProjectHistory.unshift(item);
+  await saveProjectDataFallback(projectId);
+  setProjectsWindowRefs();
+}
+
+function renderInternalProjects(){
+  const grid = document.getElementById('projectsGrid');
+  const empty = document.getElementById('projectsEmpty');
+  if(!grid) return;
+  const q = String(document.getElementById('projectsSearchFree')?.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const status = String(document.getElementById('projectsFilterStatus')?.value || 'all');
+  const priority = String(document.getElementById('projectsFilterPriority')?.value || 'all');
+
+  const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  let list = (internalProjects || []).filter(p => {
+    if(status !== 'all' && normalizeProjectStatus(p.status) !== status) return false;
+    if(priority !== 'all' && String(p.priority || 'media').toLowerCase() !== priority) return false;
+    if(!q) return true;
+    const hay = [p.title, p.description, p.status, p.priority, p.ownerName, p.createdByName].map(norm).join(' ');
+    return hay.includes(q);
+  });
+
+  const allTasks = internalProjectTasks || [];
+  const activeProjects = (internalProjects || []).filter(p => !['finalizado','cancelado'].includes(normalizeProjectStatus(p.status))).length;
+  const pendingTasks = allTasks.filter(t => normalizeProjectTaskStage(t.stage) === 'pendiente').length;
+  const workingTasks = allTasks.filter(t => ['en_proceso','en_espera'].includes(normalizeProjectTaskStage(t.stage))).length;
+  const doneTasks = allTasks.filter(t => normalizeProjectTaskStage(t.stage) === 'realizado').length;
+  const set = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
+  set('projectsKpiActive', activeProjects); set('projectsKpiPending', pendingTasks); set('projectsKpiWorking', workingTasks); set('projectsKpiDone', doneTasks);
+
+  if(!list.length){
+    grid.innerHTML = '';
+    if(empty) empty.classList.remove('hidden');
+    return;
+  }
+  if(empty) empty.classList.add('hidden');
+
+  grid.innerHTML = list.map(p => {
+    const progress = getProjectProgress(p.id);
+    const tasks = getProjectTasks(p.id);
+    const last = getProjectHistory(p.id)[0];
+    const pending = tasks.filter(t => normalizeProjectTaskStage(t.stage) !== 'realizado' && normalizeProjectTaskStage(t.stage) !== 'cancelado').length;
+    return `
+      <div class="project-card">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div class="min-w-0">
+            <h3 class="project-card-title">${projectEsc(p.title)}</h3>
+            <div class="flex flex-wrap gap-2 mt-2">${projectBadge(p.status)}<span class="project-badge project-badge-${String(p.priority||'media').toLowerCase() === 'alta' ? 'cancelado' : (String(p.priority||'media').toLowerCase() === 'baja' ? 'realizado' : 'pendiente')}">Prioridad ${projectPriorityLabel(p.priority)}</span></div>
+          </div>
+          <button onclick="showEditInternalProjectModal('${projectEsc(p.id)}')" class="w-10 h-10 rounded-xl border hover:bg-slate-50 shrink-0" title="Editar"><i class="fas fa-pen"></i></button>
+        </div>
+        <p class="project-card-desc">${projectEsc(p.description || 'Sin descripción registrada.')}</p>
+        <div class="mt-4 space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500"><span>Avance</span><span>${progress.done} de ${progress.total} pasos · ${progress.pct}%</span></div>
+          <div class="project-progress-wrap"><div class="project-progress-bar" style="width:${Math.max(0, Math.min(progress.pct, 100))}%"></div></div>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
+          <div class="bg-slate-50 border rounded-xl p-2"><b>Responsable</b><br>${projectEsc(p.ownerName || '—')}</div>
+          <div class="bg-slate-50 border rounded-xl p-2"><b>Fecha objetivo</b><br>${projectEsc(projectDateLabel(p.dueDate))}</div>
+          <div class="bg-slate-50 border rounded-xl p-2"><b>Pendientes</b><br>${pending}</div>
+          <div class="bg-slate-50 border rounded-xl p-2"><b>Último avance</b><br>${projectEsc(last ? projectDateLabel(last.created_at) : '—')}</div>
+        </div>
+        <div class="mt-auto pt-4 flex gap-2">
+          <button onclick="openInternalProjectBoard('${projectEsc(p.id)}')" class="flex-1 projects-primary-btn !py-2 !rounded-xl"><i class="fas fa-table-columns"></i>Abrir pizarra</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function backToInternalProjectsList(){
+  currentInternalProjectId = null;
+  window.currentInternalProjectId = null;
+  const list = document.getElementById('projectsListPage');
+  const board = document.getElementById('projectBoardPage');
+  if(list) list.classList.remove('hidden');
+  if(board) board.classList.add('hidden');
+  renderInternalProjects();
+}
+function openInternalProjectBoard(projectId){
+  currentInternalProjectId = projectId;
+  window.currentInternalProjectId = projectId;
+  const list = document.getElementById('projectsListPage');
+  const board = document.getElementById('projectBoardPage');
+  if(list) list.classList.add('hidden');
+  if(board) board.classList.remove('hidden');
+  renderInternalProjectBoard();
+}
+function renderInternalProjectBoard(){
+  const project = getProjectById(currentInternalProjectId);
+  if(!project){ backToInternalProjectsList(); return; }
+  const title = document.getElementById('projectBoardTitle');
+  const sub = document.getElementById('projectBoardSubtitle');
+  if(title) title.textContent = project.title || 'Proyecto';
+  if(sub) sub.innerHTML = `${projectBadge(project.status)} <span class="mx-2">·</span> Responsable: <b>${projectEsc(project.ownerName || '—')}</b> <span class="mx-2">·</span> Fecha objetivo: <b>${projectEsc(projectDateLabel(project.dueDate))}</b>`;
+
+  const stats = document.getElementById('projectBoardStats');
+  const progress = getProjectProgress(project.id);
+  const tasks = getProjectTasks(project.id);
+  if(stats){
+    stats.innerHTML = `
+      <div class="projects-kpi-card"><div class="projects-kpi-label">Avance</div><div class="projects-kpi-value text-[#5b7f27]">${progress.pct}%</div></div>
+      <div class="projects-kpi-card"><div class="projects-kpi-label">Total pasos</div><div class="projects-kpi-value">${tasks.length}</div></div>
+      <div class="projects-kpi-card"><div class="projects-kpi-label">Pendientes</div><div class="projects-kpi-value text-amber-700">${tasks.filter(t => normalizeProjectTaskStage(t.stage)==='pendiente').length}</div></div>
+      <div class="projects-kpi-card"><div class="projects-kpi-label">Realizados</div><div class="projects-kpi-value text-emerald-700">${tasks.filter(t => normalizeProjectTaskStage(t.stage)==='realizado').length}</div></div>`;
+  }
+
+  const board = document.getElementById('projectBoardColumns');
+  if(board){
+    board.innerHTML = INTERNAL_PROJECT_STAGES.map(stage => {
+      const items = tasks.filter(t => normalizeProjectTaskStage(t.stage) === stage.key);
+      return `
+        <div class="project-column">
+          <div class="project-column-head">
+            <div class="project-column-title"><i class="fas ${stage.icon} mr-2"></i>${stage.label}</div>
+            <div class="project-column-count">${items.length}</div>
+          </div>
+          <div class="project-column-body">
+            ${items.length ? items.map(renderInternalProjectTaskCard).join('') : '<div class="project-empty">Sin pasos en esta etapa.</div>'}
+          </div>
+        </div>`;
+    }).join('');
+  }
+  renderInternalProjectHistory();
+}
+function renderInternalProjectTaskCard(t){
+  const stage = normalizeProjectTaskStage(t.stage);
+  const stageIndex = INTERNAL_PROJECT_STAGES.findIndex(s => s.key === stage);
+  const prev = INTERNAL_PROJECT_STAGES[stageIndex - 1];
+  const next = INTERNAL_PROJECT_STAGES[stageIndex + 1];
+  return `
+    <div class="project-task-card">
+      <div class="flex items-start justify-between gap-2">
+        <div class="project-task-title">${projectEsc(t.title)}</div>
+        <button onclick="showInternalProjectTaskModal('${projectEsc(t.id)}')" class="w-8 h-8 rounded-lg border hover:bg-slate-50 shrink-0" title="Editar"><i class="fas fa-pen text-xs"></i></button>
+      </div>
+      ${t.description ? `<div class="project-task-desc">${projectEsc(t.description)}</div>` : ''}
+      <div class="project-task-meta">
+        <span class="project-task-chip"><i class="fas fa-user"></i>${projectEsc(t.responsibleName || 'Sin responsable')}</span>
+        <span class="project-task-chip"><i class="fas fa-calendar"></i>${projectEsc(projectDateLabel(t.dueDate))}</span>
+        ${t.completedAt ? `<span class="project-task-chip"><i class="fas fa-check"></i>${projectEsc(projectDateLabel(t.completedAt))}</span>` : ''}
+      </div>
+      <div class="project-task-actions">
+        ${prev ? `<button onclick="moveInternalProjectTask('${projectEsc(t.id)}','${prev.key}')"><i class="fas fa-arrow-left"></i> ${prev.label}</button>` : ''}
+        ${next ? `<button onclick="moveInternalProjectTask('${projectEsc(t.id)}','${next.key}')">${next.label} <i class="fas fa-arrow-right"></i></button>` : ''}
+        ${stage !== 'realizado' ? `<button onclick="moveInternalProjectTask('${projectEsc(t.id)}','realizado')"><i class="fas fa-check"></i> Realizado</button>` : ''}
+        ${stage !== 'cancelado' ? `<button onclick="moveInternalProjectTask('${projectEsc(t.id)}','cancelado')"><i class="fas fa-ban"></i> Cancelar</button>` : ''}
+      </div>
+    </div>`;
+}
+function renderInternalProjectHistory(){
+  const box = document.getElementById('projectHistoryList');
+  if(!box) return;
+  const list = getProjectHistory(currentInternalProjectId).slice(0, 30);
+  if(!list.length){
+    box.innerHTML = '<div class="project-empty">Aún no hay movimientos registrados.</div>';
+    return;
+  }
+  box.innerHTML = list.map(h => `
+    <div class="project-history-item">
+      <div class="project-history-date">${projectEsc(projectDateLabel(h.created_at))}<br><span class="text-xs font-normal">${projectEsc(h.createdByName || '—')}</span></div>
+      <div class="project-history-text"><b>${projectEsc(projectStatusLabel(h.action) === h.action ? h.action : projectStatusLabel(h.action))}</b>${h.comment ? `<br>${projectEsc(h.comment)}` : ''}</div>
+    </div>`).join('');
+}
+
+function showNewInternalProjectModal(){ showEditInternalProjectModal(null, true); }
+function showEditInternalProjectModal(projectId=null, isNew=false){
+  const project = projectId ? getProjectById(projectId) : (currentInternalProjectId ? getProjectById(currentInternalProjectId) : null);
+  const p = project || { title:'', description:'', status:'pendiente', priority:'media', ownerName: currentUserDisplayName || '', startDate: todayISO?.() || '', dueDate:'' };
+  openModal(`
+    <div class="p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-black">${project ? 'Editar proyecto' : 'Nuevo proyecto interno'}</h2>
+          <p class="text-sm text-slate-500 mt-1">Registra una gestión interna y luego agrega sus pasos en la pizarra.</p>
+        </div>
+        <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2"><label class="text-sm font-bold text-slate-600">Nombre del proyecto</label><input id="mProjectTitle" value="${projectEsc(p.title)}" class="mt-1 w-full border rounded-2xl px-4 py-3" placeholder="Ej: Vestimenta trabajadores 2026"></div>
+        <div class="md:col-span-2"><label class="text-sm font-bold text-slate-600">Descripción</label><textarea id="mProjectDescription" class="mt-1 w-full border rounded-2xl px-4 py-3 min-h-[110px]" placeholder="Qué se quiere lograr, acuerdos importantes o contexto.">${projectEsc(p.description)}</textarea></div>
+        <div><label class="text-sm font-bold text-slate-600">Responsable principal</label><input id="mProjectOwner" value="${projectEsc(p.ownerName)}" class="mt-1 w-full border rounded-2xl px-4 py-3" placeholder="Ej: Kimberly"></div>
+        <div><label class="text-sm font-bold text-slate-600">Prioridad</label><select id="mProjectPriority" class="mt-1 w-full border rounded-2xl px-4 py-3"><option value="baja" ${p.priority==='baja'?'selected':''}>Baja</option><option value="media" ${!p.priority || p.priority==='media'?'selected':''}>Media</option><option value="alta" ${p.priority==='alta'?'selected':''}>Alta</option></select></div>
+        <div><label class="text-sm font-bold text-slate-600">Estado general</label><select id="mProjectStatus" class="mt-1 w-full border rounded-2xl px-4 py-3"><option value="pendiente" ${p.status==='pendiente'?'selected':''}>Pendiente</option><option value="en_proceso" ${p.status==='en_proceso'?'selected':''}>En proceso</option><option value="pausado" ${p.status==='pausado'?'selected':''}>Pausado</option><option value="finalizado" ${p.status==='finalizado'?'selected':''}>Finalizado</option><option value="cancelado" ${p.status==='cancelado'?'selected':''}>Cancelado</option></select></div>
+        <div><label class="text-sm font-bold text-slate-600">Fecha objetivo</label><input id="mProjectDueDate" type="date" value="${projectEsc((p.dueDate || '').slice(0,10))}" class="mt-1 w-full border rounded-2xl px-4 py-3"></div>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-6">
+        <button onclick="saveInternalProject('${project ? projectEsc(project.id) : ''}')" class="projects-primary-btn">Guardar proyecto</button>
+        ${project ? `<button onclick="deleteInternalProject('${projectEsc(project.id)}')" class="px-5 py-3 rounded-2xl bg-rose-600 text-white font-bold hover:bg-rose-700"><i class="fas fa-trash mr-2"></i>Eliminar</button>` : ''}
+        <button onclick="closeModal()" class="projects-soft-btn">Cancelar</button>
+      </div>
+    </div>`);
+}
+async function saveInternalProject(projectId=''){
+  const title = projectText(document.getElementById('mProjectTitle')?.value);
+  if(!title) return alert('Ingresa el nombre del proyecto.');
+  const payload = {
+    title,
+    description: projectText(document.getElementById('mProjectDescription')?.value),
+    status: normalizeProjectStatus(document.getElementById('mProjectStatus')?.value),
+    priority: String(document.getElementById('mProjectPriority')?.value || 'media').toLowerCase(),
+    owner_name: projectText(document.getElementById('mProjectOwner')?.value),
+    due_date: document.getElementById('mProjectDueDate')?.value || null,
+    updated_at: new Date().toISOString(),
+    data: {}
+  };
+  try{
+    if(projectId){
+      const old = getProjectById(projectId);
+      payload.data = { ...(old?.data || {}) };
+      const { error } = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).update(payload).eq('id', projectId);
+      if(error){
+        const retryPayload = { ...payload }; delete retryPayload.updated_at;
+        const retry = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).update(retryPayload).eq('id', projectId);
+        if(retry.error) throw retry.error;
+      }
+      await addProjectHistory(projectId, 'Proyecto actualizado', 'Se actualizaron los datos generales del proyecto.');
+    }else{
+      payload.start_date = todayISO?.() || new Date().toISOString().slice(0,10);
+      payload.created_by = currentUser?.id || null;
+      payload.created_by_email = currentUser?.email || '';
+      payload.created_by_name = currentUserDisplayName || formatShortName?.(currentUser?.email || '') || 'Usuario';
+      const { data, error } = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).insert([payload]).select().single();
+      if(error){
+        const retryPayload = { title:payload.title, description:payload.description, status:payload.status, priority:payload.priority, owner_name:payload.owner_name, due_date:payload.due_date, data:{} };
+        const retry = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).insert([retryPayload]).select().single();
+        if(retry.error) throw retry.error;
+        await loadInternalProjects();
+        await addProjectHistory(retry.data.id, 'Proyecto creado', 'Se creó el proyecto interno.');
+        closeModal();
+        renderInternalProjects();
+        openInternalProjectBoard(retry.data.id);
+        return;
+      }
+      await loadInternalProjects();
+      await addProjectHistory(data.id, 'Proyecto creado', 'Se creó el proyecto interno.');
+      closeModal();
+      renderInternalProjects();
+      openInternalProjectBoard(data.id);
+      return;
+    }
+    await loadInternalProjects();
+    closeModal();
+    renderInternalProjects();
+    if(currentInternalProjectId) renderInternalProjectBoard();
+    toastSuccess?.('Proyecto guardado correctamente ✅');
+  }catch(err){
+    console.error('Error guardando proyecto:', err);
+    alert('No se pudo guardar el proyecto: ' + (err.message || err));
+  }
+}
+async function deleteInternalProject(projectId){
+  if(!confirm('¿Eliminar este proyecto? Si tiene pasos asociados, también se eliminarán si la tabla tiene relación en cascada.')) return;
+  try{
+    const { error } = await supabaseClient.from(INTERNAL_PROJECTS_TABLE).delete().eq('id', projectId);
+    if(error) throw error;
+    currentInternalProjectId = null;
+    await loadInternalProjects();
+    closeModal();
+    backToInternalProjectsList();
+    toastSuccess?.('Proyecto eliminado.');
+  }catch(err){
+    alert('No se pudo eliminar el proyecto: ' + (err.message || err));
+  }
+}
+
+function showInternalProjectTaskModal(taskId=''){
+  const projectId = currentInternalProjectId;
+  if(!projectId) return alert('Primero abre un proyecto.');
+  const task = taskId ? (internalProjectTasks || []).find(t => String(t.id) === String(taskId)) : null;
+  const t = task || { title:'', description:'', stage:'pendiente', responsibleName: currentUserDisplayName || '', dueDate:'' };
+  openModal(`
+    <div class="p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6"><div><h2 class="text-2xl font-black">${task ? 'Editar paso' : 'Nuevo paso del proyecto'}</h2><p class="text-sm text-slate-500 mt-1">Cada paso aparecerá como tarjeta dentro de la pizarra.</p></div><button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2"><label class="text-sm font-bold text-slate-600">Título del paso</label><input id="mTaskTitle" value="${projectEsc(t.title)}" class="mt-1 w-full border rounded-2xl px-4 py-3" placeholder="Ej: Solicitar tallas a trabajadores"></div>
+        <div class="md:col-span-2"><label class="text-sm font-bold text-slate-600">Detalle / observación</label><textarea id="mTaskDescription" class="mt-1 w-full border rounded-2xl px-4 py-3 min-h-[100px]" placeholder="Qué se debe hacer o qué falta.">${projectEsc(t.description)}</textarea></div>
+        <div><label class="text-sm font-bold text-slate-600">Responsable</label><input id="mTaskResponsible" value="${projectEsc(t.responsibleName)}" class="mt-1 w-full border rounded-2xl px-4 py-3"></div>
+        <div><label class="text-sm font-bold text-slate-600">Fecha compromiso</label><input id="mTaskDueDate" type="date" value="${projectEsc((t.dueDate || '').slice(0,10))}" class="mt-1 w-full border rounded-2xl px-4 py-3"></div>
+        <div><label class="text-sm font-bold text-slate-600">Etapa</label><select id="mTaskStage" class="mt-1 w-full border rounded-2xl px-4 py-3">${INTERNAL_PROJECT_STAGES.map(s => `<option value="${s.key}" ${normalizeProjectTaskStage(t.stage)===s.key?'selected':''}>${s.label}</option>`).join('')}</select></div>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-6">
+        <button onclick="saveInternalProjectTask('${task ? projectEsc(task.id) : ''}')" class="projects-primary-btn">Guardar paso</button>
+        ${task ? `<button onclick="deleteInternalProjectTask('${projectEsc(task.id)}')" class="px-5 py-3 rounded-2xl bg-rose-600 text-white font-bold hover:bg-rose-700"><i class="fas fa-trash mr-2"></i>Eliminar</button>` : ''}
+        <button onclick="closeModal()" class="projects-soft-btn">Cancelar</button>
+      </div>
+    </div>`);
+}
+async function saveInternalProjectTask(taskId=''){
+  const projectId = currentInternalProjectId;
+  const title = projectText(document.getElementById('mTaskTitle')?.value);
+  if(!title) return alert('Ingresa el título del paso.');
+  const stage = normalizeProjectTaskStage(document.getElementById('mTaskStage')?.value);
+  const payloadBase = {
+    project_id: projectId,
+    title,
+    description: projectText(document.getElementById('mTaskDescription')?.value),
+    stage,
+    responsible_name: projectText(document.getElementById('mTaskResponsible')?.value),
+    due_date: document.getElementById('mTaskDueDate')?.value || null,
+    completed_at: stage === 'realizado' ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+    data: {}
+  };
+  try{
+    if(!internalProjectFallbackSingleTable){
+      try{
+        if(taskId){
+          const { error } = await supabaseClient.from(INTERNAL_PROJECT_TASKS_TABLE).update(payloadBase).eq('id', taskId);
+          if(error) throw error;
+          await addProjectHistory(projectId, 'Paso actualizado', `Se actualizó: ${title}.`, taskId);
+        }else{
+          payloadBase.position = getProjectTasks(projectId).length + 1;
+          payloadBase.created_by = currentUser?.id || null;
+          payloadBase.created_by_email = currentUser?.email || '';
+          payloadBase.created_by_name = currentUserDisplayName || formatShortName?.(currentUser?.email || '') || 'Usuario';
+          const { data, error } = await supabaseClient.from(INTERNAL_PROJECT_TASKS_TABLE).insert([payloadBase]).select().single();
+          if(error) throw error;
+          await addProjectHistory(projectId, 'Paso creado', `Se agregó el paso: ${title}.`, data?.id || null);
+        }
+        await loadInternalProjects(); closeModal(); renderInternalProjectBoard(); return;
+      }catch(err){
+        console.warn('Proyectos: se usará modo de una sola tabla para pasos:', err?.message || err);
+        internalProjectFallbackSingleTable = true;
+      }
+    }
+
+    if(taskId){
+      const idx = internalProjectTasks.findIndex(t => String(t.id) === String(taskId));
+      if(idx >= 0) internalProjectTasks[idx] = { ...internalProjectTasks[idx], title:payloadBase.title, description:payloadBase.description, stage:payloadBase.stage, responsibleName:payloadBase.responsible_name, dueDate:payloadBase.due_date || '', completedAt:payloadBase.completed_at || '' };
+      await addProjectHistory(projectId, 'Paso actualizado', `Se actualizó: ${title}.`, taskId);
+    }else{
+      const item = mapInternalProjectTaskRow({ ...payloadBase, id: projectSafeId(), project_id: projectId, position: getProjectTasks(projectId).length + 1, created_by_name: currentUserDisplayName || 'Usuario', created_at:new Date().toISOString(), _fallback:true });
+      internalProjectTasks.push(item);
+      await addProjectHistory(projectId, 'Paso creado', `Se agregó el paso: ${title}.`, item.id);
+    }
+    await saveProjectDataFallback(projectId);
+    closeModal(); renderInternalProjectBoard();
+  }catch(err){
+    console.error('Error guardando paso:', err);
+    alert('No se pudo guardar el paso: ' + (err.message || err));
+  }
+}
+async function moveInternalProjectTask(taskId, newStage){
+  const task = (internalProjectTasks || []).find(t => String(t.id) === String(taskId));
+  if(!task) return;
+  const oldStage = normalizeProjectTaskStage(task.stage);
+  const stage = normalizeProjectTaskStage(newStage);
+  const completedAt = stage === 'realizado' ? new Date().toISOString() : null;
+  try{
+    if(!internalProjectFallbackSingleTable && !task._fallback){
+      try{
+        const { error } = await supabaseClient.from(INTERNAL_PROJECT_TASKS_TABLE).update({ stage, completed_at: completedAt, updated_at:new Date().toISOString() }).eq('id', taskId);
+        if(error) throw error;
+      }catch(err){
+        internalProjectFallbackSingleTable = true;
+        console.warn('Proyectos: no se pudo mover en tabla de tareas, se usará data del proyecto:', err?.message || err);
+      }
+    }
+    task.stage = stage;
+    task.completedAt = completedAt || '';
+    await addProjectHistory(task.projectId, 'Cambio de etapa', `${task.title}: ${projectStatusLabel(oldStage)} → ${projectStatusLabel(stage)}.`, task.id);
+    if(internalProjectFallbackSingleTable || task._fallback) await saveProjectDataFallback(task.projectId);
+    await loadInternalProjects();
+    currentInternalProjectId = task.projectId;
+    renderInternalProjectBoard();
+  }catch(err){
+    console.error('Error moviendo paso:', err);
+    alert('No se pudo mover el paso: ' + (err.message || err));
+  }
+}
+async function deleteInternalProjectTask(taskId){
+  const task = (internalProjectTasks || []).find(t => String(t.id) === String(taskId));
+  if(!task) return;
+  if(!confirm('¿Eliminar este paso del proyecto?')) return;
+  try{
+    if(!internalProjectFallbackSingleTable && !task._fallback){
+      const { error } = await supabaseClient.from(INTERNAL_PROJECT_TASKS_TABLE).delete().eq('id', taskId);
+      if(error) throw error;
+    }
+    internalProjectTasks = internalProjectTasks.filter(t => String(t.id) !== String(taskId));
+    await addProjectHistory(task.projectId, 'Paso eliminado', `Se eliminó el paso: ${task.title}.`);
+    if(internalProjectFallbackSingleTable || task._fallback) await saveProjectDataFallback(task.projectId);
+    closeModal(); renderInternalProjectBoard();
+  }catch(err){
+    alert('No se pudo eliminar el paso: ' + (err.message || err));
+  }
+}
+function showInternalProjectHistoryModal(){
+  if(!currentInternalProjectId) return;
+  openModal(`
+    <div class="p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6"><div><h2 class="text-2xl font-black">Agregar avance</h2><p class="text-sm text-slate-500 mt-1">Registra acuerdos, llamadas, compras, aprobaciones o cualquier movimiento importante.</p></div><button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button></div>
+      <div class="space-y-4">
+        <div><label class="text-sm font-bold text-slate-600">Tipo de movimiento</label><input id="mProjectHistoryAction" value="Avance registrado" class="mt-1 w-full border rounded-2xl px-4 py-3"></div>
+        <div><label class="text-sm font-bold text-slate-600">Comentario</label><textarea id="mProjectHistoryComment" class="mt-1 w-full border rounded-2xl px-4 py-3 min-h-[120px]" placeholder="Ej: Se pidió cotización al proveedor, falta confirmar tallas de 2 trabajadores."></textarea></div>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-6"><button onclick="saveInternalProjectHistoryFromModal()" class="projects-primary-btn">Guardar avance</button><button onclick="closeModal()" class="projects-soft-btn">Cancelar</button></div>
+    </div>`);
+}
+async function saveInternalProjectHistoryFromModal(){
+  const action = projectText(document.getElementById('mProjectHistoryAction')?.value) || 'Avance registrado';
+  const comment = projectText(document.getElementById('mProjectHistoryComment')?.value);
+  await addProjectHistory(currentInternalProjectId, action, comment);
+  closeModal();
+  renderInternalProjectBoard();
+}
+
+window.loadInternalProjects = loadInternalProjects;
+window.refreshInternalProjectsCollectionFromServer = refreshInternalProjectsCollectionFromServer;
+window.renderInternalProjects = renderInternalProjects;
+window.openInternalProjectBoard = openInternalProjectBoard;
+window.backToInternalProjectsList = backToInternalProjectsList;
+window.showNewInternalProjectModal = showNewInternalProjectModal;
+window.showEditInternalProjectModal = showEditInternalProjectModal;
+window.saveInternalProject = saveInternalProject;
+window.deleteInternalProject = deleteInternalProject;
+window.showInternalProjectTaskModal = showInternalProjectTaskModal;
+window.saveInternalProjectTask = saveInternalProjectTask;
+window.moveInternalProjectTask = moveInternalProjectTask;
+window.deleteInternalProjectTask = deleteInternalProjectTask;
+window.showInternalProjectHistoryModal = showInternalProjectHistoryModal;
+window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal;
 
 </script>
 
