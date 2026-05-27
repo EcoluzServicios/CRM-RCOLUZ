@@ -1215,6 +1215,7 @@ body[data-ui-color-mode="dark"] .project-board-title{color:var(--ui-text)!import
 .facturacion-action-btn.pay{color:#166534;border-color:#bbf7d0;background:#f0fdf4}
 .facturacion-action-btn.annul{color:#92400e;border-color:#fde68a;background:#fffbeb}
 .facturacion-action-btn.history{color:#334155;border-color:#cbd5e1;background:#f8fafc}
+.facturacion-action-btn.replace{color:#4f46e5;border-color:#c7d2fe;background:#eef2ff}
 body[data-ui-color-mode="dark"] .facturacion-monthly-shell,
 body[data-ui-color-mode="dark"] .facturacion-monthly-head,
 body[data-ui-color-mode="dark"] .facturacion-summary-card,
@@ -16185,7 +16186,14 @@ async function saveFacturaOT(otId, btn){
     if(btn){ btn.disabled=false; btn.innerText="Agregar documento"; }
     return;
   }
-  await loadData(); renderOTs(); closeModal();
+  await loadData();
+  try{ renderOTs(); }catch(e){}
+  try{ renderAbonos(); }catch(e){}
+  try{
+    if(typeof setFacturacionMonthFromDateValue === 'function') setFacturacionMonthFromDateValue(fechaEnvio);
+    if(typeof renderFacturacionMensual === 'function') renderFacturacionMensual();
+  }catch(e){}
+  closeModal();
 }
 
 
@@ -17284,6 +17292,17 @@ async function savePagoFinal(otId, btn) {
     }
     window.setFacturacionMonthFromInputs = setFacturacionMonthFromInputs;
 
+    function setFacturacionMonthFromDateValue(value){
+      const dt = (typeof parseFlexibleDate === 'function') ? parseFlexibleDate(value) : new Date(value);
+      if(!dt || isNaN(dt.getTime())) return;
+      facturacionMensualDate = new Date(dt.getFullYear(), dt.getMonth(), 1);
+      const monthSel = document.getElementById('facturacionMonthSelect');
+      const yearInput = document.getElementById('facturacionYearInput');
+      if(monthSel) monthSel.value = String(dt.getMonth() + 1);
+      if(yearInput) yearInput.value = String(dt.getFullYear());
+    }
+    window.setFacturacionMonthFromDateValue = setFacturacionMonthFromDateValue;
+
     function changeFacturacionMonth(delta){
       const current = facturacionMensualDate instanceof Date && !isNaN(facturacionMensualDate.getTime()) ? facturacionMensualDate : new Date();
       facturacionMensualDate = new Date(current.getFullYear(), current.getMonth() + Number(delta || 0), 1);
@@ -17494,6 +17513,7 @@ async function savePagoFinal(otId, btn) {
             <div class="facturacion-action-bar">
               ${r.status === 'pendiente' ? `<button onclick="showFacturacionCobranzaModal('${otId}','${docId}')" class="facturacion-action-btn copy" title="Copiar cobranza" aria-label="Copiar cobranza"><i class="fas fa-copy"></i></button>` : ''}
               <button onclick="showFacturacionHistorialModal('${otId}','${docId}')" class="facturacion-action-btn history" title="Historial de cobranza" aria-label="Historial de cobranza"><i class="fas fa-clock-rotate-left"></i></button>
+              ${r.status === 'anulada' ? `<button onclick="showFacturacionReemplazoModal('${otId}','${docId}')" class="facturacion-action-btn replace" title="Registrar factura corregida / reemplazo" aria-label="Registrar factura corregida"><i class="fas fa-file-circle-plus"></i></button>` : ''}
               ${r.status !== 'pagada' && r.status !== 'anulada' ? `<button onclick="showFacturacionPagoModal('${otId}','${docId}')" class="facturacion-action-btn pay" title="Registrar pago" aria-label="Registrar pago"><i class="fas fa-circle-check"></i></button>` : ''}
               ${r.status !== 'anulada' ? `<button onclick="showFacturacionAnularModal('${otId}','${docId}')" class="facturacion-action-btn annul" title="Marcar anulada" aria-label="Marcar anulada"><i class="fas fa-triangle-exclamation"></i></button>` : ''}
               <button onclick="showFacturacionEditarModal('${otId}','${docId}')" class="facturacion-action-btn" title="Editar factura" aria-label="Editar factura"><i class="fas fa-pen"></i></button>
@@ -17551,6 +17571,7 @@ async function savePagoFinal(otId, btn) {
       await loadData();
       try{ renderOTs(); }catch(e){}
       try{ renderAbonos(); }catch(e){}
+      try{ renderFacturacionMensual(); }catch(e){}
     }
 
     function buildFacturacionCobranzaMessage(row){
@@ -17874,14 +17895,15 @@ async function savePagoFinal(otId, btn) {
       const html = `
         <div class="p-8">
           <h2 class="text-2xl font-black mb-2">Marcar factura como anulada</h2>
-          <p class="text-sm text-slate-500 mb-5">Factura N° <b>${escapeHtml(doc.numero || '')}</b>. Las facturas anuladas quedan amarillas y no suman como pendiente.</p>
+          <p class="text-sm text-slate-500 mb-5">Factura N° <b>${escapeHtml(doc.numero || '')}</b>. Las facturas anuladas quedan amarillas y no suman como pendiente. Si fue por error de tipeo, puedes anularla y registrar de inmediato la factura corregida para la misma OT.</p>
           <div class="space-y-4">
             <label class="block text-sm font-semibold">Fecha de anulación</label>
             <input id="facturacionAnularFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl">
             <label class="block text-sm font-semibold">Motivo / observación</label>
-            <textarea id="facturacionAnularMotivo" class="w-full px-3 py-2 border rounded-xl" rows="3" placeholder="Ej: factura anulada por error de OC, se emitirá nueva factura..."></textarea>
-            <div class="flex gap-3 pt-2">
-              <button onclick="saveFacturacionAnulacion('${escapeHtml(String(ot.id))}','${escapeHtml(String(doc.id))}', this)" class="flex-1 bg-amber-500 text-white py-3 rounded-2xl font-black">Confirmar anulación</button>
+            <textarea id="facturacionAnularMotivo" class="w-full px-3 py-2 border rounded-xl" rows="3" placeholder="Ej: factura anulada por error de tipeo, se emitirá nueva factura..."></textarea>
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+              <button onclick="saveFacturacionAnulacion('${escapeHtml(String(ot.id))}','${escapeHtml(String(doc.id))}', this, false)" class="flex-1 bg-amber-500 text-white py-3 rounded-2xl font-black">Solo anular</button>
+              <button onclick="saveFacturacionAnulacion('${escapeHtml(String(ot.id))}','${escapeHtml(String(doc.id))}', this, true)" class="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-black">Anular y agregar nueva factura</button>
               <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
             </div>
           </div>
@@ -17890,7 +17912,8 @@ async function savePagoFinal(otId, btn) {
     }
     window.showFacturacionAnularModal = showFacturacionAnularModal;
 
-    async function saveFacturacionAnulacion(otId, docId, btn){
+    async function saveFacturacionAnulacion(otId, docId, btn, addReplacement = false){
+      const originalText = btn ? btn.innerText : '';
       if(btn){ btn.disabled=true; btn.innerText='Guardando...'; }
       try{
         const { ot, docs, index } = findFacturacionOTAndDoc(otId, docId);
@@ -17907,12 +17930,134 @@ async function savePagoFinal(otId, btn) {
         if(activeDocs.length === 0) extra = { pago_estado:'anulada', cobro_estado:'anulada' };
         else if(activeDocs.every(d => d.pagada === true || String(d.estadoPago || '').toLowerCase() === 'pagado')) extra = { pago_estado:'pagado', cobro_estado:'pagado' };
         await saveFacturacionDocumentChange(ot, docs, extra);
-        closeModal();
-        toastInfo('Factura marcada como anulada ✅');
+        if(addReplacement){
+          toastInfo('Factura anulada. Ahora registra la factura corregida ✅');
+          showFacturacionReemplazoModal(otId, doc.id || docId);
+        } else {
+          closeModal();
+          toastInfo('Factura marcada como anulada ✅');
+        }
       }catch(e){ alert('No se pudo anular la factura: ' + (e.message || e)); }
-      finally{ if(btn){ btn.disabled=false; btn.innerText='Confirmar anulación'; } }
+      finally{ if(btn){ btn.disabled=false; btn.innerText=originalText || 'Confirmar anulación'; } }
     }
     window.saveFacturacionAnulacion = saveFacturacionAnulacion;
+
+    function showFacturacionReemplazoModal(otId, docId){
+      const { ot, doc } = findFacturacionOTAndDoc(otId, docId);
+      if(!ot) return alert('OT no encontrada');
+      const baseMonto = doc ? getFacturacionMonto(ot, doc) : Number(ot?.monto || ot?.total || ot?.data?.total || 0);
+      const reemplazaTexto = doc?.numero ? `Reemplaza a factura anulada N° ${doc.numero}` : 'Nueva factura asociada al trabajo realizado';
+      const html = `
+        <div class="p-8">
+          <h2 class="text-2xl font-black mb-2">Registrar factura corregida</h2>
+          <p class="text-sm text-slate-500 mb-5">La nueva factura quedará asociada a la misma OT / cotización y aparecerá en Facturación mensual según la fecha ingresada.</p>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-5">
+            <div class="text-sm text-indigo-800 font-bold">${escapeHtml(reemplazaTexto)}</div>
+            <div class="text-xs text-indigo-700 mt-1">OT: ${escapeHtml(String(ot.numeroOT || ot.numero_ot || 'S/N'))} · Cliente: ${escapeHtml(String(ot.clientName || ot.razonSocial || ot.data?.clientName || '—'))}</div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold">Tipo de documento</label>
+              <select id="facturacionReemplazoTipo" class="w-full px-3 py-2 border rounded-xl">
+                <option value="factura" selected>Factura</option>
+                <option value="boleta">Boleta</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold">N° nueva factura / documento</label>
+              <input id="facturacionReemplazoNumero" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: 12345" autocomplete="off">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold">Fecha factura</label>
+                <input id="facturacionReemplazoFecha" type="date" value="${todayISO()}" class="w-full px-3 py-2 border rounded-xl">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold">Monto facturado</label>
+                <input id="facturacionReemplazoMonto" type="number" value="${Number(baseMonto || 0)}" class="w-full px-3 py-2 border rounded-xl">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold">Observación</label>
+              <textarea id="facturacionReemplazoObs" rows="3" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: factura corregida por error de tipeo">${escapeHtml(reemplazaTexto)}</textarea>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+              <button onclick="saveFacturacionReemplazo('${escapeHtml(String(ot.id))}','${escapeHtml(String(doc?.id || docId || ''))}', this)" class="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-black">Guardar nueva factura</button>
+              <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
+            </div>
+          </div>
+        </div>`;
+      openModal(html);
+    }
+    window.showFacturacionReemplazoModal = showFacturacionReemplazoModal;
+
+    async function saveFacturacionReemplazo(otId, docId, btn){
+      const originalText = btn ? btn.innerText : '';
+      if(btn){ btn.disabled=true; btn.innerText='Guardando...'; }
+      try{
+        const { ot, doc } = findFacturacionOTAndDoc(otId, docId);
+        if(!ot) throw new Error('OT no encontrada');
+        const tipo = String(document.getElementById('facturacionReemplazoTipo')?.value || 'factura').toLowerCase().trim();
+        const numero = String(document.getElementById('facturacionReemplazoNumero')?.value || '').trim();
+        const fecha = document.getElementById('facturacionReemplazoFecha')?.value || todayISO();
+        const monto = Number(document.getElementById('facturacionReemplazoMonto')?.value || 0);
+        const obs = document.getElementById('facturacionReemplazoObs')?.value || '';
+        if(!numero) throw new Error('Debes ingresar el N° de la nueva factura/documento.');
+
+        const docs = getOTDocuments(ot).map(d => Object.assign({}, d));
+        const duplicate = docs.find(d => String(d.tipo || '').toLowerCase().trim() === tipo && String(d.numero || '').trim().toLowerCase() === numero.toLowerCase());
+        if(duplicate) throw new Error('Ese número de documento ya está asociado a esta OT.');
+
+        const reemplazaNumero = doc?.numero || '';
+        const newDoc = {
+          id: `doc_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+          tipo,
+          numero,
+          fechaEnvio: fecha,
+          fechaRegistro: todayISO(),
+          createdAt: new Date().toISOString(),
+          createdBy: currentUserDisplayName || currentUser?.email || 'Usuario',
+          pagada: false,
+          anulada: false,
+          estadoPago: 'pendiente',
+          montoFacturado: monto > 0 ? monto : (doc ? getFacturacionMonto(ot, doc) : Number(ot?.monto || ot?.total || ot?.data?.total || 0)),
+          montoCancelado: 0,
+          fechaPago: null,
+          reemplazaDocumentoId: doc?.id || '',
+          reemplazaDocumentoNumero: reemplazaNumero,
+          motivoReemplazo: obs || (reemplazaNumero ? `Reemplaza documento anulado N° ${reemplazaNumero}` : 'Factura corregida'),
+          observacion: obs || (reemplazaNumero ? `Reemplaza documento anulado N° ${reemplazaNumero}` : 'Factura corregida'),
+          cobranzaGestiones: [{
+            fecha: todayISO(),
+            tipo:'reemplazo',
+            accion:'Factura corregida registrada',
+            respuesta:'Pendiente',
+            comentario: reemplazaNumero ? `Reemplaza documento anulado N° ${reemplazaNumero}` : 'Factura corregida asociada al trabajo',
+            documentoNumero: numero,
+            createdAt: new Date().toISOString(),
+            userName: currentUserDisplayName || currentUser?.email || 'Usuario'
+          }]
+        };
+
+        docs.unshift(newDoc);
+        await saveFacturacionDocumentChange(ot, docs, {
+          factura_num: numero,
+          documento_tipo: tipo,
+          factura_enviada_fecha: fecha,
+          pago_estado:'facturado',
+          cobro_estado:'facturado'
+        });
+        if(typeof setFacturacionMonthFromDateValue === 'function') setFacturacionMonthFromDateValue(fecha);
+        try{ renderFacturacionMensual(); }catch(e){}
+        closeModal();
+        toastInfo('Nueva factura asociada y visible en facturación ✅');
+      }catch(e){
+        alert('No se pudo guardar la nueva factura: ' + (e.message || e));
+      }finally{
+        if(btn){ btn.disabled=false; btn.innerText=originalText || 'Guardar nueva factura'; }
+      }
+    }
+    window.saveFacturacionReemplazo = saveFacturacionReemplazo;
 
     function showFacturacionEditarModal(otId, docId){
       const { ot, doc } = findFacturacionOTAndDoc(otId, docId);
