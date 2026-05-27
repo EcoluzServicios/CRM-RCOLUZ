@@ -31135,5 +31135,774 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 
 </script>
 
+
+
+<script id="ecoluz-general-reports-extension">
+/* ===== INFORMES GENERALES LIBRES - Obras civiles menores =====
+   Se agrega como extensión no destructiva sobre el módulo actual de Informes.
+   Usa la misma tabla informes y no requiere columnas nuevas.
+*/
+(function(){
+  const GENERAL_REPORT_KIND = 'general_obras_civiles_v1';
+  const GENERAL_REPORT_TYPE = 'informe_general_obras_civiles';
+  window.currentGeneralReportImages = window.currentGeneralReportImages || []; // ahora guarda solo espacios/leyendas, no archivos
+  let oldShowNewReportModal = window.showNewReportModal;
+  let oldPreviewReport = window.previewReport;
+  let oldGenerateReportWord = window.generateReportWord;
+  let oldRenderReports = window.renderReports;
+
+  function grText(v){ return (v === null || v === undefined) ? '' : String(v).trim(); }
+  function grEsc(v){
+    return grText(v).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function grId(){
+    try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+    return 'gr_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  }
+  function grToday(){
+    try{ return typeof todayISO === 'function' ? todayISO() : new Date().toISOString().slice(0,10); }
+    catch(e){ return new Date().toISOString().slice(0,10); }
+  }
+  function grDate(v){
+    try{ return typeof formatDDMMYY === 'function' ? formatDDMMYY(v) : grText(v || '').slice(0,10); }
+    catch(e){ return grText(v || '').slice(0,10); }
+  }
+  function grNotify(msg){
+    if(typeof toastInfo === 'function') toastInfo(msg);
+    else alert(msg);
+  }
+  function grOpenModal(html){
+    if(typeof openModal === 'function') return openModal(html);
+    const content = document.getElementById('modalContent');
+    const modal = document.getElementById('modal');
+    if(content) content.innerHTML = html;
+    if(modal) modal.classList.remove('hidden');
+  }
+  function grClientList(){ return (window.clients || (typeof clients !== 'undefined' ? clients : []) || []); }
+  function grOTList(){ return (window.ots || (typeof ots !== 'undefined' ? ots : []) || []); }
+  function grReportList(){ return (window.reports || (typeof reports !== 'undefined' ? reports : []) || []); }
+  function grIsGeneralReport(rep){
+    const data = rep?.data || {};
+    const t = grText(rep?.tipoServicio || rep?.tipo_servicio || data.tipoServicio || data.tipo_servicio).toLowerCase();
+    return data.formatoInforme === GENERAL_REPORT_KIND
+      || data.tipoInforme === 'general_obras_civiles'
+      || t === GENERAL_REPORT_TYPE
+      || t === 'obras_civiles_menores'
+      || t === 'informe_general';
+  }
+  window.isGeneralReport = grIsGeneralReport;
+
+  function grGetClientOptions(selected){
+    const opts = grClientList().map(c => {
+      const sel = String(c.id || '') === String(selected || '') ? 'selected' : '';
+      return `<option value="${grEsc(c.id)}" ${sel}>${grEsc(c.name || 'Sin nombre')} · ${grEsc(c.rut || 'Sin RUT')}</option>`;
+    }).join('');
+    return `<option value="">Selecciona cliente</option>${opts}`;
+  }
+  function grGetOTOptions(selected){
+    const opts = grOTList().map(o => {
+      const sel = String(o.id || '') === String(selected || '') ? 'selected' : '';
+      const quoteTxt = o.numeroCotizacion ? ` · Cot. ${grEsc(o.numeroCotizacion)}` : '';
+      return `<option value="${grEsc(o.id)}" ${sel}>OT ${grEsc(o.numeroOT || o.numero_ot || 'S/N')} · ${grEsc(o.clientName || 'Cliente')}${quoteTxt}</option>`;
+    }).join('');
+    return `<option value="">Sin OT vinculada</option>${opts}`;
+  }
+  function grFindClient(clientId){
+    return grClientList().find(c => String(c.id || '') === String(clientId || '')) || null;
+  }
+  function grFindOT(otId){
+    return grOTList().find(o => String(o.id || '') === String(otId || '')) || null;
+  }
+  function grNextNumber(){
+    try{ return typeof getNextReportNumber === 'function' ? getNextReportNumber() : 'INF-' + String((grReportList().length || 0) + 1).padStart(4,'0'); }
+    catch(e){ return 'INF-' + String((grReportList().length || 0) + 1).padStart(4,'0'); }
+  }
+  function grReplaceReport(record){
+    if(typeof replaceRecordInCollection === 'function'){
+      window.reports = replaceRecordInCollection(grReportList(), record);
+      try{ reports = window.reports; }catch(e){}
+      return;
+    }
+    const list = grReportList();
+    const idx = list.findIndex(x => String(x.id || '') === String(record.id || ''));
+    if(idx >= 0) list[idx] = record;
+    else list.unshift(record);
+    window.reports = list;
+    try{ reports = list; }catch(e){}
+  }
+
+  function installGeneralReportButton(){
+    const wrap = document.querySelector('#view-reports .flex.flex-wrap.gap-3');
+    if(!wrap || document.getElementById('btnNewGeneralReport')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'btnNewGeneralReport';
+    btn.type = 'button';
+    btn.className = 'bg-[#85af28] hover:brightness-95 text-white px-6 py-2 rounded-xl flex items-center gap-2 font-semibold shadow-sm';
+    btn.innerHTML = '<i class="fa-solid fa-file-pen"></i><span class="sidebar-label">Nuevo informe general</span>';
+    btn.onclick = () => window.showGeneralReportModal();
+
+    wrap.insertBefore(btn, wrap.firstChild);
+
+    const blockSpan = wrap.querySelector('button[onclick="showNewReportModal()"] span');
+    if(blockSpan) blockSpan.textContent = 'Nuevo informe por bloques';
+
+    const headers = document.querySelectorAll('#view-reports thead th');
+    if(headers && headers.length >= 7){
+      headers[5].textContent = 'Detalle';
+      headers[6].textContent = 'Estado';
+    }
+
+    const subtitle = document.querySelector('#view-reports h1 + p');
+    if(subtitle){
+      subtitle.textContent = 'Genera informes técnicos por bloques o informes generales libres para obras civiles menores y trabajos varios, con espacios para imágenes en Word cuando corresponda.';
+    }
+  }
+
+  function ensureGeneralReportStyles(){
+    if(document.getElementById('generalReportStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'generalReportStyles';
+    style.textContent = `
+      .gr-card{background:#fff;border:1px solid #dbe7ca;border-radius:1.25rem;box-shadow:0 10px 24px rgba(15,23,42,.05);overflow:hidden}
+      .gr-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;background:#f7fbf1;border-bottom:1px solid #dbe7ca;padding:1rem 1.15rem}
+      .gr-title{font-size:1.45rem;font-weight:950;letter-spacing:-.02em;color:#0f172a}
+      .gr-sub{font-size:.86rem;color:#64748b;margin-top:.25rem;line-height:1.35}
+      .gr-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem}
+      .gr-field label{display:block;font-size:.72rem;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:.35rem}
+      .gr-field input,.gr-field select,.gr-field textarea{width:100%;border:1px solid #dbe3ef;border-radius:1rem;padding:.78rem .9rem;background:#fff;color:#0f172a;font-weight:650}
+      .gr-field textarea{resize:vertical;min-height:86px;line-height:1.35}
+      .gr-span-2{grid-column:span 2}.gr-span-4{grid-column:span 4}
+      .gr-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid #dbe3ef;border-radius:.95rem;background:#fff;padding:.72rem 1rem;font-weight:900;color:#334155}
+      .gr-btn:hover{background:#f8fafc}.gr-btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}.gr-btn.green{background:#85af28;color:#fff;border-color:#85af28}.gr-btn.dark{background:#0f172a;color:#fff;border-color:#0f172a}
+      .gr-check{display:flex;align-items:flex-start;gap:.65rem;border:1px solid #dbe7ca;background:#f7fbf1;border-radius:1rem;padding:.85rem 1rem;color:#334155;font-weight:850}
+      .gr-check input{margin-top:.2rem;width:1.05rem;height:1.05rem}
+      .gr-images{display:none;border:1px dashed #bcd3a1;background:#fbfdf7;border-radius:1.15rem;padding:1rem}
+      .gr-images.show{display:block}
+      .gr-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:.85rem}
+      .gr-image-card{border:1px solid #dbe3ef;background:#fff;border-radius:1rem;padding:.65rem;box-shadow:0 8px 18px rgba(15,23,42,.04)}
+      .gr-image-placeholder{width:100%;height:130px;border-radius:.8rem;border:1.5px dashed #94a3b8;background:#f8fafc;display:flex;align-items:center;justify-content:center;text-align:center;color:#64748b;font-size:.82rem;font-weight:850;padding:.75rem}
+      .gr-image-card textarea{width:100%;margin-top:.55rem;border:1px solid #dbe3ef;border-radius:.75rem;padding:.5rem;font-size:.78rem;min-height:44px}
+      .gr-soft-note{font-size:.82rem;color:#64748b;line-height:1.35}
+      body[data-ui-color-mode="dark"] .gr-card,body[data-ui-color-mode="dark"] .gr-image-card{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+      body[data-ui-color-mode="dark"] .gr-card-head,body[data-ui-color-mode="dark"] .gr-check,body[data-ui-color-mode="dark"] .gr-images{background:var(--ui-table-head)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+      body[data-ui-color-mode="dark"] .gr-field input,body[data-ui-color-mode="dark"] .gr-field select,body[data-ui-color-mode="dark"] .gr-field textarea,body[data-ui-color-mode="dark"] .gr-image-card textarea{background:var(--ui-input-bg)!important;color:var(--ui-text)!important;border-color:var(--ui-border)!important}
+      @media(max-width:1000px){.gr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gr-span-4{grid-column:span 2}.gr-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+      @media(max-width:680px){.gr-grid,.gr-gallery{grid-template-columns:1fr}.gr-span-2,.gr-span-4{grid-column:auto}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  window.toggleGeneralReportImages = function(){
+    const checked = !!document.getElementById('grHasImages')?.checked;
+    const box = document.getElementById('grImagesBox');
+    if(box) box.classList.toggle('show', checked);
+    if(checked) renderGeneralReportImageGallery();
+    else window.currentGeneralReportImages = [];
+  };
+
+  function getGeneralReportImagePlaceholders(countValue = null){
+    const selected = Number(countValue || document.getElementById('grImageSlotCount')?.value || 4);
+    const total = Math.max(1, Math.min(20, Number.isFinite(selected) ? selected : 4));
+    const previous = Array.isArray(window.currentGeneralReportImages) ? window.currentGeneralReportImages : [];
+    const slots = [];
+    for(let i = 0; i < total; i++){
+      const old = previous[i] || {};
+      const id = old.id || `slot_${i + 1}`;
+      const byIndex = document.querySelector(`[data-gr-img-index="${i}"]`);
+      slots.push({
+        id,
+        name: `Espacio para imagen ${i + 1}`,
+        caption: (byIndex?.value || old.caption || '').trim(),
+        placeholder: true,
+        slot: i + 1
+      });
+    }
+    window.currentGeneralReportImages = slots;
+    return slots;
+  }
+
+  function syncGeneralImageCaptions(){
+    if(document.getElementById('grHasImages')?.checked) getGeneralReportImagePlaceholders();
+  }
+
+  function renderGeneralReportImageGallery(existingMetadata = []){
+    const gallery = document.getElementById('grImageGallery');
+    const count = document.getElementById('grImageCount');
+    if(!gallery) return;
+    const old = Array.isArray(existingMetadata) ? existingMetadata : [];
+    const select = document.getElementById('grImageSlotCount');
+    const currentCount = Number(select?.value || 0) || old.length || 4;
+
+    if(select && !select.value) select.value = String(currentCount);
+
+    const previous = old.length ? old.map((x, idx) => ({
+      id: x.id || `slot_${idx + 1}`,
+      name: x.name || `Espacio para imagen ${idx + 1}`,
+      caption: x.caption || '',
+      placeholder: true,
+      slot: idx + 1
+    })) : window.currentGeneralReportImages;
+    if(Array.isArray(previous) && previous.length) window.currentGeneralReportImages = previous;
+
+    const slots = getGeneralReportImagePlaceholders(currentCount);
+    if(count) count.textContent = `${slots.length} espacio(s) para imagen en el Word`;
+
+    gallery.innerHTML = slots.map((img, idx) => `
+      <div class="gr-image-card">
+        <div class="gr-image-placeholder">
+          <div><i class="fa-regular fa-image text-xl mb-2"></i><br>Espacio para imagen ${idx + 1}<br><span style="font-weight:650;font-size:.74rem;">Se agregará manualmente en Word</span></div>
+        </div>
+        <textarea data-gr-img-caption="${grEsc(img.id)}" data-gr-img-index="${idx}" placeholder="Descripción opcional, ej: Antes del cambio de palmetas">${grEsc(img.caption || '')}</textarea>
+        <div class="text-xs text-slate-500 mt-2">El documento dejará este recuadro vacío para insertar la foto después.</div>
+      </div>
+    `).join('');
+  }
+  window.renderGeneralReportImageGallery = renderGeneralReportImageGallery;
+
+  window.populateGeneralReportFromOT = function(){
+    const otId = grText(document.getElementById('grOT')?.value || '');
+    const ot = grFindOT(otId);
+    if(!ot) return;
+    const q = (typeof getLinkedQuoteForOT === 'function') ? getLinkedQuoteForOT(ot) : null;
+    const client = document.getElementById('grClient');
+    if(client && ot.clientId) client.value = ot.clientId;
+    const cot = document.getElementById('grCotizacion');
+    if(cot && !cot.value) cot.value = q?.numeroCotizacion || ot.numeroCotizacion || '';
+    const dir = document.getElementById('grDireccion');
+    if(dir && !dir.value) dir.value = ot.direccion || ot.sucursal || q?.direccion || q?.sucursal || '';
+    const title = document.getElementById('grTitulo');
+    if(title && (!title.value || title.value === 'Informe general de trabajo')) title.value = `Informe general OT ${ot.numeroOT || ot.numero_ot || ''}`.trim();
+    const work = document.getElementById('grTrabajo');
+    if(work && !work.value && ot.descripcion) work.value = ot.descripcion;
+  };
+
+  window.showGeneralReportModal = async function(prefill = {}){
+    ensureGeneralReportStyles();
+    installGeneralReportButton();
+
+    const report = prefill && prefill.id ? (typeof ensureReportLoaded === 'function' ? await ensureReportLoaded(prefill.id) : grReportList().find(r => String(r.id) === String(prefill.id))) : null;
+    const data = report?.data || {};
+    const linkedOTId = grText(prefill.otId || report?.otId || data.otId || '');
+    const linkedOT = linkedOTId ? grFindOT(linkedOTId) : null;
+    const linkedQuote = linkedOT && typeof getLinkedQuoteForOT === 'function' ? getLinkedQuoteForOT(linkedOT) : null;
+    const selectedClientId = report?.clientId || data.clientId || linkedOT?.clientId || '';
+
+    window.currentGeneralReportImages = [];
+
+    const hasImages = !!(data.tieneImagenes || (Array.isArray(data.imagenes) && data.imagenes.length));
+    const imageSlotCount = Math.max(1, Math.min(20, Number(data.cantidadImagenes || data.imageSlotCount || (Array.isArray(data.imagenes) && data.imagenes.length ? data.imagenes.length : 4)) || 4));
+    const numero = report?.numeroInforme || grNextNumber();
+    const fecha = report?.fecha || grToday();
+
+    grOpenModal(`
+      <div class="p-5 sm:p-7">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <div>
+            <div class="gr-title">${report ? 'Editar informe general' : 'Nuevo informe general'}</div>
+            <div class="gr-sub">Formato libre para obras civiles menores y trabajos varios: cambio de palmetas, pintura, sellado de estructuras, reparaciones simples u otros servicios no asociados a equipos.</div>
+          </div>
+          <button onclick="closeModal()" class="gr-btn">Cerrar</button>
+        </div>
+
+        <div class="gr-card mb-4">
+          <div class="gr-card-head">
+            <div><div class="font-black text-slate-800">1. Datos generales</div><div class="gr-sub">Se mantiene el mismo orden base de los informes técnicos.</div></div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-[#eef6df] text-[#4f6f1b] border border-[#dbe7ca]">Informe libre</span>
+          </div>
+          <div class="p-4">
+            <div class="gr-grid">
+              <div class="gr-field"><label>N° informe</label><input id="grNumero" value="${grEsc(numero)}" readonly class="bg-slate-50"></div>
+              <div class="gr-field"><label>Fecha</label><input id="grFecha" type="date" value="${grEsc(fecha)}"></div>
+              <div class="gr-field"><label>OT asociada</label><select id="grOT" onchange="populateGeneralReportFromOT()">${grGetOTOptions(linkedOTId)}</select></div>
+              <div class="gr-field"><label>Cliente</label><select id="grClient">${grGetClientOptions(selectedClientId)}</select></div>
+              <div class="gr-field gr-span-2"><label>Título del informe</label><input id="grTitulo" value="${grEsc(report?.titulo || data.titulo || 'Informe general de trabajo')}" placeholder="Ej: Informe general de reparación de palmetas"></div>
+              <div class="gr-field"><label>Responsable</label><input id="grTecnico" value="${grEsc(report?.tecnicoResponsable || data.tecnicoResponsable || currentUserDisplayName || 'ECOLUZ')}"></div>
+              <div class="gr-field"><label>Cotización</label><input id="grCotizacion" value="${grEsc(report?.numeroCotizacion || data.numeroCotizacion || linkedQuote?.numeroCotizacion || linkedOT?.numeroCotizacion || '')}" placeholder="Opcional"></div>
+              <div class="gr-field gr-span-4"><label>Dirección / sucursal</label><input id="grDireccion" value="${grEsc(report?.direccion || data.direccion || linkedOT?.direccion || linkedOT?.sucursal || linkedQuote?.direccion || linkedQuote?.sucursal || '')}" placeholder="Lugar donde se realizó el trabajo"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gr-card mb-4">
+          <div class="gr-card-head">
+            <div><div class="font-black text-slate-800">2. Desarrollo del informe</div><div class="gr-sub">No seleccionas categorías: escribes libremente, pero el documento mantiene una estructura ordenada.</div></div>
+          </div>
+          <div class="p-4">
+            <div class="gr-grid">
+              <div class="gr-field gr-span-4"><label>Antecedentes / motivo del informe</label><textarea id="grAntecedentes" placeholder="Ej: Se solicita revisión y reparación de sectores con palmetas dañadas en área de tránsito.">${grEsc(data.antecedentes || report?.resumenEjecutivo || '')}</textarea></div>
+              <div class="gr-field gr-span-4"><label>Trabajo realizado</label><textarea id="grTrabajo" rows="5" placeholder="Describe libremente todo lo ejecutado: cambio de palmetas, pintura, sellado, reparación, limpieza, etc.">${grEsc(data.trabajoRealizado || report?.detalleGeneral || '')}</textarea></div>
+              <div class="gr-field gr-span-4"><label>Resultado / estado final del trabajo</label><textarea id="grResultado" placeholder="Ej: Trabajo finalizado correctamente, sector operativo y área entregada limpia.">${grEsc(data.resultadoTrabajo || report?.estadoGeneral || '')}</textarea></div>
+              <div class="gr-field gr-span-2"><label>Observaciones</label><textarea id="grObservaciones" placeholder="Opcional. Indica hallazgos, restricciones o situaciones observadas.">${grEsc(data.observaciones || report?.observacionesGenerales || '')}</textarea></div>
+              <div class="gr-field gr-span-2"><label>Recomendaciones / pendientes</label><textarea id="grRecomendaciones" placeholder="Opcional. Indica pendientes, recomendaciones o próximos pasos.">${grEsc(data.recomendaciones || report?.sugerenciasMejora || '')}</textarea></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gr-card mb-4">
+          <div class="gr-card-head">
+            <div><div class="font-black text-slate-800">3. Imágenes del trabajo</div><div class="gr-sub">Se habilita solo si marcas que el informe llevará imágenes. La app no sube fotos: el Word queda con espacios para agregarlas manualmente.</div></div>
+          </div>
+          <div class="p-4">
+            <label class="gr-check">
+              <input id="grHasImages" type="checkbox" onchange="toggleGeneralReportImages()" ${hasImages ? 'checked' : ''}>
+              <span><span class="block">El informe llevará imágenes del trabajo</span><span class="block text-sm font-normal text-slate-500 mt-1">Activa esta opción para dejar recuadros vacíos en el Word y luego insertar las fotos manualmente.</span></span>
+            </label>
+            <div id="grImagesBox" class="gr-images ${hasImages ? 'show' : ''} mt-4">
+              <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <div class="font-black text-slate-800">Espacios para imágenes en Word</div>
+                  <div class="gr-soft-note">No se cargan imágenes en la aplicación. Solo se crearán espacios ordenados dentro del documento.</div>
+                </div>
+                <div class="gr-field" style="min-width:190px;">
+                  <label>Cantidad de espacios</label>
+                  <select id="grImageSlotCount" onchange="renderGeneralReportImageGallery()">
+                    ${[2,4,6,8,10,12].map(n => `<option value="${n}" ${Number(imageSlotCount) === n ? 'selected' : ''}>${n} imágenes</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+              <div id="grImageCount" class="text-xs text-slate-500 mt-3">0 espacio(s) para imagen</div>
+              <div id="grImageGallery" class="gr-gallery"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <button onclick="saveGeneralReport('${grEsc(report?.id || '')}')" class="gr-btn primary"><i class="fa-solid fa-floppy-disk"></i>Guardar informe</button>
+          <button onclick="saveGeneralReport('${grEsc(report?.id || '')}', { generateWord:true })" class="gr-btn green"><i class="fa-solid fa-file-word"></i>Guardar y descargar Word</button>
+          ${report ? `<button onclick="previewGeneralReport('${grEsc(report.id)}')" class="gr-btn"><i class="fa-solid fa-eye"></i>Vista previa</button>` : ''}
+          <button onclick="closeModal()" class="gr-btn">Cancelar</button>
+        </div>
+      </div>
+    `);
+
+    renderGeneralReportImageGallery(data.imagenes || []);
+    populateGeneralReportFromOT();
+  };
+
+  function collectGeneralReport(){
+    syncGeneralImageCaptions();
+
+    const otId = grText(document.getElementById('grOT')?.value || '');
+    const linkedOT = otId ? grFindOT(otId) : null;
+    const clientId = grText(document.getElementById('grClient')?.value || linkedOT?.clientId || '');
+    const client = grFindClient(clientId);
+    const hasImages = !!document.getElementById('grHasImages')?.checked;
+    const imageSlotCount = hasImages ? (Number(document.getElementById('grImageSlotCount')?.value || 4) || 4) : 0;
+    const images = hasImages ? getGeneralReportImagePlaceholders(imageSlotCount) : [];
+
+    const model = {
+      numeroInforme: grText(document.getElementById('grNumero')?.value || grNextNumber()),
+      fecha: document.getElementById('grFecha')?.value || grToday(),
+      clientId: clientId || null,
+      clientName: client?.name || linkedOT?.clientName || '',
+      clientRut: client?.rut || linkedOT?.clientRut || '',
+      otId: linkedOT?.id || otId || null,
+      quoteId: linkedOT?.quoteId || linkedOT?.quote_id || null,
+      numeroOT: linkedOT?.numeroOT || linkedOT?.numero_ot || '',
+      numeroCotizacion: grText(document.getElementById('grCotizacion')?.value || linkedOT?.numeroCotizacion || ''),
+      tipoServicio: GENERAL_REPORT_TYPE,
+      titulo: grText(document.getElementById('grTitulo')?.value || 'Informe general de trabajo'),
+      tecnicoResponsable: grText(document.getElementById('grTecnico')?.value || currentUserDisplayName || 'ECOLUZ'),
+      direccion: grText(document.getElementById('grDireccion')?.value || ''),
+      antecedentes: grText(document.getElementById('grAntecedentes')?.value || ''),
+      trabajoRealizado: grText(document.getElementById('grTrabajo')?.value || ''),
+      resultadoTrabajo: grText(document.getElementById('grResultado')?.value || ''),
+      observaciones: grText(document.getElementById('grObservaciones')?.value || ''),
+      recomendaciones: grText(document.getElementById('grRecomendaciones')?.value || ''),
+      tieneImagenes: hasImages,
+      imagenes: images
+    };
+
+    model.resumenEjecutivo = model.antecedentes;
+    model.detalleGeneral = model.trabajoRealizado;
+    model.observacionesGenerales = model.observaciones;
+    model.sugerenciasMejora = model.recomendaciones;
+    model.estadoGeneral = model.resultadoTrabajo || 'Trabajo informado';
+    model.totalEquipos = 0;
+    model.equiposOperativos = 0;
+    model.equiposObservacion = 0;
+    model.equiposNoOperativos = 0;
+
+    const imageMetadata = images.map((img, idx) => ({
+      id: img.id || `slot_${idx + 1}`,
+      name: img.name || `Espacio para imagen ${idx + 1}`,
+      caption: img.caption || '',
+      placeholder: true,
+      slot: idx + 1,
+      createdAt: img.createdAt || new Date().toISOString()
+    }));
+
+    model.data = {
+      formatoInforme: GENERAL_REPORT_KIND,
+      tipoInforme: 'general_obras_civiles',
+      clientId: model.clientId,
+      clientName: model.clientName,
+      clientRut: model.clientRut,
+      otId: model.otId,
+      quoteId: model.quoteId,
+      numeroInforme: model.numeroInforme,
+      numeroOT: model.numeroOT,
+      numeroCotizacion: model.numeroCotizacion,
+      tipoServicio: model.tipoServicio,
+      titulo: model.titulo,
+      tecnicoResponsable: model.tecnicoResponsable,
+      direccion: model.direccion,
+      antecedentes: model.antecedentes,
+      trabajoRealizado: model.trabajoRealizado,
+      resultadoTrabajo: model.resultadoTrabajo,
+      observaciones: model.observaciones,
+      recomendaciones: model.recomendaciones,
+      resumenEjecutivo: model.resumenEjecutivo,
+      detalleGeneral: model.detalleGeneral,
+      observacionesGenerales: model.observacionesGenerales,
+      sugerenciasMejora: model.sugerenciasMejora,
+      estadoGeneral: model.estadoGeneral,
+      tieneImagenes: model.tieneImagenes,
+      cantidadImagenes: imageMetadata.length,
+      imageSlotCount: imageMetadata.length,
+      imagenes: imageMetadata,
+      createdByName: currentUserDisplayName || 'Usuario',
+      createdByEmail: currentUser?.email || ''
+    };
+
+    return model;
+  }
+
+  window.saveGeneralReport = async function(reportId = '', options = {}){
+    try{
+      const model = collectGeneralReport();
+      if(!model.clientId){ alert('Selecciona un cliente o una OT asociada para el informe.'); return; }
+      if(!model.trabajoRealizado){ alert('Ingresa el trabajo realizado.'); return; }
+
+      const payload = {
+        numero_informe: model.numeroInforme,
+        fecha: model.fecha,
+        client_id: model.clientId,
+        client_name: model.clientName,
+        client_rut: model.clientRut,
+        ot_id: model.otId,
+        quote_id: model.quoteId,
+        numero_ot: model.numeroOT,
+        numero_cotizacion: model.numeroCotizacion,
+        tipo_servicio: model.tipoServicio,
+        titulo: model.titulo,
+        tecnico_responsable: model.tecnicoResponsable,
+        direccion: model.direccion,
+        resumen_ejecutivo: model.resumenEjecutivo,
+        detalle_general: model.detalleGeneral,
+        observaciones_generales: model.observacionesGenerales,
+        sugerencias_mejora: model.sugerenciasMejora,
+        total_equipos: 0,
+        equipos_operativos: 0,
+        equipos_no_operativos: 0,
+        equipos_con_observacion: 0,
+        estado_general: model.estadoGeneral,
+        created_by: currentUser?.id || null,
+        created_by_email: currentUser?.email || '',
+        created_by_name: currentUserDisplayName || 'Usuario',
+        data: model.data
+      };
+
+      let savedRow = null;
+      let error = null;
+      if(reportId){
+        ({ data: savedRow, error } = await supabaseClient.from(REPORTS_TABLE).update(payload).eq('id', reportId).select('*').single());
+      } else {
+        ({ data: savedRow, error } = await supabaseClient.from(REPORTS_TABLE).insert([payload]).select('*').single());
+      }
+      if(error) throw error;
+
+      const saved = typeof mapReportRowToModel === 'function' ? mapReportRowToModel(savedRow) : { ...model, id: savedRow.id, created_at: savedRow.created_at, data: model.data };
+      grReplaceReport(saved);
+
+      try{ if(typeof renderReports === 'function') renderReports(); }catch(e){}
+      try{ if(typeof renderDashboard === 'function') renderDashboard(); }catch(e){}
+
+      if(options.generateWord) await generateGeneralReportWord(saved, saved?.data?.imagenes || []);
+      closeModal();
+      grNotify(options.generateWord ? 'Informe general guardado y Word descargado ✅' : 'Informe general guardado correctamente ✅');
+    }catch(err){
+      console.error('saveGeneralReport error:', err);
+      alert('No se pudo guardar el informe general: ' + (err?.message || err));
+    }
+  };
+
+  function generalSection(title, text){
+    const t = grText(text);
+    if(!t) return '';
+    return `<h2 style="font-size:13pt;color:#35511f;border-bottom:1px solid #dbe7cc;padding-bottom:4px;margin:18px 0 8px;">${grEsc(title)}</h2>
+      <p style="font-size:10.7pt;line-height:1.45;white-space:pre-wrap;margin:0 0 10px;">${grEsc(t)}</p>`;
+  }
+
+  async function grLogoData(){
+    try{ return typeof loadLogoDataUrl === 'function' ? await loadLogoDataUrl() : ''; }
+    catch(e){ return ''; }
+  }
+
+  function buildGeneralReportHTML(rep, images = [], assets = {}){
+    const data = rep?.data || {};
+    const logo = assets.logoDataUrl || '';
+    const imgs = Array.isArray(images) && images.length ? images : (Array.isArray(data.imagenes) ? data.imagenes : []);
+    const hasImagesDeclared = !!(data.tieneImagenes || imgs.length || Number(data.cantidadImagenes || data.imageSlotCount || 0));
+    const title = rep?.titulo || data.titulo || 'Informe general de trabajo';
+    const slotCount = Math.max(1, Math.min(20, Number(data.cantidadImagenes || data.imageSlotCount || imgs.length || 4) || 4));
+    const slots = hasImagesDeclared ? Array.from({length: slotCount}, (_, idx) => imgs[idx] || { slot: idx + 1, caption: '' }) : [];
+    const imageHtml = hasImagesDeclared ? `
+      <h2 style="font-size:13pt;color:#35511f;border-bottom:1px solid #dbe7cc;padding-bottom:4px;margin:18px 0 8px;">Registro fotográfico</h2>
+      <p style="font-size:9.5pt;color:#64748b;margin:0 0 8px;">Espacios reservados para insertar imágenes manualmente en Word.</p>
+      <table style="width:100%;border-collapse:collapse;">
+        ${slots.map((img, idx) => {
+          const cap = grText(img.caption) || `Imagen ${idx + 1}`;
+          return `<tr>
+            <td style="padding:8px 0 14px;">
+              <div style="font-size:9.5pt;font-weight:bold;color:#334155;margin-bottom:5px;">${grEsc(cap)}</div>
+              <div style="height:230px;border:1.5pt dashed #94a3b8;border-radius:8px;background:#f8fafc;color:#64748b;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12pt;font-weight:bold;">
+                Espacio para insertar imagen ${idx + 1}<br><span style="font-size:9pt;font-weight:normal;">Agregar manualmente en Word</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </table>` : '';
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${grEsc(title)}</title>
+<style>
+  @page{margin:12mm 12mm 12mm 12mm;}
+  body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;background:#fff;margin:0;font-size:10.4pt;line-height:1.35;}
+  .doc{max-width:760px;margin:0 auto;}
+  .head{border-bottom:3px solid #85af28;padding-bottom:9px;margin-bottom:12px;}
+  .head-table{width:100%;border-collapse:collapse;}
+  .logo{width:86px;vertical-align:top;}
+  .logo img{max-width:82px;max-height:52px;object-fit:contain;}
+  .main-title{font-size:16pt;font-weight:900;color:#1f2a1c;margin:0 0 3px;}
+  .sub-title{font-size:10.5pt;font-weight:700;color:#5f728c;margin:0;}
+  .folio{font-size:9pt;font-weight:900;color:#4f6f1b;background:#f2f7e8;border:1px solid #d7e6bd;border-radius:999px;padding:6px 10px;text-align:right;white-space:nowrap;}
+  .meta{width:100%;border-collapse:collapse;margin:10px 0 14px;font-size:9.5pt;}
+  .meta th{background:#f7fbf1;color:#426018;text-align:left;font-weight:800;width:23%;}
+  .meta th,.meta td{border:1px solid #dbe7ca;padding:6px 7px;vertical-align:top;}
+  .footer{border-top:2px solid #85af28;margin-top:18px;padding-top:7px;font-size:8pt;color:#64748b;}
+</style>
+</head>
+<body>
+  <div class="doc">
+    <div class="head">
+      <table class="head-table">
+        <tr>
+          <td class="logo">${logo ? `<img src="${logo}" alt="ECOLUZ">` : ''}</td>
+          <td>
+            <div class="main-title">Informe general de trabajo</div>
+            <div class="sub-title">${grEsc(title)}</div>
+          </td>
+          <td style="width:140px;text-align:right;"><span class="folio">${grEsc(rep?.numeroInforme || data.numeroInforme || 'INF-S/N')}</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <table class="meta">
+      <tr><th>Cliente</th><td>${grEsc(rep?.clientName || data.clientName || '—')}</td><th>Fecha</th><td>${grEsc(grDate(rep?.fecha || data.fecha || rep?.created_at))}</td></tr>
+      <tr><th>RUT</th><td>${grEsc(rep?.clientRut || data.clientRut || '—')}</td><th>N° OT</th><td>${grEsc(rep?.numeroOT || data.numeroOT || '—')}</td></tr>
+      <tr><th>Cotización</th><td>${grEsc(rep?.numeroCotizacion || data.numeroCotizacion || '—')}</td><th>Responsable</th><td>${grEsc(rep?.tecnicoResponsable || data.tecnicoResponsable || '—')}</td></tr>
+      <tr><th>Dirección / sucursal</th><td colspan="3">${grEsc(rep?.direccion || data.direccion || '—')}</td></tr>
+    </table>
+
+    ${generalSection('1. Antecedentes / motivo del informe', data.antecedentes || rep?.resumenEjecutivo)}
+    ${generalSection('2. Trabajo realizado', data.trabajoRealizado || rep?.detalleGeneral)}
+    ${generalSection('3. Resultado / estado final del trabajo', data.resultadoTrabajo || rep?.estadoGeneral)}
+    ${generalSection('4. Observaciones', data.observaciones || rep?.observacionesGenerales)}
+    ${generalSection('5. Recomendaciones / pendientes', data.recomendaciones || rep?.sugerenciasMejora)}
+    ${imageHtml}
+
+    <div class="footer">ECOLUZ Servicios · Informe general</div>
+  </div>
+</body>
+</html>`;
+  }
+
+  function downloadWordHTML(html, fileName){
+    const blob = new Blob(['\ufeff', html], { type:'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      try{ URL.revokeObjectURL(url); }catch(e){}
+      try{ a.remove(); }catch(e){}
+    }, 500);
+  }
+
+  window.generateGeneralReportWord = async function(reportRef, images = null){
+    const rep = (reportRef && typeof reportRef === 'object') ? reportRef : (typeof ensureReportLoaded === 'function' ? await ensureReportLoaded(reportRef) : grReportList().find(r => String(r.id) === String(reportRef)));
+    if(!rep){ alert('Informe no encontrado'); return; }
+    const activeImages = Array.isArray(images) ? images : ((rep?.data && Array.isArray(rep.data.imagenes)) ? rep.data.imagenes : []);
+    const logoDataUrl = await grLogoData();
+    const html = buildGeneralReportHTML(rep, activeImages, { logoDataUrl });
+    const fileName = `Informe_General_${String(rep.numeroInforme || 'sin_numero').replace(/[^\w-]+/g,'_')}.doc`;
+    downloadWordHTML(html, fileName);
+  };
+
+  window.previewGeneralReport = async function(reportId){
+    const rep = typeof ensureReportLoaded === 'function' ? await ensureReportLoaded(reportId) : grReportList().find(r => String(r.id) === String(reportId));
+    if(!rep){ alert('Informe no encontrado'); return; }
+    const html = buildGeneralReportHTML(rep, (rep?.data && Array.isArray(rep.data.imagenes)) ? rep.data.imagenes : [], { logoDataUrl:'' });
+    const body = html.replace(/<!DOCTYPE html>|<html>|<head>[\s\S]*?<\/head>|<body[^>]*>|<\/body>|<\/html>/g,'');
+    grOpenModal(`
+      <div class="p-4 bg-slate-100">
+        <div class="bg-white mx-auto p-5 shadow-sm" style="max-width:920px;max-height:82vh;overflow:auto;border:1px solid #dbe7ca;border-radius:22px;">
+          ${body}
+          <div class="mt-4 flex flex-wrap gap-3 justify-end">
+            <button onclick="generateGeneralReportWord('${grEsc(rep.id)}')" class="gr-btn green">Descargar Word</button>
+            <button onclick="showGeneralReportModal({id:'${grEsc(rep.id)}'})" class="gr-btn">Editar</button>
+            <button onclick="closeModal()" class="gr-btn">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    `);
+  };
+
+  function generalStatusBadge(rep){
+    const data = rep?.data || {};
+    const txt = grText(data.resultadoTrabajo || rep?.estadoGeneral || 'Trabajo informado');
+    const short = txt.length > 34 ? txt.slice(0,34) + '…' : txt;
+    return `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#eef6df] text-[#4f6f1b] border border-[#dbe7ca]" title="${grEsc(txt)}">${grEsc(short)}</span>`;
+  }
+
+  function reportDetailCell(rep){
+    if(!grIsGeneralReport(rep)){
+      const s = typeof getReportOperationalSummary === 'function' ? getReportOperationalSummary(rep) : {total:0,operativos:0,observacion:0,noOperativos:0};
+      return `${s.total} total · ${s.operativos} ok · ${s.observacion} obs · ${s.noOperativos} no ok`;
+    }
+    const data = rep.data || {};
+    const hasImg = data.tieneImagenes ? ' · con imágenes' : '';
+    return `<span class="font-semibold text-slate-700">Informe libre</span><div class="text-xs text-slate-500 mt-1">Obras civiles menores / trabajos varios${hasImg}</div>`;
+  }
+
+  function renderReportsGeneralAware(){
+    const tbody = document.getElementById('reportsTable');
+    if(!tbody) return;
+    installGeneralReportButton();
+
+    const q = (typeof normalizeText === 'function') ? normalizeText(document.getElementById('reportSearch')?.value || '') : grText(document.getElementById('reportSearch')?.value || '').toLowerCase();
+    const search = (rep) => {
+      if(typeof getReportSearchHaystack === 'function') return getReportSearchHaystack(rep);
+      const d = rep.data || {};
+      return [rep.numeroInforme,rep.clientName,rep.clientRut,rep.numeroOT,rep.numeroCotizacion,rep.titulo,rep.tipoServicio,rep.tecnicoResponsable,rep.detalleGeneral,rep.resumenEjecutivo,rep.observacionesGenerales,rep.sugerenciasMejora,d.trabajoRealizado,d.antecedentes,d.resultadoTrabajo,rep.direccion,rep.fecha].map(x => grText(x).toLowerCase()).join(' ');
+    };
+
+    const list = grReportList().filter(r => !q || search(r).includes(q)).sort((a,b) => {
+      const nb = typeof reportNumberValue === 'function' ? reportNumberValue(b.numeroInforme) : Number(String(b.numeroInforme || '').replace(/\D/g,'')) || 0;
+      const na = typeof reportNumberValue === 'function' ? reportNumberValue(a.numeroInforme) : Number(String(a.numeroInforme || '').replace(/\D/g,'')) || 0;
+      if(nb !== na) return nb - na;
+      return new Date(b.created_at || b.fecha || 0).getTime() - new Date(a.created_at || a.fecha || 0).getTime();
+    });
+
+    const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
+    setText('reportsCount', list.length);
+
+    if(!list.length){
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-500">No hay informes para mostrar.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(rep => {
+      const id = grEsc(rep.id);
+      const isGeneral = grIsGeneralReport(rep);
+      const typeLabel = isGeneral ? 'Informe general' : (typeof getReportServiceLabel === 'function' ? getReportServiceLabel(rep.tipoServicio) : grText(rep.tipoServicio || 'Sin definir'));
+      const state = isGeneral ? generalStatusBadge(rep) : (typeof getReportStateBadge === 'function' ? getReportStateBadge(rep) : '—');
+      const editFn = isGeneral ? `showGeneralReportModal({id:'${id}'})` : `showNewReportModal({id:'${id}'})`;
+      return `
+        <tr class="border-t hover:bg-slate-50">
+          <td class="p-4">${grEsc(grDate(rep.fecha || rep.created_at))}</td>
+          <td class="p-4 font-bold text-slate-800">${grEsc(rep.numeroInforme || 'S/N')}${rep.pendingSync ? ' <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">LOCAL</span>' : ''}</td>
+          <td class="p-4"><div class="font-semibold text-slate-800">${grEsc(rep.clientName || 'Cliente')}</div><div class="text-xs text-slate-500 mt-1">${grEsc(rep.clientRut || '')}</div></td>
+          <td class="p-4">${grEsc(rep.numeroOT || '—')}</td>
+          <td class="p-4">${grEsc(typeLabel)}</td>
+          <td class="p-4 text-sm text-slate-600">${reportDetailCell(rep)}</td>
+          <td class="p-4">${state}</td>
+          <td class="p-4 text-center"><button onclick="generateReportWord('${id}')" class="text-brand hover:opacity-80" title="Descargar Word"><i class="fa-solid fa-file-word text-xl"></i></button></td>
+          <td class="p-4">
+            <div class="flex items-center justify-center gap-3">
+              <button onclick="previewReport('${id}')" class="text-slate-600 hover:text-slate-900" title="Vista previa"><i class="fa-solid fa-eye text-lg"></i></button>
+              <button onclick="${editFn}" class="text-brand hover:opacity-80" title="Editar informe"><i class="fa-solid fa-pen-to-square text-lg"></i></button>
+              <button onclick="deleteReport('${id}')" class="text-rose-600 hover:text-rose-800" title="Eliminar informe"><i class="fa-solid fa-trash text-lg"></i></button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function installOverrides(){
+    // Mantiene el botón y función existente para informes por bloques, pero desvía la edición cuando el informe es general.
+    if(window.__generalReportsOverridesInstalled) return;
+    window.__generalReportsOverridesInstalled = true;
+
+    const currentShow = window.showNewReportModal || oldShowNewReportModal;
+    oldShowNewReportModal = currentShow;
+    window.showNewReportModal = async function(prefill = {}){
+      if(prefill && prefill.general) return window.showGeneralReportModal(prefill);
+      if(prefill && prefill.id){
+        const rep = typeof ensureReportLoaded === 'function' ? await ensureReportLoaded(prefill.id) : grReportList().find(r => String(r.id) === String(prefill.id));
+        if(grIsGeneralReport(rep)) return window.showGeneralReportModal(prefill);
+      }
+      return currentShow ? currentShow(prefill) : null;
+    };
+    try{ showNewReportModal = window.showNewReportModal; }catch(e){}
+
+    const currentPreview = window.previewReport || oldPreviewReport;
+    oldPreviewReport = currentPreview;
+    window.previewReport = async function(reportId){
+      const rep = typeof ensureReportLoaded === 'function' ? await ensureReportLoaded(reportId) : grReportList().find(r => String(r.id) === String(reportId));
+      if(grIsGeneralReport(rep)) return window.previewGeneralReport(reportId);
+      return currentPreview ? currentPreview(reportId) : null;
+    };
+    try{ previewReport = window.previewReport; }catch(e){}
+
+    const currentWord = window.generateReportWord || oldGenerateReportWord;
+    oldGenerateReportWord = currentWord;
+    window.generateReportWord = async function(reportRef){
+      const rep = (reportRef && typeof reportRef === 'object') ? reportRef : (typeof ensureReportLoaded === 'function' ? await ensureReportLoaded(reportRef) : grReportList().find(r => String(r.id) === String(reportRef)));
+      if(grIsGeneralReport(rep)) return window.generateGeneralReportWord(rep);
+      return currentWord ? currentWord(reportRef) : null;
+    };
+    try{ generateReportWord = window.generateReportWord; }catch(e){}
+
+    oldRenderReports = window.renderReports || oldRenderReports;
+    window.renderReports = renderReportsGeneralAware;
+    try{ renderReports = window.renderReports; }catch(e){}
+  }
+
+  const oldShowView = window.showView;
+  if(typeof oldShowView === 'function' && !window.__generalReportsShowViewWrapped){
+    window.__generalReportsShowViewWrapped = true;
+    window.showView = function(view){
+      const result = oldShowView.apply(this, arguments);
+      if(String(view || '').toLowerCase() === 'reports' || String(view || '').toLowerCase() === 'informes'){
+        setTimeout(() => { installGeneralReportButton(); installOverrides(); }, 0);
+      }
+      return result;
+    };
+    try{ showView = window.showView; }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      installGeneralReportButton();
+      installOverrides();
+    }, 350);
+  });
+
+  // Por si este script se carga después de DOMContentLoaded.
+  setTimeout(() => {
+    installGeneralReportButton();
+    installOverrides();
+  }, 350);
+})();
+</script>
+
 </body>
 </html>
