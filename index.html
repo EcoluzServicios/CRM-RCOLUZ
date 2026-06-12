@@ -3020,7 +3020,8 @@ window.supabaseClient = supabaseClient;
     var maintenanceQuickFilters = { frequency:'all', state:'all', month:'all' };
     // Cuando creas una OT desde una cotización aceptada (documentos antiguos)
     var pendingQuoteToLinkOT = null; 
-    var pendingMaintenanceToLinkOT = null; 
+    var pendingMaintenanceToLinkOT = null;
+    var pendingMaintenanceMatrixQuoteContext = null;
     var isAutoMode = localStorage.getItem('ecoluz_automode') === 'true';
 
     window.LOGO_FILE = "logo ecoluz.png";
@@ -9240,10 +9241,10 @@ window.renderQuotes = renderQuotes;
               <select id="maintMatrixQuoteId" class="w-full px-4 py-3 border rounded-2xl bg-white">
                 ${matrixOptions}
               </select>
-              <p class="text-xs text-indigo-700 mt-2">Esta cotización será la base para crear las OTs de este programa de mantención.</p>
+              <p class="text-xs text-indigo-700 mt-2">Esta cotización quedará fija como base para crear todas las OTs de este programa de mantención.</p>
               <div class="flex flex-wrap gap-2 mt-3">
-                ${program ? `<button type="button" onclick="createMaintenanceMatrixQuote('${program.id}')" class="px-4 py-2 rounded-xl bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-100">Crear cotización matriz</button>` : `<span class="text-xs text-slate-500">Guarda primero la programación para poder crear o vincular la cotización matriz.</span>`}
-                ${program ? `<button type="button" onclick="openMaintenanceMatrixQuote('${program.id}','edit')" class="px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-200 font-semibold hover:bg-slate-100">Abrir / editar cotización matriz</button>` : ``}
+                ${program ? `<button type="button" onclick="createMaintenanceMatrixQuote('${program.id}')" class="px-4 py-2 rounded-xl bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-100">Crear cotización base y dejar fija</button>` : `<span class="text-xs text-slate-500">Guarda primero la programación para poder crear o vincular la cotización matriz.</span>`}
+                ${program ? `<button type="button" onclick="openMaintenanceMatrixQuote('${program.id}','edit')" class="px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-200 font-semibold hover:bg-slate-100">Abrir / editar cotización base</button>` : ``}
               </div>
             </div>
           </div>
@@ -9321,6 +9322,29 @@ window.renderQuotes = renderQuotes;
       return match;
     }
 
+    async function resolveMaintenanceMatrixQuote(program){
+      let quote = getMaintenanceMatrixQuote(program);
+      if(quote) return quote;
+
+      const quoteId = getMaintenanceMatrixQuoteId(program);
+      if(quoteId && typeof ensureQuoteLoaded === 'function'){
+        try{
+          quote = await ensureQuoteLoaded(quoteId);
+          if(quote) return quote;
+        }catch(err){
+          console.warn('No se pudo cargar la cotización matriz por ID:', err);
+        }
+      }
+
+      const quoteNum = getMaintenanceMatrixQuoteNumber(program).toLowerCase();
+      if(quoteNum){
+        quote = (quotes || []).find(q => String(q?.numeroCotizacion || q?.numero || '').trim().toLowerCase() === quoteNum) || null;
+        if(quote) return quote;
+      }
+
+      return null;
+    }
+
     function encodeMaintenanceNotes(notesValue, equipmentCount, extraMeta = {}){
       const cleanNotes = stripMaintenanceMetaTags(notesValue);
       const qty = Number(equipmentCount || 0);
@@ -9376,21 +9400,116 @@ window.renderQuotes = renderQuotes;
       if(typeof previewQuote === 'function') previewQuote(quote.id);
     }
 
-    function createMaintenanceMatrixQuote(programId=''){
+    function buildMaintenanceMatrixQuotePrefill(program){
+      const year = Number(program?.programYear || maintenanceProgramYear || new Date().getFullYear());
+      const freqLabel = getMaintenanceFrequencyLabel(program?.frequency || 'mensual');
+      const site = String(program?.siteName || '').trim();
+      const service = String(program?.serviceType || 'Mantención preventiva').trim();
+      return {
+        clientId: program?.clientId || '',
+        sucursal: site,
+        tipo_servicio: 'Mantención',
+        obra: `${service}${site ? ' · ' + site : ''} · Programa ${freqLabel} ${year}`,
+        maintenance_base_quote: true,
+        maintenanceProgramId: program?.id || '',
+        maintenanceProgramYear: year
+      };
+    }
+
+    function createMaintenanceMatrixQuote(programId='', options = {}){
       const program = programId ? getMaintenanceProgramById(programId) : null;
       if(!program){
         alert('Primero guarda la programación para poder crear o vincular su cotización matriz.');
         return;
       }
-      const prefill = {
-        clientId: program.clientId || '',
-        sucursal: program.siteName || '',
-        obra: `${program.serviceType || 'Mantención preventiva'}${program.siteName ? ' · ' + program.siteName : ''}`
-      };
+      const prefill = buildMaintenanceMatrixQuotePrefill(program);
       closeModal();
+      pendingMaintenanceMatrixQuoteContext = {
+        programId: String(program.id || ''),
+        month: Number(options?.month || 0),
+        year: Number(program.programYear || maintenanceProgramYear || new Date().getFullYear()),
+        autoOpenOTAfterSave: !!options?.autoOpenOTAfterSave
+      };
       if(typeof showNewQuoteModal === 'function'){
         showNewQuoteModal(prefill);
       }
+    }
+
+    function createMaintenanceMatrixQuoteAndContinue(programId='', month=0){
+      createMaintenanceMatrixQuote(programId, { month: Number(month || 0), autoOpenOTAfterSave: true });
+    }
+
+    function showMaintenanceMissingMatrixQuoteModal(programId='', month=0){
+      const program = getMaintenanceProgramById(programId);
+      if(!program){
+        alert('No se encontró la programación.');
+        return;
+      }
+      const m = Number(month || 0);
+      openModal(`
+        <div class="p-6 sm:p-8">
+          <div class="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900">Falta cotización base</h2>
+              <p class="text-sm text-slate-500 mt-1">Para crear la OT de mantención, primero debe quedar una cotización base fija en este programa.</p>
+            </div>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+          </div>
+
+          <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-5">
+            <div class="font-black text-amber-900">${escapeHtml(getMaintenanceProgramTitle(program))}</div>
+            <div class="text-sm text-amber-800 mt-1">
+              ${escapeHtml(getMaintenanceMonthName(m))} ${escapeHtml(String(program.programYear || maintenanceProgramYear || ''))} · ${escapeHtml(getMaintenanceFrequencyLabel(program.frequency))}
+            </div>
+            <p class="text-sm text-amber-800 mt-3">Puedes crear ahora la cotización base. Al guardarla, quedará fija en esta programación y se abrirá la OT del mes usando esa misma cotización.</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button type="button" onclick="createMaintenanceMatrixQuoteAndContinue('${escapeHtml(String(program.id || ''))}', ${m})" class="px-5 py-4 rounded-2xl bg-indigo-600 text-white font-black hover:bg-indigo-700">
+              <i class="fas fa-file-circle-plus mr-2"></i>Crear cotización base y continuar
+            </button>
+            <button type="button" onclick="showMaintenanceProgramModal('${escapeHtml(String(program.id || ''))}')" class="px-5 py-4 rounded-2xl bg-white text-slate-700 border border-slate-200 font-bold hover:bg-slate-50">
+              <i class="fas fa-link mr-2"></i>Vincular cotización existente
+            </button>
+          </div>
+
+          <button type="button" onclick="closeModal()" class="mt-3 w-full px-5 py-3 rounded-2xl border font-semibold hover:bg-gray-50">Cancelar</button>
+        </div>
+      `);
+    }
+
+    async function attachMaintenanceMatrixQuoteToProgram(programId, quoteRow, options = {}){
+      const program = getMaintenanceProgramById(programId);
+      if(!program || !quoteRow?.id) return null;
+      const quoteNumber = String(quoteRow.numeroCotizacion || quoteRow.numero || 'S/N');
+      const nextNotes = encodeMaintenanceNotes(
+        program.notes || '',
+        getMaintenanceEquipmentCount(program) || program.equipmentCount || '',
+        { matrixQuoteId: quoteRow.id, matrixQuoteNumber: quoteNumber }
+      );
+
+      const { error } = await supabaseClient
+        .from(window.MAINTENANCE_PROGRAMS_TABLE)
+        .update({ notes: nextNotes })
+        .eq('id', program.id);
+      if(error) throw error;
+
+      program.notes = nextNotes;
+
+      try{
+        const qData = Object.assign({}, quoteRow.data || {}, {
+          maintenance_base_quote: true,
+          maintenance_program_id: String(program.id || ''),
+          maintenance_program_year: Number(program.programYear || options?.year || maintenanceProgramYear || new Date().getFullYear()),
+          maintenance_program_frequency: String(program.frequency || '')
+        });
+        await supabaseClient.from('quotes').update({ data: qData }).eq('id', quoteRow.id);
+        quoteRow.data = qData;
+      }catch(markErr){
+        console.warn('No se pudo marcar la cotización como base de mantención:', markErr);
+      }
+
+      return { program, quoteNumber };
     }
 
     function getMaintenanceCalendarEventForMonth(program, month, year){
@@ -10441,8 +10560,13 @@ window.renderQuotes = renderQuotes;
         }
 
         const payload = getMaintenanceProgramMonthPayload(program, month);
-        const matrixQuote = getMaintenanceMatrixQuote(program);
-        pendingQuoteToLinkOT = matrixQuote ? String(matrixQuote.id || '') : null;
+        const matrixQuote = await resolveMaintenanceMatrixQuote(program);
+        if(!matrixQuote || !String(matrixQuote.id || '').trim()){
+          showMaintenanceMissingMatrixQuoteModal(program.id, month);
+          return;
+        }
+
+        pendingQuoteToLinkOT = String(matrixQuote.id || '');
         pendingMaintenanceToLinkOT = {
           programId: String(program.id || ''),
           month: Number(month),
@@ -10453,18 +10577,23 @@ window.renderQuotes = renderQuotes;
           siteName: program.siteName || '',
           clientId: program.clientId || '',
           clientName: program.clientName || '',
-          matrixQuoteId: matrixQuote ? String(matrixQuote.id || '') : '',
-          matrixQuoteNumber: matrixQuote ? String(matrixQuote.numeroCotizacion || matrixQuote.numero || '') : getMaintenanceMatrixQuoteNumber(program)
+          matrixQuoteId: String(matrixQuote.id || ''),
+          matrixQuoteNumber: String(matrixQuote.numeroCotizacion || matrixQuote.numero || getMaintenanceMatrixQuoteNumber(program) || '')
         };
 
         const otPrefill = {
           clientId: program.clientId || '',
           clientName: program.clientName || '',
+          quoteId: String(matrixQuote.id || ''),
+          quote_id: String(matrixQuote.id || ''),
+          numeroCotizacion: String(matrixQuote.numeroCotizacion || matrixQuote.numero || ''),
           descripcion: payload.title,
           fecha: todayISO(),
           maintenanceProgramId: program.id,
           maintenanceMonth: Number(month),
-          maintenanceYear: Number(program.programYear || maintenanceProgramYear || new Date().getFullYear())
+          maintenanceYear: Number(program.programYear || maintenanceProgramYear || new Date().getFullYear()),
+          branchAlias: program.siteName || '',
+          sucursal: program.siteName || ''
         };
 
         if(typeof showNewOTManualModal === 'function'){
@@ -10573,7 +10702,7 @@ window.renderQuotes = renderQuotes;
             ${linkedOT ? `
               <button onclick="previewOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-eye mr-2 text-slate-700"></i>Abrir OT vinculada</button>
               <button onclick="editOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-pen mr-2 text-blue-600"></i>Editar OT vinculada</button>
-            ` : `<button onclick="createOTFromMaintenance('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde este mes</button>`}
+            ` : `<button onclick="createOTFromMaintenance('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde cotización base</button>`}
           </div>
         </div>
       `);
@@ -10804,6 +10933,9 @@ window.renderQuotes = renderQuotes;
     window.saveMaintenanceCompletion = saveMaintenanceCompletion;
     window.removeMaintenanceCompletion = removeMaintenanceCompletion;
     window.getMaintenanceMatrixQuote = getMaintenanceMatrixQuote;
+    window.resolveMaintenanceMatrixQuote = resolveMaintenanceMatrixQuote;
+    window.createMaintenanceMatrixQuoteAndContinue = createMaintenanceMatrixQuoteAndContinue;
+    window.showMaintenanceMissingMatrixQuoteModal = showMaintenanceMissingMatrixQuoteModal;
     window.openMaintenanceMatrixQuote = openMaintenanceMatrixQuote;
     window.createMaintenanceMatrixQuote = createMaintenanceMatrixQuote;
 
@@ -14472,6 +14604,13 @@ async function saveNewQuote(btn) {
         const totalCalc = netoCalc + ivaCalc;
         const quoteAttachments = window.collectModalAttachments('quote');
 
+        const maintenanceMatrixContext = pendingMaintenanceMatrixQuoteContext ? Object.assign({}, pendingMaintenanceMatrixQuoteContext) : null;
+        const maintenanceQuoteData = maintenanceMatrixContext ? {
+            maintenance_base_quote: true,
+            maintenance_program_id: maintenanceMatrixContext.programId || '',
+            maintenance_program_year: maintenanceMatrixContext.year || ''
+        } : {};
+
         const { data: qInserted, error: errQ } = await supabaseClient
             .from('quotes')
             .insert([{
@@ -14487,7 +14626,7 @@ async function saveNewQuote(btn) {
                 items: itemsArr,
                 estado: 'pendiente',
                 tipo_servicio: tipoServ,
-                data: { sucursal: sucursal, attachments: quoteAttachments, documento_antiguo: esDocumentoAntiguo, manual_folio: esDocumentoAntiguo, fecha_documento: fechaDocumento },
+                data: Object.assign({ sucursal: sucursal, attachments: quoteAttachments, documento_antiguo: esDocumentoAntiguo, manual_folio: esDocumentoAntiguo, fecha_documento: fechaDocumento }, maintenanceQuoteData),
                 fecha: dateInputToISO(fechaDocumento),
                 enviado_por_correo: document.getElementById('sendEmailCheckbox')?.checked || false,
                 enviado_por_wsp: document.getElementById('sendWspCheckbox')?.checked || false,
@@ -14499,6 +14638,10 @@ async function saveNewQuote(btn) {
 
         if (errQ) throw errQ;
 
+        if(maintenanceMatrixContext && maintenanceMatrixContext.programId){
+            await attachMaintenanceMatrixQuoteToProgram(maintenanceMatrixContext.programId, qInserted, maintenanceMatrixContext);
+        }
+
         // Si venimos desde una OT manual, la vinculamos automáticamente
         if (typeof pendingOTToLink !== 'undefined' && pendingOTToLink) {
             try{
@@ -14507,11 +14650,16 @@ async function saveNewQuote(btn) {
             pendingOTToLink = null;
         }
 
-        alert("¡Cotización guardada con éxito!");
+        const shouldOpenMaintenanceOT = maintenanceMatrixContext && maintenanceMatrixContext.autoOpenOTAfterSave && maintenanceMatrixContext.month;
+        alert(maintenanceMatrixContext ? "Cotización base guardada y fijada en el programa de mantención." : "¡Cotización guardada con éxito!");
         closeModal();
         await loadData();
         renderQuotes();
         renderOTs();
+        try{ renderMaintenancePrograms(); }catch(e){}
+        if(shouldOpenMaintenanceOT){
+            await createOTFromMaintenance(maintenanceMatrixContext.programId, maintenanceMatrixContext.month);
+        }
     } catch (err) {
         alert("ATENCIÓN: " + err.message);
         console.error("Error completo:", err);
@@ -15915,11 +16063,31 @@ async function saveNewOTManual(btn) {
 
     try{
       if(linkedQuote && typeof safeUpdateWithAutoDrop === 'function'){
-        const qData = Object.assign({}, linkedQuote?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
+        const otCreatedNumber = inserted?.numero_ot || numeroOT;
+        const previousMaintenanceOTs = Array.isArray(linkedQuote?.data?.maintenance_ot_numbers) ? linkedQuote.data.maintenance_ot_numbers : [];
+        const nextMaintenanceOTs = linkedMaintenance
+          ? Array.from(new Set([...previousMaintenanceOTs.map(String), String(otCreatedNumber)]))
+          : previousMaintenanceOTs;
+        const qData = Object.assign({}, linkedQuote?.data || {}, {
+          ot_created: true,
+          ot_numero: otCreatedNumber,
+          maintenance_base_quote: linkedMaintenance ? true : !!linkedQuote?.data?.maintenance_base_quote,
+          maintenance_ot_numbers: nextMaintenanceOTs
+        });
         await safeUpdateWithAutoDrop('quotes', linkedQuote.id, { data: qData });
         linkedQuote.data = qData;
       } else if(linkedQuote){
-        const qData = Object.assign({}, linkedQuote?.data || {}, { ot_created: true, ot_numero: inserted?.numero_ot || numeroOT });
+        const otCreatedNumber = inserted?.numero_ot || numeroOT;
+        const previousMaintenanceOTs = Array.isArray(linkedQuote?.data?.maintenance_ot_numbers) ? linkedQuote.data.maintenance_ot_numbers : [];
+        const nextMaintenanceOTs = linkedMaintenance
+          ? Array.from(new Set([...previousMaintenanceOTs.map(String), String(otCreatedNumber)]))
+          : previousMaintenanceOTs;
+        const qData = Object.assign({}, linkedQuote?.data || {}, {
+          ot_created: true,
+          ot_numero: otCreatedNumber,
+          maintenance_base_quote: linkedMaintenance ? true : !!linkedQuote?.data?.maintenance_base_quote,
+          maintenance_ot_numbers: nextMaintenanceOTs
+        });
         await supabaseClient.from('quotes').update({ data: qData }).eq('id', linkedQuote.id);
         linkedQuote.data = qData;
       }
@@ -22716,7 +22884,7 @@ function openModal(html) {
   content.scrollTop = 0;
 }
 
-function closeModal() { try{ pendingQuoteToLinkOT = null; }catch(e){} try{ pendingMaintenanceToLinkOT = null; }catch(e){} document.getElementById('modal').classList.add('hidden'); }
+function closeModal() { try{ pendingQuoteToLinkOT = null; }catch(e){} try{ pendingMaintenanceToLinkOT = null; }catch(e){} try{ pendingMaintenanceMatrixQuoteContext = null; }catch(e){} document.getElementById('modal').classList.add('hidden'); }
 
     setTimeout(() => { if(!currentUser) document.getElementById('loginScreen').classList.remove('hidden'); }, 500);
    function actualizarDashboardInteligente() {
@@ -23678,11 +23846,19 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
 
           <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-            <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase border-b">
+            <div id="quoteItemsHeaderNormal" class="grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase border-b">
               <div class="col-span-6">Descripción</div>
               <div class="col-span-1 text-center">Cant</div>
               <div class="col-span-2 text-right">Valor Unit.</div>
               <div class="col-span-2 text-right">Subtotal</div>
+              <div class="col-span-1"></div>
+            </div>
+            <div id="quoteItemsHeaderRental" class="hidden grid grid-cols-12 gap-2 px-4 py-3 bg-brand text-[10px] font-bold text-white uppercase border-b">
+              <div class="col-span-4">Equipo arrendado</div>
+              <div class="col-span-2 text-center">Cant. días</div>
+              <div class="col-span-2 text-center">Cant. equipos</div>
+              <div class="col-span-2 text-right">Valor unit.</div>
+              <div class="col-span-1 text-right">Total</div>
               <div class="col-span-1"></div>
             </div>
             <div id="itemsContainer" class="divide-y divide-slate-100"></div>
@@ -23839,6 +24015,7 @@ document.addEventListener('DOMContentLoaded', () => {
         descripcion: obra,
         tipo_servicio: tipo,
         items,
+        arriendo_equipos: isRentalQuoteType(tipo),
         attachments,
         ot_created: !!existingQuote?.data?.ot_created,
         ot_numero: txt(existingQuote?.data?.ot_numero || '')
@@ -27799,7 +27976,18 @@ function toggleSidebarTools(forceOpen = null){
     const base = Array.isArray(window.quoteServiceTypeOptions) && window.quoteServiceTypeOptions.length
       ? window.quoteServiceTypeOptions.slice()
       : ['Mantención','Reparación','Instalación','Suministro','Suministro e Instalación','Asistencia de emergencia','Visita de emergencia'];
+    const wanted = 'Arriendo de equipos';
+    const exists = base.some(opt => String(opt || '').toLowerCase().trim() === wanted.toLowerCase());
+    if(!exists) base.push(wanted);
     return base;
+  }
+
+  function isRentalQuoteType(value){
+    return /arriendo\s+de\s+equipos|arriendo/i.test(txt(value || ''));
+  }
+
+  function getCurrentQuoteType(){
+    return txt(document.getElementById('qTipo')?.value || '');
   }
   function getPresets(){
     return Array.isArray(window.quoteItemPresets) ? window.quoteItemPresets : [];
@@ -28091,10 +28279,12 @@ function toggleSidebarTools(forceOpen = null){
 
   NS.recalculate = function(){
     let bruto = 0;
+    const rental = isRentalQuoteType(getCurrentQuoteType());
     document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
+      const days = rental ? Math.max(0, Number(row.querySelector('.quote-item-days')?.value || 0)) : 1;
       const qty = Number(row.querySelector('.quote-item-cant')?.value || 0);
       const unit = Number(row.querySelector('.quote-item-valor')?.value || 0);
-      const subtotal = Math.max(0, Math.round(qty * unit));
+      const subtotal = Math.max(0, Math.round(days * qty * unit));
       const subtotalEl = row.querySelector('.quote-item-subtotal');
       if(subtotalEl) subtotalEl.textContent = clp(subtotal);
       bruto += subtotal;
@@ -28114,38 +28304,74 @@ function toggleSidebarTools(forceOpen = null){
     return { bruto, descPct: pct, descMonto, neto, iva, total };
   };
 
-  NS.addItem = function(desc, qty, unit){
+  NS.addItem = function(desc, qty, unit, days){
     const container = document.getElementById('itemsContainer');
     if(!container) return;
     const row = document.createElement('div');
     row.className = 'quote-item-row grid grid-cols-12 gap-2 p-4 items-center bg-white border-b border-slate-50';
     row.innerHTML = `
-      <div class="col-span-6"><input type="text" list="quoteItemPresetsList" class="quote-item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${esc(txt(desc))}"></div>
-      <div class="col-span-1"><input type="number" min="0" step="1" class="quote-item-cant w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(qty || 1)}"></div>
-      <div class="col-span-2"><input type="number" min="0" step="1" class="quote-item-valor w-full bg-transparent border-none text-right font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(unit || 0)}"></div>
-      <div class="col-span-2 text-right"><span class="quote-item-subtotal font-bold text-sm text-emerald-600">$0</span></div>
+      <div class="quote-desc-wrap col-span-6"><input type="text" list="quoteItemPresetsList" class="quote-item-desc w-full bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0" placeholder="Descripción..." value="${esc(txt(desc))}"></div>
+      <div class="quote-days-wrap hidden col-span-2"><input type="number" min="0" step="1" class="quote-item-days w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(days || 1)}"></div>
+      <div class="quote-cant-wrap col-span-1"><input type="number" min="0" step="1" class="quote-item-cant w-full bg-transparent border-none text-center font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(qty || 1)}"></div>
+      <div class="quote-valor-wrap col-span-2"><input type="number" min="0" step="1" class="quote-item-valor w-full bg-transparent border-none text-right font-bold text-sm text-slate-800 focus:ring-0 p-0" value="${Number(unit || 0)}"></div>
+      <div class="quote-subtotal-wrap col-span-2 text-right"><span class="quote-item-subtotal font-bold text-sm text-emerald-600">$0</span></div>
       <div class="col-span-1 text-right"><button type="button" class="text-slate-300 hover:text-red-500 font-bold">✕</button></div>`;
     container.appendChild(row);
     row.querySelector('button')?.addEventListener('click', function(){ row.remove(); NS.recalculate(); });
     row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', NS.recalculate));
+    NS.syncRentalUi();
     NS.recalculate();
   };
 
   function rowsToItems(){
     const items = [];
+    const rental = isRentalQuoteType(getCurrentQuoteType());
     document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
       const descripcion = txt(row.querySelector('.quote-item-desc')?.value || '');
+      const dias = rental ? Math.max(0, Number(row.querySelector('.quote-item-days')?.value || 0)) : 1;
       const cantidad = Number(row.querySelector('.quote-item-cant')?.value || 0);
       const precio = Number(row.querySelector('.quote-item-valor')?.value || 0);
-      if(descripcion && cantidad > 0){
-        items.push({ descripcion, cantidad, precio, subtotal: Math.round(cantidad * precio) });
+      const subtotal = Math.round((rental ? dias : 1) * cantidad * precio);
+      if(descripcion && cantidad > 0 && (!rental || dias > 0)){
+        const item = { descripcion, cantidad, precio, subtotal };
+        if(rental){
+          item.tipo_item = 'arriendo_equipo';
+          item.dias = dias;
+          item.cantidad_dias = dias;
+          item.cantidad_equipos = cantidad;
+          item.valor_unitario = precio;
+          item.total_arriendo = subtotal;
+        }
+        items.push(item);
       }
     });
     return items;
   }
 
+  NS.syncRentalUi = function(){
+    const rental = isRentalQuoteType(getCurrentQuoteType());
+    document.getElementById('quoteItemsHeaderNormal')?.classList.toggle('hidden', rental);
+    document.getElementById('quoteItemsHeaderRental')?.classList.toggle('hidden', !rental);
+    document.querySelectorAll('#itemsContainer .quote-item-row').forEach(row => {
+      const descWrap = row.querySelector('.quote-desc-wrap');
+      const daysWrap = row.querySelector('.quote-days-wrap');
+      const cantWrap = row.querySelector('.quote-cant-wrap');
+      const valorWrap = row.querySelector('.quote-valor-wrap');
+      const subtotalWrap = row.querySelector('.quote-subtotal-wrap');
+      const descInput = row.querySelector('.quote-item-desc');
+      if(descWrap) descWrap.className = 'quote-desc-wrap ' + (rental ? 'col-span-4' : 'col-span-6');
+      if(daysWrap) daysWrap.className = 'quote-days-wrap ' + (rental ? 'col-span-2' : 'hidden col-span-2');
+      if(cantWrap) cantWrap.className = 'quote-cant-wrap ' + (rental ? 'col-span-2' : 'col-span-1');
+      if(valorWrap) valorWrap.className = 'quote-valor-wrap col-span-2';
+      if(subtotalWrap) subtotalWrap.className = 'quote-subtotal-wrap ' + (rental ? 'col-span-1 text-right' : 'col-span-2 text-right');
+      if(descInput) descInput.placeholder = rental ? 'Equipo arrendado...' : 'Descripción...';
+    });
+  };
+
   function bindQuoteModalEnhancements(){
     document.getElementById('descuento_pct')?.addEventListener('input', NS.recalculate);
+    document.getElementById('qTipo')?.addEventListener('change', function(){ NS.syncRentalUi(); NS.recalculate(); });
+    NS.syncRentalUi();
     const qIncludeMaintenanceSpecs = document.getElementById('qIncludeMaintenanceSpecs');
     const qMaintenanceSpecsWrap = document.getElementById('qMaintenanceSpecsWrap');
     const syncMaintenanceSpecsUi = () => {
@@ -28207,7 +28433,12 @@ function toggleSidebarTools(forceOpen = null){
     const list = items.length ? items : [{ descripcion:'', cantidad:1, precio:0 }];
     const container = document.getElementById('itemsContainer');
     if(container) container.innerHTML = '';
-    list.forEach(item => NS.addItem(item.descripcion || item.desc || '', item.cantidad || item.cant || 1, item.precio || item.valor || 0));
+    list.forEach(item => NS.addItem(
+      item.descripcion || item.desc || '',
+      item.cantidad_equipos || item.cantidad || item.cant || 1,
+      item.valor_unitario || item.precio || item.valor || 0,
+      item.cantidad_dias || item.dias || item.days || 1
+    ));
     initAttachments((quote?.data && quote.data.attachments) || []);
     NS.recalculate();
     bindQuoteModalEnhancements();
@@ -28392,7 +28623,12 @@ function toggleSidebarTools(forceOpen = null){
 
   function computeTotalsForView(q){
     const items = Array.isArray(q.items) ? q.items : [];
-    const bruto = Number(q.bruto || items.reduce((sum, it) => sum + Math.round((Number(it.cantidad || 0) * Number(it.precio || 0)) || Number(it.subtotal || 0)), 0));
+    const bruto = Number(q.bruto || items.reduce((sum, it) => {
+      const dias = Number(it.cantidad_dias || it.dias || it.days || 1) || 1;
+      const cantidad = Number(it.cantidad_equipos || it.cantidad || it.cant || 0) || 0;
+      const precio = Number(it.valor_unitario || it.precio || it.valor || 0) || 0;
+      return sum + Math.round(Number(it.subtotal || it.total_arriendo || 0) || (dias * cantidad * precio));
+    }, 0));
     const descPct = Number(q.descuento_pct || 0);
     const descMonto = Number(q.descuento_monto || Math.round(bruto * (descPct/100)));
     const neto = Number(q.neto || Math.max(0, bruto - descMonto));
@@ -28553,17 +28789,20 @@ function toggleSidebarTools(forceOpen = null){
       doc.text(wrapped, 38, y);
       y += Math.max(7, wrapped.length * 6);
     });
-    const body = (q.items || []).map((it, idx) => [
-      String(idx + 1),
-      String(it.descripcion || '—'),
-      String(Number(it.cantidad || 0)),
-      clp(Number(it.precio || 0)),
-      clp(Number(it.subtotal || (Number(it.cantidad || 0) * Number(it.precio || 0))))
-    ]);
+    const isRentalView = isRentalQuoteType(q.tipo_servicio || q.data?.tipo_servicio || '');
+    const body = (q.items || []).map((it, idx) => {
+      const dias = Number(it.cantidad_dias || it.dias || it.days || 1) || 1;
+      const cantidad = Number(it.cantidad_equipos || it.cantidad || it.cant || 0) || 0;
+      const precio = Number(it.valor_unitario || it.precio || it.valor || 0) || 0;
+      const subtotal = Number(it.subtotal || it.total_arriendo || Math.round((isRentalView ? dias : 1) * cantidad * precio) || 0);
+      return isRentalView
+        ? [String(idx + 1), String(it.descripcion || '—'), String(dias), String(cantidad), clp(precio), clp(subtotal)]
+        : [String(idx + 1), String(it.descripcion || '—'), String(cantidad), clp(precio), clp(subtotal)];
+    });
     if(typeof doc.autoTable === 'function'){
       doc.autoTable({
         startY: y + 3,
-        head: [['#','Descripción','Cant.','Valor Unit.','Subtotal']],
+        head: [isRentalView ? ['#','Equipo arrendado','Días','Equipos','V. Unit.','Total'] : ['#','Descripción','Cant.','Valor Unit.','Subtotal']],
         body,
         styles: { fontSize: 10 },
         headStyles: { fillColor: [133,175,40] }
@@ -28778,19 +29017,22 @@ function toggleSidebarTools(forceOpen = null){
     y += obraWrapped.length * 4.8 + 8;
 
     const items = Array.isArray(q.items) ? q.items : [];
-    const body = items.map((it, idx) => [
-      String(idx + 1),
-      String(it.descripcion || '—'),
-      String(Number(it.cantidad || 0)),
-      clp(Number(it.precio || 0)),
-      clp(Number(it.subtotal || (Number(it.cantidad || 0) * Number(it.precio || 0))))
-    ]);
+    const isRentalView = isRentalQuoteType(q.tipo_servicio || q.data?.tipo_servicio || '');
+    const body = items.map((it, idx) => {
+      const dias = Number(it.cantidad_dias || it.dias || it.days || 1) || 1;
+      const cantidad = Number(it.cantidad_equipos || it.cantidad || it.cant || 0) || 0;
+      const precio = Number(it.valor_unitario || it.precio || it.valor || 0) || 0;
+      const subtotal = Number(it.subtotal || it.total_arriendo || Math.round((isRentalView ? dias : 1) * cantidad * precio) || 0);
+      return isRentalView
+        ? [String(idx + 1), String(it.descripcion || '—'), String(dias), String(cantidad), clp(precio), clp(subtotal)]
+        : [String(idx + 1), String(it.descripcion || '—'), String(cantidad), clp(precio), clp(subtotal)];
+    });
 
     if(typeof doc.autoTable === 'function'){
       doc.autoTable({
         startY: y,
-        head: [['#','Descripción','Cant.','V. Unit.','Subtotal']],
-        body: body.length ? body : [['','Sin ítems','','','']],
+        head: [isRentalView ? ['#','Equipo arrendado','Días','Equipos','V. Unit.','Total'] : ['#','Descripción','Cant.','V. Unit.','Subtotal']],
+        body: body.length ? body : (isRentalView ? [['','Sin ítems','','','','']] : [['','Sin ítems','','','']]),
         theme: 'grid',
         styles: {
           font: 'helvetica',
@@ -28810,7 +29052,14 @@ function toggleSidebarTools(forceOpen = null){
           lineWidth: 0.1
         },
         alternateRowStyles: { fillColor: [247,248,250] },
-        columnStyles: {
+        columnStyles: isRentalView ? {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 76 },
+          2: { cellWidth: 16, halign: 'center' },
+          3: { cellWidth: 18, halign: 'center' },
+          4: { cellWidth: 28, halign: 'right' },
+          5: { cellWidth: 28, halign: 'right' }
+        } : {
           0: { cellWidth: 8, halign: 'center' },
           1: { cellWidth: 106 },
           2: { cellWidth: 16, halign: 'center' },
@@ -28961,12 +29210,22 @@ window.generateQuotePDF = async function(quoteId){
           };
 
       const items = Array.isArray(q.items) ? q.items : [];
+      const isRentalView = isRentalQuoteType(q.tipo_servicio || q.data?.tipo_servicio || '');
       const itemsRows = items.length
         ? items.map((it, idx) => {
-            const cantidad = Number(it.cantidad || it.cant || 0) || 1;
-            const precio = Number(it.precio || it.valor || 0) || 0;
-            const subtotal = Number(it.subtotal || Math.round(cantidad * precio) || 0);
-            return `
+            const dias = Number(it.cantidad_dias || it.dias || it.days || 1) || 1;
+            const cantidad = Number(it.cantidad_equipos || it.cantidad || it.cant || 0) || 1;
+            const precio = Number(it.valor_unitario || it.precio || it.valor || 0) || 0;
+            const subtotal = Number(it.subtotal || it.total_arriendo || Math.round((isRentalView ? dias : 1) * cantidad * precio) || 0);
+            return isRentalView ? `
+              <tr class="border-b border-slate-100 last:border-b-0">
+                <td class="p-3 text-center text-slate-700">${idx + 1}</td>
+                <td class="p-3 text-slate-800">${esc(it.descripcion || it.desc || '—')}</td>
+                <td class="p-3 text-center text-slate-700">${esc(dias)}</td>
+                <td class="p-3 text-center text-slate-700">${esc(cantidad)}</td>
+                <td class="p-3 text-right text-slate-700">${esc(clp(precio))}</td>
+                <td class="p-3 text-right font-bold text-slate-900">${esc(clp(subtotal))}</td>
+              </tr>` : `
               <tr class="border-b border-slate-100 last:border-b-0">
                 <td class="p-3 text-center text-slate-700">${idx + 1}</td>
                 <td class="p-3 text-slate-800">${esc(it.descripcion || it.desc || '—')}</td>
@@ -28975,7 +29234,7 @@ window.generateQuotePDF = async function(quoteId){
                 <td class="p-3 text-right font-bold text-slate-900">${esc(clp(subtotal))}</td>
               </tr>`;
           }).join('')
-        : `<tr><td colspan="5" class="p-5 text-center text-slate-500">Sin ítems cargados</td></tr>`;
+        : `<tr><td colspan="${isRentalView ? 6 : 5}" class="p-5 text-center text-slate-500">Sin ítems cargados</td></tr>`;
 
       const fecha = (typeof window.formatDDMMYY === 'function')
         ? window.formatDDMMYY(q.fecha || q.created_at)
@@ -29047,13 +29306,22 @@ window.generateQuotePDF = async function(quoteId){
                 <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                   <table class="w-full text-sm">
                     <thead class="bg-[rgb(133,175,40)] text-white">
+                      ${isRentalView ? `
+                      <tr>
+                        <th class="p-3 text-center w-12">#</th>
+                        <th class="p-3 text-left">Equipo arrendado</th>
+                        <th class="p-3 text-center w-20">Días</th>
+                        <th class="p-3 text-center w-24">Equipos</th>
+                        <th class="p-3 text-right w-32">V. Unit.</th>
+                        <th class="p-3 text-right w-36">Total</th>
+                      </tr>` : `
                       <tr>
                         <th class="p-3 text-center w-12">#</th>
                         <th class="p-3 text-left">Descripción</th>
                         <th class="p-3 text-center w-20">Cant.</th>
                         <th class="p-3 text-right w-32">V. Unit.</th>
                         <th class="p-3 text-right w-36">Subtotal</th>
-                      </tr>
+                      </tr>`}
                     </thead>
                     <tbody>${itemsRows}</tbody>
                   </table>
@@ -32048,6 +32316,575 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   }, 350);
 })();
 </script>
+
+
+
+<!-- ECOLUZ MEETING ACTS MODULE START -->
+<style id="meeting-acts-style">
+  #btn-actas-reunion{ --section-color:#7c3aed; --section-bg:#f5f3ff; }
+  .meeting-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.2rem}
+  .meeting-page-title{font-size:1.9rem;font-weight:950;letter-spacing:-.03em;color:#0f172a;line-height:1.05}
+  .meeting-page-sub{font-size:.92rem;color:#64748b;margin-top:.35rem;max-width:850px}
+  .meeting-primary-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border:1px solid #85af28;background:#85af28;border-radius:.95rem;padding:.74rem 1rem;font-weight:900;color:#fff;box-shadow:0 10px 22px rgba(133,175,40,.18)}
+  .meeting-soft-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid #dbe3ef;background:#fff;border-radius:.9rem;padding:.62rem .82rem;font-weight:850;color:#334155}
+  .meeting-soft-btn:hover{background:#f8fafc}
+  .meeting-kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
+  .meeting-kpi-card{background:#fff;border:1px solid #dbe3ef;border-radius:1.15rem;padding:1rem;box-shadow:0 10px 24px rgba(15,23,42,.05)}
+  .meeting-kpi-label{font-size:.74rem;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+  .meeting-kpi-value{font-size:1.65rem;font-weight:950;line-height:1;margin-top:.35rem;color:#0f172a}
+  .meeting-control-shell{background:#fff;border:1px solid #dbe3ef;border-radius:1.15rem;box-shadow:0 12px 28px rgba(15,23,42,.05);padding:1rem;margin-bottom:1rem}
+  .meeting-search{width:100%;border:1px solid #dbe3ef;border-radius:1rem;padding:.78rem .9rem .78rem 2.7rem;background:#fff;color:#0f172a;font-weight:700}
+  .meeting-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+  .meeting-card{background:#fff;border:1px solid #dbe3ef;border-radius:1.25rem;padding:1.05rem 1.2rem;box-shadow:0 12px 28px rgba(15,23,42,.06)}
+  .meeting-card-title{font-size:1.14rem;font-weight:950;color:#0f172a;line-height:1.15;overflow-wrap:anywhere}
+  .meeting-card-date{font-size:.82rem;color:#64748b;font-weight:800;display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;margin-top:.15rem}
+  .meeting-section-label{font-size:.72rem;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:.35rem}
+  .meeting-note{font-size:.9rem;line-height:1.5;color:#334155;white-space:pre-wrap;min-height:1.3rem;padding:.1rem 0 .6rem;border-bottom:1px solid #edf2f7}
+  .meeting-board-title{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-top:1rem;margin-bottom:.35rem}
+  .meeting-board-list{display:flex;flex-direction:column;gap:.05rem;border-top:1px solid #e2e8f0;margin-top:.35rem}
+  .meeting-task-line{display:grid;grid-template-columns:26px 1fr auto;gap:.65rem;align-items:start;padding:.68rem 0;border-bottom:1px solid #edf2f7}
+  .meeting-task-line:hover{background:linear-gradient(90deg,rgba(133,175,40,.055),transparent)}
+  .meeting-task-text{font-size:.93rem;color:#0f172a;line-height:1.3;overflow-wrap:anywhere;padding-top:.08rem}
+  .meeting-task-done .meeting-task-text{text-decoration:line-through;color:#94a3b8}
+  .meeting-check{width:1.18rem;height:1.18rem;accent-color:#85af28;margin-top:.05rem;flex:0 0 auto}
+  .meeting-priority-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.26rem .55rem;border-radius:999px;font-size:.7rem;font-weight:950;border:1px solid transparent;white-space:nowrap}
+  .meeting-priority-alta{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+  .meeting-priority-media{background:#fffbeb;color:#a16207;border-color:#fde68a}
+  .meeting-priority-baja{background:#ecfdf3;color:#166534;border-color:#bbf7d0}
+  .meeting-priority-dot{width:.65rem;height:.65rem;border-radius:999px;display:inline-block;flex:0 0 auto;margin-top:.36rem}
+  .meeting-dot-alta{background:#ef4444}
+  .meeting-dot-media{background:#f59e0b}
+  .meeting-dot-baja{background:#22c55e}
+  .meeting-empty{background:#fff;border:1px dashed #cbd5e1;border-radius:1.2rem;padding:2rem;text-align:center;color:#64748b}
+  .meeting-empty-small{padding:.7rem 0;color:#94a3b8;font-size:.88rem;border-top:1px solid #e2e8f0}
+  .meeting-add-row{display:grid;grid-template-columns:1fr 120px auto;gap:.5rem;align-items:center;margin-top:.75rem}
+  .meeting-add-input,.meeting-form-input,.meeting-form-textarea,.meeting-form-select{width:100%;border:1px solid #dbe3ef;border-radius:.9rem;padding:.72rem .85rem;background:#fff;color:#0f172a;font-weight:700;outline:none}
+  .meeting-add-input:focus,.meeting-form-input:focus,.meeting-form-textarea:focus,.meeting-form-select:focus{border-color:#85af28;box-shadow:0 0 0 3px rgba(133,175,40,.14)}
+  .meeting-form-label{display:block;font-size:.78rem;font-weight:950;color:#64748b;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.35rem}
+  .meeting-form-textarea{min-height:135px;resize:vertical;font-weight:650;line-height:1.4}
+  .meeting-form-board{border-top:1px solid #e2e8f0;padding-top:.75rem;margin-top:.75rem}
+  .meeting-task-row{display:grid;grid-template-columns:30px minmax(220px,1fr) 145px 42px;gap:.55rem;align-items:center;padding:.35rem 0;border-bottom:1px solid #edf2f7}
+  .meeting-task-row .meeting-form-input{padding:.68rem .8rem}
+  .meeting-task-row .meeting-form-select{padding:.68rem .8rem}
+  .meeting-status-hint{font-size:.78rem;color:#64748b;margin-top:.35rem}
+  body[data-ui-color-mode="dark"] .meeting-kpi-card,
+  body[data-ui-color-mode="dark"] .meeting-control-shell,
+  body[data-ui-color-mode="dark"] .meeting-card,
+  body[data-ui-color-mode="dark"] .meeting-empty{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+  body[data-ui-color-mode="dark"] .meeting-note,
+  body[data-ui-color-mode="dark"] .meeting-board-list,
+  body[data-ui-color-mode="dark"] .meeting-task-line,
+  body[data-ui-color-mode="dark"] .meeting-task-row{border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+  body[data-ui-color-mode="dark"] .meeting-card-title,
+  body[data-ui-color-mode="dark"] .meeting-task-text{color:var(--ui-text)!important}
+  @media(max-width:1100px){.meeting-grid{grid-template-columns:1fr}.meeting-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.meeting-add-row{grid-template-columns:1fr 120px auto}.meeting-task-row{grid-template-columns:30px 1fr 130px 42px}}
+  @media(max-width:700px){.meeting-page-head{flex-direction:column}.meeting-kpi-grid{grid-template-columns:1fr}.meeting-add-row{grid-template-columns:1fr}.meeting-task-line{grid-template-columns:26px 1fr}.meeting-task-line .meeting-priority-pill{grid-column:2}.meeting-task-row{grid-template-columns:30px 1fr}.meeting-task-row select,.meeting-task-row button{grid-column:2}.meeting-task-row button{width:100%}}
+</style>
+
+<script id="meeting-acts-script">
+(function(){
+  'use strict';
+  if(window.__ecoluzMeetingActsInstalled) return;
+  window.__ecoluzMeetingActsInstalled = true;
+
+  const MA_TABLE = 'actas_reunion';
+  const MA_LOCAL_KEY = 'ecoluz_actas_reunion_v2';
+  let meetingActs = [];
+  let maRemoteDisabled = false;
+  let maLoadedOnce = false;
+
+  function maEsc(value){
+    return String(value ?? '').replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
+    });
+  }
+  function maText(value){ return String(value ?? '').trim(); }
+  function maToday(){
+    try { if(typeof todayISO === 'function') return todayISO(); } catch(e) {}
+    return new Date().toISOString().slice(0,10);
+  }
+  function maUid(){
+    try { if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); } catch(e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
+      const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
+      return v.toString(16);
+    });
+  }
+  function maDomId(value){ return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_'); }
+  function maFormatDate(value){
+    if(!value) return '—';
+    try { if(typeof formatDDMMYY === 'function') return formatDDMMYY(value); } catch(e) {}
+    const s = String(value);
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)){
+      const parts = s.slice(0,10).split('-');
+      return parts[2] + '-' + parts[1] + '-' + parts[0];
+    }
+    return s;
+  }
+  function maPriorityLabel(value){
+    const v = String(value || 'media').toLowerCase();
+    if(v === 'alta') return 'Alta';
+    if(v === 'baja') return 'Baja';
+    return 'Media';
+  }
+  function maPriorityClass(value){
+    const v = String(value || 'media').toLowerCase();
+    if(v === 'alta') return 'meeting-priority-alta';
+    if(v === 'baja') return 'meeting-priority-baja';
+    return 'meeting-priority-media';
+  }
+  function maDotClass(value){
+    const v = String(value || 'media').toLowerCase();
+    if(v === 'alta') return 'meeting-dot-alta';
+    if(v === 'baja') return 'meeting-dot-baja';
+    return 'meeting-dot-media';
+  }
+  function maReadLocal(){
+    try {
+      const raw = localStorage.getItem(MA_LOCAL_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch(e){ return []; }
+  }
+  function maWriteLocal(list){
+    try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch(e) {}
+  }
+  function maNormalizeActa(acta){
+    const a = acta || {};
+    return {
+      id: maText(a.id) || maUid(),
+      title: maText(a.title || a.titulo) || 'Reunión sin título',
+      fecha: maText(a.fecha) || maToday(),
+      conversado: maText(a.conversado),
+      acuerdos: maText(a.acuerdos),
+      tareas: Array.isArray(a.tareas) ? a.tareas.map(function(t){
+        return {
+          id: maText(t.id) || maUid(),
+          text: maText(t.text || t.pendiente || t.tarea),
+          priority: ['alta','media','baja'].includes(String(t.priority || t.prioridad || '').toLowerCase()) ? String(t.priority || t.prioridad).toLowerCase() : 'media',
+          done: t.done === true || t.cumplida === true
+        };
+      }).filter(function(t){ return !!t.text; }) : [],
+      createdAt: a.createdAt || a.created_at || new Date().toISOString(),
+      updatedAt: a.updatedAt || a.updated_at || new Date().toISOString()
+    };
+  }
+  function maRowToActa(row){
+    const data = (row && row.data) || {};
+    return maNormalizeActa({
+      id: row && row.id,
+      title: (row && row.titulo) || data.title || data.titulo,
+      fecha: (row && row.fecha) || data.fecha,
+      conversado: data.conversado,
+      acuerdos: data.acuerdos,
+      tareas: data.tareas,
+      createdAt: row && row.created_at,
+      updatedAt: row && row.updated_at
+    });
+  }
+  function maActaToRow(acta){
+    const a = maNormalizeActa(acta);
+    return {
+      id: a.id,
+      titulo: a.title,
+      fecha: a.fecha,
+      data: {
+        title: a.title,
+        fecha: a.fecha,
+        conversado: a.conversado,
+        acuerdos: a.acuerdos,
+        tareas: a.tareas
+      }
+    };
+  }
+  function maSort(list){
+    return (Array.isArray(list) ? list : []).slice().sort(function(a,b){
+      const ad = String(a.fecha || '') + ' ' + String(a.updatedAt || a.createdAt || '');
+      const bd = String(b.fecha || '') + ' ' + String(b.updatedAt || b.createdAt || '');
+      return bd.localeCompare(ad);
+    });
+  }
+  function maSetHint(){
+    const el = document.getElementById('meetingStorageHint');
+    if(!el) return;
+    if(maRemoteDisabled){
+      el.textContent = 'Guardado localmente en este navegador. Para compartir las actas entre usuarios, ejecuta el SQL de Supabase.';
+    } else if(maLoadedOnce){
+      el.textContent = 'Actas cargadas correctamente.';
+    } else {
+      el.textContent = 'Cargando actas...';
+    }
+  }
+  function maLocalSetAndRender(list){
+    meetingActs = maSort((list || []).map(maNormalizeActa));
+    maWriteLocal(meetingActs);
+    maRenderMeetingActs();
+    maSetHint();
+  }
+  async function maLoadActs(){
+    const local = maReadLocal().map(maNormalizeActa);
+    meetingActs = maSort(local);
+    maRenderMeetingActs();
+    if(maRemoteDisabled || !window.supabaseClient){ maLoadedOnce = true; maSetHint(); return meetingActs; }
+    try {
+      const { data, error } = await window.supabaseClient
+        .from(MA_TABLE)
+        .select('id,titulo,fecha,data,created_at,updated_at')
+        .order('fecha', { ascending:false });
+      if(error) throw error;
+      meetingActs = maSort((data || []).map(maRowToActa));
+      maWriteLocal(meetingActs);
+      maLoadedOnce = true;
+      maRenderMeetingActs();
+    } catch(err){
+      maRemoteDisabled = true;
+      maLoadedOnce = true;
+      meetingActs = maSort(local);
+      maWriteLocal(meetingActs);
+      console.warn('Actas de reunión: usando almacenamiento local.', err);
+      maRenderMeetingActs();
+    }
+    maSetHint();
+    return meetingActs;
+  }
+  async function maPersistActa(acta){
+    const normalized = maNormalizeActa(acta);
+    normalized.updatedAt = new Date().toISOString();
+    const existingIndex = meetingActs.findIndex(function(a){ return String(a.id) === String(normalized.id); });
+    const next = meetingActs.slice();
+    if(existingIndex >= 0) next[existingIndex] = normalized;
+    else next.unshift(normalized);
+    maLocalSetAndRender(next);
+    if(!maRemoteDisabled && window.supabaseClient){
+      try {
+        const row = maActaToRow(normalized);
+        const { error } = await window.supabaseClient.from(MA_TABLE).upsert(row, { onConflict:'id' });
+        if(error) throw error;
+      } catch(err){
+        maRemoteDisabled = true;
+        console.warn('Actas de reunión: no se pudo guardar en Supabase, queda local.', err);
+      }
+    }
+    maSetHint();
+    return normalized;
+  }
+  async function maDeleteActaById(id){
+    const next = meetingActs.filter(function(a){ return String(a.id) !== String(id); });
+    maLocalSetAndRender(next);
+    if(!maRemoteDisabled && window.supabaseClient){
+      try {
+        const { error } = await window.supabaseClient.from(MA_TABLE).delete().eq('id', id);
+        if(error) throw error;
+      } catch(err){
+        maRemoteDisabled = true;
+        console.warn('Actas de reunión: no se pudo eliminar en Supabase, se eliminó local.', err);
+      }
+    }
+  }
+  function maInstallNavButton(){
+    if(document.getElementById('btn-actas-reunion')) return;
+    const nav = document.querySelector('#sidebar nav');
+    if(!nav) return;
+    const btn = document.createElement('button');
+    btn.id = 'btn-actas-reunion';
+    btn.className = 'nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3';
+    btn.setAttribute('onclick', "showView('actas-reunion')");
+    btn.innerHTML = '<i class="fas fa-clipboard-list"></i> <span class="sidebar-label">Actas de reunión</span>';
+    const before = document.getElementById('btn-projects') || document.getElementById('btn-maintenance') || document.getElementById('btn-trash');
+    if(before && before.parentNode === nav) nav.insertBefore(btn, before);
+    else nav.appendChild(btn);
+  }
+  function maInstallView(){
+    if(document.getElementById('view-actas-reunion')) return;
+    const main = document.getElementById('mainContent');
+    if(!main) return;
+    const view = document.createElement('div');
+    view.id = 'view-actas-reunion';
+    view.className = 'hidden w-full';
+    view.innerHTML = `
+      <div class="meeting-page-head">
+        <div>
+          <h1 class="meeting-page-title">Actas de reunión</h1>
+          <p class="meeting-page-sub">Registra la reunión, lo conversado, los acuerdos y una pizarra simple de pendientes checklist.</p>
+          <p id="meetingStorageHint" class="meeting-status-hint"></p>
+        </div>
+        <button type="button" onclick="maOpenMeetingActModal()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Nueva reunión</button>
+      </div>
+      <div class="meeting-kpi-grid">
+        <div class="meeting-kpi-card"><div class="meeting-kpi-label">Reuniones</div><div id="meetingKpiTotal" class="meeting-kpi-value text-[#5b7f27]">0</div></div>
+        <div class="meeting-kpi-card"><div class="meeting-kpi-label">Pendientes abiertos</div><div id="meetingKpiPending" class="meeting-kpi-value text-amber-700">0</div></div>
+        <div class="meeting-kpi-card"><div class="meeting-kpi-label">Cumplidos</div><div id="meetingKpiDone" class="meeting-kpi-value text-emerald-700">0</div></div>
+      </div>
+      <div class="meeting-control-shell">
+        <label class="meeting-form-label">Buscar</label>
+        <div class="relative">
+          <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <input id="meetingSearchFree" class="meeting-search" oninput="maRenderMeetingActs()" placeholder="Buscar por reunión, fecha, conversación, acuerdos o pendientes..." autocomplete="off">
+        </div>
+      </div>
+      <div id="meetingActsEmpty" class="meeting-empty hidden">Aún no hay reuniones registradas. Crea la primera con el botón <b>Nueva reunión</b>.</div>
+      <div id="meetingActsGrid" class="meeting-grid"></div>`;
+    main.appendChild(view);
+  }
+  function maInstall(){ maInstallNavButton(); maInstallView(); maSetHint(); }
+  function maRenderTaskLines(acta){
+    const tasks = Array.isArray(acta.tareas) ? acta.tareas : [];
+    if(!tasks.length) return '<div class="meeting-empty-small">Sin pendientes. Agrega uno desde esta pizarra.</div>';
+    const actaIdArg = JSON.stringify(acta.id);
+    return `<div class="meeting-board-list">${tasks.map(function(t){
+      const taskIdArg = JSON.stringify(t.id);
+      const done = !!t.done;
+      return `
+        <label class="meeting-task-line ${done ? 'meeting-task-done' : ''}">
+          <input type="checkbox" class="meeting-check" ${done ? 'checked' : ''} onchange="maToggleMeetingTask(${actaIdArg}, ${taskIdArg}, this.checked)">
+          <span class="meeting-task-text"><span class="meeting-priority-dot ${maDotClass(t.priority)}"></span> ${maEsc(t.text || '')}</span>
+          <span class="meeting-priority-pill ${maPriorityClass(t.priority)}">${maEsc(maPriorityLabel(t.priority))}</span>
+        </label>`;
+    }).join('')}</div>`;
+  }
+  function maFilterActs(){
+    const q = maText(document.getElementById('meetingSearchFree')?.value || '').toLowerCase();
+    return maSort(meetingActs).filter(function(a){
+      if(!q) return true;
+      const hay = [a.title, a.fecha, a.conversado, a.acuerdos, ...(a.tareas || []).map(function(t){ return t.text + ' ' + t.priority; })].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  function maUpdateKpis(){
+    const total = meetingActs.length;
+    const allTasks = meetingActs.flatMap(function(a){ return Array.isArray(a.tareas) ? a.tareas : []; });
+    const done = allTasks.filter(function(t){ return !!t.done; }).length;
+    const pending = allTasks.length - done;
+    const totalEl = document.getElementById('meetingKpiTotal');
+    const pendingEl = document.getElementById('meetingKpiPending');
+    const doneEl = document.getElementById('meetingKpiDone');
+    if(totalEl) totalEl.textContent = total;
+    if(pendingEl) pendingEl.textContent = pending;
+    if(doneEl) doneEl.textContent = done;
+  }
+  function maRenderMeetingActs(){
+    maInstall();
+    maUpdateKpis();
+    const grid = document.getElementById('meetingActsGrid');
+    const empty = document.getElementById('meetingActsEmpty');
+    if(!grid) return;
+    const list = maFilterActs();
+    if(empty) empty.classList.toggle('hidden', list.length > 0);
+    grid.innerHTML = list.map(function(a){
+      const idArg = JSON.stringify(a.id);
+      const domId = maDomId(a.id);
+      return `
+        <div class="meeting-card">
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <div class="min-w-0">
+              <div class="meeting-card-title">${maEsc(a.title)}</div>
+              <div class="meeting-card-date"><i class="fas fa-calendar-day"></i>${maEsc(maFormatDate(a.fecha))}</div>
+            </div>
+            <div class="flex gap-2 shrink-0">
+              <button type="button" onclick="maOpenMeetingActModal(${idArg})" class="meeting-soft-btn" title="Editar reunión"><i class="fas fa-pen"></i></button>
+              <button type="button" onclick="maDeleteMeetingAct(${idArg})" class="meeting-soft-btn text-rose-700" title="Eliminar"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-2">
+            <div><div class="meeting-section-label">Lo conversado</div><div class="meeting-note">${maEsc(a.conversado || '—')}</div></div>
+            <div><div class="meeting-section-label">Acuerdos</div><div class="meeting-note">${maEsc(a.acuerdos || '—')}</div></div>
+          </div>
+          <div class="meeting-board-title">
+            <div class="meeting-section-label mb-0">Pizarra de pendientes</div>
+          </div>
+          ${maRenderTaskLines(a)}
+          <div class="meeting-add-row">
+            <input id="maQuickText_${domId}" class="meeting-add-input" placeholder="Nuevo pendiente..." onkeydown="if(event.key==='Enter'){ maQuickAddTask(${idArg}); }">
+            <select id="maQuickPriority_${domId}" class="meeting-form-select">
+              <option value="alta">Alta</option>
+              <option value="media" selected>Media</option>
+              <option value="baja">Baja</option>
+            </select>
+            <button type="button" onclick="maQuickAddTask(${idArg})" class="meeting-primary-btn"><i class="fas fa-plus"></i>Agregar</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  function maTaskRowsFromActa(acta){
+    const tasks = Array.isArray(acta?.tareas) && acta.tareas.length ? acta.tareas : [{ id:maUid(), text:'', priority:'media', done:false }];
+    return tasks.map(function(t){ return maTaskRowHtml(t); }).join('');
+  }
+  function maTaskRowHtml(task){
+    const t = task || {};
+    return `
+      <div class="meeting-task-row" data-task-row="1" data-task-id="${maEsc(t.id || maUid())}">
+        <input type="checkbox" class="meeting-check" data-task-done="1" ${t.done ? 'checked' : ''} title="Cumplida">
+        <input type="text" class="meeting-form-input" data-task-text="1" value="${maEsc(t.text || '')}" placeholder="Pendiente o tarea a realizar...">
+        <select class="meeting-form-select" data-task-priority="1">
+          <option value="alta" ${String(t.priority||'')==='alta'?'selected':''}>Alta</option>
+          <option value="media" ${!t.priority || String(t.priority)==='media'?'selected':''}>Media</option>
+          <option value="baja" ${String(t.priority||'')==='baja'?'selected':''}>Baja</option>
+        </select>
+        <button type="button" onclick="this.closest('[data-task-row]').remove()" class="meeting-soft-btn" title="Quitar"><i class="fas fa-xmark"></i></button>
+      </div>`;
+  }
+  function maAddTaskRow(task){
+    const box = document.getElementById('meetingTasksFormRows');
+    if(!box) return;
+    box.insertAdjacentHTML('beforeend', maTaskRowHtml(task || { id:maUid(), text:'', priority:'media', done:false }));
+  }
+  function maReadFormTasks(){
+    return Array.from(document.querySelectorAll('#meetingTasksFormRows [data-task-row]')).map(function(row){
+      return {
+        id: row.getAttribute('data-task-id') || maUid(),
+        text: maText(row.querySelector('[data-task-text]')?.value || ''),
+        priority: String(row.querySelector('[data-task-priority]')?.value || 'media').toLowerCase(),
+        done: !!row.querySelector('[data-task-done]')?.checked
+      };
+    }).filter(function(t){ return !!t.text; });
+  }
+  function maCloseModal(){
+    try { if(typeof closeModal === 'function') return closeModal(); } catch(e) {}
+    const modal = document.getElementById('modal');
+    if(modal) modal.classList.add('hidden');
+  }
+
+  window.maOpenMeetingActModal = function(id){
+    maInstall();
+    const acta = meetingActs.find(function(a){ return String(a.id) === String(id || ''); }) || null;
+    const isEdit = !!acta;
+    const a = maNormalizeActa(acta || { fecha:maToday(), tareas:[] });
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+    if(!modal || !content){ alert('No se pudo abrir el formulario.'); return; }
+    content.innerHTML = `
+      <div class="p-6 sm:p-8">
+        <div class="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900">${isEdit ? 'Editar reunión' : 'Nueva reunión'}</h2>
+            <p class="text-sm text-slate-500 mt-1">Crea la reunión y deja la pizarra de pendientes como checklist simple.</p>
+          </div>
+          <button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn"><i class="fas fa-xmark"></i></button>
+        </div>
+        <input type="hidden" id="meetingActId" value="${maEsc(a.id)}">
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_190px] gap-4 mb-4">
+          <div>
+            <label class="meeting-form-label">Reunión / tema</label>
+            <input id="meetingActTitle" type="text" class="meeting-form-input" value="${maEsc(a.title === 'Reunión sin título' && !isEdit ? '' : a.title)}" placeholder="Ej: Reunión coordinación semanal">
+          </div>
+          <div>
+            <label class="meeting-form-label">Fecha</label>
+            <input id="meetingActFecha" type="date" class="meeting-form-input" value="${maEsc(a.fecha || maToday())}">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="meeting-form-label">Lo conversado</label>
+            <textarea id="meetingActConversado" class="meeting-form-textarea" placeholder="Anota aquí los temas tratados en la reunión...">${maEsc(a.conversado || '')}</textarea>
+          </div>
+          <div>
+            <label class="meeting-form-label">Acuerdos</label>
+            <textarea id="meetingActAcuerdos" class="meeting-form-textarea" placeholder="Acuerdos, decisiones o puntos importantes...">${maEsc(a.acuerdos || '')}</textarea>
+          </div>
+        </div>
+        <div class="meeting-form-board mb-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Pizarra de pendientes</h3>
+              <p class="text-sm text-slate-500">Checklist básico: alta rojo, media amarillo, baja verde.</p>
+            </div>
+            <button type="button" onclick="maAddMeetingTaskRow()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Agregar pendiente</button>
+          </div>
+          <div id="meetingTasksFormRows">${maTaskRowsFromActa(a)}</div>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3 justify-end">
+          <button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn">Cancelar</button>
+          <button type="button" onclick="maSaveMeetingAct()" class="meeting-primary-btn"><i class="fas fa-save"></i>Guardar reunión</button>
+        </div>
+      </div>`;
+    modal.classList.remove('hidden');
+  };
+  window.maAddMeetingTaskRow = function(){ maAddTaskRow(); };
+  window.maCloseMeetingModal = function(){ maCloseModal(); };
+  window.maSaveMeetingAct = async function(){
+    const id = maText(document.getElementById('meetingActId')?.value || '') || maUid();
+    const title = maText(document.getElementById('meetingActTitle')?.value || '');
+    const fecha = maText(document.getElementById('meetingActFecha')?.value || '') || maToday();
+    const conversado = maText(document.getElementById('meetingActConversado')?.value || '');
+    const acuerdos = maText(document.getElementById('meetingActAcuerdos')?.value || '');
+    const tareas = maReadFormTasks();
+    if(!title){ alert('Ingresa el título o tema de la reunión.'); return; }
+    const previous = meetingActs.find(function(a){ return String(a.id) === String(id); });
+    await maPersistActa({
+      id:id,
+      title:title,
+      fecha:fecha,
+      conversado:conversado,
+      acuerdos:acuerdos,
+      tareas:tareas,
+      createdAt: previous?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    maCloseModal();
+  };
+  window.maDeleteMeetingAct = async function(id){
+    if(!confirm('¿Eliminar esta reunión?')) return;
+    await maDeleteActaById(id);
+  };
+  window.maToggleMeetingTask = async function(actaId, taskId, checked){
+    const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    if(!acta) return;
+    acta.tareas = (acta.tareas || []).map(function(t){
+      if(String(t.id) === String(taskId)) return Object.assign({}, t, { done: !!checked });
+      return t;
+    });
+    await maPersistActa(acta);
+  };
+  window.maQuickAddTask = async function(actaId){
+    const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    if(!acta) return;
+    const domId = maDomId(acta.id);
+    const textEl = document.getElementById('maQuickText_' + domId);
+    const priorityEl = document.getElementById('maQuickPriority_' + domId);
+    const text = maText(textEl?.value || '');
+    if(!text){ if(textEl) textEl.focus(); return; }
+    const priority = String(priorityEl?.value || 'media').toLowerCase();
+    acta.tareas = Array.isArray(acta.tareas) ? acta.tareas.slice() : [];
+    acta.tareas.push({ id:maUid(), text:text, priority:priority, done:false });
+    if(textEl) textEl.value = '';
+    await maPersistActa(acta);
+  };
+  window.maRenderMeetingActs = maRenderMeetingActs;
+
+  const oldShowView = window.showView;
+  if(typeof oldShowView === 'function' && !window.__meetingActsShowViewWrapped){
+    window.__meetingActsShowViewWrapped = true;
+    window.showView = function(view){
+      maInstall();
+      const result = oldShowView.apply(this, arguments);
+      if(String(view || '').toLowerCase() === 'actas-reunion'){
+        const target = document.getElementById('view-actas-reunion');
+        if(target) target.classList.remove('hidden');
+        const title = document.getElementById('topbarTitle');
+        if(title) title.textContent = 'Actas de reunión';
+        setTimeout(maRenderMeetingActs, 0);
+      }
+      return result;
+    };
+    try { showView = window.showView; } catch(e) {}
+  }
+  const oldRenderAll = window.renderAll;
+  if(typeof oldRenderAll === 'function' && !window.__meetingActsRenderAllWrapped){
+    window.__meetingActsRenderAllWrapped = true;
+    window.renderAll = function(){
+      const result = oldRenderAll.apply(this, arguments);
+      try { maRenderMeetingActs(); } catch(e) {}
+      return result;
+    };
+    try { renderAll = window.renderAll; } catch(e) {}
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){ maInstall(); maLoadActs(); }, 500);
+  });
+  setTimeout(function(){ maInstall(); maLoadActs(); }, 900);
+})();
+</script>
+<!-- ECOLUZ MEETING ACTS MODULE END -->
 
 </body>
 </html>
