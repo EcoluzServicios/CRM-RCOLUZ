@@ -34392,230 +34392,65 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 </script>
 
 
-<script id="ecoluz-meeting-acts-recovery-safe-v1">
+
+<script id="meeting-acts-cloud-sync-patch-v1">
 (function(){
   'use strict';
-  if(window.__ecoluzMeetingActsRecoverySafeV1) return;
-  window.__ecoluzMeetingActsRecoverySafeV1 = true;
-
-  const PRIMARY_KEY = 'ecoluz_actas_reunion_v2';
-  const BACKUP_KEYS = [
-    'ecoluz_actas_reunion_v2',
-    'ecoluz_actas_reunion_v1',
-    'ecoluz_actas_reunion',
-    'ecoluz_reuniones',
-    'ecoluz_reuniones_v1',
-    'ecoluz_meeting_acts',
-    'ecoluz_meeting_acts_v1',
-    'meetingActs',
-    'meeting_acts',
-    'actas_reunion',
-    'actas_reuniones',
-    'reuniones',
-    'minutas_reunion'
-  ];
-
+  if(window.__meetingActsCloudSyncPatch) return;
+  window.__meetingActsCloudSyncPatch = true;
+  const MA_TABLE = 'actas_reunion';
+  const MA_LOCAL_KEYS = ['ecoluz_actas_reunion_v2','ecoluz_actas_reunion','meetingActs','actasReunion','actas_reunion','reuniones','ecoluz_meeting_acts'];
+  function esc(v){ return String(v ?? '').replace(/[&<>"']/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]; }); }
   function txt(v){ return String(v ?? '').trim(); }
-  function uid(){
-    try{ if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); }catch(e){}
-    return 'ma_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+  function uid(){ try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2); }
+  function today(){ try{ if(typeof todayISO === 'function') return todayISO(); }catch(e){} return new Date().toISOString().slice(0,10); }
+  function normalizeTask(t){ t = t || {}; const p = String(t.priority || t.prioridad || 'media').toLowerCase().trim(); return { id: txt(t.id) || uid(), text: txt(t.text || t.pendiente || t.tarea || t.descripcion), priority: ['alta','media','baja'].includes(p) ? p : 'media', done: t.done === true || t.cumplida === true || t.realizada === true }; }
+  function normalizeActa(a){ a = a || {}; const d = a.data || {}; const tasks = Array.isArray(a.tareas) ? a.tareas : (Array.isArray(d.tareas) ? d.tareas : []); return { id: txt(a.id || d.id) || uid(), title: txt(a.title || a.titulo || d.title || d.titulo) || 'Reunión sin título', fecha: txt(a.fecha || d.fecha) || today(), conversado: txt(a.conversado || d.conversado), acuerdos: txt(a.acuerdos || d.acuerdos), tareas: tasks.map(normalizeTask).filter(function(t){ return !!t.text; }), createdAt: a.createdAt || a.created_at || d.createdAt || d.created_at || new Date().toISOString(), updatedAt: a.updatedAt || a.updated_at || d.updatedAt || d.updated_at || new Date().toISOString() }; }
+  function sortActs(list){ return (Array.isArray(list) ? list : []).map(normalizeActa).sort(function(a,b){ const av = String(a.fecha || '') + ' ' + String(a.updatedAt || a.createdAt || ''); const bv = String(b.fecha || '') + ' ' + String(b.updatedAt || b.createdAt || ''); return bv.localeCompare(av); }); }
+  function mergeActs(){ const map = new Map(); Array.from(arguments).flat().forEach(function(item){ const a = normalizeActa(item); const prev = map.get(a.id); if(!prev){ map.set(a.id, a); return; } const pt = String(prev.updatedAt || prev.createdAt || prev.fecha || ''); const at = String(a.updatedAt || a.createdAt || a.fecha || ''); map.set(a.id, at >= pt ? Object.assign({}, prev, a) : prev); }); return sortActs(Array.from(map.values())); }
+  function extractArray(parsed){ if(Array.isArray(parsed)) return parsed; if(parsed && typeof parsed === 'object'){ const keys = ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records']; for(const k of keys){ if(Array.isArray(parsed[k])) return parsed[k]; } } return []; }
+  function readAllLocal(){ let all = []; try{ MA_LOCAL_KEYS.forEach(function(k){ try{ const raw = localStorage.getItem(k); if(!raw) return; all = all.concat(extractArray(JSON.parse(raw))); }catch(e){} }); }catch(e){} return mergeActs(all); }
+  function writeMainLocal(list){ try{ localStorage.setItem('ecoluz_actas_reunion_v2', JSON.stringify(sortActs(list))); }catch(e){} }
+  function rowToActa(row){ const d = row?.data || {}; return normalizeActa({ id: row?.id || d.id, title: row?.titulo || d.title || d.titulo, fecha: row?.fecha || d.fecha, conversado: d.conversado, acuerdos: d.acuerdos, tareas: d.tareas, createdAt: row?.created_at || d.createdAt, updatedAt: row?.updated_at || d.updatedAt }); }
+  function actaToRow(acta){ const a = normalizeActa(acta); return { id: a.id, titulo: a.title, fecha: a.fecha, data: { id: a.id, title: a.title, titulo: a.title, fecha: a.fecha, conversado: a.conversado, acuerdos: a.acuerdos, tareas: a.tareas, createdAt: a.createdAt, updatedAt: a.updatedAt } }; }
+  function sqlText(){ return [
+    'create table if not exists public.actas_reunion (',
+    '  id text primary key,',
+    '  titulo text,',
+    '  fecha date,',
+    "  data jsonb not null default '{}'::jsonb,",
+    '  created_at timestamptz not null default now(),',
+    '  updated_at timestamptz not null default now()',
+    ');',
+    '',
+    'alter table public.actas_reunion enable row level security;',
+    '',
+    'drop policy if exists "actas_reunion_authenticated_all" on public.actas_reunion;',
+    'create policy "actas_reunion_authenticated_all"',
+    'on public.actas_reunion',
+    'for all',
+    'to authenticated',
+    'using (true)',
+    'with check (true);'
+  ].join('\n'); }
+  function showSqlHelp(err){
+    const msg = err?.message || String(err || '');
+    const html = '<div class="p-6 sm:p-8"><div class="flex items-start justify-between gap-4 mb-4"><div><h2 class="text-2xl font-black text-slate-900">Falta activar la nube para reuniones</h2><p class="text-sm text-slate-500 mt-1">Las reuniones aparecen solo en este computador porque están guardadas en el navegador. Para que se vean en otro PC, hay que crear esta tabla en Supabase.</p></div><button onclick="closeModal && closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button></div>' + (msg ? '<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><b>Detalle:</b> ' + esc(msg) + '</div>' : '') + '<label class="block text-xs font-black text-slate-500 uppercase mb-2">SQL para pegar en Supabase → SQL Editor</label><textarea id="meetingCloudSqlBox" class="w-full min-h-[250px] border rounded-2xl p-4 font-mono text-xs bg-slate-50">' + esc(sqlText()) + '</textarea><div class="flex flex-wrap gap-3 mt-4"><button onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById(\'meetingCloudSqlBox\').value); if(typeof toastInfo===\'function\') toastInfo(\'SQL copiado ✅\');" class="meeting-primary-btn"><i class="fas fa-copy"></i>Copiar SQL</button><button onclick="closeModal && closeModal()" class="meeting-soft-btn">Cerrar</button></div></div>';
+    if(typeof openModal === 'function') openModal(html); else alert('Falta crear tabla actas_reunion en Supabase. Error: ' + msg);
   }
-  function today(){
-    try{ if(typeof todayISO === 'function') return todayISO(); }catch(e){}
-    return new Date().toISOString().slice(0,10);
-  }
-  function parseJSON(raw){
-    try{ return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
-  }
-  function readKey(key){
-    try{ return parseJSON(localStorage.getItem(key)); }catch(e){ return null; }
-  }
-  function collectFromValue(value, source){
-    const found = [];
-    function push(item){
-      const n = normalizeAct(item, source);
-      if(n) found.push(n);
-    }
-    function walk(v, depth){
-      if(!v || depth > 3) return;
-      if(Array.isArray(v)){
-        v.forEach(function(x){ walk(x, depth + 1); });
-        return;
-      }
-      if(typeof v !== 'object') return;
-      const looksLikeAct = !!(
-        v.title || v.titulo || v.tema || v.asunto ||
-        v.conversado || v.acuerdos || v.tareas ||
-        v.pendientes || v.checklist || v.reunion || v['reunión']
-      );
-      if(looksLikeAct) push(v);
-      ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records'].forEach(function(k){
-        if(v && v[k]) walk(v[k], depth + 1);
-      });
-    }
-    walk(value, 0);
-    return found;
-  }
-  function normalizeTask(t){
-    if(!t) return null;
-    if(typeof t === 'string'){
-      const s = txt(t);
-      return s ? { id:uid(), text:s, priority:'media', done:false } : null;
-    }
-    const text = txt(t.text || t.pendiente || t.tarea || t.descripcion || t.nombre || t.title || t.titulo);
-    if(!text) return null;
-    let priority = txt(t.priority || t.prioridad || t.nivel || 'media').toLowerCase();
-    if(!['alta','media','baja'].includes(priority)) priority = 'media';
-    return {
-      id: txt(t.id) || uid(),
-      text,
-      priority,
-      done: t.done === true || t.cumplida === true || t.completada === true || t.check === true
-    };
-  }
-  function normalizeAct(a, source){
-    if(!a || typeof a !== 'object') return null;
-    const data = a.data && typeof a.data === 'object' ? a.data : {};
-    const title = txt(a.title || a.titulo || a.tema || a.asunto || a.nombre || data.title || data.titulo || data.tema || data.asunto || '');
-    const conversado = txt(a.conversado || a.loConversado || a.comentarios || a.notas || a.nota || a.descripcion || a.resumen || a.texto || data.conversado || data.loConversado || data.comentarios || data.notas || data.descripcion || data.resumen || '');
-    const acuerdos = txt(a.acuerdos || a.acuerdo || a.compromisos || a.decisiones || data.acuerdos || data.acuerdo || data.compromisos || data.decisiones || '');
-    const rawTasks = a.tareas || a.pendientes || a.tasks || a.checklist || data.tareas || data.pendientes || data.tasks || data.checklist || [];
-    const tareas = Array.isArray(rawTasks) ? rawTasks.map(normalizeTask).filter(Boolean) : [];
-    if(!title && !conversado && !acuerdos && !tareas.length) return null;
-    const fechaRaw = txt(a.fecha || a.date || a.fecha_reunion || data.fecha || data.date || data.fecha_reunion || a.createdAt || a.created_at || data.createdAt || data.created_at || today()).slice(0,10);
-    return {
-      id: txt(a.id || data.id) || uid(),
-      title: title || 'Reunión sin título',
-      fecha: /^\d{4}-\d{2}-\d{2}$/.test(fechaRaw) ? fechaRaw : today(),
-      conversado,
-      acuerdos,
-      tareas,
-      createdAt: a.createdAt || a.created_at || data.createdAt || data.created_at || new Date().toISOString(),
-      updatedAt: a.updatedAt || a.updated_at || data.updatedAt || data.updated_at || new Date().toISOString(),
-      recoveredFrom: source || ''
-    };
-  }
-  function mergeActs(lists){
-    const map = new Map();
-    function put(act){
-      const a = normalizeAct(act);
-      if(!a) return;
-      const signature = [a.title.toLowerCase(), a.fecha, a.conversado.slice(0,40).toLowerCase()].join('|');
-      const key = txt(a.id) || signature;
-      const prev = map.get(key);
-      if(!prev){ map.set(key, a); return; }
-      const prevTime = txt(prev.updatedAt || prev.createdAt || prev.fecha);
-      const nextTime = txt(a.updatedAt || a.createdAt || a.fecha);
-      if(nextTime >= prevTime) map.set(key, Object.assign({}, prev, a));
-    }
-    lists.forEach(function(list){ (Array.isArray(list) ? list : []).forEach(put); });
-    return Array.from(map.values()).sort(function(a,b){
-      return (txt(b.fecha) + txt(b.updatedAt)).localeCompare(txt(a.fecha) + txt(a.updatedAt));
-    });
-  }
-  function localKeysToScan(){
-    const keys = new Set(BACKUP_KEYS);
-    try{
-      for(let i=0; i<localStorage.length; i++){
-        const k = localStorage.key(i);
-        if(/acta|reuni|meeting|minuta/i.test(k || '')) keys.add(k);
-      }
-    }catch(e){}
-    return Array.from(keys);
-  }
-  function readLocalCandidates(){
-    const results = [];
-    localKeysToScan().forEach(function(key){
-      const value = readKey(key);
-      if(!value) return;
-      const acts = collectFromValue(value, 'localStorage:' + key);
-      if(acts.length) results.push.apply(results, acts);
-    });
-    return results;
-  }
-  async function readRemoteCandidates(){
-    const sb = window.supabaseClient || window.supabase;
-    if(!sb || !sb.from) return [];
-    const tables = ['actas_reunion','actas_reuniones','reuniones','meeting_acts','minutas_reunion'];
-    const all = [];
-    for(const table of tables){
-      try{
-        const res = await sb.from(table).select('*').limit(300);
-        if(res && res.error) continue;
-        (res.data || []).forEach(function(row){
-          const n = normalizeAct(row, 'supabase:' + table);
-          if(n) all.push(n);
-        });
-      }catch(e){}
-    }
-    return all;
-  }
-  function writeRecovered(list){
-    const clean = mergeActs([list]);
-    try{ localStorage.setItem(PRIMARY_KEY, JSON.stringify(clean)); }catch(e){}
-    try{ localStorage.setItem('ecoluz_actas_reunion_respaldo', JSON.stringify(clean)); }catch(e){}
-    return clean;
-  }
-  async function recoverMeetingActs(options){
-    options = options || {};
-    const current = collectFromValue(readKey(PRIMARY_KEY) || [], 'actual');
-    const local = readLocalCandidates();
-    const remote = await readRemoteCandidates();
-    const merged = writeRecovered(mergeActs([current, local, remote]));
-    try{
-      if(typeof window.maLoadMeetingActs === 'function') await window.maLoadMeetingActs();
-      if(typeof window.maRenderMeetingActs === 'function') window.maRenderMeetingActs();
-    }catch(e){}
-    const hint = document.getElementById('meetingStorageHint');
-    if(hint){
-      hint.textContent = merged.length
-        ? 'Se recuperaron/cargaron ' + merged.length + ' reunión(es).'
-        : 'No se encontraron reuniones guardadas en este navegador ni en las tablas conocidas.';
-    }
-    if(options.notify !== false){
-      try{
-        if(merged.length){
-          if(typeof toastInfo === 'function') toastInfo('Reuniones recuperadas: ' + merged.length + ' ✅');
-          else alert('Reuniones recuperadas: ' + merged.length);
-        }else{
-          alert('No encontré reuniones guardadas en este archivo. Si fueron creadas en otro HTML descargado, abre ese archivo anterior y exporta/respáldalas, porque el navegador puede guardarlas separadas por archivo.');
-        }
-      }catch(e){}
-    }
-    return merged;
-  }
-  function addRecoveryButton(){
-    const head = document.querySelector('#view-actas-reunion .meeting-page-head .flex.flex-wrap.gap-2');
-    if(!head || document.getElementById('meetingRecoverBtn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'meetingRecoverBtn';
-    btn.type = 'button';
-    btn.className = 'meeting-soft-btn text-emerald-700';
-    btn.innerHTML = '<i class="fas fa-life-ring"></i>Recuperar reuniones';
-    btn.addEventListener('click', function(){ recoverMeetingActs({ notify:true }); });
-    head.insertBefore(btn, head.firstChild);
-  }
-  window.maRecoverMeetingActs = recoverMeetingActs;
-
+  async function readRemote(){ if(!window.supabaseClient) throw new Error('Supabase no está disponible en este archivo.'); const res = await window.supabaseClient.from(MA_TABLE).select('id,titulo,fecha,data,created_at,updated_at').order('fecha', { ascending:false }); if(res.error) throw res.error; return (res.data || []).map(rowToActa); }
+  async function upsertRemote(list){ if(!window.supabaseClient) throw new Error('Supabase no está disponible en este archivo.'); const rows = sortActs(list).map(actaToRow); if(!rows.length) return 0; const res = await window.supabaseClient.from(MA_TABLE).upsert(rows, { onConflict:'id' }); if(res.error) throw res.error; return rows.length; }
+  async function refreshMeetingUI(){ try{ if(typeof window.maLoadMeetingActs === 'function') await window.maLoadMeetingActs(); }catch(e){} try{ if(typeof window.maRenderMeetingActs === 'function') window.maRenderMeetingActs(); }catch(e){} }
+  window.maSyncMeetingsToCloud = async function(){ try{ const local = readAllLocal(); if(!local.length){ alert('No encontré reuniones guardadas en este computador para subir.'); return; } const remote = await readRemote().catch(function(){ return []; }); const merged = mergeActs(local, remote); const count = await upsertRemote(merged); writeMainLocal(merged); await refreshMeetingUI(); if(typeof toastInfo === 'function') toastInfo('Reuniones sincronizadas en Supabase: ' + count + ' ✅'); else alert('Reuniones sincronizadas en Supabase: ' + count); }catch(err){ console.error('maSyncMeetingsToCloud', err); showSqlHelp(err); } };
+  window.maLoadMeetingsFromCloud = async function(){ try{ const local = readAllLocal(); const remote = await readRemote(); const merged = mergeActs(local, remote); writeMainLocal(merged); await refreshMeetingUI(); if(typeof toastInfo === 'function') toastInfo('Reuniones cargadas desde Supabase: ' + remote.length + ' ✅'); else alert('Reuniones cargadas desde Supabase: ' + remote.length); }catch(err){ console.error('maLoadMeetingsFromCloud', err); showSqlHelp(err); } };
+  window.maExportMeetingsBackup = function(){ const list = readAllLocal(); const blob = new Blob([JSON.stringify(list, null, 2)], {type:'application/json;charset=utf-8'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'actas_reunion_ecoluz_respaldo.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); }, 800); };
+  window.maImportMeetingsBackup = function(file){ if(!file) return; const reader = new FileReader(); reader.onload = async function(){ try{ const incoming = extractArray(JSON.parse(reader.result || '[]')); const merged = mergeActs(readAllLocal(), incoming); writeMainLocal(merged); await refreshMeetingUI(); if(confirm('Reuniones importadas en este computador. ¿Quieres subirlas también a Supabase para que se vean en otros PC?')) await window.maSyncMeetingsToCloud(); }catch(err){ alert('No se pudo importar el archivo: ' + (err.message || err)); } }; reader.readAsText(file); };
+  function installButtons(){ const view = document.getElementById('view-actas-reunion'); if(!view || document.getElementById('meetingCloudSyncBtn')) return; const head = view.querySelector('.meeting-page-head > div:last-child') || view.querySelector('.meeting-page-head'); if(!head) return; const wrap = document.createElement('div'); wrap.className = 'flex flex-wrap gap-2'; wrap.innerHTML = '<button id="meetingCloudSyncBtn" type="button" onclick="maSyncMeetingsToCloud()" class="meeting-soft-btn" title="Sube las reuniones de este computador a Supabase"><i class="fas fa-cloud-arrow-up"></i>Subir a nube</button><button type="button" onclick="maLoadMeetingsFromCloud()" class="meeting-soft-btn" title="Carga reuniones guardadas en Supabase"><i class="fas fa-cloud-arrow-down"></i>Recargar nube</button><button type="button" onclick="maExportMeetingsBackup()" class="meeting-soft-btn" title="Respaldo manual"><i class="fas fa-file-export"></i>Exportar</button><label class="meeting-soft-btn cursor-pointer" title="Importar respaldo manual"><i class="fas fa-file-import"></i>Importar<input type="file" accept="application/json" class="hidden" onchange="maImportMeetingsBackup(this.files && this.files[0]); this.value=\'\';"></label>'; head.appendChild(wrap); const hint = document.getElementById('meetingStorageHint'); if(hint && !hint.dataset.cloudHint){ hint.dataset.cloudHint = '1'; hint.innerHTML = 'Para ver las reuniones en otro computador, primero usa <b>Subir a nube</b> en el PC donde aparecen.'; } }
+  setInterval(installButtons, 700);
+  window.addEventListener('DOMContentLoaded', installButtons);
   const oldShowView = window.showView;
-  if(typeof oldShowView === 'function' && !oldShowView.__meetingRecoveryWrapped){
-    const wrapped = function(view){
-      const result = oldShowView.apply(this, arguments);
-      if(String(view || '').toLowerCase() === 'actas-reunion'){
-        setTimeout(function(){ addRecoveryButton(); recoverMeetingActs({ notify:false }); }, 250);
-      }
-      return result;
-    };
-    wrapped.__meetingRecoveryWrapped = true;
-    window.showView = wrapped;
-    try{ showView = window.showView; }catch(e){}
-  }
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){ addRecoveryButton(); recoverMeetingActs({ notify:false }); }, 1800);
-  });
-  setTimeout(function(){ addRecoveryButton(); recoverMeetingActs({ notify:false }); }, 2400);
+  if(typeof oldShowView === 'function' && !oldShowView.__meetingCloudButtons){ const wrapped = function(){ const result = oldShowView.apply(this, arguments); setTimeout(installButtons, 150); return result; }; wrapped.__meetingCloudButtons = true; window.showView = wrapped; try{ showView = window.showView; }catch(e){} }
 })();
 </script>
-
 </body>
 </html>
