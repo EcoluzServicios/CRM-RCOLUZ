@@ -34391,5 +34391,231 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 })();
 </script>
 
+
+<script id="ecoluz-meeting-acts-recovery-safe-v1">
+(function(){
+  'use strict';
+  if(window.__ecoluzMeetingActsRecoverySafeV1) return;
+  window.__ecoluzMeetingActsRecoverySafeV1 = true;
+
+  const PRIMARY_KEY = 'ecoluz_actas_reunion_v2';
+  const BACKUP_KEYS = [
+    'ecoluz_actas_reunion_v2',
+    'ecoluz_actas_reunion_v1',
+    'ecoluz_actas_reunion',
+    'ecoluz_reuniones',
+    'ecoluz_reuniones_v1',
+    'ecoluz_meeting_acts',
+    'ecoluz_meeting_acts_v1',
+    'meetingActs',
+    'meeting_acts',
+    'actas_reunion',
+    'actas_reuniones',
+    'reuniones',
+    'minutas_reunion'
+  ];
+
+  function txt(v){ return String(v ?? '').trim(); }
+  function uid(){
+    try{ if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); }catch(e){}
+    return 'ma_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+  }
+  function today(){
+    try{ if(typeof todayISO === 'function') return todayISO(); }catch(e){}
+    return new Date().toISOString().slice(0,10);
+  }
+  function parseJSON(raw){
+    try{ return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+  }
+  function readKey(key){
+    try{ return parseJSON(localStorage.getItem(key)); }catch(e){ return null; }
+  }
+  function collectFromValue(value, source){
+    const found = [];
+    function push(item){
+      const n = normalizeAct(item, source);
+      if(n) found.push(n);
+    }
+    function walk(v, depth){
+      if(!v || depth > 3) return;
+      if(Array.isArray(v)){
+        v.forEach(function(x){ walk(x, depth + 1); });
+        return;
+      }
+      if(typeof v !== 'object') return;
+      const looksLikeAct = !!(
+        v.title || v.titulo || v.tema || v.asunto ||
+        v.conversado || v.acuerdos || v.tareas ||
+        v.pendientes || v.checklist || v.reunion || v['reunión']
+      );
+      if(looksLikeAct) push(v);
+      ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records'].forEach(function(k){
+        if(v && v[k]) walk(v[k], depth + 1);
+      });
+    }
+    walk(value, 0);
+    return found;
+  }
+  function normalizeTask(t){
+    if(!t) return null;
+    if(typeof t === 'string'){
+      const s = txt(t);
+      return s ? { id:uid(), text:s, priority:'media', done:false } : null;
+    }
+    const text = txt(t.text || t.pendiente || t.tarea || t.descripcion || t.nombre || t.title || t.titulo);
+    if(!text) return null;
+    let priority = txt(t.priority || t.prioridad || t.nivel || 'media').toLowerCase();
+    if(!['alta','media','baja'].includes(priority)) priority = 'media';
+    return {
+      id: txt(t.id) || uid(),
+      text,
+      priority,
+      done: t.done === true || t.cumplida === true || t.completada === true || t.check === true
+    };
+  }
+  function normalizeAct(a, source){
+    if(!a || typeof a !== 'object') return null;
+    const data = a.data && typeof a.data === 'object' ? a.data : {};
+    const title = txt(a.title || a.titulo || a.tema || a.asunto || a.nombre || data.title || data.titulo || data.tema || data.asunto || '');
+    const conversado = txt(a.conversado || a.loConversado || a.comentarios || a.notas || a.nota || a.descripcion || a.resumen || a.texto || data.conversado || data.loConversado || data.comentarios || data.notas || data.descripcion || data.resumen || '');
+    const acuerdos = txt(a.acuerdos || a.acuerdo || a.compromisos || a.decisiones || data.acuerdos || data.acuerdo || data.compromisos || data.decisiones || '');
+    const rawTasks = a.tareas || a.pendientes || a.tasks || a.checklist || data.tareas || data.pendientes || data.tasks || data.checklist || [];
+    const tareas = Array.isArray(rawTasks) ? rawTasks.map(normalizeTask).filter(Boolean) : [];
+    if(!title && !conversado && !acuerdos && !tareas.length) return null;
+    const fechaRaw = txt(a.fecha || a.date || a.fecha_reunion || data.fecha || data.date || data.fecha_reunion || a.createdAt || a.created_at || data.createdAt || data.created_at || today()).slice(0,10);
+    return {
+      id: txt(a.id || data.id) || uid(),
+      title: title || 'Reunión sin título',
+      fecha: /^\d{4}-\d{2}-\d{2}$/.test(fechaRaw) ? fechaRaw : today(),
+      conversado,
+      acuerdos,
+      tareas,
+      createdAt: a.createdAt || a.created_at || data.createdAt || data.created_at || new Date().toISOString(),
+      updatedAt: a.updatedAt || a.updated_at || data.updatedAt || data.updated_at || new Date().toISOString(),
+      recoveredFrom: source || ''
+    };
+  }
+  function mergeActs(lists){
+    const map = new Map();
+    function put(act){
+      const a = normalizeAct(act);
+      if(!a) return;
+      const signature = [a.title.toLowerCase(), a.fecha, a.conversado.slice(0,40).toLowerCase()].join('|');
+      const key = txt(a.id) || signature;
+      const prev = map.get(key);
+      if(!prev){ map.set(key, a); return; }
+      const prevTime = txt(prev.updatedAt || prev.createdAt || prev.fecha);
+      const nextTime = txt(a.updatedAt || a.createdAt || a.fecha);
+      if(nextTime >= prevTime) map.set(key, Object.assign({}, prev, a));
+    }
+    lists.forEach(function(list){ (Array.isArray(list) ? list : []).forEach(put); });
+    return Array.from(map.values()).sort(function(a,b){
+      return (txt(b.fecha) + txt(b.updatedAt)).localeCompare(txt(a.fecha) + txt(a.updatedAt));
+    });
+  }
+  function localKeysToScan(){
+    const keys = new Set(BACKUP_KEYS);
+    try{
+      for(let i=0; i<localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(/acta|reuni|meeting|minuta/i.test(k || '')) keys.add(k);
+      }
+    }catch(e){}
+    return Array.from(keys);
+  }
+  function readLocalCandidates(){
+    const results = [];
+    localKeysToScan().forEach(function(key){
+      const value = readKey(key);
+      if(!value) return;
+      const acts = collectFromValue(value, 'localStorage:' + key);
+      if(acts.length) results.push.apply(results, acts);
+    });
+    return results;
+  }
+  async function readRemoteCandidates(){
+    const sb = window.supabaseClient || window.supabase;
+    if(!sb || !sb.from) return [];
+    const tables = ['actas_reunion','actas_reuniones','reuniones','meeting_acts','minutas_reunion'];
+    const all = [];
+    for(const table of tables){
+      try{
+        const res = await sb.from(table).select('*').limit(300);
+        if(res && res.error) continue;
+        (res.data || []).forEach(function(row){
+          const n = normalizeAct(row, 'supabase:' + table);
+          if(n) all.push(n);
+        });
+      }catch(e){}
+    }
+    return all;
+  }
+  function writeRecovered(list){
+    const clean = mergeActs([list]);
+    try{ localStorage.setItem(PRIMARY_KEY, JSON.stringify(clean)); }catch(e){}
+    try{ localStorage.setItem('ecoluz_actas_reunion_respaldo', JSON.stringify(clean)); }catch(e){}
+    return clean;
+  }
+  async function recoverMeetingActs(options){
+    options = options || {};
+    const current = collectFromValue(readKey(PRIMARY_KEY) || [], 'actual');
+    const local = readLocalCandidates();
+    const remote = await readRemoteCandidates();
+    const merged = writeRecovered(mergeActs([current, local, remote]));
+    try{
+      if(typeof window.maLoadMeetingActs === 'function') await window.maLoadMeetingActs();
+      if(typeof window.maRenderMeetingActs === 'function') window.maRenderMeetingActs();
+    }catch(e){}
+    const hint = document.getElementById('meetingStorageHint');
+    if(hint){
+      hint.textContent = merged.length
+        ? 'Se recuperaron/cargaron ' + merged.length + ' reunión(es).'
+        : 'No se encontraron reuniones guardadas en este navegador ni en las tablas conocidas.';
+    }
+    if(options.notify !== false){
+      try{
+        if(merged.length){
+          if(typeof toastInfo === 'function') toastInfo('Reuniones recuperadas: ' + merged.length + ' ✅');
+          else alert('Reuniones recuperadas: ' + merged.length);
+        }else{
+          alert('No encontré reuniones guardadas en este archivo. Si fueron creadas en otro HTML descargado, abre ese archivo anterior y exporta/respáldalas, porque el navegador puede guardarlas separadas por archivo.');
+        }
+      }catch(e){}
+    }
+    return merged;
+  }
+  function addRecoveryButton(){
+    const head = document.querySelector('#view-actas-reunion .meeting-page-head .flex.flex-wrap.gap-2');
+    if(!head || document.getElementById('meetingRecoverBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'meetingRecoverBtn';
+    btn.type = 'button';
+    btn.className = 'meeting-soft-btn text-emerald-700';
+    btn.innerHTML = '<i class="fas fa-life-ring"></i>Recuperar reuniones';
+    btn.addEventListener('click', function(){ recoverMeetingActs({ notify:true }); });
+    head.insertBefore(btn, head.firstChild);
+  }
+  window.maRecoverMeetingActs = recoverMeetingActs;
+
+  const oldShowView = window.showView;
+  if(typeof oldShowView === 'function' && !oldShowView.__meetingRecoveryWrapped){
+    const wrapped = function(view){
+      const result = oldShowView.apply(this, arguments);
+      if(String(view || '').toLowerCase() === 'actas-reunion'){
+        setTimeout(function(){ addRecoveryButton(); recoverMeetingActs({ notify:false }); }, 250);
+      }
+      return result;
+    };
+    wrapped.__meetingRecoveryWrapped = true;
+    window.showView = wrapped;
+    try{ showView = window.showView; }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){ addRecoveryButton(); recoverMeetingActs({ notify:false }); }, 1800);
+  });
+  setTimeout(function(){ addRecoveryButton(); recoverMeetingActs({ notify:false }); }, 2400);
+})();
+</script>
+
 </body>
 </html>
