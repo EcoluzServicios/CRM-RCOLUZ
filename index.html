@@ -16919,11 +16919,42 @@ async function savePagoFinal(otId, btn) {
 
 
     function getClientByOT(ot){
-      const clientId = String(ot?.clientId || ot?.client_id || '');
+      let q = null;
+      try { if(typeof getLinkedQuoteForOT === 'function') q = getLinkedQuoteForOT(ot); } catch(e) {}
+
+      const clientId = String(
+        ot?.clientId || ot?.client_id || ot?.data?.clientId || ot?.data?.client_id ||
+        q?.clientId || q?.client_id || q?.data?.clientId || q?.data?.client_id || ''
+      ).trim();
+
       if(clientId && typeof clientsById !== 'undefined' && clientsById?.get){
-        return clientsById.get(clientId) || null;
+        const byId = clientsById.get(clientId);
+        if(byId) return byId;
       }
-      return (clients || []).find(c => String(c.id) === clientId || String(c.name || '').trim().toLowerCase() === String(ot?.clientName || '').trim().toLowerCase()) || null;
+
+      const rutCandidates = [
+        ot?.clientRut, ot?.rut, ot?.data?.rut, ot?.data?.clientRut,
+        q?.rut, q?.clientRut, q?.data?.rut, q?.data?.clientRut
+      ].map(v => String(v || '').replace(/[^0-9kK]/g,'').toLowerCase()).filter(Boolean);
+
+      if(rutCandidates.length){
+        const byRut = (clients || []).find(c => {
+          const cr = String(c?.rut || c?.data?.rut || '').replace(/[^0-9kK]/g,'').toLowerCase();
+          return cr && rutCandidates.includes(cr);
+        });
+        if(byRut) return byRut;
+      }
+
+      const nameCandidates = [
+        ot?.clientName, ot?.razonSocial, ot?.data?.clientName, ot?.data?.razonSocial,
+        q?.clientName, q?.razonSocial, q?.data?.clientName, q?.data?.razonSocial
+      ].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+
+      return (clients || []).find(c => {
+        const names = [c?.name, c?.razonSocial, c?.data?.name, c?.data?.razonSocial]
+          .map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+        return String(c?.id || '') === clientId || names.some(n => nameCandidates.includes(n));
+      }) || null;
     }
 
     function parseFlexibleDate(value){
@@ -17502,9 +17533,22 @@ async function savePagoFinal(otId, btn) {
       return 'facturacion-row-pending';
     }
 
+    function getFacturacionClientName(ot){
+      const c = getClientByOT(ot);
+      let q = null;
+      try { if(typeof getLinkedQuoteForOT === 'function') q = getLinkedQuoteForOT(ot); } catch(e) {}
+      return safeText(
+        c?.name || c?.razonSocial || c?.data?.name || c?.data?.razonSocial ||
+        q?.razonSocial || q?.clientName || q?.data?.razonSocial || q?.data?.clientName ||
+        ot?.clientName || ot?.razonSocial || ot?.data?.clientName || ot?.data?.razonSocial || '—'
+      );
+    }
+
     function getFacturacionClientRut(ot){
       const c = getClientByOT(ot);
-      return ot?.clientRut || ot?.rut || ot?.data?.rut || c?.rut || '';
+      let q = null;
+      try { if(typeof getLinkedQuoteForOT === 'function') q = getLinkedQuoteForOT(ot); } catch(e) {}
+      return c?.rut || c?.data?.rut || q?.rut || q?.clientRut || q?.data?.rut || q?.data?.clientRut || ot?.clientRut || ot?.rut || ot?.data?.rut || '';
     }
 
     function getFacturacionTrabajo(ot){
@@ -17630,7 +17674,7 @@ async function savePagoFinal(otId, btn) {
           const monto = getFacturacionMonto(ot, doc);
           const montoCancelado = getFacturacionMontoCancelado(ot, doc);
           const trabajo = getFacturacionTrabajo(ot);
-          const cliente = safeText(ot.clientName || ot.razonSocial || ot.data?.clientName || '—');
+          const cliente = getFacturacionClientName(ot);
           const rut = getFacturacionClientRut(ot);
           const cotizacion = getFacturacionCotizacion(ot);
           const oc = safeText(ot.oc || ot.data?.oc || '—');
@@ -17801,7 +17845,7 @@ async function savePagoFinal(otId, btn) {
         monto: getFacturacionMonto(ot, doc),
         montoCancelado: getFacturacionMontoCancelado(ot, doc),
         rut: getFacturacionClientRut(ot),
-        cliente: safeText(ot.clientName || ot.razonSocial || ot.data?.clientName || '—'),
+        cliente: getFacturacionClientName(ot),
         trabajo: getFacturacionTrabajo(ot),
         cotizacion: getFacturacionCotizacion(ot),
         oc: safeText(ot.oc || ot.data?.oc || '—'),
@@ -32548,6 +32592,25 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       return bd.localeCompare(ad);
     });
   }
+  function maMergeActs(localList, remoteList){
+    const map = new Map();
+    function put(acta){
+      const a = maNormalizeActa(acta);
+      const key = String(a.id || maUid());
+      const prev = map.get(key);
+      if(!prev){
+        map.set(key, a);
+        return;
+      }
+      const prevTime = String(prev.updatedAt || prev.createdAt || prev.fecha || '');
+      const nextTime = String(a.updatedAt || a.createdAt || a.fecha || '');
+      if(nextTime >= prevTime) map.set(key, Object.assign({}, prev, a));
+    }
+    (Array.isArray(localList) ? localList : []).forEach(put);
+    (Array.isArray(remoteList) ? remoteList : []).forEach(put);
+    return maSort(Array.from(map.values()));
+  }
+
   function maSetHint(){
     const el = document.getElementById('meetingStorageHint');
     if(!el) return;
@@ -32569,14 +32632,24 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const local = maReadLocal().map(maNormalizeActa);
     meetingActs = maSort(local);
     maRenderMeetingActs();
-    if(maRemoteDisabled || !window.supabaseClient){ maLoadedOnce = true; maSetHint(); return meetingActs; }
+
+    if(maRemoteDisabled || !window.supabaseClient){
+      maLoadedOnce = true;
+      maSetHint();
+      return meetingActs;
+    }
+
     try {
       const { data, error } = await window.supabaseClient
         .from(MA_TABLE)
         .select('id,titulo,fecha,data,created_at,updated_at')
         .order('fecha', { ascending:false });
       if(error) throw error;
-      meetingActs = maSort((data || []).map(maRowToActa));
+
+      const remote = (data || []).map(maRowToActa);
+      // Antes, si Supabase respondía vacío, borraba las reuniones locales.
+      // Ahora fusiona local + remoto para que las reuniones registradas no desaparezcan.
+      meetingActs = maMergeActs(local, remote);
       maWriteLocal(meetingActs);
       maLoadedOnce = true;
       maRenderMeetingActs();
@@ -32591,6 +32664,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     maSetHint();
     return meetingActs;
   }
+
   async function maPersistActa(acta){
     const normalized = maNormalizeActa(acta);
     normalized.updatedAt = new Date().toISOString();
@@ -32652,7 +32726,10 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
           <p class="meeting-page-sub">Registra la reunión, lo conversado, los acuerdos y una pizarra simple de pendientes checklist.</p>
           <p id="meetingStorageHint" class="meeting-status-hint"></p>
         </div>
-        <button type="button" onclick="maOpenMeetingActModal()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Nueva reunión</button>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs()" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Recargar</button>
+          <button type="button" onclick="maOpenMeetingActModal()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Nueva reunión</button>
+        </div>
       </div>
       <div class="meeting-kpi-grid">
         <div class="meeting-kpi-card"><div class="meeting-kpi-label">Reuniones</div><div id="meetingKpiTotal" class="meeting-kpi-value text-[#5b7f27]">0</div></div>
@@ -32894,6 +32971,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     await maPersistActa(acta);
   };
   window.maRenderMeetingActs = maRenderMeetingActs;
+  window.maLoadMeetingActs = maLoadActs;
 
   const oldShowView = window.showView;
   if(typeof oldShowView === 'function' && !window.__meetingActsShowViewWrapped){
