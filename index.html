@@ -32537,59 +32537,28 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   function maWriteLocal(list){
     try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch(e) {}
   }
-  function maParseData(value){
-    if(!value) return {};
-    if(typeof value === 'string'){
-      try { const parsed = JSON.parse(value); return parsed && typeof parsed === 'object' ? parsed : {}; } catch(e){ return {}; }
-    }
-    return value && typeof value === 'object' ? value : {};
-  }
-  function maBool(value){
-    if(value === true) return true;
-    const s = String(value ?? '').toLowerCase().trim();
-    return ['true','1','si','sí','yes','ok','done','completed','cumplida','cumplido','realizada','realizado','listo','lista','hecho','hecha'].includes(s);
-  }
-  function maIsTaskDone(task){
-    const t = task || {};
-    // Importante: no usar solo t.done. En algunas actas antiguas Supabase/localStorage
-    // puede traer done:false pero realizada/cumplida/completed:true. Si cualquiera indica listo,
-    // el checklist debe quedar marcado visualmente y guardarse como listo.
-    return [t.done, t.realizada, t.cumplida, t.completed, t.estado, t.status, t.completedAt, t.completed_at, t.fechaRealizada, t.fecha_realizada]
-      .some(function(v){ return maBool(v); });
-  }
-  function maNormalizeTask(task){
-    const t = task || {};
-    const priorityRaw = String(t.priority || t.prioridad || 'media').toLowerCase().trim();
-    const done = maIsTaskDone(t);
-    return {
-      id: maText(t.id) || maUid(),
-      text: maText(t.text || t.pendiente || t.tarea || t.descripcion),
-      priority: ['alta','media','baja'].includes(priorityRaw) ? priorityRaw : 'media',
-      done: done,
-      realizada: done,
-      cumplida: done,
-      completed: done,
-      completedAt: done ? (t.completedAt || t.completed_at || t.fechaRealizada || t.fecha_realizada || null) : null,
-      updatedAt: t.updatedAt || t.updated_at || t.taskUpdatedAt || t.fechaActualizacion || null
-    };
-  }
   function maNormalizeActa(acta){
     const a = acta || {};
-    const data = maParseData(a.data);
-    const rawTasks = Array.isArray(a.tareas) ? a.tareas : (Array.isArray(data.tareas) ? data.tareas : []);
     return {
-      id: maText(a.id || data.id) || maUid(),
-      title: maText(a.title || a.titulo || data.title || data.titulo) || 'Reunión sin título',
-      fecha: maText(a.fecha || data.fecha) || maToday(),
-      conversado: maText(a.conversado || data.conversado),
-      acuerdos: maText(a.acuerdos || data.acuerdos),
-      tareas: rawTasks.map(maNormalizeTask).filter(function(t){ return !!t.text; }),
-      createdAt: a.createdAt || a.created_at || data.createdAt || data.created_at || new Date().toISOString(),
-      updatedAt: a.updatedAt || a.updated_at || data.updatedAt || data.updated_at || new Date().toISOString()
+      id: maText(a.id) || maUid(),
+      title: maText(a.title || a.titulo) || 'Reunión sin título',
+      fecha: maText(a.fecha) || maToday(),
+      conversado: maText(a.conversado),
+      acuerdos: maText(a.acuerdos),
+      tareas: Array.isArray(a.tareas) ? a.tareas.map(function(t){
+        return {
+          id: maText(t.id) || maUid(),
+          text: maText(t.text || t.pendiente || t.tarea),
+          priority: ['alta','media','baja'].includes(String(t.priority || t.prioridad || '').toLowerCase()) ? String(t.priority || t.prioridad).toLowerCase() : 'media',
+          done: t.done === true || t.cumplida === true
+        };
+      }).filter(function(t){ return !!t.text; }) : [],
+      createdAt: a.createdAt || a.created_at || new Date().toISOString(),
+      updatedAt: a.updatedAt || a.updated_at || new Date().toISOString()
     };
   }
   function maRowToActa(row){
-    const data = maParseData(row && row.data);
+    const data = (row && row.data) || {};
     return maNormalizeActa({
       id: row && row.id,
       title: (row && row.titulo) || data.title || data.titulo,
@@ -32603,26 +32572,16 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   }
   function maActaToRow(acta){
     const a = maNormalizeActa(acta);
-    const tareas = a.tareas.map(function(t){
-      const done = maIsTaskDone(t);
-      return Object.assign({}, t, { done: done, realizada: done, cumplida: done, completed: done });
-    });
     return {
       id: a.id,
       titulo: a.title,
       fecha: a.fecha,
-      created_at: a.createdAt,
-      updated_at: a.updatedAt,
       data: {
-        id: a.id,
         title: a.title,
-        titulo: a.title,
         fecha: a.fecha,
         conversado: a.conversado,
         acuerdos: a.acuerdos,
-        tareas: tareas,
-        createdAt: a.createdAt,
-        updatedAt: a.updatedAt
+        tareas: a.tareas
       }
     };
   }
@@ -32633,53 +32592,19 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       return bd.localeCompare(ad);
     });
   }
-  function maMergeTaskLists(){
-    const map = new Map();
-    Array.from(arguments).flat().forEach(function(item){
-      const t = maNormalizeTask(item);
-      if(!t.text) return;
-      const key = String(t.id || maUid());
-      const prev = map.get(key);
-      if(!prev){ map.set(key, t); return; }
-      const prevTime = String(prev.updatedAt || prev.completedAt || '');
-      const nextTime = String(t.updatedAt || t.completedAt || '');
-      const newer = nextTime && (!prevTime || nextTime >= prevTime) ? t : prev;
-      const older = newer === t ? prev : t;
-      // Protección anti-desmarcado: si alguna copia ya venía realizada, una copia antigua no la vuelve pendiente.
-      const done = !!(prev.done || t.done || newer.realizada || older.realizada || newer.cumplida || older.cumplida);
-      map.set(key, Object.assign({}, older, newer, {
-        id: key,
-        text: newer.text || older.text,
-        priority: newer.priority || older.priority || 'media',
-        done: done,
-        realizada: done,
-        cumplida: done,
-        completed: done,
-        completedAt: done ? (newer.completedAt || older.completedAt || null) : null,
-        updatedAt: newer.updatedAt || older.updatedAt || null
-      }));
-    });
-    return Array.from(map.values());
-  }
-  function maMergeActas(prev, next){
-    const p = maNormalizeActa(prev);
-    const n = maNormalizeActa(next);
-    const prevTime = String(p.updatedAt || p.createdAt || p.fecha || '');
-    const nextTime = String(n.updatedAt || n.createdAt || n.fecha || '');
-    const newer = nextTime >= prevTime ? n : p;
-    const older = newer === n ? p : n;
-    return Object.assign({}, older, newer, {
-      tareas: maMergeTaskLists(older.tareas || [], newer.tareas || []),
-      updatedAt: nextTime >= prevTime ? (n.updatedAt || p.updatedAt) : (p.updatedAt || n.updatedAt)
-    });
-  }
   function maMergeActs(localList, remoteList){
     const map = new Map();
     function put(acta){
       const a = maNormalizeActa(acta);
       const key = String(a.id || maUid());
       const prev = map.get(key);
-      map.set(key, prev ? maMergeActas(prev, a) : a);
+      if(!prev){
+        map.set(key, a);
+        return;
+      }
+      const prevTime = String(prev.updatedAt || prev.createdAt || prev.fecha || '');
+      const nextTime = String(a.updatedAt || a.createdAt || a.fecha || '');
+      if(nextTime >= prevTime) map.set(key, Object.assign({}, prev, a));
     }
     (Array.isArray(localList) ? localList : []).forEach(put);
     (Array.isArray(remoteList) ? remoteList : []).forEach(put);
@@ -32822,32 +32747,17 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       <div id="meetingActsGrid" class="meeting-grid"></div>`;
     main.appendChild(view);
   }
-  let maRealtimeChannel = null;
-  function maSubscribeRealtime(){
-    if(maRealtimeChannel || !window.supabaseClient) return;
-    try {
-      maRealtimeChannel = window.supabaseClient
-        .channel('public:actas-reunion-sync')
-        .on('postgres_changes', { event:'*', schema:'public', table:MA_TABLE }, function(){
-          if(document.visibilityState === 'visible') setTimeout(function(){ maLoadActs(); }, 350);
-        })
-        .subscribe();
-    } catch(e) {
-      console.warn('Actas de reunión: no se pudo iniciar sincronización en vivo.', e);
-      maRealtimeChannel = null;
-    }
-  }
-  function maInstall(){ maInstallNavButton(); maInstallView(); maSetHint(); maSubscribeRealtime(); }
+  function maInstall(){ maInstallNavButton(); maInstallView(); maSetHint(); }
   function maRenderTaskLines(acta){
     const tasks = Array.isArray(acta.tareas) ? acta.tareas : [];
     if(!tasks.length) return '<div class="meeting-empty-small">Sin pendientes. Agrega uno desde esta pizarra.</div>';
     const actaIdArg = JSON.stringify(acta.id);
     return `<div class="meeting-board-list">${tasks.map(function(t){
       const taskIdArg = JSON.stringify(t.id);
-      const done = maIsTaskDone(t);
+      const done = !!t.done;
       return `
         <label class="meeting-task-line ${done ? 'meeting-task-done' : ''}">
-          <input type="checkbox" class="meeting-check" data-meeting-acta-id="${maEsc(acta.id)}" data-meeting-task-id="${maEsc(t.id)}" ${done ? 'checked' : ''} onchange="maToggleMeetingTask(${actaIdArg}, ${taskIdArg}, this.checked, this)">
+          <input type="checkbox" class="meeting-check" ${done ? 'checked' : ''} onchange="maToggleMeetingTask(${actaIdArg}, ${taskIdArg}, this.checked)">
           <span class="meeting-task-text"><span class="meeting-priority-dot ${maDotClass(t.priority)}"></span> ${maEsc(t.text || '')}</span>
           <span class="meeting-priority-pill ${maPriorityClass(t.priority)}">${maEsc(maPriorityLabel(t.priority))}</span>
         </label>`;
@@ -32864,7 +32774,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   function maUpdateKpis(){
     const total = meetingActs.length;
     const allTasks = meetingActs.flatMap(function(a){ return Array.isArray(a.tareas) ? a.tareas : []; });
-    const done = allTasks.filter(function(t){ return maIsTaskDone(t); }).length;
+    const done = allTasks.filter(function(t){ return !!t.done; }).length;
     const pending = allTasks.length - done;
     const totalEl = document.getElementById('meetingKpiTotal');
     const pendingEl = document.getElementById('meetingKpiPending');
@@ -32924,7 +32834,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const t = task || {};
     return `
       <div class="meeting-task-row" data-task-row="1" data-task-id="${maEsc(t.id || maUid())}">
-        <input type="checkbox" class="meeting-check" data-task-done="1" ${maIsTaskDone(t) ? 'checked' : ''} title="Cumplida">
+        <input type="checkbox" class="meeting-check" data-task-done="1" ${t.done ? 'checked' : ''} title="Cumplida">
         <input type="text" class="meeting-form-input" data-task-text="1" value="${maEsc(t.text || '')}" placeholder="Pendiente o tarea a realizar...">
         <select class="meeting-form-select" data-task-priority="1">
           <option value="alta" ${String(t.priority||'')==='alta'?'selected':''}>Alta</option>
@@ -32940,19 +32850,12 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     box.insertAdjacentHTML('beforeend', maTaskRowHtml(task || { id:maUid(), text:'', priority:'media', done:false }));
   }
   function maReadFormTasks(){
-    const now = new Date().toISOString();
     return Array.from(document.querySelectorAll('#meetingTasksFormRows [data-task-row]')).map(function(row){
-      const done = !!row.querySelector('[data-task-done]')?.checked;
       return {
         id: row.getAttribute('data-task-id') || maUid(),
         text: maText(row.querySelector('[data-task-text]')?.value || ''),
         priority: String(row.querySelector('[data-task-priority]')?.value || 'media').toLowerCase(),
-        done: done,
-        realizada: done,
-        cumplida: done,
-        completed: done,
-        completedAt: done ? now : null,
-        updatedAt: now
+        done: !!row.querySelector('[data-task-done]')?.checked
       };
     }).filter(function(t){ return !!t.text; });
   }
@@ -33044,66 +32947,14 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     if(!confirm('¿Eliminar esta reunión?')) return;
     await maDeleteActaById(id);
   };
-  window.maToggleMeetingTask = async function(actaId, taskId, checked, checkboxEl){
-    const isDone = !!checked;
-    const now = new Date().toISOString();
-
-    // 1) Marcar visualmente al instante, antes de guardar.
-    try {
-      if(checkboxEl){
-        checkboxEl.checked = isDone;
-        const line = checkboxEl.closest && checkboxEl.closest('.meeting-task-line');
-        if(line) line.classList.toggle('meeting-task-done', isDone);
-      }
-    } catch(e) {}
-
-    const actaIndex = meetingActs.findIndex(function(a){ return String(a.id) === String(actaId); });
-    if(actaIndex < 0) return;
-
-    const original = maNormalizeActa(meetingActs[actaIndex]);
-    let found = false;
-    const updatedTasks = (original.tareas || []).map(function(t){
-      if(String(t.id) !== String(taskId)) return maNormalizeTask(t);
-      found = true;
-      return Object.assign({}, maNormalizeTask(t), {
-        id: t.id,
-        done: isDone,
-        realizada: isDone,
-        cumplida: isDone,
-        completed: isDone,
-        estado: isDone ? 'realizada' : 'pendiente',
-        status: isDone ? 'realizada' : 'pendiente',
-        completedAt: isDone ? (t.completedAt || t.completed_at || now) : null,
-        completed_at: isDone ? (t.completed_at || t.completedAt || now) : null,
-        fechaRealizada: isDone ? (t.fechaRealizada || now) : null,
-        updatedAt: now,
-        updated_at: now,
-        taskUpdatedAt: now
-      });
+  window.maToggleMeetingTask = async function(actaId, taskId, checked){
+    const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    if(!acta) return;
+    acta.tareas = (acta.tareas || []).map(function(t){
+      if(String(t.id) === String(taskId)) return Object.assign({}, t, { done: !!checked });
+      return t;
     });
-    if(!found) return;
-
-    const updatedActa = Object.assign({}, original, { tareas: updatedTasks, updatedAt: now, updated_at: now });
-    const next = meetingActs.slice();
-    next[actaIndex] = updatedActa;
-
-    // 2) Guardar local inmediatamente para que al volver a la sección siga tikeado.
-    meetingActs = maSort(next.map(maNormalizeActa));
-    maWriteLocal(meetingActs);
-    maRenderMeetingActs();
-    maSetHint();
-
-    // 3) Guardar en Supabase sin permitir que una copia vieja quite el check.
-    if(!maRemoteDisabled && window.supabaseClient){
-      try {
-        const row = maActaToRow(updatedActa);
-        const { error } = await window.supabaseClient.from(MA_TABLE).upsert(row, { onConflict:'id' });
-        if(error) throw error;
-      } catch(err){
-        maRemoteDisabled = true;
-        console.warn('Actas de reunión: no se pudo guardar el check en Supabase, queda local.', err);
-      }
-    }
+    await maPersistActa(acta);
   };
   window.maQuickAddTask = async function(actaId){
     const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
@@ -33115,7 +32966,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     if(!text){ if(textEl) textEl.focus(); return; }
     const priority = String(priorityEl?.value || 'media').toLowerCase();
     acta.tareas = Array.isArray(acta.tareas) ? acta.tareas.slice() : [];
-    acta.tareas.push({ id:maUid(), text:text, priority:priority, done:false, realizada:false, cumplida:false, completed:false, updatedAt:new Date().toISOString() });
+    acta.tareas.push({ id:maUid(), text:text, priority:priority, done:false });
     if(textEl) textEl.value = '';
     await maPersistActa(acta);
   };
@@ -33133,7 +32984,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
         if(target) target.classList.remove('hidden');
         const title = document.getElementById('topbarTitle');
         if(title) title.textContent = 'Actas de reunión';
-        setTimeout(function(){ maLoadActs(); }, 0);
+        setTimeout(maRenderMeetingActs, 0);
       }
       return result;
     };
@@ -33149,13 +33000,6 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     };
     try { renderAll = window.renderAll; } catch(e) {}
   }
-  document.addEventListener('change', function(ev){
-    try {
-      const cb = ev.target && ev.target.closest ? ev.target.closest('input.meeting-check[data-meeting-acta-id][data-meeting-task-id]') : null;
-      if(!cb) return;
-      if(typeof window.maToggleMeetingTask === 'function') window.maToggleMeetingTask(cb.dataset.meetingActaId, cb.dataset.meetingTaskId, cb.checked, cb);
-    } catch(e) {}
-  });
   document.addEventListener('DOMContentLoaded', function(){
     setTimeout(function(){ maInstall(); maLoadActs(); }, 500);
   });
@@ -34560,18 +34404,15 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   function txt(v){ return String(v ?? '').trim(); }
   function uid(){ try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2); }
   function today(){ try{ if(typeof todayISO === 'function') return todayISO(); }catch(e){} return new Date().toISOString().slice(0,10); }
-  function parseData(value){ if(!value) return {}; if(typeof value === 'string'){ try{ const parsed = JSON.parse(value); return parsed && typeof parsed === 'object' ? parsed : {}; }catch(e){ return {}; } } return value && typeof value === 'object' ? value : {}; }
-  function bool(v){ if(v === true) return true; const s = String(v ?? '').toLowerCase().trim(); return ['true','1','si','sí','yes','ok','done','completed','cumplida','cumplido','realizada','realizado'].includes(s); }
-  function normalizeTask(t){ t = t || {}; const p = String(t.priority || t.prioridad || 'media').toLowerCase().trim(); const done = [t.done, t.cumplida, t.realizada, t.completed, t.estado, t.status, t.completedAt, t.completed_at, t.fechaRealizada, t.fecha_realizada].some(function(v){ return bool(v); }); return { id: txt(t.id) || uid(), text: txt(t.text || t.pendiente || t.tarea || t.descripcion), priority: ['alta','media','baja'].includes(p) ? p : 'media', done: done, realizada: done, cumplida: done, completed: done, estado: done ? 'realizada' : 'pendiente', status: done ? 'realizada' : 'pendiente', completedAt: done ? (t.completedAt || t.completed_at || t.fechaRealizada || null) : null, updatedAt: t.updatedAt || t.updated_at || t.taskUpdatedAt || null }; }
-  function normalizeActa(a){ a = a || {}; const d = parseData(a.data); const tasks = Array.isArray(a.tareas) ? a.tareas : (Array.isArray(d.tareas) ? d.tareas : []); return { id: txt(a.id || d.id) || uid(), title: txt(a.title || a.titulo || d.title || d.titulo) || 'Reunión sin título', fecha: txt(a.fecha || d.fecha) || today(), conversado: txt(a.conversado || d.conversado), acuerdos: txt(a.acuerdos || d.acuerdos), tareas: tasks.map(normalizeTask).filter(function(t){ return !!t.text; }), createdAt: a.createdAt || a.created_at || d.createdAt || d.created_at || new Date().toISOString(), updatedAt: a.updatedAt || a.updated_at || d.updatedAt || d.updated_at || new Date().toISOString() }; }
+  function normalizeTask(t){ t = t || {}; const p = String(t.priority || t.prioridad || 'media').toLowerCase().trim(); return { id: txt(t.id) || uid(), text: txt(t.text || t.pendiente || t.tarea || t.descripcion), priority: ['alta','media','baja'].includes(p) ? p : 'media', done: t.done === true || t.cumplida === true || t.realizada === true }; }
+  function normalizeActa(a){ a = a || {}; const d = a.data || {}; const tasks = Array.isArray(a.tareas) ? a.tareas : (Array.isArray(d.tareas) ? d.tareas : []); return { id: txt(a.id || d.id) || uid(), title: txt(a.title || a.titulo || d.title || d.titulo) || 'Reunión sin título', fecha: txt(a.fecha || d.fecha) || today(), conversado: txt(a.conversado || d.conversado), acuerdos: txt(a.acuerdos || d.acuerdos), tareas: tasks.map(normalizeTask).filter(function(t){ return !!t.text; }), createdAt: a.createdAt || a.created_at || d.createdAt || d.created_at || new Date().toISOString(), updatedAt: a.updatedAt || a.updated_at || d.updatedAt || d.updated_at || new Date().toISOString() }; }
   function sortActs(list){ return (Array.isArray(list) ? list : []).map(normalizeActa).sort(function(a,b){ const av = String(a.fecha || '') + ' ' + String(a.updatedAt || a.createdAt || ''); const bv = String(b.fecha || '') + ' ' + String(b.updatedAt || b.createdAt || ''); return bv.localeCompare(av); }); }
-  function mergeTasks(){ const map = new Map(); Array.from(arguments).flat().forEach(function(item){ const t = normalizeTask(item); if(!t.text) return; const prev = map.get(t.id); if(!prev){ map.set(t.id, t); return; } const pt = String(prev.updatedAt || prev.completedAt || ''); const tt = String(t.updatedAt || t.completedAt || ''); const newer = tt && (!pt || tt >= pt) ? t : prev; const older = newer === t ? prev : t; const done = !!(prev.done || t.done || prev.realizada || t.realizada || prev.cumplida || t.cumplida); map.set(t.id, Object.assign({}, older, newer, { done: done, realizada: done, cumplida: done, completed: done, completedAt: done ? (newer.completedAt || older.completedAt || null) : null, updatedAt: newer.updatedAt || older.updatedAt || null })); }); return Array.from(map.values()); }
-  function mergeActs(){ const map = new Map(); Array.from(arguments).flat().forEach(function(item){ const a = normalizeActa(item); const prev = map.get(a.id); if(!prev){ map.set(a.id, a); return; } const pt = String(prev.updatedAt || prev.createdAt || prev.fecha || ''); const at = String(a.updatedAt || a.createdAt || a.fecha || ''); const newer = at >= pt ? a : prev; const older = newer === a ? prev : a; map.set(a.id, Object.assign({}, older, newer, { tareas: mergeTasks(older.tareas || [], newer.tareas || []), updatedAt: at >= pt ? (a.updatedAt || prev.updatedAt) : (prev.updatedAt || a.updatedAt) })); }); return sortActs(Array.from(map.values())); }
+  function mergeActs(){ const map = new Map(); Array.from(arguments).flat().forEach(function(item){ const a = normalizeActa(item); const prev = map.get(a.id); if(!prev){ map.set(a.id, a); return; } const pt = String(prev.updatedAt || prev.createdAt || prev.fecha || ''); const at = String(a.updatedAt || a.createdAt || a.fecha || ''); map.set(a.id, at >= pt ? Object.assign({}, prev, a) : prev); }); return sortActs(Array.from(map.values())); }
   function extractArray(parsed){ if(Array.isArray(parsed)) return parsed; if(parsed && typeof parsed === 'object'){ const keys = ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records']; for(const k of keys){ if(Array.isArray(parsed[k])) return parsed[k]; } } return []; }
   function readAllLocal(){ let all = []; try{ MA_LOCAL_KEYS.forEach(function(k){ try{ const raw = localStorage.getItem(k); if(!raw) return; all = all.concat(extractArray(JSON.parse(raw))); }catch(e){} }); }catch(e){} return mergeActs(all); }
   function writeMainLocal(list){ try{ localStorage.setItem('ecoluz_actas_reunion_v2', JSON.stringify(sortActs(list))); }catch(e){} }
-  function rowToActa(row){ const d = parseData(row?.data); return normalizeActa({ id: row?.id || d.id, title: row?.titulo || d.title || d.titulo, fecha: row?.fecha || d.fecha, conversado: d.conversado, acuerdos: d.acuerdos, tareas: d.tareas, createdAt: row?.created_at || d.createdAt, updatedAt: row?.updated_at || d.updatedAt }); }
-  function actaToRow(acta){ const a = normalizeActa(acta); const tareas = a.tareas.map(function(t){ const done = !!t.done; return Object.assign({}, t, { done:done, realizada:done, cumplida:done, completed:done, estado: done ? 'realizada' : 'pendiente', status: done ? 'realizada' : 'pendiente' }); }); return { id: a.id, titulo: a.title, fecha: a.fecha, created_at: a.createdAt, updated_at: a.updatedAt, data: { id: a.id, title: a.title, titulo: a.title, fecha: a.fecha, conversado: a.conversado, acuerdos: a.acuerdos, tareas: tareas, createdAt: a.createdAt, updatedAt: a.updatedAt } }; }
+  function rowToActa(row){ const d = row?.data || {}; return normalizeActa({ id: row?.id || d.id, title: row?.titulo || d.title || d.titulo, fecha: row?.fecha || d.fecha, conversado: d.conversado, acuerdos: d.acuerdos, tareas: d.tareas, createdAt: row?.created_at || d.createdAt, updatedAt: row?.updated_at || d.updatedAt }); }
+  function actaToRow(acta){ const a = normalizeActa(acta); return { id: a.id, titulo: a.title, fecha: a.fecha, data: { id: a.id, title: a.title, titulo: a.title, fecha: a.fecha, conversado: a.conversado, acuerdos: a.acuerdos, tareas: a.tareas, createdAt: a.createdAt, updatedAt: a.updatedAt } }; }
   function sqlText(){ return [
     'create table if not exists public.actas_reunion (',
     '  id text primary key,',
@@ -34609,6 +34450,451 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   window.addEventListener('DOMContentLoaded', installButtons);
   const oldShowView = window.showView;
   if(typeof oldShowView === 'function' && !oldShowView.__meetingCloudButtons){ const wrapped = function(){ const result = oldShowView.apply(this, arguments); setTimeout(installButtons, 150); return result; }; wrapped.__meetingCloudButtons = true; window.showView = wrapped; try{ showView = window.showView; }catch(e){} }
+})();
+</script>
+
+<script>
+/* =========================================================
+   FIX ECOLUZ 2026-06-19: creación de nuevas OT
+   - Deja un guardado de OT independiente de parches antiguos.
+   - Mantiene compatibilidad con cotización vinculada, cliente nuevo,
+     cliente existente y programa de mantención.
+   ========================================================= */
+(function(){
+  if(window.__ecoluzFixCrearOT_20260619) return;
+  window.__ecoluzFixCrearOT_20260619 = true;
+
+  function otFixStr(v){ return String(v == null ? '' : v).trim(); }
+  function otFixEl(id){ return document.getElementById(id); }
+  function otFixVal(id){ return otFixStr(otFixEl(id)?.value || ''); }
+  function otFixNum(v){
+    if(typeof window.otMoneyToNumber === 'function') return window.otMoneyToNumber(v);
+    const raw = otFixStr(v).replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.-]/g,'');
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.round(n) : 0;
+  }
+  function otFixEscape(v){
+    if(typeof window.escapeHtml === 'function') return window.escapeHtml(v);
+    return otFixStr(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+  function otFixToday(){
+    if(typeof window.todayISO === 'function') return window.todayISO();
+    return new Date().toISOString().slice(0,10);
+  }
+  function otFixRut(rut){
+    try{ if(typeof window.normalizeRut === 'function') return window.normalizeRut(rut); }catch(e){}
+    return otFixStr(rut).replace(/[^0-9kK]/g,'').toUpperCase();
+  }
+  function otFixGetClients(){
+    if(Array.isArray(window.clients)) return window.clients;
+    try{ if(Array.isArray(clients)) return clients; }catch(e){}
+    return [];
+  }
+  function otFixSetClients(list){
+    window.clients = Array.isArray(list) ? list : [];
+    try{ clients = window.clients; }catch(e){}
+    try{
+      if(window.clientsById && typeof window.clientsById.set === 'function'){
+        window.clients.forEach(c => c?.id && window.clientsById.set(String(c.id), c));
+      }
+    }catch(e){}
+  }
+  function otFixGetQuotes(){
+    if(Array.isArray(window.quotes)) return window.quotes;
+    try{ if(Array.isArray(quotes)) return quotes; }catch(e){}
+    return [];
+  }
+  function otFixGetOTs(){
+    if(Array.isArray(window.ots)) return window.ots;
+    try{ if(Array.isArray(ots)) return ots; }catch(e){}
+    return [];
+  }
+  function otFixSetOTs(list){
+    window.ots = Array.isArray(list) ? list : [];
+    try{ ots = window.ots; }catch(e){}
+  }
+  function otFixPendingQuoteId(){
+    return otFixStr(window.pendingQuoteToLinkOT || (typeof pendingQuoteToLinkOT !== 'undefined' ? pendingQuoteToLinkOT : ''));
+  }
+  function otFixPendingMaintenance(){
+    try{ if(window.pendingMaintenanceToLinkOT) return Object.assign({}, window.pendingMaintenanceToLinkOT); }catch(e){}
+    try{ if(typeof pendingMaintenanceToLinkOT !== 'undefined' && pendingMaintenanceToLinkOT) return Object.assign({}, pendingMaintenanceToLinkOT); }catch(e){}
+    return null;
+  }
+  function otFixClearPending(){
+    try{ window.pendingQuoteToLinkOT = null; }catch(e){}
+    try{ pendingQuoteToLinkOT = null; }catch(e){}
+    try{ window.pendingMaintenanceToLinkOT = null; }catch(e){}
+    try{ pendingMaintenanceToLinkOT = null; }catch(e){}
+  }
+  function otFixLinkedQuote(){
+    const qid = otFixPendingQuoteId();
+    if(!qid) return null;
+    return otFixGetQuotes().find(q => String(q?.id || '') === qid) || null;
+  }
+  function otFixClientFromQuote(q){
+    if(!q) return null;
+    try{ if(typeof window.inferQuoteClientDataForOT === 'function') return window.inferQuoteClientDataForOT(q); }catch(e){}
+    const clientId = otFixStr(q.clientId || q.client_id || q.data?.clientId || q.data?.client_id || '');
+    const client = clientId ? otFixGetClients().find(c => String(c.id) === clientId) : null;
+    return {
+      clientId,
+      clientName: q.clientName || q.razonSocial || client?.name || '',
+      clientRut: q.clientRut || q.rut || client?.rut || '',
+      branchAlias: q.branchAlias || q.sucursalAlias || q.data?.branchAlias || q.data?.sucursalAlias || '',
+      direccion: q.direccion || q.sucursal || q.data?.direccion || q.data?.sucursal || client?.direccion || ''
+    };
+  }
+  function otFixFinancialFromQuote(q){
+    try{ if(q && typeof window.getFinancialBreakdownFromSource === 'function') return window.getFinancialBreakdownFromSource(q); }catch(e){}
+    if(!q) return null;
+    const total = otFixNum(q.monto || q.total || q.data?.total || 0);
+    const neto = otFixNum(q.neto || q.data?.neto || Math.round(total / 1.19));
+    const iva = otFixNum(q.iva || q.data?.iva || Math.max(total - neto, 0));
+    return { neto, iva, total };
+  }
+  async function otFixInsert(table, payload){
+    if(typeof window.safeInsertWithAutoDrop === 'function'){
+      const res = await window.safeInsertWithAutoDrop(table, payload);
+      if(res?.error) throw res.error;
+      return res?.data || null;
+    }
+    if(typeof safeInsertWithAutoDrop === 'function'){
+      const res = await safeInsertWithAutoDrop(table, payload);
+      if(res?.error) throw res.error;
+      return res?.data || null;
+    }
+    const sb = window.supabaseClient || window.supabase;
+    if(!sb?.from) throw new Error('No se encontró conexión a Supabase.');
+    const res = await sb.from(table).insert([payload]).select().single();
+    if(res.error) throw res.error;
+    return res.data || null;
+  }
+  async function otFixUpdate(table, id, payload){
+    if(!id) return null;
+    if(typeof window.safeUpdateWithAutoDrop === 'function'){
+      const res = await window.safeUpdateWithAutoDrop(table, id, payload);
+      if(res?.error) throw res.error;
+      return res?.data || null;
+    }
+    if(typeof safeUpdateWithAutoDrop === 'function'){
+      const res = await safeUpdateWithAutoDrop(table, id, payload);
+      if(res?.error) throw res.error;
+      return res?.data || null;
+    }
+    const sb = window.supabaseClient || window.supabase;
+    if(!sb?.from) return null;
+    const res = await sb.from(table).update(payload).eq('id', id).select().single();
+    if(res.error) throw res.error;
+    return res.data || null;
+  }
+  function otFixBuildOTClientOptionsHTML(selectedId){
+    if(typeof window.buildOTClientOptionsHTML === 'function') return window.buildOTClientOptionsHTML(selectedId || '');
+    const selected = otFixStr(selectedId);
+    let html = '<option value="">Selecciona un cliente</option>';
+    otFixGetClients().forEach(c => {
+      const id = otFixStr(c?.id || '');
+      html += `<option value="${otFixEscape(id)}" ${selected && selected === id ? 'selected' : ''}>${otFixEscape(c?.name || 'Sin nombre')} (${otFixEscape(c?.rut || 'Sin RUT')})</option>`;
+    });
+    return html;
+  }
+
+  window.showNewOTModal = function(prefill = {}){
+    try{
+      if(typeof window.showNewOTManualModal === 'function') return window.showNewOTManualModal(prefill || {});
+      const next = (typeof window.getNextOTNumber === 'function') ? window.getNextOTNumber() : '';
+      const html = `
+        <div class="p-8">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Nueva Orden de Trabajo</h2>
+          <div class="space-y-4">
+            <div><label class="block text-sm font-medium">N° OT *</label><input id="mOtNum" value="${otFixEscape(next)}" class="w-full px-3 py-2 border rounded-xl font-bold"></div>
+            <div><label class="block text-sm font-medium">Fecha de la OT</label><input id="mOtFecha" type="date" value="${otFixToday()}" class="w-full px-3 py-2 border rounded-xl"></div>
+            <div><label class="block text-sm font-medium">Cliente *</label><select id="mOtClient" class="w-full px-3 py-2 border rounded-xl">${otFixBuildOTClientOptionsHTML(prefill?.clientId || '')}</select></div>
+            <div><label class="block text-sm font-medium">Descripción del trabajo *</label><textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl">${otFixEscape(prefill?.descripcion || '')}</textarea></div>
+            <input id="mOtBranchAlias" type="hidden" value="${otFixEscape(prefill?.branchAlias || '')}">
+            <input id="mOtDireccion" type="hidden" value="${otFixEscape(prefill?.direccion || prefill?.sucursal || '')}">
+            <input id="mOtNeto" type="hidden" value="${Number(prefill?.neto || 0)}"><input id="mOtIva" type="hidden" value="${Number(prefill?.iva || 0)}"><input id="mOtTotal" type="hidden" value="${Number(prefill?.total || 0)}">
+            <input id="mOtOC" type="hidden" value="${otFixEscape(prefill?.oc || '')}"><input id="mOtHES" type="hidden" value="${otFixEscape(prefill?.hes || '')}"><input id="mOtGuia" type="hidden" value="${otFixEscape(prefill?.guia_despacho || prefill?.guiaDespacho || '')}">
+            <select id="mOtCobroMode" class="hidden"><option value="factura" selected>Con factura</option></select>
+            <div class="flex gap-4 pt-4"><button onclick="saveNewOTManual(this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-2xl font-semibold">Guardar OT</button><button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button></div>
+          </div>
+        </div>`;
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('modalContent');
+      if(!modal || !content) throw new Error('No se encontró el modal principal.');
+      content.innerHTML = html;
+      modal.classList.remove('hidden');
+    }catch(err){
+      console.error('Error abriendo nueva OT:', err);
+      alert('No se pudo abrir Nueva OT: ' + (err?.message || err));
+    }
+  };
+
+  window.saveNewOTManual = async function(btn){
+    const originalText = btn ? (btn.innerText || btn.textContent || 'Guardar OT') : 'Guardar OT';
+    if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
+    try{
+      const numInput = otFixEl('mOtNum');
+      const manualFolio = !!otFixEl('otManualFolio')?.checked;
+      let numeroOT = otFixStr(numInput?.value || '');
+      if(!numeroOT && typeof window.getNextOTNumber === 'function'){
+        numeroOT = window.getNextOTNumber();
+        if(numInput) numInput.value = numeroOT;
+      }
+      if(!manualFolio && typeof window.isOTNumberAlreadyUsed === 'function'){
+        try{
+          const used = await window.isOTNumberAlreadyUsed(numeroOT);
+          if(used && typeof window.getNextOTNumber === 'function'){
+            numeroOT = window.getNextOTNumber();
+            if(numInput) numInput.value = numeroOT;
+          }
+        }catch(e){ console.warn('No se pudo verificar duplicado de OT:', e); }
+      }
+      if(manualFolio && typeof window.isOTNumberAlreadyUsed === 'function'){
+        try{
+          if(await window.isOTNumberAlreadyUsed(numeroOT)) throw new Error('Ese N° de OT ya existe. Usa otro número para evitar duplicados.');
+        }catch(e){ if(e?.message?.includes('existe')) throw e; }
+      }
+
+      const fechaOT = otFixVal('mOtFecha') || otFixToday();
+      const desc = otFixVal('mOtDesc');
+      const branchAliasOT = otFixVal('mOtBranchAlias');
+      const direccionOT = otFixVal('mOtDireccion');
+      const oc = otFixVal('mOtOC');
+      const hes = otFixVal('mOtHES');
+      const guia = otFixVal('mOtGuia');
+      const cobroModeRaw = otFixStr(otFixVal('mOtCobroMode') || 'factura').toLowerCase();
+      const cobroMode = cobroModeRaw === 'directo' ? 'directo' : 'factura';
+      const initialCobroState = cobroMode === 'directo' ? 'pendiente_pago' : 'pendiente_facturar';
+
+      if(!numeroOT) throw new Error('Debes ingresar el número de la OT.');
+      if(!desc) throw new Error('Debes ingresar la descripción del trabajo.');
+
+      const linkedQuote = otFixLinkedQuote();
+      const linkedMaintenance = otFixPendingMaintenance();
+      const quoteClient = otFixClientFromQuote(linkedQuote);
+      let client = null;
+      const clientsList = otFixGetClients();
+
+      if(linkedQuote){
+        const qClientId = otFixStr(quoteClient?.clientId || linkedQuote.clientId || linkedQuote.client_id || linkedQuote.data?.clientId || linkedQuote.data?.client_id || '');
+        client = clientsList.find(c => String(c.id) === qClientId) || {
+          id: qClientId,
+          name: quoteClient?.clientName || linkedQuote.clientName || 'Cliente',
+          rut: quoteClient?.clientRut || linkedQuote.rut || '',
+          direccion: quoteClient?.direccion || ''
+        };
+      }else{
+        const mode = document.querySelector('input[name="otClientMode"]:checked')?.value || 'existing';
+        if(mode === 'new'){
+          const newName = otFixVal('otNewName');
+          const newRutRaw = otFixVal('otNewRut');
+          const newRut = newRutRaw || (typeof window.generateProvisionalRut === 'function' ? window.generateProvisionalRut() : ('PROV-' + Date.now()));
+          const newPhone = otFixVal('otNewPhone');
+          const newType = otFixVal('otNewType') || 'Empresa';
+          if(!newName) throw new Error('El nombre del nuevo cliente es obligatorio.');
+          client = clientsList.find(c => otFixRut(c?.rut || '') === otFixRut(newRut)) || null;
+          if(!client){
+            client = await otFixInsert('clients', {
+              name: newName,
+              rut: newRut,
+              telefono: newPhone,
+              tipo: newType,
+              created_by: window.currentUser?.id || null,
+              created_by_email: window.currentUser?.email || '',
+              created_by_name: window.currentUserDisplayName || '',
+              data: { telefono: newPhone, tipo: newType }
+            });
+            if(client?.id){
+              clientsList.push(client);
+              otFixSetClients(clientsList);
+            }
+          }
+        }else{
+          const clientId = otFixVal('mOtClient');
+          if(!clientId) throw new Error('Selecciona un cliente.');
+          const selectText = otFixEl('mOtClient')?.selectedOptions?.[0]?.textContent || 'Cliente';
+          client = clientsList.find(c => String(c.id) === clientId) || { id: clientId, name: selectText.replace(/\([^)]*\)\s*$/,'').trim(), rut: '', direccion: '' };
+        }
+      }
+
+      if(!client?.id) throw new Error('No se pudo resolver el cliente para la OT.');
+
+      const manualFin = {
+        neto: otFixNum(otFixVal('mOtNeto')),
+        iva: otFixNum(otFixVal('mOtIva')),
+        total: otFixNum(otFixVal('mOtTotal'))
+      };
+      const quoteFin = otFixFinancialFromQuote(linkedQuote);
+      const fin = quoteFin || manualFin;
+      const monto = otFixNum(fin.total || 0);
+
+      const hasLegacyQuote = !!otFixEl('mOtHasLegacyQuote')?.checked;
+      const legacyQuoteNumber = otFixVal('mOtLegacyQuoteNumber');
+      const legacyQuoteDate = otFixVal('mOtLegacyQuoteDate');
+      if(hasLegacyQuote && !legacyQuoteNumber) throw new Error('Si marcas cotización antigua, debes ingresar el folio.');
+
+      const attachments = (typeof window.collectModalAttachments === 'function') ? window.collectModalAttachments('ot') : [];
+      const addressValue = direccionOT || client.direccion || client.data?.direccion || quoteClient?.direccion || '';
+      const quoteNumber = linkedQuote ? otFixStr(linkedQuote.numeroCotizacion || linkedQuote.numero || linkedQuote.folio || '') : (hasLegacyQuote ? legacyQuoteNumber : 'Sin Cotización');
+      const branchAlias = branchAliasOT || quoteClient?.branchAlias || linkedMaintenance?.siteName || '';
+
+      const payload = {
+        client_id: client.id,
+        numero_ot: numeroOT,
+        quote_id: linkedQuote?.id || null,
+        descripcion: desc,
+        oc,
+        hes,
+        guia_despacho: guia,
+        estado: 'pendiente',
+        pago_estado: initialCobroState,
+        cobro_estado: initialCobroState,
+        fecha: fechaOT,
+        monto,
+        created_by: window.currentUser?.id || null,
+        created_by_email: window.currentUser?.email || '',
+        created_by_name: window.currentUserDisplayName || 'Admin',
+        data: {
+          numeroOT,
+          numero_ot: numeroOT,
+          quoteId: linkedQuote?.id || null,
+          quote_id: linkedQuote?.id || null,
+          numeroCotizacion: quoteNumber,
+          clientName: client.name || quoteClient?.clientName || '',
+          rut: client.rut || quoteClient?.clientRut || '',
+          descripcion: desc,
+          monto,
+          total: monto,
+          neto: otFixNum(fin.neto || 0),
+          iva: otFixNum(fin.iva || 0),
+          manual_pricing: !linkedQuote,
+          oc,
+          hes,
+          guia_despacho: guia,
+          direccion: addressValue,
+          sucursal: addressValue,
+          branchAlias,
+          siteAlias: branchAlias,
+          sucursalAlias: branchAlias,
+          aliasSucursal: branchAlias,
+          attachments,
+          abonos: [],
+          modalidadCobro: cobroMode,
+          modalidad_cobro: cobroMode,
+          cobro_estado: initialCobroState,
+          pago_estado: initialCobroState,
+          createdBy: window.currentUserDisplayName || 'Admin',
+          fecha: fechaOT,
+          legacyQuote: hasLegacyQuote,
+          legacy_quote: hasLegacyQuote,
+          legacyQuoteNumber,
+          legacy_quote_number: legacyQuoteNumber,
+          legacyQuoteDate,
+          legacy_quote_date: legacyQuoteDate,
+          cotizacionAntigua: hasLegacyQuote,
+          folioCotizacionAntigua: legacyQuoteNumber,
+          fechaCotizacionAntigua: legacyQuoteDate,
+          maintenanceProgramId: linkedMaintenance?.programId || '',
+          maintenance_program_id: linkedMaintenance?.programId || '',
+          maintenanceMonth: Number(linkedMaintenance?.month || linkedMaintenance?.scheduledMonth || 0),
+          maintenance_month: Number(linkedMaintenance?.month || linkedMaintenance?.scheduledMonth || 0),
+          maintenanceYear: Number(linkedMaintenance?.year || 0),
+          maintenance_year: Number(linkedMaintenance?.year || 0),
+          maintenanceOriginalMonth: Number(linkedMaintenance?.originalMonth || linkedMaintenance?.month || 0),
+          maintenance_original_month: Number(linkedMaintenance?.originalMonth || linkedMaintenance?.month || 0),
+          maintenanceServiceMonth: Number(linkedMaintenance?.serviceMonth || linkedMaintenance?.month || 0),
+          maintenance_service_month: Number(linkedMaintenance?.serviceMonth || linkedMaintenance?.month || 0),
+          maintenanceProgramTitle: linkedMaintenance?.title || '',
+          maintenanceServiceType: linkedMaintenance?.serviceType || '',
+          maintenanceSiteName: linkedMaintenance?.siteName || '',
+          maintenanceMatrixQuoteId: linkedMaintenance?.matrixQuoteId || '',
+          maintenance_matrix_quote_id: linkedMaintenance?.matrixQuoteId || '',
+          maintenanceMatrixQuoteNumber: linkedMaintenance?.matrixQuoteNumber || '',
+          maintenance_matrix_quote_number: linkedMaintenance?.matrixQuoteNumber || ''
+        }
+      };
+
+      const inserted = await otFixInsert('ots', payload);
+      if(!inserted?.id) throw new Error('Supabase no devolvió la OT creada. Revisa permisos o conexión.');
+
+      if(linkedQuote?.id){
+        try{
+          const previous = Array.isArray(linkedQuote?.data?.maintenance_ot_numbers) ? linkedQuote.data.maintenance_ot_numbers : [];
+          const nextMaintenanceOTs = linkedMaintenance ? Array.from(new Set([...previous.map(String), String(numeroOT)])) : previous;
+          const qData = Object.assign({}, linkedQuote.data || {}, {
+            ot_created: true,
+            ot_numero: numeroOT,
+            maintenance_base_quote: linkedMaintenance ? true : !!linkedQuote?.data?.maintenance_base_quote,
+            maintenance_ot_numbers: nextMaintenanceOTs
+          });
+          await otFixUpdate('quotes', linkedQuote.id, { data: qData });
+          linkedQuote.data = qData;
+        }catch(e){ console.warn('OT creada, pero no se pudo marcar la cotización como vinculada:', e); }
+      }
+
+      let otModel = null;
+      try{ if(typeof window.hydrateOTRows === 'function') otModel = window.hydrateOTRows([inserted])[0] || null; }catch(e){}
+      try{ if(!otModel && typeof hydrateOTRows === 'function') otModel = hydrateOTRows([inserted])[0] || null; }catch(e){}
+      if(!otModel){
+        otModel = {
+          id: inserted.id,
+          clientId: client.id,
+          quoteId: linkedQuote?.id || null,
+          quote_id: linkedQuote?.id || null,
+          clientName: client.name || quoteClient?.clientName || '',
+          clientRut: client.rut || quoteClient?.clientRut || '',
+          numeroCotizacion: quoteNumber,
+          numeroOT,
+          numero_ot: numeroOT,
+          descripcion: desc,
+          branchAlias,
+          sucursal: addressValue,
+          direccion: addressValue,
+          oc,
+          hes,
+          guia_despacho: guia,
+          estado: 'pendiente',
+          pago_estado: initialCobroState,
+          cobro_estado: initialCobroState,
+          fecha: fechaOT,
+          monto,
+          total: monto,
+          modalidadCobro: cobroMode,
+          createdByName: window.currentUserDisplayName || 'Admin',
+          createdByEmail: window.currentUser?.email || '',
+          created_by: window.currentUser?.id || null,
+          created_at: inserted.created_at || new Date().toISOString(),
+          data: Object.assign({}, payload.data, inserted.data || {})
+        };
+      }
+
+      const list = otFixGetOTs().slice();
+      const idx = list.findIndex(o => String(o?.id || '') === String(otModel.id));
+      if(idx >= 0) list[idx] = otModel;
+      else list.unshift(otModel);
+      otFixSetOTs(list);
+      otFixClearPending();
+
+      try{ if(typeof window.renderOTs === 'function') window.renderOTs(); }catch(e){}
+      try{ if(typeof window.renderQuotes === 'function') window.renderQuotes(); }catch(e){}
+      try{ if(typeof window.renderMaintenancePrograms === 'function') window.renderMaintenancePrograms(); }catch(e){}
+      try{ if(typeof window.renderDashboard === 'function') window.renderDashboard(); }catch(e){}
+      try{ if(typeof window.renderClients === 'function') window.renderClients(); }catch(e){}
+      try{ if(typeof window.toastInfo === 'function') window.toastInfo('OT creada: ' + numeroOT); else alert('OT creada: ' + numeroOT); }catch(e){}
+      try{ if(typeof window.goToCreatedOTAndEdit === 'function') await window.goToCreatedOTAndEdit(inserted.id, numeroOT); }catch(e){}
+      return { ok:true, data: inserted, model: otModel };
+    }catch(err){
+      console.error('Error al guardar OT:', err);
+      alert('Error al guardar OT: ' + (err?.message || err));
+      return { ok:false, error: err };
+    }finally{
+      if(btn){ btn.disabled = false; btn.innerText = originalText; }
+    }
+  };
+
+  try{ saveNewOTManual = window.saveNewOTManual; }catch(e){}
+  try{ showNewOTModal = window.showNewOTModal; }catch(e){}
 })();
 </script>
 </body>
