@@ -32478,6 +32478,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   const MA_TABLE = 'actas_reunion';
   const MA_LOCAL_KEY = 'ecoluz_actas_reunion_v2';
   const MA_LOCAL_KEYS = ['ecoluz_actas_reunion_v2','ecoluz_actas_reunion','meetingActs','actasReunion','actas_reunion','reuniones','ecoluz_meeting_acts'];
+  const MA_PENDING_KEY = 'ecoluz_actas_reunion_pending_task_state_v1';
   let meetingActs = [];
   let maLoadedOnce = false;
   let maCloudReady = false;
@@ -32622,10 +32623,68 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   function maReadLocal(){
     let list = [];
     MA_LOCAL_KEYS.forEach(function(key){ list = list.concat(maReadKey(key)); });
-    return maMergeActs(list);
+    return maApplyPendingStates(maMergeActs(list));
   }
   function maWriteLocal(list){
     try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(maSort(list || []))); } catch(e) {}
+  }
+  function maReadPendingStates(){
+    try{
+      const raw = localStorage.getItem(MA_PENDING_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    }catch(e){ return {}; }
+  }
+  function maWritePendingStates(map){
+    try { localStorage.setItem(MA_PENDING_KEY, JSON.stringify(map || {})); } catch(e) {}
+  }
+  function maRememberPendingTask(actaId, taskId, done){
+    const map = maReadPendingStates();
+    const aId = String(actaId || '');
+    const tId = String(taskId || '');
+    if(!aId || !tId) return;
+    if(!map[aId]) map[aId] = {};
+    const now = maNow();
+    map[aId][tId] = { done: !!done, doneAt: done ? now : null, updatedAt: now, expiresAt: Date.now() + (1000 * 60 * 60) };
+    maWritePendingStates(map);
+  }
+  function maClearPendingTask(actaId, taskId){
+    const map = maReadPendingStates();
+    const aId = String(actaId || '');
+    const tId = String(taskId || '');
+    if(map[aId] && map[aId][tId]){
+      delete map[aId][tId];
+      if(!Object.keys(map[aId]).length) delete map[aId];
+      maWritePendingStates(map);
+    }
+  }
+  function maApplyPendingStates(list){
+    const pending = maReadPendingStates();
+    const nowMs = Date.now();
+    let dirty = false;
+    const out = maSort(list || []).map(function(acta){
+      const a = maNormalizeActa(acta);
+      const pByTask = pending[String(a.id)] || null;
+      if(!pByTask) return a;
+      a.tareas = (a.tareas || []).map(function(task){
+        const patch = pByTask[String(task.id)];
+        if(!patch) return task;
+        if(Number(patch.expiresAt || 0) && Number(patch.expiresAt) < nowMs){
+          delete pByTask[String(task.id)];
+          dirty = true;
+          return task;
+        }
+        return Object.assign({}, task, {
+          done: !!patch.done,
+          doneAt: patch.done ? (patch.doneAt || task.doneAt || null) : null,
+          updatedAt: patch.updatedAt || task.updatedAt || maNow()
+        });
+      });
+      if(pByTask && !Object.keys(pByTask).length){ delete pending[String(a.id)]; dirty = true; }
+      return a;
+    });
+    if(dirty) maWritePendingStates(pending);
+    return out;
   }
   function maNormalizeTask(task){
     const t = task || {};
@@ -32712,15 +32771,38 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       return bd.localeCompare(ad);
     });
   }
+  function maTimeKey(value){ return String(value || ''); }
+  function maMergeTaskLists(){
+    const map = new Map();
+    Array.from(arguments).flat().forEach(function(item){
+      const t = maNormalizeTask(item);
+      if(!t.text) return;
+      const prev = map.get(t.id);
+      if(!prev){ map.set(t.id, t); return; }
+      const pt = maTimeKey(prev.updatedAt || prev.doneAt || '');
+      const tt = maTimeKey(t.updatedAt || t.doneAt || '');
+      map.set(t.id, tt >= pt ? Object.assign({}, prev, t) : prev);
+    });
+    return Array.from(map.values());
+  }
+  function maMergeTwoActas(prev, incoming){
+    const p = maNormalizeActa(prev);
+    const a = maNormalizeActa(incoming);
+    const pt = maTimeKey(p.updatedAt || p.createdAt || p.fecha || '');
+    const at = maTimeKey(a.updatedAt || a.createdAt || a.fecha || '');
+    const chosen = at >= pt ? Object.assign({}, p, a) : Object.assign({}, a, p);
+    chosen.tareas = maMergeTaskLists(p.tareas || [], a.tareas || []);
+    chosen.updatedAt = at >= pt ? (a.updatedAt || p.updatedAt || maNow()) : (p.updatedAt || a.updatedAt || maNow());
+    chosen.createdAt = p.createdAt || a.createdAt || maNow();
+    return chosen;
+  }
   function maMergeActs(){
     const map = new Map();
     Array.from(arguments).flat().forEach(function(item){
       const a = maNormalizeActa(item);
       const prev = map.get(a.id);
       if(!prev){ map.set(a.id, a); return; }
-      const pt = String(prev.updatedAt || prev.createdAt || prev.fecha || '');
-      const at = String(a.updatedAt || a.createdAt || a.fecha || '');
-      map.set(a.id, at >= pt ? Object.assign({}, prev, a) : prev);
+      map.set(a.id, maMergeTwoActas(prev, a));
     });
     return maSort(Array.from(map.values()));
   }
@@ -32786,7 +32868,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     if(res.error) throw res.error;
   }
   function maLocalSetAndRender(list){
-    meetingActs = maSort(list || []);
+    meetingActs = maApplyPendingStates(maSort(list || []));
     maWriteLocal(meetingActs);
     maRenderMeetingActs();
     maSetHint();
@@ -32801,7 +32883,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 
     try{
       const remote = await maReadRemote();
-      const merged = maMergeActs(local, remote);
+      const merged = maApplyPendingStates(maMergeActs(local, remote));
       const hadLocalOnly = !maSameActs(merged, remote);
       meetingActs = merged;
       maWriteLocal(merged);
@@ -32836,7 +32918,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       const saved = await maUpsertRemoteOne(normalized);
       maCloudReady = true;
       maLastError = '';
-      meetingActs = maMergeActs(meetingActs, [saved]);
+      meetingActs = maApplyPendingStates(maMergeActs(meetingActs, [saved]));
       maWriteLocal(meetingActs);
       maRenderMeetingActs();
       maSetHint();
@@ -33149,18 +33231,64 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     await maDeleteActaById(id);
   };
   window.maToggleMeetingTask = async function(actaId, taskId, checked){
-    let acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
-    if(!acta) return;
+    let localActa = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    if(!localActa) return;
+    maRememberPendingTask(actaId, taskId, checked);
+
+    let baseActa = localActa;
     try{
       const remote = await maReadRemoteById(actaId);
-      if(remote) acta = maMergeActs([acta], [remote]).find(function(a){ return String(a.id) === String(actaId); }) || acta;
+      if(remote) baseActa = maMergeActs([localActa], [remote]).find(function(a){ return String(a.id) === String(actaId); }) || localActa;
     }catch(e){}
+
     const now = maNow();
-    acta.tareas = (acta.tareas || []).map(function(t){
-      if(String(t.id) === String(taskId)) return Object.assign({}, t, { done: !!checked, doneAt: checked ? (t.doneAt || now) : null, updatedAt: now });
-      return t;
-    });
-    await maPersistActa(acta, { quiet:false });
+    const updatedActa = maNormalizeActa(Object.assign({}, baseActa, {
+      tareas: (baseActa.tareas || []).map(function(t){
+        if(String(t.id) === String(taskId)){
+          return Object.assign({}, t, {
+            done: !!checked,
+            doneAt: checked ? (t.doneAt || now) : null,
+            updatedAt: now
+          });
+        }
+        return t;
+      }),
+      updatedAt: now
+    }));
+
+    meetingActs = maApplyPendingStates(maMergeActs(meetingActs, [updatedActa]));
+    maWriteLocal(meetingActs);
+    maRenderMeetingActs();
+    maSetHint('Guardando check en Supabase...');
+
+    try{
+      const saved = await maUpsertRemoteOne(updatedActa);
+      let verified = null;
+      try { verified = await maReadRemoteById(actaId); } catch(e) { verified = saved; }
+      let verifiedTask = (verified?.tareas || []).find(function(t){ return String(t.id) === String(taskId); });
+      if(!verifiedTask || !!verifiedTask.done !== !!checked){
+        await maUpsertRemoteOne(updatedActa);
+        verified = await maReadRemoteById(actaId);
+        verifiedTask = (verified?.tareas || []).find(function(t){ return String(t.id) === String(taskId); });
+      }
+      if(!verifiedTask || !!verifiedTask.done !== !!checked){
+        throw new Error('Supabase no devolvió el check actualizado. Revisa permisos RLS de la tabla actas_reunion.');
+      }
+      maClearPendingTask(actaId, taskId);
+      maCloudReady = true;
+      maLastError = '';
+      meetingActs = maMergeActs(meetingActs, [verified || saved || updatedActa]);
+      maWriteLocal(meetingActs);
+      maRenderMeetingActs();
+      maSetHint();
+    }catch(err){
+      maCloudReady = false;
+      maLastError = maErrorMessage(err) || 'No se pudo guardar el check en Supabase.';
+      console.error('Actas de reunión: no se pudo guardar check en nube.', err);
+      maSetHint('El check quedó protegido en este equipo, pero no se pudo confirmar en Supabase: ' + maLastError, 'error');
+      if(maIsMissingTableError(err)) maShowSqlHelp(err);
+      else alert('No se pudo confirmar el check en Supabase. Quedó marcado temporalmente en este equipo, pero para verlo en todos los computadores hay que corregir Supabase/RLS. Detalle: ' + maLastError);
+    }
   };
   window.maQuickAddTask = async function(actaId){
     let acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
