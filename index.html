@@ -32434,6 +32434,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   .meeting-task-line:hover{background:linear-gradient(90deg,rgba(133,175,40,.055),transparent)}
   .meeting-task-text{font-size:.93rem;color:#0f172a;line-height:1.3;overflow-wrap:anywhere;padding-top:.08rem}
   .meeting-task-done .meeting-task-text{text-decoration:line-through;color:#94a3b8}
+  .meeting-task-line input[type="checkbox"]:checked ~ .meeting-task-text{text-decoration:line-through;color:#94a3b8}
   .meeting-check{width:1.18rem;height:1.18rem;accent-color:#85af28;margin-top:.05rem;flex:0 0 auto}
   .meeting-priority-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.26rem .55rem;border-radius:999px;font-size:.7rem;font-weight:950;border:1px solid transparent;white-space:nowrap}
   .meeting-priority-alta{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
@@ -32454,7 +32455,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   .meeting-task-row{display:grid;grid-template-columns:30px minmax(220px,1fr) 145px 42px;gap:.55rem;align-items:center;padding:.35rem 0;border-bottom:1px solid #edf2f7}
   .meeting-task-row .meeting-form-input{padding:.68rem .8rem}
   .meeting-task-row .meeting-form-select{padding:.68rem .8rem}
-  .meeting-status-hint{font-size:.78rem;color:#64748b;margin-top:.35rem}
+  .meeting-status-hint{font-size:.78rem;color:#64748b;margin-top:.35rem;font-weight:700}
   body[data-ui-color-mode="dark"] .meeting-kpi-card,
   body[data-ui-color-mode="dark"] .meeting-control-shell,
   body[data-ui-color-mode="dark"] .meeting-card,
@@ -32472,20 +32473,20 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 <script id="meeting-acts-script">
 (function(){
   'use strict';
-  if(window.__ecoluzMeetingActsInstalledFinal20260624) return;
-  window.__ecoluzMeetingActsInstalledFinal20260624 = true;
+  if(window.__ecoluzMeetingActsSimpleSync20260624) return;
+  window.__ecoluzMeetingActsSimpleSync20260624 = true;
 
   const MA_TABLE = 'actas_reunion';
   const MA_LOCAL_KEY = 'ecoluz_actas_reunion_v2';
   const MA_LOCAL_KEYS = ['ecoluz_actas_reunion_v2','ecoluz_actas_reunion','meetingActs','actasReunion','actas_reunion','reuniones','ecoluz_meeting_acts'];
-  const MA_PENDING_KEY = 'ecoluz_actas_reunion_pending_task_state_v1';
   let meetingActs = [];
   let maLoadedOnce = false;
   let maCloudReady = false;
   let maLastError = '';
   let maRealtimeChannel = null;
   let maRealtimeTimer = null;
-  let maLastAuthId = '';
+  const maSavingChecks = new Set();
+
 
   function maEsc(value){
     return String(value ?? '').replace(/[&<>"']/g, function(ch){
@@ -32493,65 +32494,26 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     });
   }
   function maText(value){ return String(value ?? '').trim(); }
-  function maToday(){
-    try { if(typeof todayISO === 'function') return todayISO(); } catch(e) {}
-    return new Date().toISOString().slice(0,10);
-  }
   function maNow(){ return new Date().toISOString(); }
-  function maUid(){
-    try { if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); } catch(e) {}
-    return 'ma_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-  }
+  function maToday(){ try { if(typeof todayISO === 'function') return todayISO(); } catch(e) {} return new Date().toISOString().slice(0,10); }
+  function maUid(){ try { if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); } catch(e) {} return 'ma_' + Date.now() + '_' + Math.random().toString(16).slice(2); }
   function maDomId(value){ return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_'); }
   function maFormatDate(value){
     if(!value) return '—';
     try { if(typeof formatDDMMYY === 'function') return formatDDMMYY(value); } catch(e) {}
     const s = String(value);
-    if(/^\d{4}-\d{2}-\d{2}/.test(s)){
-      const parts = s.slice(0,10).split('-');
-      return parts[2] + '-' + parts[1] + '-' + parts[0];
-    }
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)){ const p = s.slice(0,10).split('-'); return p[2] + '-' + p[1] + '-' + p[0]; }
     return s;
   }
-  function maPriorityLabel(value){
-    const v = String(value || 'media').toLowerCase();
-    if(v === 'alta') return 'Alta';
-    if(v === 'baja') return 'Baja';
-    return 'Media';
-  }
-  function maPriorityClass(value){
-    const v = String(value || 'media').toLowerCase();
-    if(v === 'alta') return 'meeting-priority-alta';
-    if(v === 'baja') return 'meeting-priority-baja';
-    return 'meeting-priority-media';
-  }
-  function maDotClass(value){
-    const v = String(value || 'media').toLowerCase();
-    if(v === 'alta') return 'meeting-dot-alta';
-    if(v === 'baja') return 'meeting-dot-baja';
-    return 'meeting-dot-media';
-  }
-  function maToast(msg){
-    try { if(typeof toastInfo === 'function') return toastInfo(msg); } catch(e) {}
-    console.log(msg);
-  }
-  function maGetSb(){
-    const sb = window.supabaseClient;
-    return (sb && typeof sb.from === 'function') ? sb : null;
-  }
-  function maErrorMessage(err){
-    return maText(err?.message || err?.details || err?.hint || err?.code || err || '');
-  }
-  function maIsMissingTableError(err){
-    const msg = maErrorMessage(err).toLowerCase();
-    const code = maText(err?.code).toUpperCase();
-    return code === '42P01' || code === 'PGRST205' || msg.includes('actas_reunion') && (msg.includes('does not exist') || msg.includes('not found') || msg.includes('could not find') || msg.includes('no existe'));
-  }
-  function maIsColumnError(err){
-    const msg = maErrorMessage(err).toLowerCase();
-    const code = maText(err?.code).toUpperCase();
-    return code === '42703' || msg.includes('column') || msg.includes('schema cache') || msg.includes('could not find') || msg.includes('columna');
-  }
+  function maPriorityLabel(value){ const v = String(value || 'media').toLowerCase(); if(v === 'alta') return 'Alta'; if(v === 'baja') return 'Baja'; return 'Media'; }
+  function maPriorityClass(value){ const v = String(value || 'media').toLowerCase(); if(v === 'alta') return 'meeting-priority-alta'; if(v === 'baja') return 'meeting-priority-baja'; return 'meeting-priority-media'; }
+  function maDotClass(value){ const v = String(value || 'media').toLowerCase(); if(v === 'alta') return 'meeting-dot-alta'; if(v === 'baja') return 'meeting-dot-baja'; return 'meeting-dot-media'; }
+  function maToast(msg){ try { if(typeof toastInfo === 'function') return toastInfo(msg); } catch(e) {} console.log(msg); }
+  function maGetSb(){ const sb = window.supabaseClient; return (sb && typeof sb.from === 'function') ? sb : null; }
+  function maErrorMessage(err){ return maText(err?.message || err?.details || err?.hint || err?.code || err || ''); }
+  function maIsMissingTableError(err){ const msg = maErrorMessage(err).toLowerCase(); const code = maText(err?.code).toUpperCase(); return code === '42P01' || code === 'PGRST205' || (msg.includes('actas_reunion') && (msg.includes('does not exist') || msg.includes('not found') || msg.includes('could not find') || msg.includes('no existe'))); }
+  function maIsColumnError(err){ const msg = maErrorMessage(err).toLowerCase(); const code = maText(err?.code).toUpperCase(); return code === '42703' || msg.includes('schema cache') || msg.includes('could not find') || msg.includes('column') || msg.includes('columna'); }
+
   function maCloudSql(){
     return [
       'create table if not exists public.actas_reunion (',
@@ -32588,104 +32550,26 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       <div class="p-6 sm:p-8">
         <div class="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2 class="text-2xl font-black text-slate-900">Activar nube para actas de reunión</h2>
-            <p class="text-sm text-slate-500 mt-1">Para que las reuniones y tareas se vean iguales en todos los computadores, debe existir la tabla <b>actas_reunion</b> en Supabase.</p>
+            <h2 class="text-2xl font-black text-slate-900">Activar nube de actas</h2>
+            <p class="text-sm text-slate-500 mt-1">Esta sección usa una sola tabla en Supabase para que todos vean la misma información.</p>
           </div>
-          <button type="button" onclick="closeModal && closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button>
+          <button type="button" onclick="closeModal && closeModal()" class="meeting-soft-btn">Cerrar</button>
         </div>
         ${msg ? `<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><b>Detalle:</b> ${maEsc(msg)}</div>` : ''}
-        <label class="block text-xs font-black text-slate-500 uppercase mb-2">SQL para pegar en Supabase → SQL Editor</label>
+        <label class="block text-xs font-black text-slate-500 uppercase mb-2">SQL para Supabase → SQL Editor</label>
         <textarea id="meetingCloudSqlBox" class="w-full min-h-[270px] border rounded-2xl p-4 font-mono text-xs bg-slate-50">${maEsc(maCloudSql())}</textarea>
         <div class="flex flex-wrap gap-3 mt-4">
           <button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('meetingCloudSqlBox').value); if(typeof toastInfo==='function') toastInfo('SQL copiado ✅');" class="meeting-primary-btn"><i class="fas fa-copy"></i>Copiar SQL</button>
-          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs()" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Probar nuevamente</button>
+          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs()" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Probar</button>
           <button type="button" onclick="closeModal && closeModal()" class="meeting-soft-btn">Cerrar</button>
         </div>
       </div>`;
     const modal = document.getElementById('modal');
     const content = document.getElementById('modalContent');
     if(modal && content){ content.innerHTML = html; modal.classList.remove('hidden'); }
-    else alert('Falta crear la tabla actas_reunion en Supabase. ' + msg);
+    else alert('Falta activar la tabla actas_reunion en Supabase. ' + msg);
   }
-  function maReadKey(key){
-    try{
-      const raw = localStorage.getItem(key);
-      if(!raw) return [];
-      const parsed = JSON.parse(raw);
-      if(Array.isArray(parsed)) return parsed;
-      if(parsed && typeof parsed === 'object'){
-        const keys = ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records'];
-        for(const k of keys){ if(Array.isArray(parsed[k])) return parsed[k]; }
-      }
-    }catch(e){}
-    return [];
-  }
-  function maReadLocal(){
-    let list = [];
-    MA_LOCAL_KEYS.forEach(function(key){ list = list.concat(maReadKey(key)); });
-    return maApplyPendingStates(maMergeActs(list));
-  }
-  function maWriteLocal(list){
-    try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(maSort(list || []))); } catch(e) {}
-  }
-  function maReadPendingStates(){
-    try{
-      const raw = localStorage.getItem(MA_PENDING_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-    }catch(e){ return {}; }
-  }
-  function maWritePendingStates(map){
-    try { localStorage.setItem(MA_PENDING_KEY, JSON.stringify(map || {})); } catch(e) {}
-  }
-  function maRememberPendingTask(actaId, taskId, done){
-    const map = maReadPendingStates();
-    const aId = String(actaId || '');
-    const tId = String(taskId || '');
-    if(!aId || !tId) return;
-    if(!map[aId]) map[aId] = {};
-    const now = maNow();
-    map[aId][tId] = { done: !!done, doneAt: done ? now : null, updatedAt: now, expiresAt: Date.now() + (1000 * 60 * 60) };
-    maWritePendingStates(map);
-  }
-  function maClearPendingTask(actaId, taskId){
-    const map = maReadPendingStates();
-    const aId = String(actaId || '');
-    const tId = String(taskId || '');
-    if(map[aId] && map[aId][tId]){
-      delete map[aId][tId];
-      if(!Object.keys(map[aId]).length) delete map[aId];
-      maWritePendingStates(map);
-    }
-  }
-  function maApplyPendingStates(list){
-    const pending = maReadPendingStates();
-    const nowMs = Date.now();
-    let dirty = false;
-    const out = maSort(list || []).map(function(acta){
-      const a = maNormalizeActa(acta);
-      const pByTask = pending[String(a.id)] || null;
-      if(!pByTask) return a;
-      a.tareas = (a.tareas || []).map(function(task){
-        const patch = pByTask[String(task.id)];
-        if(!patch) return task;
-        if(Number(patch.expiresAt || 0) && Number(patch.expiresAt) < nowMs){
-          delete pByTask[String(task.id)];
-          dirty = true;
-          return task;
-        }
-        return Object.assign({}, task, {
-          done: !!patch.done,
-          doneAt: patch.done ? (patch.doneAt || task.doneAt || null) : null,
-          updatedAt: patch.updatedAt || task.updatedAt || maNow()
-        });
-      });
-      if(pByTask && !Object.keys(pByTask).length){ delete pending[String(a.id)]; dirty = true; }
-      return a;
-    });
-    if(dirty) maWritePendingStates(pending);
-    return out;
-  }
+
   function maNormalizeTask(task){
     const t = task || {};
     const priority = String(t.priority || t.prioridad || 'media').toLowerCase().trim();
@@ -32726,43 +32610,21 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       updatedAt: row?.updated_at || d.updatedAt
     });
   }
-  function maActaToFullRow(acta){
+  function maActaToRow(acta, basicOnly){
     const a = maNormalizeActa(acta);
-    return {
+    const data = {
       id: a.id,
+      title: a.title,
       titulo: a.title,
       fecha: a.fecha,
-      data: {
-        id: a.id,
-        title: a.title,
-        titulo: a.title,
-        fecha: a.fecha,
-        conversado: a.conversado,
-        acuerdos: a.acuerdos,
-        tareas: a.tareas,
-        createdAt: a.createdAt,
-        updatedAt: a.updatedAt
-      },
-      created_at: a.createdAt,
-      updated_at: a.updatedAt
+      conversado: a.conversado,
+      acuerdos: a.acuerdos,
+      tareas: a.tareas,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt
     };
-  }
-  function maActaToBasicRow(acta){
-    const a = maNormalizeActa(acta);
-    return {
-      id: a.id,
-      data: {
-        id: a.id,
-        title: a.title,
-        titulo: a.title,
-        fecha: a.fecha,
-        conversado: a.conversado,
-        acuerdos: a.acuerdos,
-        tareas: a.tareas,
-        createdAt: a.createdAt,
-        updatedAt: a.updatedAt
-      }
-    };
+    if(basicOnly) return { id:a.id, data:data };
+    return { id:a.id, titulo:a.title, fecha:a.fecha, data:data, updated_at:a.updatedAt };
   }
   function maSort(list){
     return (Array.isArray(list) ? list : []).map(maNormalizeActa).sort(function(a,b){
@@ -32771,67 +32633,51 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       return bd.localeCompare(ad);
     });
   }
-  function maTimeKey(value){ return String(value || ''); }
-  function maMergeTaskLists(){
-    const map = new Map();
-    Array.from(arguments).flat().forEach(function(item){
-      const t = maNormalizeTask(item);
-      if(!t.text) return;
-      const prev = map.get(t.id);
-      if(!prev){ map.set(t.id, t); return; }
-      const pt = maTimeKey(prev.updatedAt || prev.doneAt || '');
-      const tt = maTimeKey(t.updatedAt || t.doneAt || '');
-      map.set(t.id, tt >= pt ? Object.assign({}, prev, t) : prev);
-    });
-    return Array.from(map.values());
+  function maReadKey(key){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)) return parsed;
+      if(parsed && typeof parsed === 'object'){
+        const keys = ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records'];
+        for(const k of keys){ if(Array.isArray(parsed[k])) return parsed[k]; }
+      }
+    }catch(e){}
+    return [];
   }
-  function maMergeTwoActas(prev, incoming){
-    const p = maNormalizeActa(prev);
-    const a = maNormalizeActa(incoming);
-    const pt = maTimeKey(p.updatedAt || p.createdAt || p.fecha || '');
-    const at = maTimeKey(a.updatedAt || a.createdAt || a.fecha || '');
-    const chosen = at >= pt ? Object.assign({}, p, a) : Object.assign({}, a, p);
-    chosen.tareas = maMergeTaskLists(p.tareas || [], a.tareas || []);
-    chosen.updatedAt = at >= pt ? (a.updatedAt || p.updatedAt || maNow()) : (p.updatedAt || a.updatedAt || maNow());
-    chosen.createdAt = p.createdAt || a.createdAt || maNow();
-    return chosen;
-  }
-  function maMergeActs(){
-    const map = new Map();
-    Array.from(arguments).flat().forEach(function(item){
-      const a = maNormalizeActa(item);
-      const prev = map.get(a.id);
-      if(!prev){ map.set(a.id, a); return; }
-      map.set(a.id, maMergeTwoActas(prev, a));
-    });
-    return maSort(Array.from(map.values()));
-  }
-  function maSameActs(a,b){
-    return JSON.stringify(maSort(a)) === JSON.stringify(maSort(b));
+  function maReadLocal(){ let all = []; MA_LOCAL_KEYS.forEach(function(k){ all = all.concat(maReadKey(k)); }); return maSort(all); }
+  function maWriteLocal(list){ try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(maSort(list || []))); } catch(e) {} }
+
+  function maRemotePlusLocalOnly(remote, local){
+    // En esta versión Supabase es la fuente principal. No mezclamos datos locales
+    // porque eso era lo que podía devolver checks antiguos al volver a la sección.
+    const remoteList = maSort(remote || []);
+    if(remoteList.length || maCloudReady) return remoteList;
+    return maSort(local || []);
   }
   function maSetHint(message, kind){
     const el = document.getElementById('meetingStorageHint');
     if(!el) return;
     let text = message;
     if(!text){
-      if(maCloudReady) text = 'Sincronizado con Supabase. Las reuniones y checks quedan visibles para todos los usuarios.';
-      else if(maLastError) text = 'No se pudo conectar la nube de reuniones: ' + maLastError;
-      else if(maLoadedOnce) text = 'Actas cargadas localmente. Al entrar con Supabase se sincronizan automáticamente.';
+      if(maCloudReady) text = 'Sincronizado con Supabase. Los cambios quedan visibles para todos.';
+      else if(maLastError) text = 'No se pudo sincronizar: ' + maLastError;
+      else if(maLoadedOnce) text = 'Actas cargadas.';
       else text = 'Cargando actas...';
     }
     el.textContent = text;
     el.classList.remove('text-rose-600','text-emerald-700','text-amber-700');
-    if(kind === 'error' || maLastError && !maCloudReady) el.classList.add('text-rose-600');
+    if(kind === 'error' || (maLastError && !maCloudReady)) el.classList.add('text-rose-600');
     else if(maCloudReady) el.classList.add('text-emerald-700');
     else el.classList.add('text-amber-700');
   }
+
   async function maReadRemote(){
     const sb = maGetSb();
-    if(!sb) throw new Error('Supabase no está disponible en este archivo.');
+    if(!sb) throw new Error('No está disponible Supabase en este archivo.');
     let res = await sb.from(MA_TABLE).select('id,titulo,fecha,data,created_at,updated_at').order('fecha', { ascending:false });
-    if(res.error && maIsColumnError(res.error)){
-      res = await sb.from(MA_TABLE).select('*');
-    }
+    if(res.error && maIsColumnError(res.error)) res = await sb.from(MA_TABLE).select('*');
     if(res.error) throw res.error;
     return (res.data || []).map(maRowToActa);
   }
@@ -32839,68 +32685,53 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const sb = maGetSb();
     if(!sb || !id) return null;
     let res = await sb.from(MA_TABLE).select('id,titulo,fecha,data,created_at,updated_at').eq('id', id).maybeSingle();
-    if(res.error && maIsColumnError(res.error)){
-      res = await sb.from(MA_TABLE).select('*').eq('id', id).maybeSingle();
-    }
+    if(res.error && maIsColumnError(res.error)) res = await sb.from(MA_TABLE).select('*').eq('id', id).maybeSingle();
     if(res.error) throw res.error;
     return res.data ? maRowToActa(res.data) : null;
   }
-  async function maUpsertRemoteOne(acta){
+  async function maUpsertRemote(acta){
     const sb = maGetSb();
-    if(!sb) throw new Error('Supabase no está disponible en este archivo.');
-    const fullRow = maActaToFullRow(acta);
-    let res = await sb.from(MA_TABLE).upsert(fullRow, { onConflict:'id' }).select('*').single();
-    if(res.error && maIsColumnError(res.error)){
-      res = await sb.from(MA_TABLE).upsert(maActaToBasicRow(acta), { onConflict:'id' }).select('*').single();
-    }
+    if(!sb) throw new Error('No está disponible Supabase en este archivo.');
+    const a = maNormalizeActa(acta);
+    let res = await sb.from(MA_TABLE).upsert(maActaToRow(a, false), { onConflict:'id' }).select('*').single();
+    if(res.error && maIsColumnError(res.error)) res = await sb.from(MA_TABLE).upsert(maActaToRow(a, true), { onConflict:'id' }).select('*').single();
     if(res.error) throw res.error;
-    return res.data ? maRowToActa(res.data) : maNormalizeActa(acta);
-  }
-  async function maUpsertRemoteMany(list){
-    const sorted = maSort(list);
-    for(const acta of sorted){ await maUpsertRemoteOne(acta); }
-    return sorted.length;
+    return res.data ? maRowToActa(res.data) : a;
   }
   async function maDeleteRemote(id){
     const sb = maGetSb();
-    if(!sb) throw new Error('Supabase no está disponible en este archivo.');
+    if(!sb) throw new Error('No está disponible Supabase en este archivo.');
     const res = await sb.from(MA_TABLE).delete().eq('id', id);
     if(res.error) throw res.error;
   }
-  function maLocalSetAndRender(list){
-    meetingActs = maApplyPendingStates(maSort(list || []));
-    maWriteLocal(meetingActs);
-    maRenderMeetingActs();
-    maSetHint();
+  async function maPushLocalOnlyToRemote(remote, local){
+    const remoteIds = new Set(maSort(remote).map(function(a){ return String(a.id); }));
+    const localOnly = maSort(local).filter(function(a){ return !remoteIds.has(String(a.id)); });
+    for(const a of localOnly){ try{ await maUpsertRemote(a); }catch(e){ console.warn('No se pudo migrar acta local a Supabase:', e); } }
   }
+
   async function maLoadActs(options){
     options = options || {};
-    const local = maReadLocal();
-    meetingActs = maSort(local);
     maLoadedOnce = true;
-    maRenderMeetingActs();
-    maSetHint(options.silent ? '' : 'Cargando actas desde Supabase...');
-
+    maSetHint(options.silent ? '' : 'Cargando desde Supabase...');
     try{
       const remote = await maReadRemote();
-      const merged = maApplyPendingStates(maMergeActs(local, remote));
-      const hadLocalOnly = !maSameActs(merged, remote);
-      meetingActs = merged;
-      maWriteLocal(merged);
+      meetingActs = maSort(remote);
+      maWriteLocal(meetingActs); // solo respaldo visual; no manda sobre Supabase
       maCloudReady = true;
       maLastError = '';
       maRenderMeetingActs();
+      maSetHint('Sincronizado con Supabase. Los checks quedan guardados para todos.');
       maStartRealtime();
-      if(hadLocalOnly || options.pushLocal){
-        await maUpsertRemoteMany(merged);
-      }
-      maSetHint();
     }catch(err){
       maCloudReady = false;
       maLastError = maErrorMessage(err) || 'error desconocido';
-      console.warn('Actas de reunión: no se pudo usar Supabase.', err);
-      if(!options.silent && maIsMissingTableError(err)) maSetHint('Falta crear la tabla actas_reunion en Supabase. Usa el botón de ayuda si necesitas el SQL.', 'error');
-      else maSetHint('', 'error');
+      console.error('Actas de reunión: error de Supabase:', err);
+      // Solo mostramos respaldo local si Supabase no responde, dejando claro que no es compartido.
+      meetingActs = maSort(maReadLocal());
+      maRenderMeetingActs();
+      maSetHint('No se pudo cargar desde Supabase. Estás viendo respaldo local, no compartido. Detalle: ' + maLastError, 'error');
+      if(!options.silent && maIsMissingTableError(err)) maShowSqlHelp(err);
     }
     return meetingActs;
   }
@@ -32908,48 +32739,41 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     options = options || {};
     const normalized = maNormalizeActa(acta);
     normalized.updatedAt = maNow();
-    const existingIndex = meetingActs.findIndex(function(a){ return String(a.id) === String(normalized.id); });
-    const next = meetingActs.slice();
-    if(existingIndex >= 0) next[existingIndex] = normalized;
-    else next.unshift(normalized);
-    maLocalSetAndRender(next);
-
+    const previous = meetingActs.slice();
+    maSetHint('Guardando en Supabase...');
     try{
-      const saved = await maUpsertRemoteOne(normalized);
+      const saved = await maUpsertRemote(normalized);
       maCloudReady = true;
       maLastError = '';
-      meetingActs = maApplyPendingStates(maMergeActs(meetingActs, [saved]));
+      const savedNorm = maNormalizeActa(saved);
+      const without = meetingActs.filter(function(a){ return String(a.id) !== String(savedNorm.id); });
+      meetingActs = maSort([savedNorm].concat(without));
       maWriteLocal(meetingActs);
       maRenderMeetingActs();
-      maSetHint();
-      return saved;
+      maSetHint('Guardado y sincronizado con Supabase.');
+      return savedNorm;
     }catch(err){
+      meetingActs = previous;
+      maWriteLocal(meetingActs);
+      maRenderMeetingActs();
       maCloudReady = false;
       maLastError = maErrorMessage(err) || 'No se pudo guardar en Supabase.';
-      console.error('Actas de reunión: guardado local, falló nube.', err);
       maSetHint('', 'error');
       if(!options.quiet){
         if(maIsMissingTableError(err)) maShowSqlHelp(err);
-        else alert('La reunión quedó guardada solo en este computador. No se pudo guardar en Supabase: ' + maLastError);
+        else alert('No se pudo guardar en Supabase. El cambio no quedará compartido. Detalle: ' + maLastError);
       }
-      return normalized;
+      throw err;
     }
   }
   async function maDeleteActaById(id){
     const previous = meetingActs.slice();
-    maLocalSetAndRender(meetingActs.filter(function(a){ return String(a.id) !== String(id); }));
-    try{
-      await maDeleteRemote(id);
-      maCloudReady = true;
-      maLastError = '';
-      maSetHint();
-    }catch(err){
-      maLastError = maErrorMessage(err) || 'No se pudo eliminar en Supabase.';
-      maLocalSetAndRender(previous);
-      if(maIsMissingTableError(err)) maShowSqlHelp(err);
-      else alert('No se pudo eliminar la reunión en Supabase: ' + maLastError);
-    }
+    meetingActs = meetingActs.filter(function(a){ return String(a.id) !== String(id); });
+    maWriteLocal(meetingActs); maRenderMeetingActs(); maSetHint('Eliminando en Supabase...');
+    try{ await maDeleteRemote(id); maCloudReady = true; maLastError = ''; maSetHint(); }
+    catch(err){ meetingActs = previous; maWriteLocal(meetingActs); maRenderMeetingActs(); maLastError = maErrorMessage(err) || 'No se pudo eliminar.'; maSetHint('', 'error'); alert('No se pudo eliminar en Supabase: ' + maLastError); }
   }
+
   function maInstallNavButton(){
     if(document.getElementById('btn-actas-reunion')) return;
     const nav = document.querySelector('#sidebar nav');
@@ -32960,8 +32784,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     btn.setAttribute('onclick', "showView('actas-reunion')");
     btn.innerHTML = '<i class="fas fa-clipboard-list"></i> <span class="sidebar-label">Actas de reunión</span>';
     const before = document.getElementById('btn-projects') || document.getElementById('btn-maintenance') || document.getElementById('btn-trash');
-    if(before && before.parentNode === nav) nav.insertBefore(btn, before);
-    else nav.appendChild(btn);
+    if(before && before.parentNode === nav) nav.insertBefore(btn, before); else nav.appendChild(btn);
   }
   function maInstallView(){
     if(document.getElementById('view-actas-reunion')) return;
@@ -32978,8 +32801,8 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
           <p id="meetingStorageHint" class="meeting-status-hint"></p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs({pushLocal:true})" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Recargar nube</button>
-          <button type="button" onclick="maShowMeetingCloudHelp && maShowMeetingCloudHelp()" class="meeting-soft-btn"><i class="fas fa-circle-info"></i>Ayuda nube</button>
+          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs()" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Recargar</button>
+          <button type="button" onclick="maShowMeetingCloudHelp && maShowMeetingCloudHelp()" class="meeting-soft-btn"><i class="fas fa-circle-info"></i>Tabla</button>
           <button type="button" onclick="maOpenMeetingActModal()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Nueva reunión</button>
         </div>
       </div>
@@ -32990,10 +32813,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       </div>
       <div class="meeting-control-shell">
         <label class="meeting-form-label">Buscar</label>
-        <div class="relative">
-          <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-          <input id="meetingSearchFree" class="meeting-search" oninput="maRenderMeetingActs()" placeholder="Buscar por reunión, fecha, conversación, acuerdos o pendientes..." autocomplete="off">
-        </div>
+        <div class="relative"><i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input id="meetingSearchFree" class="meeting-search" oninput="maRenderMeetingActs()" placeholder="Buscar por reunión, fecha, conversación, acuerdos o pendientes..." autocomplete="off"></div>
       </div>
       <div id="meetingActsEmpty" class="meeting-empty hidden">Aún no hay reuniones registradas. Crea la primera con el botón <b>Nueva reunión</b>.</div>
       <div id="meetingActsGrid" class="meeting-grid"></div>`;
@@ -33007,12 +32827,9 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     return `<div class="meeting-board-list">${tasks.map(function(t){
       const taskIdArg = JSON.stringify(t.id);
       const done = !!t.done;
-      return `
-        <label class="meeting-task-line ${done ? 'meeting-task-done' : ''}">
-          <input type="checkbox" class="meeting-check" ${done ? 'checked' : ''} onchange="maToggleMeetingTask(${actaIdArg}, ${taskIdArg}, this.checked)">
-          <span class="meeting-task-text"><span class="meeting-priority-dot ${maDotClass(t.priority)}"></span> ${maEsc(t.text || '')}</span>
-          <span class="meeting-priority-pill ${maPriorityClass(t.priority)}">${maEsc(maPriorityLabel(t.priority))}</span>
-        </label>`;
+      const key = String(acta.id) + '::' + String(t.id);
+      const saving = maSavingChecks.has(key);
+      return `<label class="meeting-task-line ${done ? 'meeting-task-done' : ''}" data-ma-task-line="1" data-acta-id="${maEsc(acta.id)}" data-task-id="${maEsc(t.id)}"><input type="checkbox" class="meeting-check" data-ma-check="1" data-acta-id="${maEsc(acta.id)}" data-task-id="${maEsc(t.id)}" ${done ? 'checked' : ''} ${saving ? 'disabled' : ''} onchange="this.closest('.meeting-task-line')?.classList.toggle('meeting-task-done', this.checked); window.maToggleMeetingTask && window.maToggleMeetingTask(${actaIdArg}, ${taskIdArg}, this.checked, this)"><span class="meeting-task-text"><span class="meeting-priority-dot ${maDotClass(t.priority)}"></span> ${maEsc(t.text || '')}</span><span class="meeting-priority-pill ${maPriorityClass(t.priority)}">${maEsc(maPriorityLabel(t.priority))}</span></label>`;
     }).join('')}</div>`;
   }
   function maFilterActs(){
@@ -33046,105 +32863,55 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     grid.innerHTML = list.map(function(a){
       const idArg = JSON.stringify(a.id);
       const domId = maDomId(a.id);
-      return `
-        <div class="meeting-card">
-          <div class="flex items-start justify-between gap-3 mb-4">
-            <div class="min-w-0">
-              <div class="meeting-card-title">${maEsc(a.title)}</div>
-              <div class="meeting-card-date"><i class="fas fa-calendar-day"></i>${maEsc(maFormatDate(a.fecha))}</div>
-            </div>
-            <div class="flex gap-2 shrink-0">
-              <button type="button" onclick="maOpenMeetingActModal(${idArg})" class="meeting-soft-btn" title="Editar reunión"><i class="fas fa-pen"></i></button>
-              <button type="button" onclick="maDeleteMeetingAct(${idArg})" class="meeting-soft-btn text-rose-700" title="Eliminar"><i class="fas fa-trash"></i></button>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-2">
-            <div><div class="meeting-section-label">Lo conversado</div><div class="meeting-note">${maEsc(a.conversado || '—')}</div></div>
-            <div><div class="meeting-section-label">Acuerdos</div><div class="meeting-note">${maEsc(a.acuerdos || '—')}</div></div>
-          </div>
-          <div class="meeting-board-title"><div class="meeting-section-label mb-0">Pizarra de pendientes</div></div>
-          ${maRenderTaskLines(a)}
-          <div class="meeting-add-row">
-            <input id="maQuickText_${domId}" class="meeting-add-input" placeholder="Nuevo pendiente..." onkeydown="if(event.key==='Enter'){ maQuickAddTask(${idArg}); }">
-            <select id="maQuickPriority_${domId}" class="meeting-form-select">
-              <option value="alta">Alta</option>
-              <option value="media" selected>Media</option>
-              <option value="baja">Baja</option>
-            </select>
-            <button type="button" onclick="maQuickAddTask(${idArg})" class="meeting-primary-btn"><i class="fas fa-plus"></i>Agregar</button>
-          </div>
-        </div>`;
+      return `<div class="meeting-card"><div class="flex items-start justify-between gap-3 mb-4"><div class="min-w-0"><div class="meeting-card-title">${maEsc(a.title)}</div><div class="meeting-card-date"><i class="fas fa-calendar-day"></i>${maEsc(maFormatDate(a.fecha))}</div></div><div class="flex gap-2 shrink-0"><button type="button" onclick="maOpenMeetingActModal(${idArg})" class="meeting-soft-btn" title="Editar reunión"><i class="fas fa-pen"></i></button><button type="button" onclick="maDeleteMeetingAct(${idArg})" class="meeting-soft-btn text-rose-700" title="Eliminar"><i class="fas fa-trash"></i></button></div></div><div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-2"><div><div class="meeting-section-label">Lo conversado</div><div class="meeting-note">${maEsc(a.conversado || '—')}</div></div><div><div class="meeting-section-label">Acuerdos</div><div class="meeting-note">${maEsc(a.acuerdos || '—')}</div></div></div><div class="meeting-board-title"><div class="meeting-section-label mb-0">Pizarra de pendientes</div></div>${maRenderTaskLines(a)}<div class="meeting-add-row"><input id="maQuickText_${domId}" class="meeting-add-input" placeholder="Nuevo pendiente..." onkeydown="if(event.key==='Enter'){ maQuickAddTask(${idArg}); }"><select id="maQuickPriority_${domId}" class="meeting-form-select"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select><button type="button" onclick="maQuickAddTask(${idArg})" class="meeting-primary-btn"><i class="fas fa-plus"></i>Agregar</button></div></div>`;
     }).join('');
   }
+
   function maTaskRowHtml(task){
     const t = maNormalizeTask(task || { id:maUid(), text:'', priority:'media', done:false });
-    return `
-      <div class="meeting-task-row" data-task-row="1" data-task-id="${maEsc(t.id)}">
-        <input type="checkbox" class="meeting-check" data-task-done="1" ${t.done ? 'checked' : ''} title="Cumplida">
-        <input type="text" class="meeting-form-input" data-task-text="1" value="${maEsc(t.text || '')}" placeholder="Pendiente o tarea a realizar...">
-        <select class="meeting-form-select" data-task-priority="1">
-          <option value="alta" ${String(t.priority||'')==='alta'?'selected':''}>Alta</option>
-          <option value="media" ${!t.priority || String(t.priority)==='media'?'selected':''}>Media</option>
-          <option value="baja" ${String(t.priority||'')==='baja'?'selected':''}>Baja</option>
-        </select>
-        <button type="button" onclick="this.closest('[data-task-row]').remove()" class="meeting-soft-btn" title="Quitar"><i class="fas fa-xmark"></i></button>
-      </div>`;
+    return `<div class="meeting-task-row" data-task-row="1" data-task-id="${maEsc(t.id)}"><input type="checkbox" class="meeting-check" data-task-done="1" ${t.done ? 'checked' : ''} title="Cumplida"><input type="text" class="meeting-form-input" data-task-text="1" value="${maEsc(t.text || '')}" placeholder="Pendiente o tarea a realizar..."><select class="meeting-form-select" data-task-priority="1"><option value="alta" ${String(t.priority||'')==='alta'?'selected':''}>Alta</option><option value="media" ${!t.priority || String(t.priority)==='media'?'selected':''}>Media</option><option value="baja" ${String(t.priority||'')==='baja'?'selected':''}>Baja</option></select><button type="button" onclick="this.closest('[data-task-row]').remove()" class="meeting-soft-btn" title="Quitar"><i class="fas fa-xmark"></i></button></div>`;
   }
-  function maTaskRowsFromActa(acta){
-    const tasks = Array.isArray(acta?.tareas) && acta.tareas.length ? acta.tareas : [{ id:maUid(), text:'', priority:'media', done:false }];
-    return tasks.map(maTaskRowHtml).join('');
-  }
-  function maAddTaskRow(task){
-    const box = document.getElementById('meetingTasksFormRows');
-    if(!box) return;
-    box.insertAdjacentHTML('beforeend', maTaskRowHtml(task || { id:maUid(), text:'', priority:'media', done:false }));
-  }
+  function maTaskRowsFromActa(acta){ const tasks = Array.isArray(acta?.tareas) && acta.tareas.length ? acta.tareas : [{ id:maUid(), text:'', priority:'media', done:false }]; return tasks.map(maTaskRowHtml).join(''); }
+  function maAddTaskRow(task){ const box = document.getElementById('meetingTasksFormRows'); if(box) box.insertAdjacentHTML('beforeend', maTaskRowHtml(task || { id:maUid(), text:'', priority:'media', done:false })); }
   function maReadFormTasks(){
     return Array.from(document.querySelectorAll('#meetingTasksFormRows [data-task-row]')).map(function(row){
-      const existing = maNormalizeTask({
+      const done = !!row.querySelector('[data-task-done]')?.checked;
+      return maNormalizeTask({
         id: row.getAttribute('data-task-id') || maUid(),
         text: row.querySelector('[data-task-text]')?.value || '',
         priority: row.querySelector('[data-task-priority]')?.value || 'media',
-        done: !!row.querySelector('[data-task-done]')?.checked
+        done: done,
+        doneAt: done ? maNow() : null,
+        updatedAt: maNow()
       });
-      if(existing.done && !existing.doneAt) existing.doneAt = maNow();
-      return existing;
     }).filter(function(t){ return !!t.text; });
   }
-  function maCloseModal(){
-    try { if(typeof closeModal === 'function') return closeModal(); } catch(e) {}
-    const modal = document.getElementById('modal');
-    if(modal) modal.classList.add('hidden');
-  }
+  function maCloseModal(){ try { if(typeof closeModal === 'function') return closeModal(); } catch(e) {} const modal = document.getElementById('modal'); if(modal) modal.classList.add('hidden'); }
   function maActivateView(){
     maInstall();
     const target = document.getElementById('view-actas-reunion');
     const main = document.getElementById('mainContent');
-    if(main){
-      main.querySelectorAll(':scope > div[id^="view-"]').forEach(function(el){ el.classList.add('hidden'); });
-    }
+    if(main) main.querySelectorAll(':scope > div[id^="view-"]').forEach(function(el){ el.classList.add('hidden'); });
     if(target) target.classList.remove('hidden');
-    const title = document.getElementById('topbarTitle');
-    if(title) title.textContent = 'Actas de reunión';
+    const title = document.getElementById('topbarTitle'); if(title) title.textContent = 'Actas de reunión';
     document.querySelectorAll('.nav-btn').forEach(function(btn){ btn.classList.remove('active'); });
-    const btn = document.getElementById('btn-actas-reunion');
-    if(btn) btn.classList.add('active');
+    const btn = document.getElementById('btn-actas-reunion'); if(btn) btn.classList.add('active');
     maRenderMeetingActs();
-    maLoadActs({ silent:true, pushLocal:true });
+    maLoadActs({ silent:true });
   }
   function maStartRealtime(){
     const sb = maGetSb();
     if(!sb || typeof sb.channel !== 'function' || maRealtimeChannel) return;
     try{
-      maRealtimeChannel = sb
-        .channel('public:actas_reunion_shared')
+      maRealtimeChannel = sb.channel('public:actas_reunion_simple_sync')
         .on('postgres_changes', { event:'*', schema:'public', table: MA_TABLE }, function(){
           if(maRealtimeTimer) clearTimeout(maRealtimeTimer);
-          maRealtimeTimer = setTimeout(function(){ maLoadActs({ silent:true }); }, 550);
+          maRealtimeTimer = setTimeout(function(){ maLoadActs({ silent:true }); }, 350);
         })
         .subscribe(function(status){ console.log('Realtime actas reunión:', status); });
-    }catch(err){ console.warn('No se pudo iniciar realtime de actas de reunión:', err); }
+    }catch(err){ console.warn('No se pudo iniciar realtime actas:', err); }
   }
+
   window.maOpenMeetingActModal = function(id){
     maInstall();
     const acta = meetingActs.find(function(a){ return String(a.id) === String(id || ''); }) || null;
@@ -33153,51 +32920,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const modal = document.getElementById('modal');
     const content = document.getElementById('modalContent');
     if(!modal || !content){ alert('No se pudo abrir el formulario.'); return; }
-    content.innerHTML = `
-      <div class="p-6 sm:p-8">
-        <div class="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 class="text-2xl font-black text-slate-900">${isEdit ? 'Editar reunión' : 'Nueva reunión'}</h2>
-            <p class="text-sm text-slate-500 mt-1">Al guardar, la reunión queda sincronizada en Supabase para todos los usuarios.</p>
-          </div>
-          <button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn"><i class="fas fa-xmark"></i></button>
-        </div>
-        <input type="hidden" id="meetingActId" value="${maEsc(a.id)}">
-        <div class="grid grid-cols-1 lg:grid-cols-[1fr_190px] gap-4 mb-4">
-          <div>
-            <label class="meeting-form-label">Reunión / tema</label>
-            <input id="meetingActTitle" type="text" class="meeting-form-input" value="${maEsc(a.title === 'Reunión sin título' && !isEdit ? '' : a.title)}" placeholder="Ej: Reunión coordinación semanal">
-          </div>
-          <div>
-            <label class="meeting-form-label">Fecha</label>
-            <input id="meetingActFecha" type="date" class="meeting-form-input" value="${maEsc(a.fecha || maToday())}">
-          </div>
-        </div>
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
-          <div>
-            <label class="meeting-form-label">Lo conversado</label>
-            <textarea id="meetingActConversado" class="meeting-form-textarea" placeholder="Anota aquí los temas tratados en la reunión...">${maEsc(a.conversado || '')}</textarea>
-          </div>
-          <div>
-            <label class="meeting-form-label">Acuerdos</label>
-            <textarea id="meetingActAcuerdos" class="meeting-form-textarea" placeholder="Acuerdos, decisiones o puntos importantes...">${maEsc(a.acuerdos || '')}</textarea>
-          </div>
-        </div>
-        <div class="meeting-form-board mb-6">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-            <div>
-              <h3 class="text-lg font-black text-slate-900">Pizarra de pendientes</h3>
-              <p class="text-sm text-slate-500">Checklist básico: alta rojo, media amarillo, baja verde.</p>
-            </div>
-            <button type="button" onclick="maAddMeetingTaskRow()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Agregar pendiente</button>
-          </div>
-          <div id="meetingTasksFormRows">${maTaskRowsFromActa(a)}</div>
-        </div>
-        <div class="flex flex-col sm:flex-row gap-3 justify-end">
-          <button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn">Cancelar</button>
-          <button type="button" onclick="maSaveMeetingAct()" class="meeting-primary-btn"><i class="fas fa-save"></i>Guardar reunión</button>
-        </div>
-      </div>`;
+    content.innerHTML = `<div class="p-6 sm:p-8"><div class="flex items-start justify-between gap-4 mb-6"><div><h2 class="text-2xl font-black text-slate-900">${isEdit ? 'Editar reunión' : 'Nueva reunión'}</h2><p class="text-sm text-slate-500 mt-1">Al guardar, se actualiza en Supabase para todos los usuarios.</p></div><button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn"><i class="fas fa-xmark"></i></button></div><input type="hidden" id="meetingActId" value="${maEsc(a.id)}"><div class="grid grid-cols-1 lg:grid-cols-[1fr_190px] gap-4 mb-4"><div><label class="meeting-form-label">Reunión / tema</label><input id="meetingActTitle" type="text" class="meeting-form-input" value="${maEsc(a.title === 'Reunión sin título' && !isEdit ? '' : a.title)}" placeholder="Ej: Reunión coordinación semanal"></div><div><label class="meeting-form-label">Fecha</label><input id="meetingActFecha" type="date" class="meeting-form-input" value="${maEsc(a.fecha || maToday())}"></div></div><div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5"><div><label class="meeting-form-label">Lo conversado</label><textarea id="meetingActConversado" class="meeting-form-textarea" placeholder="Anota aquí los temas tratados en la reunión...">${maEsc(a.conversado || '')}</textarea></div><div><label class="meeting-form-label">Acuerdos</label><textarea id="meetingActAcuerdos" class="meeting-form-textarea" placeholder="Acuerdos, decisiones o puntos importantes...">${maEsc(a.acuerdos || '')}</textarea></div></div><div class="meeting-form-board mb-6"><div class="flex flex-wrap items-center justify-between gap-3 mb-2"><div><h3 class="text-lg font-black text-slate-900">Pizarra de pendientes</h3><p class="text-sm text-slate-500">Checklist básico: alta rojo, media amarillo, baja verde.</p></div><button type="button" onclick="maAddMeetingTaskRow()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Agregar pendiente</button></div><div id="meetingTasksFormRows">${maTaskRowsFromActa(a)}</div></div><div class="flex flex-col sm:flex-row gap-3 justify-end"><button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn">Cancelar</button><button type="button" onclick="maSaveMeetingAct()" class="meeting-primary-btn"><i class="fas fa-save"></i>Guardar reunión</button></div></div>`;
     modal.classList.remove('hidden');
   };
   window.maAddMeetingTaskRow = function(){ maAddTaskRow(); };
@@ -33210,136 +32933,97 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const acuerdos = maText(document.getElementById('meetingActAcuerdos')?.value || '');
     const tareas = maReadFormTasks();
     if(!title){ alert('Ingresa el título o tema de la reunión.'); return; }
-    const previousLocal = meetingActs.find(function(a){ return String(a.id) === String(id); });
-    let previousRemote = null;
-    try { previousRemote = await maReadRemoteById(id); } catch(e) {}
-    const previous = previousRemote || previousLocal;
-    await maPersistActa({
-      id:id,
-      title:title,
-      fecha:fecha,
-      conversado:conversado,
-      acuerdos:acuerdos,
-      tareas:tareas,
-      createdAt: previous?.createdAt || maNow(),
-      updatedAt: maNow()
-    });
-    maCloseModal();
-  };
-  window.maDeleteMeetingAct = async function(id){
-    if(!confirm('¿Eliminar esta reunión?')) return;
-    await maDeleteActaById(id);
-  };
-  window.maToggleMeetingTask = async function(actaId, taskId, checked){
-    let localActa = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
-    if(!localActa) return;
-    maRememberPendingTask(actaId, taskId, checked);
-
-    let baseActa = localActa;
+    let previous = meetingActs.find(function(a){ return String(a.id) === String(id); }) || null;
+    try{ const remotePrev = await maReadRemoteById(id); if(remotePrev) previous = remotePrev; }catch(e){}
     try{
-      const remote = await maReadRemoteById(actaId);
-      if(remote) baseActa = maMergeActs([localActa], [remote]).find(function(a){ return String(a.id) === String(actaId); }) || localActa;
+      await maPersistActa({ id:id, title:title, fecha:fecha, conversado:conversado, acuerdos:acuerdos, tareas:tareas, createdAt: previous?.createdAt || maNow(), updatedAt: maNow() });
+      maCloseModal();
     }catch(e){}
+  };
+  window.maDeleteMeetingAct = async function(id){ if(!confirm('¿Eliminar esta reunión?')) return; await maDeleteActaById(id); };
+  window.maToggleMeetingTask = async function(actaId, taskId, checked, inputEl){
+    const key = String(actaId) + '::' + String(taskId);
+    if(maSavingChecks.has(key)) return;
+    maSavingChecks.add(key);
 
+    const lineEl = inputEl && inputEl.closest ? inputEl.closest('.meeting-task-line') : document.querySelector('[data-ma-task-line][data-acta-id="' + CSS.escape(String(actaId)) + '"][data-task-id="' + CSS.escape(String(taskId)) + '"]');
+    if(lineEl) lineEl.classList.toggle('meeting-task-done', !!checked);
+    if(inputEl) inputEl.disabled = true;
+
+    const previous = meetingActs.slice();
     const now = maNow();
-    const updatedActa = maNormalizeActa(Object.assign({}, baseActa, {
-      tareas: (baseActa.tareas || []).map(function(t){
+    let baseActa = meetingActs.find(function(a){ return String(a.id) === String(actaId); }) || null;
+
+    try{
+      // Leemos primero desde Supabase para no guardar sobre una versión antigua.
+      const remoteActa = await maReadRemoteById(actaId);
+      if(remoteActa) baseActa = remoteActa;
+      if(!baseActa) throw new Error('No se encontró esta reunión en Supabase.');
+
+      const currentTasks = Array.isArray(baseActa.tareas) ? baseActa.tareas : [];
+      let found = false;
+      const nextTasks = currentTasks.map(function(t){
         if(String(t.id) === String(taskId)){
-          return Object.assign({}, t, {
-            done: !!checked,
-            doneAt: checked ? (t.doneAt || now) : null,
-            updatedAt: now
-          });
+          found = true;
+          return Object.assign({}, t, { done:!!checked, doneAt: checked ? now : null, updatedAt:now });
         }
         return t;
-      }),
-      updatedAt: now
-    }));
+      });
+      if(!found) throw new Error('No se encontró este pendiente dentro de la reunión. Abre la reunión y vuelve a guardar para regenerar la pizarra.');
 
-    meetingActs = maApplyPendingStates(maMergeActs(meetingActs, [updatedActa]));
-    maWriteLocal(meetingActs);
-    maRenderMeetingActs();
-    maSetHint('Guardando check en Supabase...');
-
-    try{
-      const saved = await maUpsertRemoteOne(updatedActa);
-      let verified = null;
-      try { verified = await maReadRemoteById(actaId); } catch(e) { verified = saved; }
-      let verifiedTask = (verified?.tareas || []).find(function(t){ return String(t.id) === String(taskId); });
-      if(!verifiedTask || !!verifiedTask.done !== !!checked){
-        await maUpsertRemoteOne(updatedActa);
-        verified = await maReadRemoteById(actaId);
-        verifiedTask = (verified?.tareas || []).find(function(t){ return String(t.id) === String(taskId); });
-      }
-      if(!verifiedTask || !!verifiedTask.done !== !!checked){
-        throw new Error('Supabase no devolvió el check actualizado. Revisa permisos RLS de la tabla actas_reunion.');
-      }
-      maClearPendingTask(actaId, taskId);
-      maCloudReady = true;
-      maLastError = '';
-      meetingActs = maMergeActs(meetingActs, [verified || saved || updatedActa]);
+      const updatedActa = maNormalizeActa(Object.assign({}, baseActa, { tareas: nextTasks, updatedAt: now }));
+      meetingActs = maSort([updatedActa].concat(meetingActs.filter(function(a){ return String(a.id) !== String(actaId); })));
       maWriteLocal(meetingActs);
       maRenderMeetingActs();
-      maSetHint();
+      maSetHint('Guardando check en Supabase...');
+
+      const saved = await maUpsertRemote(updatedActa);
+      const verified = await maReadRemoteById(actaId);
+      const finalActa = verified || saved;
+      const vTask = (finalActa?.tareas || []).find(function(t){ return String(t.id) === String(taskId); });
+      if(!vTask || !!vTask.done !== !!checked) throw new Error('Supabase no confirmó el cambio del check.');
+
+      maCloudReady = true;
+      maLastError = '';
+      meetingActs = maSort([finalActa].concat(meetingActs.filter(function(a){ return String(a.id) !== String(actaId); })));
+      maWriteLocal(meetingActs);
+      maRenderMeetingActs();
+      maSetHint('Check guardado en Supabase.');
     }catch(err){
+      meetingActs = previous;
+      maWriteLocal(meetingActs);
+      maRenderMeetingActs();
       maCloudReady = false;
-      maLastError = maErrorMessage(err) || 'No se pudo guardar el check en Supabase.';
-      console.error('Actas de reunión: no se pudo guardar check en nube.', err);
-      maSetHint('El check quedó protegido en este equipo, pero no se pudo confirmar en Supabase: ' + maLastError, 'error');
+      maLastError = maErrorMessage(err) || 'No se pudo guardar el check.';
+      maSetHint('', 'error');
       if(maIsMissingTableError(err)) maShowSqlHelp(err);
-      else alert('No se pudo confirmar el check en Supabase. Quedó marcado temporalmente en este equipo, pero para verlo en todos los computadores hay que corregir Supabase/RLS. Detalle: ' + maLastError);
+      else alert('No se pudo guardar el check en Supabase. Por eso se deshace para evitar información falsa. Detalle: ' + maLastError);
+    }finally{
+      maSavingChecks.delete(key);
+      try { maRenderMeetingActs(); } catch(e) {}
     }
   };
   window.maQuickAddTask = async function(actaId){
-    let acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
     if(!acta) return;
     const domId = maDomId(acta.id);
     const textEl = document.getElementById('maQuickText_' + domId);
     const priorityEl = document.getElementById('maQuickPriority_' + domId);
     const text = maText(textEl?.value || '');
     if(!text){ if(textEl) textEl.focus(); return; }
-    try{
-      const remote = await maReadRemoteById(actaId);
-      if(remote) acta = maMergeActs([acta], [remote]).find(function(a){ return String(a.id) === String(actaId); }) || acta;
-    }catch(e){}
     const priority = String(priorityEl?.value || 'media').toLowerCase();
-    acta.tareas = Array.isArray(acta.tareas) ? acta.tareas.slice() : [];
-    acta.tareas.push({ id:maUid(), text:text, priority:priority, done:false, updatedAt:maNow() });
+    const now = maNow();
+    const next = maNormalizeActa(Object.assign({}, acta, { tareas:(acta.tareas || []).concat([{ id:maUid(), text:text, priority:priority, done:false, updatedAt:now }]), updatedAt:now }));
     if(textEl) textEl.value = '';
-    await maPersistActa(acta);
+    try{ await maPersistActa(next); }catch(e){}
   };
+
   window.maRenderMeetingActs = maRenderMeetingActs;
   window.maLoadMeetingActs = maLoadActs;
   window.maShowMeetingCloudHelp = function(){ maShowSqlHelp(maLastError || ''); };
-  window.maSyncMeetingsToCloud = async function(){ await maLoadActs({ pushLocal:true }); maToast('Actas sincronizadas con Supabase ✅'); };
-  window.maLoadMeetingsFromCloud = async function(){ await maLoadActs({ pushLocal:false }); maToast('Actas recargadas desde Supabase ✅'); };
-  window.maExportMeetingsBackup = function(){
-    const list = maSort(meetingActs.length ? meetingActs : maReadLocal());
-    const blob = new Blob([JSON.stringify(list, null, 2)], {type:'application/json;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'actas_reunion_ecoluz_respaldo.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 800);
-  };
-  window.maImportMeetingsBackup = function(file){
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async function(){
-      try{
-        const parsed = JSON.parse(reader.result || '[]');
-        const incoming = Array.isArray(parsed) ? parsed : [];
-        const merged = maMergeActs(maReadLocal(), incoming);
-        maLocalSetAndRender(merged);
-        await maUpsertRemoteMany(merged);
-        await maLoadActs({ silent:true });
-      }catch(err){ alert('No se pudo importar el archivo: ' + (err.message || err)); }
-    };
-    reader.readAsText(file);
-  };
 
   const oldShowView = window.showView;
-  if(typeof oldShowView === 'function' && !oldShowView.__meetingActsFinalWrapped){
+  if(typeof oldShowView === 'function' && !oldShowView.__meetingActsSimpleSyncWrapped){
     const wrapped = function(view){
       maInstall();
       if(String(view || '').toLowerCase() === 'actas-reunion'){
@@ -33349,713 +33033,35 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       }
       return oldShowView.apply(this, arguments);
     };
-    wrapped.__meetingActsFinalWrapped = true;
+    wrapped.__meetingActsSimpleSyncWrapped = true;
     window.showView = wrapped;
     try { showView = window.showView; } catch(e) {}
   }
   const oldRenderAll = window.renderAll;
-  if(typeof oldRenderAll === 'function' && !oldRenderAll.__meetingActsFinalWrapped){
-    const wrappedRenderAll = function(){
-      const result = oldRenderAll.apply(this, arguments);
-      try { maRenderMeetingActs(); } catch(e) {}
-      return result;
-    };
-    wrappedRenderAll.__meetingActsFinalWrapped = true;
+  if(typeof oldRenderAll === 'function' && !oldRenderAll.__meetingActsSimpleSyncWrapped){
+    const wrappedRenderAll = function(){ const result = oldRenderAll.apply(this, arguments); try { maRenderMeetingActs(); } catch(e) {} return result; };
+    wrappedRenderAll.__meetingActsSimpleSyncWrapped = true;
     window.renderAll = wrappedRenderAll;
     try { renderAll = window.renderAll; } catch(e) {}
   }
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){ maInstall(); maLoadActs({ silent:true, pushLocal:true }); }, 500);
-  });
-  setTimeout(function(){ maInstall(); maLoadActs({ silent:true, pushLocal:true }); }, 900);
-  setInterval(function(){
-    const uid = maText(window.currentUser?.id || '');
-    if(uid && uid !== maLastAuthId){
-      maLastAuthId = uid;
-      maLoadActs({ silent:true, pushLocal:true });
+  document.addEventListener('change', function(ev){
+    const input = ev.target && ev.target.closest ? ev.target.closest('input[data-ma-check]') : null;
+    if(!input) return;
+    // Respaldo por si el navegador no ejecuta el onchange inline.
+    const actaId = input.getAttribute('data-acta-id');
+    const taskId = input.getAttribute('data-task-id');
+    const line = input.closest('.meeting-task-line');
+    if(line) line.classList.toggle('meeting-task-done', input.checked);
+    if(actaId && taskId && !input.dataset.maHandled){
+      input.dataset.maHandled = '1';
+      setTimeout(function(){ delete input.dataset.maHandled; }, 500);
+      window.maToggleMeetingTask && window.maToggleMeetingTask(actaId, taskId, input.checked, input);
     }
-  }, 2500);
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(function(){ maInstall(); maLoadActs({ silent:true }); }, 500); });
+  setTimeout(function(){ maInstall(); maLoadActs({ silent:true }); }, 900);
 })();
-
-/* ===== PATCH ECOLUZ: Programa de Mantención v2.1 =====
-   - Cotización matriz recuperada desde campos antiguos/nuevos.
-   - Cantidad de equipos visible y heredada a la OT.
-   - Reprogramación de meses sin perder el mes original.
-   - OT nueva siempre correlativa global y sin duplicar números existentes.
-*/
-(function(){
-  const PATCH_FLAG = '__ecoluzMaintenancePatchV21';
-  if(window[PATCH_FLAG]) return;
-  window[PATCH_FLAG] = true;
-
-  try{
-    const style = document.createElement('style');
-    style.id = 'ecoluz-maintenance-patch-style-v21';
-    style.textContent = `
-      .maintenance-rescheduled-cell{background:#dbeafe!important;color:#1d4ed8!important;border-color:#93c5fd!important;}
-      .maintenance-reprogram-target-cell{background:#ede9fe!important;color:#6d28d9!important;border-color:#c4b5fd!important;}
-      .maintenance-matrix-line{margin-top:.25rem;font-size:.76rem;color:#4f46e5;font-weight:800;line-height:1.25;}
-      .maintenance-equipment-line{margin-top:.25rem;font-size:.76rem;color:#475569;font-weight:750;line-height:1.25;}
-      body[data-ui-color-mode="dark"] .maintenance-rescheduled-cell{background:#1e3a8a!important;color:#bfdbfe!important;border-color:#3b82f6!important;}
-      body[data-ui-color-mode="dark"] .maintenance-reprogram-target-cell{background:#312e81!important;color:#ddd6fe!important;border-color:#8b5cf6!important;}
-    `;
-    document.head.appendChild(style);
-  }catch(e){}
-
-  function _str(v){ return String(v ?? '').trim(); }
-  function _num(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
-  function _cleanNum(v){ const n = parseInt(String(v ?? '').replace(/\D/g,''), 10); return Number.isFinite(n) ? n : 0; }
-  function _yearNow(){ return new Date().getFullYear(); }
-  function _mName(m){ return (typeof getMaintenanceMonthName === 'function') ? getMaintenanceMonthName(m) : String(m); }
-  function _mShort(m){ return (typeof getMaintenanceMonthShortName === 'function') ? getMaintenanceMonthShortName(m) : _mName(m).slice(0,3).toUpperCase(); }
-  function _safe(v){ return (typeof escapeHtml === 'function') ? escapeHtml(String(v ?? '')) : String(v ?? ''); }
-  function _toast(msg){ if(typeof toastInfo === 'function') toastInfo(msg); else alert(msg); }
-
-  function getProgramData(program){ return (program && typeof program.data === 'object' && !Array.isArray(program.data)) ? program.data : {}; }
-  function getMeta(program, tag){ try{ return (typeof getMaintenanceMetaTagValue === 'function') ? getMaintenanceMetaTagValue(program?.notes || '', tag) : ''; }catch(e){ return ''; } }
-
-  window.getMaintenanceMatrixQuoteId = function(program){
-    const data = getProgramData(program);
-    return _str(
-      program?.matrixQuoteId || program?.matrix_quote_id || program?.quoteId || program?.quote_id ||
-      program?.cotizacionMatrizId || program?.cotizacion_matriz_id ||
-      data.matrixQuoteId || data.matrix_quote_id || data.quoteId || data.quote_id ||
-      data.cotizacionMatrizId || data.cotizacion_matriz_id || data.cotizacion_matriz ||
-      getMeta(program, 'MATRIX_QUOTE_ID') || getMeta(program, 'COTIZACION_MATRIZ_ID')
-    );
-  };
-
-  window.getMaintenanceMatrixQuoteNumber = function(program){
-    const data = getProgramData(program);
-    return _str(
-      program?.matrixQuoteNumber || program?.matrix_quote_number || program?.quoteNumber || program?.quote_number ||
-      program?.cotizacionMatrizNumero || program?.cotizacion_matriz_numero ||
-      data.matrixQuoteNumber || data.matrix_quote_number || data.quoteNumber || data.quote_number ||
-      data.cotizacionMatrizNumero || data.cotizacion_matriz_numero || data.cotizacionMatriz || data.cotizacion_matriz ||
-      getMeta(program, 'MATRIX_QUOTE_NUM') || getMeta(program, 'COTIZACION_MATRIZ_NUM')
-    );
-  };
-
-  window.getMaintenanceMatrixQuote = function(program){
-    const quoteId = window.getMaintenanceMatrixQuoteId(program);
-    const quoteNum = window.getMaintenanceMatrixQuoteNumber(program).toLowerCase();
-    let match = null;
-    if(quoteId) match = (quotes || []).find(q => _str(q?.id) === quoteId) || null;
-    if(!match && quoteNum){
-      match = (quotes || []).find(q => _str(q?.numeroCotizacion || q?.numero || q?.data?.numeroCotizacion || q?.data?.numero).toLowerCase() === quoteNum) || null;
-    }
-    return match;
-  };
-
-  window.resolveMaintenanceMatrixQuote = async function(program){
-    let q = window.getMaintenanceMatrixQuote(program);
-    if(q) return q;
-    const qid = window.getMaintenanceMatrixQuoteId(program);
-    if(qid && typeof ensureQuoteLoaded === 'function'){
-      try{ q = await ensureQuoteLoaded(qid); if(q) return q; }catch(e){ console.warn('No se pudo recuperar cotización matriz por ID', e); }
-    }
-    const qnum = window.getMaintenanceMatrixQuoteNumber(program).toLowerCase();
-    if(qnum){
-      q = (quotes || []).find(x => _str(x?.numeroCotizacion || x?.numero || x?.data?.numeroCotizacion || x?.data?.numero).toLowerCase() === qnum) || null;
-      if(q) return q;
-    }
-    return null;
-  };
-
-  window.getMaintenanceEquipmentCount = function(program){
-    const data = getProgramData(program);
-    const candidates = [
-      program?.equipmentCount, program?.equipment_count, program?.cantidadEquipos, program?.cantidad_equipos,
-      data.equipmentCount, data.equipment_count, data.cantidadEquipos, data.cantidad_equipos,
-      getMeta(program, 'EQUIPOS'), getMeta(program, 'EQUIPMENT_COUNT')
-    ];
-    for(const v of candidates){
-      const n = _num(v);
-      if(n > 0) return Math.round(n);
-    }
-    return 0;
-  };
-
-  function getBaseDueMonths(program){
-    const step = (typeof getMaintenanceFrequencyStep === 'function') ? getMaintenanceFrequencyStep(program?.frequency) : 1;
-    const start = Math.min(12, Math.max(1, Number(program?.startMonth || program?.start_month || 1)));
-    const months = [];
-    for(let m=start; m<=12; m+=step) months.push(m);
-    return months;
-  }
-
-  window.getMaintenanceBaseDueMonths = getBaseDueMonths;
-
-  window.getMaintenanceReprogramEntries = function(program){
-    const yy = Number(program?.programYear || program?.program_year || maintenanceProgramYear || _yearNow());
-    return (Array.isArray(program?.completedHistory) ? program.completedHistory : [])
-      .filter(h => ['reprogram','reprogrammed','reprogramacion','reprogramación'].includes(_str(h?.type || h?.action).toLowerCase()))
-      .filter(h => Number(h.year || h.programYear || yy) === yy)
-      .sort((a,b) => _str(a.createdAt || a.date || '').localeCompare(_str(b.createdAt || b.date || '')));
-  };
-
-  window.getMaintenanceReprogramForMonth = function(program, originalMonth){
-    const m = Number(originalMonth || 0);
-    const list = window.getMaintenanceReprogramEntries(program).filter(h => Number(h.month || h.originalMonth || h.scheduledMonth) === m && Number(h.targetMonth || h.newMonth || h.toMonth) >= 1);
-    return list.length ? list[list.length - 1] : null;
-  };
-
-  window.getMaintenanceReprogramFromTarget = function(program, targetMonth){
-    const m = Number(targetMonth || 0);
-    const list = window.getMaintenanceReprogramEntries(program).filter(h => Number(h.targetMonth || h.newMonth || h.toMonth) === m && Number(h.month || h.originalMonth || h.scheduledMonth) >= 1);
-    return list.length ? list[list.length - 1] : null;
-  };
-
-  window.resolveMaintenanceMonthContext = function(program, visibleMonth){
-    const visible = Number(visibleMonth || 0);
-    const base = getBaseDueMonths(program);
-    const fromTarget = window.getMaintenanceReprogramFromTarget(program, visible);
-    const original = fromTarget ? Number(fromTarget.month || fromTarget.originalMonth || fromTarget.scheduledMonth) : visible;
-    const reprogram = window.getMaintenanceReprogramForMonth(program, original);
-    const target = reprogram ? Number(reprogram.targetMonth || reprogram.newMonth || reprogram.toMonth || 0) : 0;
-    const visibleIsTarget = !!fromTarget && !base.includes(visible);
-    return {
-      visibleMonth: visible,
-      scheduledMonth: visibleIsTarget ? original : visible,
-      originalMonth: visibleIsTarget ? original : visible,
-      serviceMonth: (visibleIsTarget ? visible : (target || visible)),
-      reprogram,
-      isTarget: visibleIsTarget,
-      isOriginalRescheduled: !!(reprogram && Number(reprogram.month || reprogram.originalMonth || reprogram.scheduledMonth) === visible)
-    };
-  };
-
-  window.getMaintenanceDueMonths = function(program){
-    const months = new Set(getBaseDueMonths(program));
-    window.getMaintenanceReprogramEntries(program).forEach(h => {
-      const tm = Number(h.targetMonth || h.newMonth || h.toMonth || 0);
-      if(tm >= 1 && tm <= 12) months.add(tm);
-    });
-    return Array.from(months).sort((a,b)=>a-b);
-  };
-
-  window.isMaintenanceDueInMonth = function(program, month){
-    return window.getMaintenanceDueMonths(program).includes(Number(month));
-  };
-
-  const _origIsCompleted = window.isMaintenanceCompletedInMonth;
-  window.isMaintenanceCompletedInMonth = function(program, month){
-    if(typeof _origIsCompleted === 'function') return _origIsCompleted(program, month);
-    return (program?.completedMonths || []).map(Number).includes(Number(month));
-  };
-
-  const _origGetHistory = window.getMaintenanceHistoryForMonth;
-  window.getMaintenanceHistoryForMonth = function(program, month){
-    const m = Number(month);
-    const yy = Number(program?.programYear || maintenanceProgramYear || _yearNow());
-    const history = (program?.completedHistory || []).filter(h => !['reprogram','reprogrammed','reprogramacion','reprogramación'].includes(_str(h?.type || h?.action).toLowerCase()));
-    return history.find(h => Number(h.month) === m && Number(h.year || yy) === yy) || (typeof _origGetHistory === 'function' ? _origGetHistory(program, month) : null);
-  };
-
-  window.getMaintenanceLinkDataFromOT = function(ot){
-    const data = ot?.data || {};
-    return {
-      programId: _str(data.maintenanceProgramId || data.maintenance_program_id || data.programaMantencionId || data.program_id),
-      month: Number(data.maintenanceMonth || data.maintenance_month || data.programMonth || data.maintenanceOriginalMonth || data.maintenance_original_month || 0),
-      originalMonth: Number(data.maintenanceOriginalMonth || data.maintenance_original_month || data.maintenanceMonth || data.maintenance_month || 0),
-      serviceMonth: Number(data.maintenanceServiceMonth || data.maintenance_service_month || data.maintenanceReprogrammedMonth || data.maintenance_reprogrammed_month || data.maintenanceActualMonth || data.maintenance_actual_month || data.maintenanceMonth || data.maintenance_month || 0),
-      year: Number(data.maintenanceYear || data.maintenance_year || data.programYear || 0)
-    };
-  };
-
-  window.getMaintenanceLinkedOT = function(programId, month, year){
-    const pid = _str(programId);
-    const mm = Number(month || 0);
-    const yy = Number(year || maintenanceProgramYear || _yearNow());
-    if(!pid || !mm) return null;
-    return (ots || []).find(ot => {
-      const link = window.getMaintenanceLinkDataFromOT(ot);
-      return _str(link.programId) === pid && Number(link.year || yy) === yy && (Number(link.month) === mm || Number(link.originalMonth) === mm || Number(link.serviceMonth) === mm);
-    }) || null;
-  };
-
-  window.getMaintenanceCellState = function(program, month){
-    const m = Number(month);
-    const ctx = window.resolveMaintenanceMonthContext(program, m);
-    if(!window.isMaintenanceDueInMonth(program, m)) return 'none';
-    if(ctx.isOriginalRescheduled && !window.isMaintenanceCompletedInMonth(program, ctx.originalMonth)) return 'rescheduled';
-    if(window.isMaintenanceCompletedInMonth(program, ctx.scheduledMonth)) return 'done';
-    const linkedOT = window.getMaintenanceLinkedOT(program?.id, ctx.scheduledMonth, program?.programYear) || window.getMaintenanceLinkedOT(program?.id, m, program?.programYear);
-    if(ctx.isTarget && !linkedOT) return 'reprogram_target';
-    if(_str(program?.status).toLowerCase() !== 'vigente') return 'paused';
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    if(Number(program?.programYear) < currentYear) return linkedOT ? 'current' : 'overdue';
-    if(Number(program?.programYear) === currentYear){
-      if(m < currentMonth) return linkedOT ? 'current' : 'overdue';
-      if(m === currentMonth) return 'current';
-    }
-    return linkedOT ? 'current' : 'planned';
-  };
-
-  window.getMaintenanceCellClass = function(state){
-    if(state === 'done') return 'bg-emerald-500 border-emerald-600 text-white';
-    if(state === 'overdue') return 'bg-rose-200 border-rose-300 text-rose-800';
-    if(state === 'current') return 'bg-amber-200 border-amber-300 text-amber-800';
-    if(state === 'planned') return 'bg-emerald-200 border-emerald-300 text-emerald-800';
-    if(state === 'paused') return 'bg-slate-200 border-slate-300 text-slate-600';
-    if(state === 'rescheduled') return 'maintenance-rescheduled-cell';
-    if(state === 'reprogram_target') return 'maintenance-reprogram-target-cell';
-    return 'bg-white border-slate-100 text-transparent';
-  };
-
-  window.getNextOTNumber = function(){
-    const BASE = 2833;
-    const used = new Set();
-    let maxNum = BASE - 1;
-    (ots || []).forEach(o => {
-      const raw = o?.numeroOT || o?.numero_ot || o?.data?.numeroOT || o?.data?.numero_ot || '';
-      const n = _cleanNum(raw);
-      if(n > 0){ used.add(String(n)); if(n > maxNum) maxNum = n; }
-    });
-    let next = Math.max(BASE, maxNum + 1);
-    while(used.has(String(next))) next += 1;
-    return String(next);
-  };
-
-  window.isOTNumberAlreadyUsed = async function(numeroOT){
-    const wanted = _str(numeroOT);
-    if(!wanted) return false;
-    const local = (ots || []).some(o => _str(o?.numeroOT || o?.numero_ot || o?.data?.numeroOT || o?.data?.numero_ot) === wanted);
-    if(local) return true;
-    try{
-      const { data, error } = await supabaseClient.from('ots').select('id,numero_ot').eq('numero_ot', wanted).limit(1);
-      if(!error && Array.isArray(data) && data.length) return true;
-    }catch(e){ console.warn('No se pudo verificar número OT en Supabase:', e); }
-    return false;
-  };
-
-  const _origLoadMaintenancePrograms = window.loadMaintenancePrograms;
-  window.loadMaintenancePrograms = async function(){
-    try{
-      const select = 'id, client_id, client_name, site_name, service_type, frequency, start_month, program_year, responsible, notes, status, completed_months, completed_history, equipment_count, matrix_quote_id, matrix_quote_number, quote_id, quote_number, cotizacion_matriz_id, cotizacion_matriz_numero, data, created_by_name, created_by_email, created_at, updated_at';
-      const data = (await safeSelectWithAutoDrop(window.MAINTENANCE_PROGRAMS_TABLE, select, { orderColumn:'client_name', ascending:true })).data || [];
-      maintenancePrograms = (data || []).map(r => {
-        const rowData = (r?.data && typeof r.data === 'object' && !Array.isArray(r.data)) ? r.data : {};
-        const temp = { ...r, data: rowData, notes: r.notes || '' };
-        const matrixId = window.getMaintenanceMatrixQuoteId(temp);
-        const matrixNum = window.getMaintenanceMatrixQuoteNumber(temp);
-        return {
-          id: r.id,
-          clientId: r.client_id || rowData.clientId || rowData.client_id || '',
-          clientName: r.client_name || rowData.clientName || rowData.client_name || 'Empresa',
-          siteName: r.site_name || rowData.siteName || rowData.site_name || '',
-          serviceType: r.service_type || rowData.serviceType || rowData.service_type || 'Mantención preventiva',
-          frequency: _str(r.frequency || rowData.frequency || 'mensual').toLowerCase(),
-          startMonth: Number(r.start_month || rowData.startMonth || rowData.start_month || 1),
-          programYear: Number(r.program_year || rowData.programYear || rowData.program_year || _yearNow()),
-          responsible: r.responsible || rowData.responsible || '',
-          equipmentCount: window.getMaintenanceEquipmentCount({ ...temp, equipmentCount: r.equipment_count || rowData.equipmentCount || rowData.equipment_count }),
-          matrixQuoteId: matrixId,
-          matrix_quote_id: matrixId,
-          matrixQuoteNumber: matrixNum,
-          matrix_quote_number: matrixNum,
-          notes: r.notes || rowData.notes || '',
-          data: rowData,
-          status: _str(r.status || rowData.status || 'vigente').toLowerCase(),
-          completedMonths: Array.isArray(r.completed_months) ? r.completed_months.map(Number) : (Array.isArray(rowData.completedMonths) ? rowData.completedMonths.map(Number) : []),
-          completedHistory: Array.isArray(r.completed_history) ? r.completed_history : (Array.isArray(rowData.completedHistory) ? rowData.completedHistory : []),
-          createdByName: r.created_by_name || rowData.createdByName || formatShortName(r.created_by_email || '') || '—',
-          createdAt: r.created_at || ''
-        };
-      });
-      if(typeof normalizeMaintenancePrograms === 'function') normalizeMaintenancePrograms();
-      window.maintenancePrograms = maintenancePrograms;
-    }catch(err){
-      console.error('Error cargando programas de mantención con compatibilidad:', err);
-      if(typeof _origLoadMaintenancePrograms === 'function') return _origLoadMaintenancePrograms();
-      maintenancePrograms = [];
-    }
-  };
-
-  window.renderMaintenanceProgramsList = function(year, programs){
-    const box = document.getElementById('maintenanceProgramsList');
-    if(!box) return;
-    if(!programs.length){
-      box.innerHTML = `<div class="maintenance-program-card text-slate-500">No hay programas que coincidan con los filtros actuales.</div>`;
-      return;
-    }
-    box.innerHTML = programs.map(p => {
-      const dueMonths = window.getMaintenanceDueMonths(p).map(m => _mShort(m)).join(' · ');
-      const matrix = window.getMaintenanceMatrixQuote(p);
-      const matrixText = matrix ? ('Cotización matriz ' + _str(matrix.numeroCotizacion || matrix.numero || 'S/N')) : (window.getMaintenanceMatrixQuoteNumber(p) ? ('Cotización matriz ' + window.getMaintenanceMatrixQuoteNumber(p)) : 'Sin cotización matriz');
-      const qty = window.getMaintenanceEquipmentCount(p);
-      return `
-        <div class="maintenance-program-card">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <div class="maintenance-program-title">${_safe(getMaintenanceProgramTitle(p))}</div>
-              <div class="maintenance-program-meta">${_safe(getMaintenanceFrequencyLabel(p.frequency))} · ${_safe(getMaintenanceStatusLabel(p.status))} · Meses: ${_safe(dueMonths || '—')}</div>
-              ${qty ? `<div class="maintenance-equipment-line"><i class="fas fa-snowflake mr-1"></i>${_safe(String(qty))} equipos</div>` : ''}
-              ${p.responsible ? `<div class="maintenance-program-meta">Responsable: ${_safe(p.responsible)}</div>` : ''}
-              <div class="maintenance-matrix-line">${_safe(matrixText)}</div>
-            </div>
-            <div class="maintenance-action-icons">
-              <button class="maintenance-icon-btn" onclick="showMaintenanceProgramModal('${p.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-              <button class="maintenance-icon-btn" onclick="toggleMaintenanceProgramStatus('${p.id}')" title="${_str(p.status) === 'vigente' ? 'Pausar' : 'Activar'}"><i class="fas ${_str(p.status) === 'vigente' ? 'fa-pause' : 'fa-play'}"></i></button>
-              <button class="maintenance-icon-btn" onclick="showMaintenanceHistoryModal('${p.id}')" title="Historial"><i class="fas fa-clock-rotate-left"></i></button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-  };
-
-  const _origRenderMaintenancePrograms = window.renderMaintenancePrograms;
-  window.renderMaintenancePrograms = function(){
-    if(typeof closeMaintenanceFloatingMenus === 'function') closeMaintenanceFloatingMenus();
-    if(typeof normalizeMaintenancePrograms === 'function') normalizeMaintenancePrograms();
-    const year = Number(maintenanceProgramYear || _yearNow());
-    const month = (typeof getMaintenanceSelectedMonth === 'function') ? getMaintenanceSelectedMonth() : (new Date().getMonth()+1);
-    maintenanceProgramMonth = month;
-    const yearLabel = document.getElementById('maintenanceYearLabel'); if(yearLabel) yearLabel.textContent = year;
-    const monthSelect = document.getElementById('maintenanceMonthSelect'); if(monthSelect) monthSelect.value = String(month);
-    const programs = (typeof getMaintenanceProgramsForBoard === 'function') ? getMaintenanceProgramsForBoard(year) : (maintenancePrograms || []).filter(p => Number(p.programYear) === year);
-    try{
-      const summary = (typeof getMaintenanceSummary === 'function') ? getMaintenanceSummary(year, programs) : { dueMonth:[], overdue:[], doneMonth:[] };
-      const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
-      setText('maintenanceCountDueMonth', summary.dueMonth.length);
-      setText('maintenanceCountOverdue', summary.overdue.length);
-      setText('maintenanceCountDoneMonth', summary.doneMonth.length);
-      if(typeof renderMaintenanceAlertList === 'function'){
-        renderMaintenanceAlertList(summary.dueMonth, 'maintenanceDueMonthList', 'due');
-        renderMaintenanceAlertList(summary.overdue, 'maintenanceOverdueList', 'overdue');
-      }
-    }catch(e){}
-    window.renderMaintenanceProgramsList(year, programs);
-    if(typeof setMaintenanceViewTab === 'function') setMaintenanceViewTab(maintenanceViewTab || 'annual');
-    const tbody = document.getElementById('maintenanceProgramsTable');
-    if(!tbody) return;
-    if(!programs.length){
-      const hasAny = (typeof getMaintenanceProgramsForYear === 'function') ? getMaintenanceProgramsForYear(year).length > 0 : false;
-      tbody.innerHTML = `<tr><td class="p-6 text-center text-gray-500" colspan="13">${hasAny ? 'No hay programas que coincidan con los filtros aplicados.' : `No hay programaciones para ${year}. Crea la primera con “Nueva programación”.`}</td></tr>`;
-      setTimeout(()=>{ try{ syncMaintenanceAnnualTopScrollbar(); }catch(e){} }, 0);
-      return;
-    }
-    tbody.innerHTML = programs.map(p => {
-      const dueMonths = window.getMaintenanceDueMonths(p);
-      const matrix = window.getMaintenanceMatrixQuote(p);
-      const matrixText = matrix ? ('Cotización matriz ' + _str(matrix.numeroCotizacion || matrix.numero || 'S/N')) : (window.getMaintenanceMatrixQuoteNumber(p) ? ('Cotización matriz ' + window.getMaintenanceMatrixQuoteNumber(p)) : 'Sin cotización matriz');
-      const qty = window.getMaintenanceEquipmentCount(p);
-      const meta = `${getMaintenanceFrequencyLabel(p.frequency)} · inicio ${_mName(p.startMonth)} · ${getMaintenanceStatusLabel(p.status)}`;
-      return `
-        <tr>
-          <td class="maintenance-annual-company">
-            <div class="maintenance-annual-title">${_safe(getMaintenanceProgramTitle(p))}</div>
-            <div class="maintenance-annual-meta">${_safe(meta)}</div>
-            ${qty ? `<div class="maintenance-equipment-line"><i class="fas fa-snowflake mr-1"></i>${_safe(String(qty))} equipos</div>` : ''}
-            <div class="maintenance-matrix-line">${_safe(matrixText)}</div>
-            <div class="maintenance-action-icons mt-2 justify-start">
-              <button class="maintenance-icon-btn" onclick="showMaintenanceProgramModal('${p.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-              <button class="maintenance-icon-btn" onclick="toggleMaintenanceProgramStatus('${p.id}')" title="${_str(p.status) === 'vigente' ? 'Pausar' : 'Activar'}"><i class="fas ${_str(p.status) === 'vigente' ? 'fa-pause' : 'fa-play'}"></i></button>
-              <button class="maintenance-icon-btn" onclick="showMaintenanceHistoryModal('${p.id}')" title="Historial"><i class="fas fa-clock-rotate-left"></i></button>
-            </div>
-          </td>
-          ${Array.from({length:12}, (_,i) => i+1).map(monthNum => {
-            const ctx = window.resolveMaintenanceMonthContext(p, monthNum);
-            const state = window.getMaintenanceCellState(p, monthNum);
-            const isDue = dueMonths.includes(monthNum);
-            const linkedOT = window.getMaintenanceLinkedOT(p.id, ctx.scheduledMonth, p.programYear) || window.getMaintenanceLinkedOT(p.id, monthNum, p.programYear);
-            const shifted = state === 'done' && typeof isMaintenanceCompletionShifted === 'function' && isMaintenanceCompletionShifted(p, ctx.scheduledMonth);
-            const actualMonth = shifted && typeof getMaintenanceCompletionActualMonth === 'function' ? getMaintenanceCompletionActualMonth(p, ctx.scheduledMonth) : monthNum;
-            let label = '';
-            if(isDue){
-              if(state === 'rescheduled') label = `<span class="text-[10px] leading-tight inline-flex flex-col items-center"><span>→</span><span>${_mShort(ctx.serviceMonth)}</span></span>`;
-              else if(state === 'reprogram_target') label = `<span class="text-[10px] leading-tight inline-flex flex-col items-center"><span>←</span><span>${_mShort(ctx.originalMonth)}</span></span>`;
-              else if(state === 'done') label = shifted ? `<span class="text-[10px] leading-tight inline-flex flex-col items-center"><span>↪</span><span>${_mShort(actualMonth)}</span></span>` : '<i class="fas fa-check"></i>';
-              else label = linkedOT ? '<i class="fas fa-screwdriver-wrench text-xs"></i>' : (state === 'overdue' ? '!' : '<i class="fas fa-ellipsis text-xs"></i>');
-            }
-            const title = !isDue ? 'No aplica' : (ctx.isOriginalRescheduled ? `Reprogramada de ${_mName(ctx.originalMonth)} a ${_mName(ctx.serviceMonth)}` : (ctx.isTarget ? `Reprogramada desde ${_mName(ctx.originalMonth)}` : `Clic para gestionar ${_mName(monthNum)}`));
-            return `<td><button ${isDue ? `onclick="showMaintenanceMonthActions('${p.id}', ${monthNum})"` : 'disabled'} title="${_safe(title)}" class="maintenance-annual-cell-btn ${window.getMaintenanceCellClass(state)} ${isDue ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}">${label}</button></td>`;
-          }).join('')}
-        </tr>`;
-    }).join('');
-    setTimeout(()=>{ try{ syncMaintenanceAnnualTopScrollbar(); }catch(e){} }, 0);
-  };
-
-  window.showMaintenanceRescheduleModal = function(programId, month){
-    const program = (typeof getMaintenanceProgramById === 'function') ? getMaintenanceProgramById(programId) : null;
-    if(!program) return alert('No se encontró la programación.');
-    const ctx = window.resolveMaintenanceMonthContext(program, month);
-    const existing = window.getMaintenanceReprogramForMonth(program, ctx.scheduledMonth);
-    const target = Number(existing?.targetMonth || existing?.newMonth || existing?.toMonth || ctx.serviceMonth || ctx.scheduledMonth) || ctx.scheduledMonth;
-    openModal(`
-      <div class="p-6 sm:p-8">
-        <div class="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 class="text-2xl font-black">Reprogramar mantención</h2>
-            <p class="text-sm text-slate-500 mt-1">${_safe(getMaintenanceProgramTitle(program))} · mes original ${_safe(_mName(ctx.scheduledMonth))} ${_safe(String(program.programYear || maintenanceProgramYear))}</p>
-          </div>
-          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Mes original</label>
-            <input value="${_safe(_mName(ctx.scheduledMonth))}" readonly class="w-full px-4 py-3 border rounded-2xl bg-slate-50 font-bold">
-          </div>
-          <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Mover a</label>
-            <select id="maintRescheduleTargetMonth" class="w-full px-4 py-3 border rounded-2xl bg-white">
-              ${Array.from({length:12}, (_,i)=>`<option value="${i+1}" ${target===i+1?'selected':''}>${_mName(i+1)}</option>`).join('')}
-            </select>
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Motivo</label>
-            <textarea id="maintRescheduleReason" rows="4" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: Temporada helada, climatizadores sin uso, cliente solicita mover visita.">${_safe(existing?.reason || existing?.note || '')}</textarea>
-          </div>
-          <div class="md:col-span-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            Se conserva el mes original para historial. La OT se creará como OT nueva desde la cotización matriz, pero indicando el mes reprogramado.
-          </div>
-        </div>
-        <div class="flex flex-wrap gap-3 mt-6">
-          <button onclick="saveMaintenanceReschedule('${program.id}', ${ctx.scheduledMonth}, this)" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700">Guardar reprogramación</button>
-          ${existing ? `<button onclick="removeMaintenanceReschedule('${program.id}', ${ctx.scheduledMonth})" class="px-5 py-3 rounded-2xl bg-rose-50 text-rose-700 border border-rose-200 font-semibold hover:bg-rose-100">Quitar reprogramación</button>` : ''}
-          <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-semibold hover:bg-gray-50">Cancelar</button>
-        </div>
-      </div>`);
-  };
-
-  window.saveMaintenanceReschedule = async function(programId, originalMonth, btn){
-    try{
-      if(btn){ btn.disabled = true; btn.innerText = 'Guardando...'; }
-      const program = (typeof getMaintenanceProgramById === 'function') ? getMaintenanceProgramById(programId) : null;
-      if(!program) return;
-      const m = Number(originalMonth);
-      const target = Number(document.getElementById('maintRescheduleTargetMonth')?.value || 0);
-      const reason = _str(document.getElementById('maintRescheduleReason')?.value || '');
-      if(!target || target < 1 || target > 12) return alert('Selecciona el mes al que se reprograma.');
-      if(target === m) return alert('El mes nuevo debe ser distinto al mes original.');
-      const currentHistory = Array.isArray(program.completedHistory) ? program.completedHistory.slice() : [];
-      const yy = Number(program.programYear || maintenanceProgramYear || _yearNow());
-      const filtered = currentHistory.filter(h => !(Number(h.month || h.originalMonth || h.scheduledMonth) === m && Number(h.year || yy) === yy && ['reprogram','reprogrammed','reprogramacion','reprogramación'].includes(_str(h.type || h.action).toLowerCase())));
-      const entry = { type:'reprogram', action:'reprogram', month:m, originalMonth:m, scheduledMonth:m, targetMonth:target, newMonth:target, year:yy, reason, note:reason, date:new Date().toISOString().slice(0,10), createdAt:new Date().toISOString(), by: currentUserDisplayName || 'Usuario' };
-      const nextHistory = [...filtered, entry];
-      const { error } = await supabaseClient.from(window.MAINTENANCE_PROGRAMS_TABLE).update({ completed_history: nextHistory, updated_at: new Date().toISOString() }).eq('id', programId);
-      if(error) throw error;
-      program.completedHistory = nextHistory;
-      closeModal();
-      window.renderMaintenancePrograms();
-      _toast(`Mantención reprogramada de ${_mName(m)} a ${_mName(target)} ✅`);
-    }catch(err){
-      console.error(err);
-      alert('No se pudo reprogramar la mantención: ' + (err.message || err));
-    }finally{
-      if(btn){ btn.disabled = false; btn.innerText = 'Guardar reprogramación'; }
-    }
-  };
-
-  window.removeMaintenanceReschedule = async function(programId, originalMonth){
-    if(!confirm('¿Quitar la reprogramación de este mes?')) return;
-    try{
-      const program = (typeof getMaintenanceProgramById === 'function') ? getMaintenanceProgramById(programId) : null;
-      if(!program) return;
-      const m = Number(originalMonth);
-      const yy = Number(program.programYear || maintenanceProgramYear || _yearNow());
-      const currentHistory = Array.isArray(program.completedHistory) ? program.completedHistory.slice() : [];
-      const nextHistory = currentHistory.filter(h => !(Number(h.month || h.originalMonth || h.scheduledMonth) === m && Number(h.year || yy) === yy && ['reprogram','reprogrammed','reprogramacion','reprogramación'].includes(_str(h.type || h.action).toLowerCase())));
-      const { error } = await supabaseClient.from(window.MAINTENANCE_PROGRAMS_TABLE).update({ completed_history: nextHistory, updated_at: new Date().toISOString() }).eq('id', programId);
-      if(error) throw error;
-      program.completedHistory = nextHistory;
-      closeModal(); window.renderMaintenancePrograms(); _toast('Reprogramación quitada.');
-    }catch(err){ console.error(err); alert('No se pudo quitar la reprogramación: ' + (err.message || err)); }
-  };
-
-  window.createOTFromMaintenance = async function(programId, month){
-    try{
-      const program = (typeof getMaintenanceProgramById === 'function') ? getMaintenanceProgramById(programId) : null;
-      if(!program) return alert('No se encontró la programación.');
-      if(!window.isMaintenanceDueInMonth(program, month)) return alert('Ese mes no corresponde a esta programación.');
-      const ctx = window.resolveMaintenanceMonthContext(program, month);
-      const linkedOT = window.getMaintenanceLinkedOT(program.id, ctx.scheduledMonth, program.programYear);
-      if(linkedOT){
-        _toast(`Ya existe la OT ${linkedOT.numeroOT || linkedOT.numero_ot || ''} para ${_mName(ctx.scheduledMonth)}.`);
-        if(typeof previewOT === 'function') previewOT(linkedOT.id);
-        return;
-      }
-      const matrixQuote = await window.resolveMaintenanceMatrixQuote(program);
-      if(!matrixQuote || !_str(matrixQuote.id)){
-        if(typeof showMaintenanceMissingMatrixQuoteModal === 'function') showMaintenanceMissingMatrixQuoteModal(program.id, ctx.scheduledMonth);
-        else alert('Este programa no tiene cotización matriz fija. Crea o vincula una cotización base antes de crear la OT.');
-        return;
-      }
-      const qty = window.getMaintenanceEquipmentCount(program);
-      const originalLabel = _mName(ctx.scheduledMonth);
-      const serviceLabel = _mName(ctx.serviceMonth);
-      const reprogramText = ctx.reprogram && ctx.serviceMonth !== ctx.scheduledMonth ? ` · Reprogramada de ${originalLabel} a ${serviceLabel}` : '';
-      const title = `${program.serviceType || 'Mantención preventiva'} · ${program.clientName || 'Cliente'}${program.siteName ? ' · ' + program.siteName : ''} · ${serviceLabel}${qty ? ' · ' + qty + ' equipos' : ''}${reprogramText}`;
-      pendingQuoteToLinkOT = _str(matrixQuote.id);
-      pendingMaintenanceToLinkOT = {
-        programId: _str(program.id),
-        month: Number(ctx.scheduledMonth),
-        originalMonth: Number(ctx.scheduledMonth),
-        serviceMonth: Number(ctx.serviceMonth),
-        reprogrammedMonth: Number(ctx.serviceMonth),
-        year: Number(program.programYear || maintenanceProgramYear || _yearNow()),
-        title,
-        serviceType: program.serviceType || 'Mantención preventiva',
-        siteName: program.siteName || '',
-        clientId: program.clientId || '',
-        clientName: program.clientName || '',
-        equipmentCount: qty,
-        matrixQuoteId: _str(matrixQuote.id),
-        matrixQuoteNumber: _str(matrixQuote.numeroCotizacion || matrixQuote.numero || window.getMaintenanceMatrixQuoteNumber(program)),
-        reprogramReason: _str(ctx.reprogram?.reason || ctx.reprogram?.note || ''),
-        notes: [
-          'Programa de mantención',
-          `Cliente: ${program.clientName || 'Cliente'}`,
-          program.siteName ? `Sucursal: ${program.siteName}` : '',
-          `Mes original: ${originalLabel} ${program.programYear || maintenanceProgramYear}`,
-          ctx.serviceMonth !== ctx.scheduledMonth ? `Mes reprogramado: ${serviceLabel}` : '',
-          qty ? `Cantidad de equipos: ${qty}` : '',
-          `Cotización matriz: ${_str(matrixQuote.numeroCotizacion || matrixQuote.numero || 'S/N')}`,
-          ctx.reprogram?.reason ? `Motivo reprogramación: ${ctx.reprogram.reason}` : '',
-          program.notes ? `Observaciones programa: ${program.notes}` : ''
-        ].filter(Boolean).join('\n')
-      };
-      const otPrefill = {
-        clientId: program.clientId || '',
-        clientName: program.clientName || '',
-        quoteId: _str(matrixQuote.id),
-        quote_id: _str(matrixQuote.id),
-        numeroCotizacion: _str(matrixQuote.numeroCotizacion || matrixQuote.numero || ''),
-        descripcion: title,
-        fecha: todayISO(),
-        maintenanceProgramId: program.id,
-        maintenanceMonth: Number(ctx.scheduledMonth),
-        maintenanceOriginalMonth: Number(ctx.scheduledMonth),
-        maintenanceServiceMonth: Number(ctx.serviceMonth),
-        maintenanceYear: Number(program.programYear || maintenanceProgramYear || _yearNow()),
-        branchAlias: program.siteName || '',
-        sucursal: program.siteName || ''
-      };
-      closeModal();
-      if(typeof showNewOTManualModal === 'function') return showNewOTManualModal(otPrefill);
-      if(typeof showNewOTModal === 'function') return showNewOTModal(otPrefill);
-      alert('No encontré el modal de OT en esta versión.');
-    }catch(err){
-      console.error(err);
-      alert('No se pudo abrir la OT desde la programación: ' + (err.message || err));
-    }
-  };
-
-  window.showMaintenanceMonthActions = function(programId, month){
-    const program = (typeof getMaintenanceProgramById === 'function') ? getMaintenanceProgramById(programId) : null;
-    if(!program) return;
-    const ctx = window.resolveMaintenanceMonthContext(program, month);
-    const scheduledMonth = ctx.scheduledMonth;
-    const monthLabel = _mName(month);
-    const isDone = window.isMaintenanceCompletedInMonth(program, scheduledMonth);
-    const history = window.getMaintenanceHistoryForMonth(program, scheduledMonth);
-    const linkedOT = window.getMaintenanceLinkedOT(program.id, scheduledMonth, program.programYear) || window.getMaintenanceLinkedOT(program.id, month, program.programYear);
-    const paymentState = linkedOT && typeof getMaintenancePagoEstadoBadge === 'function' ? getMaintenancePagoEstadoBadge(linkedOT) : '';
-    const qty = window.getMaintenanceEquipmentCount(program);
-    const matrix = window.getMaintenanceMatrixQuote(program);
-    const matrixText = matrix ? `Cotización matriz ${_str(matrix.numeroCotizacion || matrix.numero || 'S/N')}` : (window.getMaintenanceMatrixQuoteNumber(program) ? `Cotización matriz ${window.getMaintenanceMatrixQuoteNumber(program)}` : 'Sin cotización matriz');
-    const reprogramInfo = ctx.reprogram ? `Reprogramada de ${_mName(ctx.originalMonth)} a ${_mName(ctx.serviceMonth)}${ctx.reprogram.reason ? ' · ' + ctx.reprogram.reason : ''}` : '';
-    openModal(`
-      <div class="p-6 sm:p-8">
-        <div class="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 class="text-2xl font-black">${_safe(program.clientName || 'Cliente')}</h2>
-            <p class="text-sm text-slate-500 mt-1">${_safe(program.serviceType || 'Mantención preventiva')} · ${_safe(monthLabel)} ${_safe(String(program.programYear || maintenanceProgramYear))}</p>
-            <p class="text-xs text-indigo-700 font-bold mt-1">${_safe(matrixText)}${qty ? ' · ' + _safe(String(qty)) + ' equipos' : ''}</p>
-          </div>
-          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
-        </div>
-        ${reprogramInfo ? `<div class="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800"><b>Reprogramación:</b> ${_safe(reprogramInfo)}</div>` : ''}
-        <div class="mb-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <button onclick="showMaintenanceCompletionModal('${program.id}', ${scheduledMonth})" class="w-full text-left px-5 py-4 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-sm"><div class="flex items-center gap-3"><i class="fas fa-check-circle text-lg"></i><div><div class="font-black">${isDone ? 'Editar realización' : 'Marcar como realizada'}</div><div class="text-sm text-emerald-100">La ejecución se registra contra el mes original ${_safe(_mName(scheduledMonth))}.</div></div></div></button>
-          <button onclick="showMaintenanceRescheduleModal('${program.id}', ${scheduledMonth})" class="w-full text-left px-5 py-4 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200 font-semibold hover:bg-blue-100"><div class="flex items-center gap-3"><i class="fas fa-calendar-arrow-down text-lg"></i><div><div class="font-black">Reprogramar mes</div><div class="text-sm text-blue-600">Mover esta visita a otro mes sin perder historial.</div></div></div></button>
-        </div>
-        ${linkedOT ? `<div class="mb-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900"><div class="font-semibold">OT vinculada</div><div class="mt-1">OT ${_safe(linkedOT.numeroOT || linkedOT.numero_ot || '—')} · ${_safe(linkedOT.estado || 'pendiente')}</div><div class="mt-2 flex flex-wrap items-center gap-2">${paymentState}</div></div>` : ''}
-        ${history ? `<div class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><div class="font-semibold">Mantención marcada como realizada</div><div class="mt-1">Fecha: ${_safe(formatDDMMYY(history.date || ''))}</div>${history.otNumber ? `<div>OT: ${_safe(history.otNumber)}</div>` : ''}${history.note ? `<div>Obs.: ${_safe(history.note)}</div>` : ''}</div>` : ''}
-        <div class="grid grid-cols-1 gap-3">
-          ${linkedOT ? `<button onclick="previewOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-eye mr-2 text-slate-700"></i>Abrir OT vinculada</button><button onclick="editOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-pen mr-2 text-blue-600"></i>Editar OT vinculada</button>` : `<button onclick="createOTFromMaintenance('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT nueva desde cotización matriz</button>`}
-          <button onclick="sendMaintenanceMonthToCalendar('${program.id}', ${ctx.serviceMonth}); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-calendar-days mr-2 text-blue-600"></i>Enviar al calendario</button>
-        </div>
-      </div>`);
-  };
-
-  const _origShowCompletion = window.showMaintenanceCompletionModal;
-  window.showMaintenanceCompletionModal = function(programId, month){
-    const program = (typeof getMaintenanceProgramById === 'function') ? getMaintenanceProgramById(programId) : null;
-    if(!program || typeof _origShowCompletion !== 'function') return _origShowCompletion ? _origShowCompletion(programId, month) : null;
-    const ctx = window.resolveMaintenanceMonthContext(program, month);
-    _origShowCompletion(programId, ctx.scheduledMonth);
-    setTimeout(() => {
-      try{
-        const sel = document.getElementById('maintDoneActualMonth');
-        if(sel && ctx.reprogram && ctx.serviceMonth) sel.value = String(ctx.serviceMonth);
-      }catch(e){}
-    }, 0);
-  };
-
-  const _origSaveNewOTManual = window.saveNewOTManual;
-  window.saveNewOTManual = async function(btn){
-    const linkedMaintenanceBefore = pendingMaintenanceToLinkOT ? Object.assign({}, pendingMaintenanceToLinkOT) : null;
-    const numInput = document.getElementById('mOtNum');
-    const manualFolio = !!document.getElementById('otManualFolio')?.checked;
-    if(numInput){
-      let wanted = _str(numInput.value || '');
-      if(!manualFolio){
-        const isUsed = await window.isOTNumberAlreadyUsed(wanted);
-        if(!wanted || isUsed){
-          numInput.value = window.getNextOTNumber();
-          wanted = _str(numInput.value || '');
-        }
-      }else if(wanted && await window.isOTNumberAlreadyUsed(wanted)){
-        alert('Ese N° de OT ya existe. Para evitar duplicados debes usar otro número.');
-        if(btn){ btn.disabled = false; btn.innerText = 'Guardar OT'; }
-        return;
-      }
-    }
-    const createdNumber = _str(numInput?.value || '');
-    const res = await _origSaveNewOTManual.call(this, btn);
-    if(linkedMaintenanceBefore && createdNumber){
-      try{
-        const ot = (ots || []).find(o => _str(o?.numeroOT || o?.numero_ot || o?.data?.numeroOT || o?.data?.numero_ot) === createdNumber) || null;
-        if(ot){
-          const nextData = Object.assign({}, ot.data || {}, {
-            maintenanceOriginalMonth: Number(linkedMaintenanceBefore.originalMonth || linkedMaintenanceBefore.month || 0),
-            maintenance_original_month: Number(linkedMaintenanceBefore.originalMonth || linkedMaintenanceBefore.month || 0),
-            maintenanceServiceMonth: Number(linkedMaintenanceBefore.serviceMonth || linkedMaintenanceBefore.month || 0),
-            maintenance_service_month: Number(linkedMaintenanceBefore.serviceMonth || linkedMaintenanceBefore.month || 0),
-            maintenanceReprogrammedMonth: Number(linkedMaintenanceBefore.reprogrammedMonth || linkedMaintenanceBefore.serviceMonth || 0),
-            maintenance_reprogrammed_month: Number(linkedMaintenanceBefore.reprogrammedMonth || linkedMaintenanceBefore.serviceMonth || 0),
-            maintenanceEquipmentCount: Number(linkedMaintenanceBefore.equipmentCount || 0),
-            maintenance_equipment_count: Number(linkedMaintenanceBefore.equipmentCount || 0),
-            maintenanceMatrixQuoteId: _str(linkedMaintenanceBefore.matrixQuoteId || ''),
-            maintenance_matrix_quote_id: _str(linkedMaintenanceBefore.matrixQuoteId || ''),
-            maintenanceMatrixQuoteNumber: _str(linkedMaintenanceBefore.matrixQuoteNumber || ''),
-            maintenance_matrix_quote_number: _str(linkedMaintenanceBefore.matrixQuoteNumber || ''),
-            maintenanceReprogramReason: _str(linkedMaintenanceBefore.reprogramReason || ''),
-            maintenance_reprogram_reason: _str(linkedMaintenanceBefore.reprogramReason || '')
-          });
-          ot.data = nextData;
-          if(ot.id && typeof safeUpdateWithAutoDrop === 'function') await safeUpdateWithAutoDrop('ots', ot.id, { data: nextData });
-          else if(ot.id) await supabaseClient.from('ots').update({ data: nextData }).eq('id', ot.id);
-        }
-      }catch(e){ console.warn('No se pudieron guardar metadatos extendidos de mantención en la OT:', e); }
-    }
-    return res;
-  };
-
-  try{
-    window.loadMaintenancePrograms = window.loadMaintenancePrograms;
-    window.renderMaintenancePrograms = window.renderMaintenancePrograms;
-    window.createOTFromMaintenance = window.createOTFromMaintenance;
-    window.showMaintenanceMonthActions = window.showMaintenanceMonthActions;
-    window.showMaintenanceRescheduleModal = window.showMaintenanceRescheduleModal;
-    window.saveMaintenanceReschedule = window.saveMaintenanceReschedule;
-    window.removeMaintenanceReschedule = window.removeMaintenanceReschedule;
-  }catch(e){}
-})();
-
 </script>
 <!-- ECOLUZ MEETING ACTS MODULE END -->
 
@@ -34761,13 +33767,6 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   try { exportMaintenanceYearBoardPDF = window.exportMaintenanceYearBoardPDF; } catch(e){}
 })();
 </script>
-
-
-
-<!-- ECOLUZ MEETING ACTS CLOUD SYNC: integrado en meeting-acts-script 2026-06-24 -->
-
-
-
 <script id="ecoluz-fix-crear-ot-20260619-v2">
 /* =========================================================
    FIX ECOLUZ 2026-06-19: creación de nuevas OT
