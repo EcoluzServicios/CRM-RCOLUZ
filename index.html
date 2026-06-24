@@ -32472,14 +32472,19 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 <script id="meeting-acts-script">
 (function(){
   'use strict';
-  if(window.__ecoluzMeetingActsInstalled) return;
-  window.__ecoluzMeetingActsInstalled = true;
+  if(window.__ecoluzMeetingActsInstalledFinal20260624) return;
+  window.__ecoluzMeetingActsInstalledFinal20260624 = true;
 
   const MA_TABLE = 'actas_reunion';
   const MA_LOCAL_KEY = 'ecoluz_actas_reunion_v2';
+  const MA_LOCAL_KEYS = ['ecoluz_actas_reunion_v2','ecoluz_actas_reunion','meetingActs','actasReunion','actas_reunion','reuniones','ecoluz_meeting_acts'];
   let meetingActs = [];
-  let maRemoteDisabled = false;
   let maLoadedOnce = false;
+  let maCloudReady = false;
+  let maLastError = '';
+  let maRealtimeChannel = null;
+  let maRealtimeTimer = null;
+  let maLastAuthId = '';
 
   function maEsc(value){
     return String(value ?? '').replace(/[&<>"']/g, function(ch){
@@ -32491,12 +32496,10 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     try { if(typeof todayISO === 'function') return todayISO(); } catch(e) {}
     return new Date().toISOString().slice(0,10);
   }
+  function maNow(){ return new Date().toISOString(); }
   function maUid(){
     try { if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); } catch(e) {}
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
-      const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
-      return v.toString(16);
-    });
+    return 'ma_' + Date.now() + '_' + Math.random().toString(16).slice(2);
   }
   function maDomId(value){ return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_'); }
   function maFormatDate(value){
@@ -32527,176 +32530,342 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     if(v === 'baja') return 'meeting-dot-baja';
     return 'meeting-dot-media';
   }
+  function maToast(msg){
+    try { if(typeof toastInfo === 'function') return toastInfo(msg); } catch(e) {}
+    console.log(msg);
+  }
+  function maGetSb(){
+    const sb = window.supabaseClient;
+    return (sb && typeof sb.from === 'function') ? sb : null;
+  }
+  function maErrorMessage(err){
+    return maText(err?.message || err?.details || err?.hint || err?.code || err || '');
+  }
+  function maIsMissingTableError(err){
+    const msg = maErrorMessage(err).toLowerCase();
+    const code = maText(err?.code).toUpperCase();
+    return code === '42P01' || code === 'PGRST205' || msg.includes('actas_reunion') && (msg.includes('does not exist') || msg.includes('not found') || msg.includes('could not find') || msg.includes('no existe'));
+  }
+  function maIsColumnError(err){
+    const msg = maErrorMessage(err).toLowerCase();
+    const code = maText(err?.code).toUpperCase();
+    return code === '42703' || msg.includes('column') || msg.includes('schema cache') || msg.includes('could not find') || msg.includes('columna');
+  }
+  function maCloudSql(){
+    return [
+      'create table if not exists public.actas_reunion (',
+      '  id text primary key,',
+      '  titulo text,',
+      '  fecha date,',
+      "  data jsonb not null default '{}'::jsonb,",
+      '  created_at timestamptz not null default now(),',
+      '  updated_at timestamptz not null default now()',
+      ');',
+      '',
+      'alter table public.actas_reunion enable row level security;',
+      '',
+      'drop policy if exists "actas_reunion_authenticated_all" on public.actas_reunion;',
+      'create policy "actas_reunion_authenticated_all"',
+      'on public.actas_reunion',
+      'for all',
+      'to authenticated',
+      'using (true)',
+      'with check (true);',
+      '',
+      'do $$',
+      'begin',
+      '  alter publication supabase_realtime add table public.actas_reunion;',
+      'exception',
+      '  when duplicate_object then null;',
+      '  when undefined_object then null;',
+      'end $$;'
+    ].join('\n');
+  }
+  function maShowSqlHelp(err){
+    const msg = maErrorMessage(err);
+    const html = `
+      <div class="p-6 sm:p-8">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900">Activar nube para actas de reunión</h2>
+            <p class="text-sm text-slate-500 mt-1">Para que las reuniones y tareas se vean iguales en todos los computadores, debe existir la tabla <b>actas_reunion</b> en Supabase.</p>
+          </div>
+          <button type="button" onclick="closeModal && closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button>
+        </div>
+        ${msg ? `<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><b>Detalle:</b> ${maEsc(msg)}</div>` : ''}
+        <label class="block text-xs font-black text-slate-500 uppercase mb-2">SQL para pegar en Supabase → SQL Editor</label>
+        <textarea id="meetingCloudSqlBox" class="w-full min-h-[270px] border rounded-2xl p-4 font-mono text-xs bg-slate-50">${maEsc(maCloudSql())}</textarea>
+        <div class="flex flex-wrap gap-3 mt-4">
+          <button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('meetingCloudSqlBox').value); if(typeof toastInfo==='function') toastInfo('SQL copiado ✅');" class="meeting-primary-btn"><i class="fas fa-copy"></i>Copiar SQL</button>
+          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs()" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Probar nuevamente</button>
+          <button type="button" onclick="closeModal && closeModal()" class="meeting-soft-btn">Cerrar</button>
+        </div>
+      </div>`;
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+    if(modal && content){ content.innerHTML = html; modal.classList.remove('hidden'); }
+    else alert('Falta crear la tabla actas_reunion en Supabase. ' + msg);
+  }
+  function maReadKey(key){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)) return parsed;
+      if(parsed && typeof parsed === 'object'){
+        const keys = ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records'];
+        for(const k of keys){ if(Array.isArray(parsed[k])) return parsed[k]; }
+      }
+    }catch(e){}
+    return [];
+  }
   function maReadLocal(){
-    try {
-      const raw = localStorage.getItem(MA_LOCAL_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch(e){ return []; }
+    let list = [];
+    MA_LOCAL_KEYS.forEach(function(key){ list = list.concat(maReadKey(key)); });
+    return maMergeActs(list);
   }
   function maWriteLocal(list){
-    try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch(e) {}
+    try { localStorage.setItem(MA_LOCAL_KEY, JSON.stringify(maSort(list || []))); } catch(e) {}
+  }
+  function maNormalizeTask(task){
+    const t = task || {};
+    const priority = String(t.priority || t.prioridad || 'media').toLowerCase().trim();
+    return {
+      id: maText(t.id) || maUid(),
+      text: maText(t.text || t.pendiente || t.tarea || t.descripcion),
+      priority: ['alta','media','baja'].includes(priority) ? priority : 'media',
+      done: t.done === true || t.cumplida === true || t.realizada === true || t.tachada === true,
+      doneAt: t.doneAt || t.done_at || null,
+      updatedAt: t.updatedAt || t.updated_at || null
+    };
   }
   function maNormalizeActa(acta){
     const a = acta || {};
+    const d = (a.data && typeof a.data === 'object') ? a.data : {};
+    const tasks = Array.isArray(a.tareas) ? a.tareas : (Array.isArray(d.tareas) ? d.tareas : []);
     return {
-      id: maText(a.id) || maUid(),
-      title: maText(a.title || a.titulo) || 'Reunión sin título',
-      fecha: maText(a.fecha) || maToday(),
-      conversado: maText(a.conversado),
-      acuerdos: maText(a.acuerdos),
-      tareas: Array.isArray(a.tareas) ? a.tareas.map(function(t){
-        return {
-          id: maText(t.id) || maUid(),
-          text: maText(t.text || t.pendiente || t.tarea),
-          priority: ['alta','media','baja'].includes(String(t.priority || t.prioridad || '').toLowerCase()) ? String(t.priority || t.prioridad).toLowerCase() : 'media',
-          done: t.done === true || t.cumplida === true
-        };
-      }).filter(function(t){ return !!t.text; }) : [],
-      createdAt: a.createdAt || a.created_at || new Date().toISOString(),
-      updatedAt: a.updatedAt || a.updated_at || new Date().toISOString()
+      id: maText(a.id || d.id) || maUid(),
+      title: maText(a.title || a.titulo || d.title || d.titulo) || 'Reunión sin título',
+      fecha: maText(a.fecha || d.fecha) || maToday(),
+      conversado: maText(a.conversado || d.conversado),
+      acuerdos: maText(a.acuerdos || d.acuerdos),
+      tareas: tasks.map(maNormalizeTask).filter(function(t){ return !!t.text; }),
+      createdAt: a.createdAt || a.created_at || d.createdAt || d.created_at || maNow(),
+      updatedAt: a.updatedAt || a.updated_at || d.updatedAt || d.updated_at || maNow()
     };
   }
   function maRowToActa(row){
-    const data = (row && row.data) || {};
+    const d = row?.data || {};
     return maNormalizeActa({
-      id: row && row.id,
-      title: (row && row.titulo) || data.title || data.titulo,
-      fecha: (row && row.fecha) || data.fecha,
-      conversado: data.conversado,
-      acuerdos: data.acuerdos,
-      tareas: data.tareas,
-      createdAt: row && row.created_at,
-      updatedAt: row && row.updated_at
+      id: row?.id || d.id,
+      title: row?.titulo || d.title || d.titulo,
+      fecha: row?.fecha || d.fecha,
+      conversado: d.conversado,
+      acuerdos: d.acuerdos,
+      tareas: d.tareas,
+      createdAt: row?.created_at || d.createdAt,
+      updatedAt: row?.updated_at || d.updatedAt
     });
   }
-  function maActaToRow(acta){
+  function maActaToFullRow(acta){
     const a = maNormalizeActa(acta);
     return {
       id: a.id,
       titulo: a.title,
       fecha: a.fecha,
       data: {
+        id: a.id,
         title: a.title,
+        titulo: a.title,
         fecha: a.fecha,
         conversado: a.conversado,
         acuerdos: a.acuerdos,
-        tareas: a.tareas
+        tareas: a.tareas,
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt
+      },
+      created_at: a.createdAt,
+      updated_at: a.updatedAt
+    };
+  }
+  function maActaToBasicRow(acta){
+    const a = maNormalizeActa(acta);
+    return {
+      id: a.id,
+      data: {
+        id: a.id,
+        title: a.title,
+        titulo: a.title,
+        fecha: a.fecha,
+        conversado: a.conversado,
+        acuerdos: a.acuerdos,
+        tareas: a.tareas,
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt
       }
     };
   }
   function maSort(list){
-    return (Array.isArray(list) ? list : []).slice().sort(function(a,b){
+    return (Array.isArray(list) ? list : []).map(maNormalizeActa).sort(function(a,b){
       const ad = String(a.fecha || '') + ' ' + String(a.updatedAt || a.createdAt || '');
       const bd = String(b.fecha || '') + ' ' + String(b.updatedAt || b.createdAt || '');
       return bd.localeCompare(ad);
     });
   }
-  function maMergeActs(localList, remoteList){
+  function maMergeActs(){
     const map = new Map();
-    function put(acta){
-      const a = maNormalizeActa(acta);
-      const key = String(a.id || maUid());
-      const prev = map.get(key);
-      if(!prev){
-        map.set(key, a);
-        return;
-      }
-      const prevTime = String(prev.updatedAt || prev.createdAt || prev.fecha || '');
-      const nextTime = String(a.updatedAt || a.createdAt || a.fecha || '');
-      if(nextTime >= prevTime) map.set(key, Object.assign({}, prev, a));
-    }
-    (Array.isArray(localList) ? localList : []).forEach(put);
-    (Array.isArray(remoteList) ? remoteList : []).forEach(put);
+    Array.from(arguments).flat().forEach(function(item){
+      const a = maNormalizeActa(item);
+      const prev = map.get(a.id);
+      if(!prev){ map.set(a.id, a); return; }
+      const pt = String(prev.updatedAt || prev.createdAt || prev.fecha || '');
+      const at = String(a.updatedAt || a.createdAt || a.fecha || '');
+      map.set(a.id, at >= pt ? Object.assign({}, prev, a) : prev);
+    });
     return maSort(Array.from(map.values()));
   }
-
-  function maSetHint(){
+  function maSameActs(a,b){
+    return JSON.stringify(maSort(a)) === JSON.stringify(maSort(b));
+  }
+  function maSetHint(message, kind){
     const el = document.getElementById('meetingStorageHint');
     if(!el) return;
-    if(maRemoteDisabled){
-      el.textContent = 'Guardado localmente en este navegador. Para compartir las actas entre usuarios, ejecuta el SQL de Supabase.';
-    } else if(maLoadedOnce){
-      el.textContent = 'Actas cargadas correctamente.';
-    } else {
-      el.textContent = 'Cargando actas...';
+    let text = message;
+    if(!text){
+      if(maCloudReady) text = 'Sincronizado con Supabase. Las reuniones y checks quedan visibles para todos los usuarios.';
+      else if(maLastError) text = 'No se pudo conectar la nube de reuniones: ' + maLastError;
+      else if(maLoadedOnce) text = 'Actas cargadas localmente. Al entrar con Supabase se sincronizan automáticamente.';
+      else text = 'Cargando actas...';
     }
+    el.textContent = text;
+    el.classList.remove('text-rose-600','text-emerald-700','text-amber-700');
+    if(kind === 'error' || maLastError && !maCloudReady) el.classList.add('text-rose-600');
+    else if(maCloudReady) el.classList.add('text-emerald-700');
+    else el.classList.add('text-amber-700');
+  }
+  async function maReadRemote(){
+    const sb = maGetSb();
+    if(!sb) throw new Error('Supabase no está disponible en este archivo.');
+    let res = await sb.from(MA_TABLE).select('id,titulo,fecha,data,created_at,updated_at').order('fecha', { ascending:false });
+    if(res.error && maIsColumnError(res.error)){
+      res = await sb.from(MA_TABLE).select('*');
+    }
+    if(res.error) throw res.error;
+    return (res.data || []).map(maRowToActa);
+  }
+  async function maReadRemoteById(id){
+    const sb = maGetSb();
+    if(!sb || !id) return null;
+    let res = await sb.from(MA_TABLE).select('id,titulo,fecha,data,created_at,updated_at').eq('id', id).maybeSingle();
+    if(res.error && maIsColumnError(res.error)){
+      res = await sb.from(MA_TABLE).select('*').eq('id', id).maybeSingle();
+    }
+    if(res.error) throw res.error;
+    return res.data ? maRowToActa(res.data) : null;
+  }
+  async function maUpsertRemoteOne(acta){
+    const sb = maGetSb();
+    if(!sb) throw new Error('Supabase no está disponible en este archivo.');
+    const fullRow = maActaToFullRow(acta);
+    let res = await sb.from(MA_TABLE).upsert(fullRow, { onConflict:'id' }).select('*').single();
+    if(res.error && maIsColumnError(res.error)){
+      res = await sb.from(MA_TABLE).upsert(maActaToBasicRow(acta), { onConflict:'id' }).select('*').single();
+    }
+    if(res.error) throw res.error;
+    return res.data ? maRowToActa(res.data) : maNormalizeActa(acta);
+  }
+  async function maUpsertRemoteMany(list){
+    const sorted = maSort(list);
+    for(const acta of sorted){ await maUpsertRemoteOne(acta); }
+    return sorted.length;
+  }
+  async function maDeleteRemote(id){
+    const sb = maGetSb();
+    if(!sb) throw new Error('Supabase no está disponible en este archivo.');
+    const res = await sb.from(MA_TABLE).delete().eq('id', id);
+    if(res.error) throw res.error;
   }
   function maLocalSetAndRender(list){
-    meetingActs = maSort((list || []).map(maNormalizeActa));
+    meetingActs = maSort(list || []);
     maWriteLocal(meetingActs);
     maRenderMeetingActs();
     maSetHint();
   }
-  async function maLoadActs(){
-    const local = maReadLocal().map(maNormalizeActa);
+  async function maLoadActs(options){
+    options = options || {};
+    const local = maReadLocal();
     meetingActs = maSort(local);
+    maLoadedOnce = true;
     maRenderMeetingActs();
+    maSetHint(options.silent ? '' : 'Cargando actas desde Supabase...');
 
-    if(maRemoteDisabled || !window.supabaseClient){
-      maLoadedOnce = true;
+    try{
+      const remote = await maReadRemote();
+      const merged = maMergeActs(local, remote);
+      const hadLocalOnly = !maSameActs(merged, remote);
+      meetingActs = merged;
+      maWriteLocal(merged);
+      maCloudReady = true;
+      maLastError = '';
+      maRenderMeetingActs();
+      maStartRealtime();
+      if(hadLocalOnly || options.pushLocal){
+        await maUpsertRemoteMany(merged);
+      }
       maSetHint();
-      return meetingActs;
+    }catch(err){
+      maCloudReady = false;
+      maLastError = maErrorMessage(err) || 'error desconocido';
+      console.warn('Actas de reunión: no se pudo usar Supabase.', err);
+      if(!options.silent && maIsMissingTableError(err)) maSetHint('Falta crear la tabla actas_reunion en Supabase. Usa el botón de ayuda si necesitas el SQL.', 'error');
+      else maSetHint('', 'error');
     }
-
-    try {
-      const { data, error } = await window.supabaseClient
-        .from(MA_TABLE)
-        .select('id,titulo,fecha,data,created_at,updated_at')
-        .order('fecha', { ascending:false });
-      if(error) throw error;
-
-      const remote = (data || []).map(maRowToActa);
-      // Antes, si Supabase respondía vacío, borraba las reuniones locales.
-      // Ahora fusiona local + remoto para que las reuniones registradas no desaparezcan.
-      meetingActs = maMergeActs(local, remote);
-      maWriteLocal(meetingActs);
-      maLoadedOnce = true;
-      maRenderMeetingActs();
-    } catch(err){
-      maRemoteDisabled = true;
-      maLoadedOnce = true;
-      meetingActs = maSort(local);
-      maWriteLocal(meetingActs);
-      console.warn('Actas de reunión: usando almacenamiento local.', err);
-      maRenderMeetingActs();
-    }
-    maSetHint();
     return meetingActs;
   }
-
-  async function maPersistActa(acta){
+  async function maPersistActa(acta, options){
+    options = options || {};
     const normalized = maNormalizeActa(acta);
-    normalized.updatedAt = new Date().toISOString();
+    normalized.updatedAt = maNow();
     const existingIndex = meetingActs.findIndex(function(a){ return String(a.id) === String(normalized.id); });
     const next = meetingActs.slice();
     if(existingIndex >= 0) next[existingIndex] = normalized;
     else next.unshift(normalized);
     maLocalSetAndRender(next);
-    if(!maRemoteDisabled && window.supabaseClient){
-      try {
-        const row = maActaToRow(normalized);
-        const { error } = await window.supabaseClient.from(MA_TABLE).upsert(row, { onConflict:'id' });
-        if(error) throw error;
-      } catch(err){
-        maRemoteDisabled = true;
-        console.warn('Actas de reunión: no se pudo guardar en Supabase, queda local.', err);
+
+    try{
+      const saved = await maUpsertRemoteOne(normalized);
+      maCloudReady = true;
+      maLastError = '';
+      meetingActs = maMergeActs(meetingActs, [saved]);
+      maWriteLocal(meetingActs);
+      maRenderMeetingActs();
+      maSetHint();
+      return saved;
+    }catch(err){
+      maCloudReady = false;
+      maLastError = maErrorMessage(err) || 'No se pudo guardar en Supabase.';
+      console.error('Actas de reunión: guardado local, falló nube.', err);
+      maSetHint('', 'error');
+      if(!options.quiet){
+        if(maIsMissingTableError(err)) maShowSqlHelp(err);
+        else alert('La reunión quedó guardada solo en este computador. No se pudo guardar en Supabase: ' + maLastError);
       }
+      return normalized;
     }
-    maSetHint();
-    return normalized;
   }
   async function maDeleteActaById(id){
-    const next = meetingActs.filter(function(a){ return String(a.id) !== String(id); });
-    maLocalSetAndRender(next);
-    if(!maRemoteDisabled && window.supabaseClient){
-      try {
-        const { error } = await window.supabaseClient.from(MA_TABLE).delete().eq('id', id);
-        if(error) throw error;
-      } catch(err){
-        maRemoteDisabled = true;
-        console.warn('Actas de reunión: no se pudo eliminar en Supabase, se eliminó local.', err);
-      }
+    const previous = meetingActs.slice();
+    maLocalSetAndRender(meetingActs.filter(function(a){ return String(a.id) !== String(id); }));
+    try{
+      await maDeleteRemote(id);
+      maCloudReady = true;
+      maLastError = '';
+      maSetHint();
+    }catch(err){
+      maLastError = maErrorMessage(err) || 'No se pudo eliminar en Supabase.';
+      maLocalSetAndRender(previous);
+      if(maIsMissingTableError(err)) maShowSqlHelp(err);
+      else alert('No se pudo eliminar la reunión en Supabase: ' + maLastError);
     }
   }
   function maInstallNavButton(){
@@ -32727,7 +32896,8 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
           <p id="meetingStorageHint" class="meeting-status-hint"></p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs()" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Recargar</button>
+          <button type="button" onclick="maLoadMeetingActs && maLoadMeetingActs({pushLocal:true})" class="meeting-soft-btn"><i class="fas fa-rotate"></i>Recargar nube</button>
+          <button type="button" onclick="maShowMeetingCloudHelp && maShowMeetingCloudHelp()" class="meeting-soft-btn"><i class="fas fa-circle-info"></i>Ayuda nube</button>
           <button type="button" onclick="maOpenMeetingActModal()" class="meeting-primary-btn"><i class="fas fa-plus"></i>Nueva reunión</button>
         </div>
       </div>
@@ -32810,9 +32980,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
             <div><div class="meeting-section-label">Lo conversado</div><div class="meeting-note">${maEsc(a.conversado || '—')}</div></div>
             <div><div class="meeting-section-label">Acuerdos</div><div class="meeting-note">${maEsc(a.acuerdos || '—')}</div></div>
           </div>
-          <div class="meeting-board-title">
-            <div class="meeting-section-label mb-0">Pizarra de pendientes</div>
-          </div>
+          <div class="meeting-board-title"><div class="meeting-section-label mb-0">Pizarra de pendientes</div></div>
           ${maRenderTaskLines(a)}
           <div class="meeting-add-row">
             <input id="maQuickText_${domId}" class="meeting-add-input" placeholder="Nuevo pendiente..." onkeydown="if(event.key==='Enter'){ maQuickAddTask(${idArg}); }">
@@ -32826,14 +32994,10 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
         </div>`;
     }).join('');
   }
-  function maTaskRowsFromActa(acta){
-    const tasks = Array.isArray(acta?.tareas) && acta.tareas.length ? acta.tareas : [{ id:maUid(), text:'', priority:'media', done:false }];
-    return tasks.map(function(t){ return maTaskRowHtml(t); }).join('');
-  }
   function maTaskRowHtml(task){
-    const t = task || {};
+    const t = maNormalizeTask(task || { id:maUid(), text:'', priority:'media', done:false });
     return `
-      <div class="meeting-task-row" data-task-row="1" data-task-id="${maEsc(t.id || maUid())}">
+      <div class="meeting-task-row" data-task-row="1" data-task-id="${maEsc(t.id)}">
         <input type="checkbox" class="meeting-check" data-task-done="1" ${t.done ? 'checked' : ''} title="Cumplida">
         <input type="text" class="meeting-form-input" data-task-text="1" value="${maEsc(t.text || '')}" placeholder="Pendiente o tarea a realizar...">
         <select class="meeting-form-select" data-task-priority="1">
@@ -32844,6 +33008,10 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
         <button type="button" onclick="this.closest('[data-task-row]').remove()" class="meeting-soft-btn" title="Quitar"><i class="fas fa-xmark"></i></button>
       </div>`;
   }
+  function maTaskRowsFromActa(acta){
+    const tasks = Array.isArray(acta?.tareas) && acta.tareas.length ? acta.tareas : [{ id:maUid(), text:'', priority:'media', done:false }];
+    return tasks.map(maTaskRowHtml).join('');
+  }
   function maAddTaskRow(task){
     const box = document.getElementById('meetingTasksFormRows');
     if(!box) return;
@@ -32851,12 +33019,14 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
   }
   function maReadFormTasks(){
     return Array.from(document.querySelectorAll('#meetingTasksFormRows [data-task-row]')).map(function(row){
-      return {
+      const existing = maNormalizeTask({
         id: row.getAttribute('data-task-id') || maUid(),
-        text: maText(row.querySelector('[data-task-text]')?.value || ''),
-        priority: String(row.querySelector('[data-task-priority]')?.value || 'media').toLowerCase(),
+        text: row.querySelector('[data-task-text]')?.value || '',
+        priority: row.querySelector('[data-task-priority]')?.value || 'media',
         done: !!row.querySelector('[data-task-done]')?.checked
-      };
+      });
+      if(existing.done && !existing.doneAt) existing.doneAt = maNow();
+      return existing;
     }).filter(function(t){ return !!t.text; });
   }
   function maCloseModal(){
@@ -32864,7 +33034,35 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const modal = document.getElementById('modal');
     if(modal) modal.classList.add('hidden');
   }
-
+  function maActivateView(){
+    maInstall();
+    const target = document.getElementById('view-actas-reunion');
+    const main = document.getElementById('mainContent');
+    if(main){
+      main.querySelectorAll(':scope > div[id^="view-"]').forEach(function(el){ el.classList.add('hidden'); });
+    }
+    if(target) target.classList.remove('hidden');
+    const title = document.getElementById('topbarTitle');
+    if(title) title.textContent = 'Actas de reunión';
+    document.querySelectorAll('.nav-btn').forEach(function(btn){ btn.classList.remove('active'); });
+    const btn = document.getElementById('btn-actas-reunion');
+    if(btn) btn.classList.add('active');
+    maRenderMeetingActs();
+    maLoadActs({ silent:true, pushLocal:true });
+  }
+  function maStartRealtime(){
+    const sb = maGetSb();
+    if(!sb || typeof sb.channel !== 'function' || maRealtimeChannel) return;
+    try{
+      maRealtimeChannel = sb
+        .channel('public:actas_reunion_shared')
+        .on('postgres_changes', { event:'*', schema:'public', table: MA_TABLE }, function(){
+          if(maRealtimeTimer) clearTimeout(maRealtimeTimer);
+          maRealtimeTimer = setTimeout(function(){ maLoadActs({ silent:true }); }, 550);
+        })
+        .subscribe(function(status){ console.log('Realtime actas reunión:', status); });
+    }catch(err){ console.warn('No se pudo iniciar realtime de actas de reunión:', err); }
+  }
   window.maOpenMeetingActModal = function(id){
     maInstall();
     const acta = meetingActs.find(function(a){ return String(a.id) === String(id || ''); }) || null;
@@ -32878,7 +33076,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
             <h2 class="text-2xl font-black text-slate-900">${isEdit ? 'Editar reunión' : 'Nueva reunión'}</h2>
-            <p class="text-sm text-slate-500 mt-1">Crea la reunión y deja la pizarra de pendientes como checklist simple.</p>
+            <p class="text-sm text-slate-500 mt-1">Al guardar, la reunión queda sincronizada en Supabase para todos los usuarios.</p>
           </div>
           <button type="button" onclick="maCloseMeetingModal()" class="meeting-soft-btn"><i class="fas fa-xmark"></i></button>
         </div>
@@ -32930,7 +33128,10 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     const acuerdos = maText(document.getElementById('meetingActAcuerdos')?.value || '');
     const tareas = maReadFormTasks();
     if(!title){ alert('Ingresa el título o tema de la reunión.'); return; }
-    const previous = meetingActs.find(function(a){ return String(a.id) === String(id); });
+    const previousLocal = meetingActs.find(function(a){ return String(a.id) === String(id); });
+    let previousRemote = null;
+    try { previousRemote = await maReadRemoteById(id); } catch(e) {}
+    const previous = previousRemote || previousLocal;
     await maPersistActa({
       id:id,
       title:title,
@@ -32938,8 +33139,8 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       conversado:conversado,
       acuerdos:acuerdos,
       tareas:tareas,
-      createdAt: previous?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: previous?.createdAt || maNow(),
+      updatedAt: maNow()
     });
     maCloseModal();
   };
@@ -32948,62 +33149,104 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
     await maDeleteActaById(id);
   };
   window.maToggleMeetingTask = async function(actaId, taskId, checked){
-    const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    let acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
     if(!acta) return;
+    try{
+      const remote = await maReadRemoteById(actaId);
+      if(remote) acta = maMergeActs([acta], [remote]).find(function(a){ return String(a.id) === String(actaId); }) || acta;
+    }catch(e){}
+    const now = maNow();
     acta.tareas = (acta.tareas || []).map(function(t){
-      if(String(t.id) === String(taskId)) return Object.assign({}, t, { done: !!checked });
+      if(String(t.id) === String(taskId)) return Object.assign({}, t, { done: !!checked, doneAt: checked ? (t.doneAt || now) : null, updatedAt: now });
       return t;
     });
-    await maPersistActa(acta);
+    await maPersistActa(acta, { quiet:false });
   };
   window.maQuickAddTask = async function(actaId){
-    const acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
+    let acta = meetingActs.find(function(a){ return String(a.id) === String(actaId); });
     if(!acta) return;
     const domId = maDomId(acta.id);
     const textEl = document.getElementById('maQuickText_' + domId);
     const priorityEl = document.getElementById('maQuickPriority_' + domId);
     const text = maText(textEl?.value || '');
     if(!text){ if(textEl) textEl.focus(); return; }
+    try{
+      const remote = await maReadRemoteById(actaId);
+      if(remote) acta = maMergeActs([acta], [remote]).find(function(a){ return String(a.id) === String(actaId); }) || acta;
+    }catch(e){}
     const priority = String(priorityEl?.value || 'media').toLowerCase();
     acta.tareas = Array.isArray(acta.tareas) ? acta.tareas.slice() : [];
-    acta.tareas.push({ id:maUid(), text:text, priority:priority, done:false });
+    acta.tareas.push({ id:maUid(), text:text, priority:priority, done:false, updatedAt:maNow() });
     if(textEl) textEl.value = '';
     await maPersistActa(acta);
   };
   window.maRenderMeetingActs = maRenderMeetingActs;
   window.maLoadMeetingActs = maLoadActs;
+  window.maShowMeetingCloudHelp = function(){ maShowSqlHelp(maLastError || ''); };
+  window.maSyncMeetingsToCloud = async function(){ await maLoadActs({ pushLocal:true }); maToast('Actas sincronizadas con Supabase ✅'); };
+  window.maLoadMeetingsFromCloud = async function(){ await maLoadActs({ pushLocal:false }); maToast('Actas recargadas desde Supabase ✅'); };
+  window.maExportMeetingsBackup = function(){
+    const list = maSort(meetingActs.length ? meetingActs : maReadLocal());
+    const blob = new Blob([JSON.stringify(list, null, 2)], {type:'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'actas_reunion_ecoluz_respaldo.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 800);
+  };
+  window.maImportMeetingsBackup = function(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(){
+      try{
+        const parsed = JSON.parse(reader.result || '[]');
+        const incoming = Array.isArray(parsed) ? parsed : [];
+        const merged = maMergeActs(maReadLocal(), incoming);
+        maLocalSetAndRender(merged);
+        await maUpsertRemoteMany(merged);
+        await maLoadActs({ silent:true });
+      }catch(err){ alert('No se pudo importar el archivo: ' + (err.message || err)); }
+    };
+    reader.readAsText(file);
+  };
 
   const oldShowView = window.showView;
-  if(typeof oldShowView === 'function' && !window.__meetingActsShowViewWrapped){
-    window.__meetingActsShowViewWrapped = true;
-    window.showView = function(view){
+  if(typeof oldShowView === 'function' && !oldShowView.__meetingActsFinalWrapped){
+    const wrapped = function(view){
       maInstall();
-      const result = oldShowView.apply(this, arguments);
       if(String(view || '').toLowerCase() === 'actas-reunion'){
-        const target = document.getElementById('view-actas-reunion');
-        if(target) target.classList.remove('hidden');
-        const title = document.getElementById('topbarTitle');
-        if(title) title.textContent = 'Actas de reunión';
-        setTimeout(maRenderMeetingActs, 0);
+        try { oldShowView.apply(this, arguments); } catch(e) {}
+        maActivateView();
+        return;
       }
-      return result;
+      return oldShowView.apply(this, arguments);
     };
+    wrapped.__meetingActsFinalWrapped = true;
+    window.showView = wrapped;
     try { showView = window.showView; } catch(e) {}
   }
   const oldRenderAll = window.renderAll;
-  if(typeof oldRenderAll === 'function' && !window.__meetingActsRenderAllWrapped){
-    window.__meetingActsRenderAllWrapped = true;
-    window.renderAll = function(){
+  if(typeof oldRenderAll === 'function' && !oldRenderAll.__meetingActsFinalWrapped){
+    const wrappedRenderAll = function(){
       const result = oldRenderAll.apply(this, arguments);
       try { maRenderMeetingActs(); } catch(e) {}
       return result;
     };
+    wrappedRenderAll.__meetingActsFinalWrapped = true;
+    window.renderAll = wrappedRenderAll;
     try { renderAll = window.renderAll; } catch(e) {}
   }
   document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){ maInstall(); maLoadActs(); }, 500);
+    setTimeout(function(){ maInstall(); maLoadActs({ silent:true, pushLocal:true }); }, 500);
   });
-  setTimeout(function(){ maInstall(); maLoadActs(); }, 900);
+  setTimeout(function(){ maInstall(); maLoadActs({ silent:true, pushLocal:true }); }, 900);
+  setInterval(function(){
+    const uid = maText(window.currentUser?.id || '');
+    if(uid && uid !== maLastAuthId){
+      maLastAuthId = uid;
+      maLoadActs({ silent:true, pushLocal:true });
+    }
+  }, 2500);
 })();
 
 /* ===== PATCH ECOLUZ: Programa de Mantención v2.1 =====
@@ -34393,67 +34636,11 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 
 
 
-<script id="meeting-acts-cloud-sync-patch-v1">
-(function(){
-  'use strict';
-  if(window.__meetingActsCloudSyncPatch) return;
-  window.__meetingActsCloudSyncPatch = true;
-  const MA_TABLE = 'actas_reunion';
-  const MA_LOCAL_KEYS = ['ecoluz_actas_reunion_v2','ecoluz_actas_reunion','meetingActs','actasReunion','actas_reunion','reuniones','ecoluz_meeting_acts'];
-  function esc(v){ return String(v ?? '').replace(/[&<>"']/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]; }); }
-  function txt(v){ return String(v ?? '').trim(); }
-  function uid(){ try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2); }
-  function today(){ try{ if(typeof todayISO === 'function') return todayISO(); }catch(e){} return new Date().toISOString().slice(0,10); }
-  function normalizeTask(t){ t = t || {}; const p = String(t.priority || t.prioridad || 'media').toLowerCase().trim(); return { id: txt(t.id) || uid(), text: txt(t.text || t.pendiente || t.tarea || t.descripcion), priority: ['alta','media','baja'].includes(p) ? p : 'media', done: t.done === true || t.cumplida === true || t.realizada === true }; }
-  function normalizeActa(a){ a = a || {}; const d = a.data || {}; const tasks = Array.isArray(a.tareas) ? a.tareas : (Array.isArray(d.tareas) ? d.tareas : []); return { id: txt(a.id || d.id) || uid(), title: txt(a.title || a.titulo || d.title || d.titulo) || 'Reunión sin título', fecha: txt(a.fecha || d.fecha) || today(), conversado: txt(a.conversado || d.conversado), acuerdos: txt(a.acuerdos || d.acuerdos), tareas: tasks.map(normalizeTask).filter(function(t){ return !!t.text; }), createdAt: a.createdAt || a.created_at || d.createdAt || d.created_at || new Date().toISOString(), updatedAt: a.updatedAt || a.updated_at || d.updatedAt || d.updated_at || new Date().toISOString() }; }
-  function sortActs(list){ return (Array.isArray(list) ? list : []).map(normalizeActa).sort(function(a,b){ const av = String(a.fecha || '') + ' ' + String(a.updatedAt || a.createdAt || ''); const bv = String(b.fecha || '') + ' ' + String(b.updatedAt || b.createdAt || ''); return bv.localeCompare(av); }); }
-  function mergeActs(){ const map = new Map(); Array.from(arguments).flat().forEach(function(item){ const a = normalizeActa(item); const prev = map.get(a.id); if(!prev){ map.set(a.id, a); return; } const pt = String(prev.updatedAt || prev.createdAt || prev.fecha || ''); const at = String(a.updatedAt || a.createdAt || a.fecha || ''); map.set(a.id, at >= pt ? Object.assign({}, prev, a) : prev); }); return sortActs(Array.from(map.values())); }
-  function extractArray(parsed){ if(Array.isArray(parsed)) return parsed; if(parsed && typeof parsed === 'object'){ const keys = ['actas','actas_reunion','actasReunion','reuniones','meetings','meetingActs','items','rows','data','records']; for(const k of keys){ if(Array.isArray(parsed[k])) return parsed[k]; } } return []; }
-  function readAllLocal(){ let all = []; try{ MA_LOCAL_KEYS.forEach(function(k){ try{ const raw = localStorage.getItem(k); if(!raw) return; all = all.concat(extractArray(JSON.parse(raw))); }catch(e){} }); }catch(e){} return mergeActs(all); }
-  function writeMainLocal(list){ try{ localStorage.setItem('ecoluz_actas_reunion_v2', JSON.stringify(sortActs(list))); }catch(e){} }
-  function rowToActa(row){ const d = row?.data || {}; return normalizeActa({ id: row?.id || d.id, title: row?.titulo || d.title || d.titulo, fecha: row?.fecha || d.fecha, conversado: d.conversado, acuerdos: d.acuerdos, tareas: d.tareas, createdAt: row?.created_at || d.createdAt, updatedAt: row?.updated_at || d.updatedAt }); }
-  function actaToRow(acta){ const a = normalizeActa(acta); return { id: a.id, titulo: a.title, fecha: a.fecha, data: { id: a.id, title: a.title, titulo: a.title, fecha: a.fecha, conversado: a.conversado, acuerdos: a.acuerdos, tareas: a.tareas, createdAt: a.createdAt, updatedAt: a.updatedAt } }; }
-  function sqlText(){ return [
-    'create table if not exists public.actas_reunion (',
-    '  id text primary key,',
-    '  titulo text,',
-    '  fecha date,',
-    "  data jsonb not null default '{}'::jsonb,",
-    '  created_at timestamptz not null default now(),',
-    '  updated_at timestamptz not null default now()',
-    ');',
-    '',
-    'alter table public.actas_reunion enable row level security;',
-    '',
-    'drop policy if exists "actas_reunion_authenticated_all" on public.actas_reunion;',
-    'create policy "actas_reunion_authenticated_all"',
-    'on public.actas_reunion',
-    'for all',
-    'to authenticated',
-    'using (true)',
-    'with check (true);'
-  ].join('\n'); }
-  function showSqlHelp(err){
-    const msg = err?.message || String(err || '');
-    const html = '<div class="p-6 sm:p-8"><div class="flex items-start justify-between gap-4 mb-4"><div><h2 class="text-2xl font-black text-slate-900">Falta activar la nube para reuniones</h2><p class="text-sm text-slate-500 mt-1">Las reuniones aparecen solo en este computador porque están guardadas en el navegador. Para que se vean en otro PC, hay que crear esta tabla en Supabase.</p></div><button onclick="closeModal && closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Cerrar</button></div>' + (msg ? '<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><b>Detalle:</b> ' + esc(msg) + '</div>' : '') + '<label class="block text-xs font-black text-slate-500 uppercase mb-2">SQL para pegar en Supabase → SQL Editor</label><textarea id="meetingCloudSqlBox" class="w-full min-h-[250px] border rounded-2xl p-4 font-mono text-xs bg-slate-50">' + esc(sqlText()) + '</textarea><div class="flex flex-wrap gap-3 mt-4"><button onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById(\'meetingCloudSqlBox\').value); if(typeof toastInfo===\'function\') toastInfo(\'SQL copiado ✅\');" class="meeting-primary-btn"><i class="fas fa-copy"></i>Copiar SQL</button><button onclick="closeModal && closeModal()" class="meeting-soft-btn">Cerrar</button></div></div>';
-    if(typeof openModal === 'function') openModal(html); else alert('Falta crear tabla actas_reunion en Supabase. Error: ' + msg);
-  }
-  async function readRemote(){ if(!window.supabaseClient) throw new Error('Supabase no está disponible en este archivo.'); const res = await window.supabaseClient.from(MA_TABLE).select('id,titulo,fecha,data,created_at,updated_at').order('fecha', { ascending:false }); if(res.error) throw res.error; return (res.data || []).map(rowToActa); }
-  async function upsertRemote(list){ if(!window.supabaseClient) throw new Error('Supabase no está disponible en este archivo.'); const rows = sortActs(list).map(actaToRow); if(!rows.length) return 0; const res = await window.supabaseClient.from(MA_TABLE).upsert(rows, { onConflict:'id' }); if(res.error) throw res.error; return rows.length; }
-  async function refreshMeetingUI(){ try{ if(typeof window.maLoadMeetingActs === 'function') await window.maLoadMeetingActs(); }catch(e){} try{ if(typeof window.maRenderMeetingActs === 'function') window.maRenderMeetingActs(); }catch(e){} }
-  window.maSyncMeetingsToCloud = async function(){ try{ const local = readAllLocal(); if(!local.length){ alert('No encontré reuniones guardadas en este computador para subir.'); return; } const remote = await readRemote().catch(function(){ return []; }); const merged = mergeActs(local, remote); const count = await upsertRemote(merged); writeMainLocal(merged); await refreshMeetingUI(); if(typeof toastInfo === 'function') toastInfo('Reuniones sincronizadas en Supabase: ' + count + ' ✅'); else alert('Reuniones sincronizadas en Supabase: ' + count); }catch(err){ console.error('maSyncMeetingsToCloud', err); showSqlHelp(err); } };
-  window.maLoadMeetingsFromCloud = async function(){ try{ const local = readAllLocal(); const remote = await readRemote(); const merged = mergeActs(local, remote); writeMainLocal(merged); await refreshMeetingUI(); if(typeof toastInfo === 'function') toastInfo('Reuniones cargadas desde Supabase: ' + remote.length + ' ✅'); else alert('Reuniones cargadas desde Supabase: ' + remote.length); }catch(err){ console.error('maLoadMeetingsFromCloud', err); showSqlHelp(err); } };
-  window.maExportMeetingsBackup = function(){ const list = readAllLocal(); const blob = new Blob([JSON.stringify(list, null, 2)], {type:'application/json;charset=utf-8'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'actas_reunion_ecoluz_respaldo.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); }, 800); };
-  window.maImportMeetingsBackup = function(file){ if(!file) return; const reader = new FileReader(); reader.onload = async function(){ try{ const incoming = extractArray(JSON.parse(reader.result || '[]')); const merged = mergeActs(readAllLocal(), incoming); writeMainLocal(merged); await refreshMeetingUI(); if(confirm('Reuniones importadas en este computador. ¿Quieres subirlas también a Supabase para que se vean en otros PC?')) await window.maSyncMeetingsToCloud(); }catch(err){ alert('No se pudo importar el archivo: ' + (err.message || err)); } }; reader.readAsText(file); };
-  function installButtons(){ const view = document.getElementById('view-actas-reunion'); if(!view || document.getElementById('meetingCloudSyncBtn')) return; const head = view.querySelector('.meeting-page-head > div:last-child') || view.querySelector('.meeting-page-head'); if(!head) return; const wrap = document.createElement('div'); wrap.className = 'flex flex-wrap gap-2'; wrap.innerHTML = '<button id="meetingCloudSyncBtn" type="button" onclick="maSyncMeetingsToCloud()" class="meeting-soft-btn" title="Sube las reuniones de este computador a Supabase"><i class="fas fa-cloud-arrow-up"></i>Subir a nube</button><button type="button" onclick="maLoadMeetingsFromCloud()" class="meeting-soft-btn" title="Carga reuniones guardadas en Supabase"><i class="fas fa-cloud-arrow-down"></i>Recargar nube</button><button type="button" onclick="maExportMeetingsBackup()" class="meeting-soft-btn" title="Respaldo manual"><i class="fas fa-file-export"></i>Exportar</button><label class="meeting-soft-btn cursor-pointer" title="Importar respaldo manual"><i class="fas fa-file-import"></i>Importar<input type="file" accept="application/json" class="hidden" onchange="maImportMeetingsBackup(this.files && this.files[0]); this.value=\'\';"></label>'; head.appendChild(wrap); const hint = document.getElementById('meetingStorageHint'); if(hint && !hint.dataset.cloudHint){ hint.dataset.cloudHint = '1'; hint.innerHTML = 'Para ver las reuniones en otro computador, primero usa <b>Subir a nube</b> en el PC donde aparecen.'; } }
-  setInterval(installButtons, 700);
-  window.addEventListener('DOMContentLoaded', installButtons);
-  const oldShowView = window.showView;
-  if(typeof oldShowView === 'function' && !oldShowView.__meetingCloudButtons){ const wrapped = function(){ const result = oldShowView.apply(this, arguments); setTimeout(installButtons, 150); return result; }; wrapped.__meetingCloudButtons = true; window.showView = wrapped; try{ showView = window.showView; }catch(e){} }
-})();
-</script>
+<!-- ECOLUZ MEETING ACTS CLOUD SYNC: integrado en meeting-acts-script 2026-06-24 -->
 
-<script>
+
+
+<script id="ecoluz-fix-crear-ot-20260619-v2">
 /* =========================================================
    FIX ECOLUZ 2026-06-19: creación de nuevas OT
    - Deja un guardado de OT independiente de parches antiguos.
@@ -34895,6 +35082,499 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
 
   try{ saveNewOTManual = window.saveNewOTManual; }catch(e){}
   try{ showNewOTModal = window.showNewOTModal; }catch(e){}
+})();
+</script>
+
+<script id="ecoluz-company-intelligence-v1">
+(function(){
+  'use strict';
+  if(window.__ecoluzCompanyIntelligenceV1) return;
+  window.__ecoluzCompanyIntelligenceV1 = true;
+
+  const INTEL_VIEW_ID = 'view-intelligence';
+  const INTEL_NAV_ID = 'btn-intelligence';
+  let lastIntelligenceSummaryText = '';
+
+  function esc(v){
+    try { if(typeof window.escapeHtml === 'function') return window.escapeHtml(v); } catch(e){}
+    return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+  }
+  function norm(v){
+    return String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  }
+  function money(v){
+    try { if(typeof window.formatMoneySafe === 'function') return window.formatMoneySafe(Number(v || 0)); } catch(e){}
+    try { if(typeof window.formatCLP === 'function') return window.formatCLP(Number(v || 0)); } catch(e){}
+    return '$' + Number(v || 0).toLocaleString('es-CL');
+  }
+  function dateLabel(v){
+    if(!v) return '—';
+    try { if(typeof window.formatDDMMYY === 'function') return window.formatDDMMYY(v); } catch(e){}
+    const d = parseDate(v);
+    if(d) return String(d.getDate()).padStart(2,'0') + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getFullYear()).slice(-2);
+    return String(v);
+  }
+  function todayDate(){
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function parseDate(value){
+    if(!value) return null;
+    if(value instanceof Date && !isNaN(value.getTime())) return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    let s = String(value).trim();
+    if(!s) return null;
+    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(iso){
+      const d = new Date(Number(iso[1]), Number(iso[2])-1, Number(iso[3]));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const cl = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+    if(cl){
+      let y = Number(cl[3]);
+      if(y < 100) y += 2000;
+      const d = new Date(y, Number(cl[2])-1, Number(cl[1]));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function daysBetween(a,b){
+    const da = parseDate(a), db = parseDate(b);
+    if(!da || !db) return null;
+    return Math.max(0, Math.round((db.getTime() - da.getTime()) / 86400000));
+  }
+  function safeArray(name){
+    try { return Array.isArray(window[name]) ? window[name] : []; } catch(e){ return []; }
+  }
+  function jsArg(v){ return JSON.stringify(String(v ?? '')); }
+  function otNumber(ot){ return String(ot?.numeroOT || ot?.numero_ot || ot?.numero || ot?.nro || 'S/N'); }
+  function otDate(ot){
+    try { if(typeof window.getPreferredOTDate === 'function') return window.getPreferredOTDate(ot); } catch(e){}
+    return ot?.fecha || ot?.data?.fecha || ot?.created_at || '';
+  }
+  function otAmount(ot){ return Number(ot?.monto || ot?.total || ot?.data?.total || ot?.data?.monto || 0) || 0; }
+  function otDesc(ot){ return String(ot?.descripcion || ot?.detalle || ot?.data?.descripcion_trabajo || ot?.data?.descripcion || ot?.data?.trabajo || 'Sin descripción'); }
+  function otState(ot){
+    try { if(typeof window.getEffectiveOTTrabajoEstado === 'function') return window.getEffectiveOTTrabajoEstado(ot); } catch(e){}
+    try { if(typeof window.normalizeOTTrabajoEstado === 'function') return window.normalizeOTTrabajoEstado(ot?.estado || ot?.data?.estado); } catch(e){}
+    return norm(ot?.estado || ot?.data?.estado || 'pendiente').replace(/\s+/g,'_') || 'pendiente';
+  }
+  function otCobroState(ot){
+    try { if(typeof window.normalizeOTCobroEstado === 'function') return window.normalizeOTCobroEstado(ot); } catch(e){}
+    return norm(ot?.pago_estado || ot?.cobro_estado || ot?.data?.pago_estado || ot?.data?.cobro_estado || 'pendiente_facturar').replace(/\s+/g,'_');
+  }
+  function isPaidOT(ot){
+    try { if(typeof window.isOTPagada === 'function') return window.isOTPagada(ot); } catch(e){}
+    return ['pagado','pagada','paid'].includes(norm(ot?.pago_estado || ot?.cobro_estado || ot?.data?.pago_estado || ot?.data?.cobro_estado));
+  }
+  function getDocs(ot){
+    try { if(typeof window.getOTDocuments === 'function') return window.getOTDocuments(ot) || []; } catch(e){}
+    const n = String(ot?.facturaNumero || ot?.factura_num || ot?.documento_numero || ot?.data?.facturaNumero || ot?.data?.documentoNumero || '').trim();
+    return n ? [{ id:'legacy_' + n, tipo:'factura', numero:n, fechaRegistro:ot?.factura_registro_fecha || ot?.data?.facturaRegistroFecha || null, fechaEnvio:ot?.factura_enviada_fecha || ot?.data?.facturaEnviadaFecha || null, fechaPago:ot?.data?.fechaPagoISO || ot?.data?.fechaPago || null, pagada:isPaidOT(ot), montoFacturado:otAmount(ot) }] : [];
+  }
+  function docTypeLabel(doc){ return norm(doc?.tipo) === 'boleta' ? 'Boleta' : 'Factura'; }
+  function clientName(client){ return String(client?.name || client?.razonSocial || client?.data?.name || 'Sin nombre'); }
+  function clientRut(client){ return String(client?.rut || client?.data?.rut || 'Sin RUT'); }
+  function matchesClientName(obj, client){
+    const cn = norm(clientName(client));
+    if(!cn) return false;
+    const names = [obj?.clientName, obj?.razonSocial, obj?.nombre, obj?.data?.clientName, obj?.data?.razonSocial, obj?.data?.nombre, obj?.empresa, obj?.companyName].map(norm).filter(Boolean);
+    return names.includes(cn);
+  }
+  function jobsForClient(client){
+    try { if(typeof window.getOTsForClient === 'function') return window.getOTsForClient(client.id) || []; } catch(e){}
+    const cid = String(client?.id || '');
+    return safeArray('ots').filter(o => String(o?.clientId || o?.client_id || o?.data?.clientId || o?.data?.client_id || '') === cid || matchesClientName(o, client));
+  }
+  function quotesForClient(client){
+    try { if(typeof window.getQuotesForClient === 'function') return window.getQuotesForClient(client.id) || []; } catch(e){}
+    const cid = String(client?.id || '');
+    return safeArray('quotes').filter(q => String(q?.clientId || q?.client_id || q?.data?.clientId || q?.data?.client_id || '') === cid || matchesClientName(q, client));
+  }
+  function maintenanceForClient(client){
+    const cid = String(client?.id || '');
+    return safeArray('maintenancePrograms').filter(p => {
+      const pid = String(p?.clientId || p?.client_id || p?.data?.clientId || p?.data?.client_id || '');
+      return (pid && pid === cid) || matchesClientName(p, client);
+    });
+  }
+  function equipmentCount(program){
+    try { if(typeof window.getMaintenanceEquipmentCount === 'function') return Number(window.getMaintenanceEquipmentCount(program) || 0); } catch(e){}
+    return Number(program?.equipmentCount || program?.equipment_count || program?.data?.equipmentCount || program?.data?.equipment_count || 0) || 0;
+  }
+  function maintenanceTitle(program){
+    try { if(typeof window.getMaintenanceProgramTitle === 'function') return window.getMaintenanceProgramTitle(program); } catch(e){}
+    return String(program?.name || program?.title || program?.siteName || program?.site_name || program?.clientName || 'Programa mantención');
+  }
+  function frequencyLabel(program){
+    try { if(typeof window.getMaintenanceFrequencyLabel === 'function') return window.getMaintenanceFrequencyLabel(program?.frequency || program?.frecuencia); } catch(e){}
+    const f = norm(program?.frequency || program?.frecuencia || '');
+    if(f.includes('mensual')) return 'Mensual';
+    if(f.includes('bimestral')) return 'Bimestral';
+    if(f.includes('trimestral')) return 'Trimestral';
+    if(f.includes('semestral')) return 'Semestral';
+    if(f.includes('anual')) return 'Anual';
+    return f ? String(program?.frequency || program?.frecuencia) : 'Sin frecuencia';
+  }
+  function serviceCategory(text){
+    const t = norm(text);
+    if(t.includes('mantencion') || t.includes('mantenimiento')) return 'Mantención';
+    if(t.includes('instalacion') || t.includes('instalar')) return 'Instalación';
+    if(t.includes('reparacion') || t.includes('reparar') || t.includes('falla')) return 'Reparación';
+    if(t.includes('visita') || t.includes('diagnostico') || t.includes('revision')) return 'Visita técnica';
+    if(t.includes('suministro')) return 'Suministro';
+    if(t.includes('limpieza')) return 'Limpieza';
+    return 'Otros trabajos';
+  }
+  function getQuoteType(q){
+    try { if(typeof window.getQuoteServiceType === 'function') return window.getQuoteServiceType(q); } catch(e){}
+    return String(q?.tipo_servicio || q?.tipoServicio || q?.servicio || q?.obra || q?.descripcion || q?.data?.tipoServicio || '');
+  }
+  function getCompanies(){
+    const list = safeArray('clients').slice();
+    return list.filter(c => {
+      const hasData = jobsForClient(c).length || quotesForClient(c).length || maintenanceForClient(c).length;
+      let isMandante = false;
+      try { isMandante = typeof window.isMandanteClient === 'function' ? window.isMandanteClient(c) : !!(c?.isMandante || c?.data?.is_mandante); } catch(e){}
+      return hasData || isMandante;
+    }).sort((a,b) => clientName(a).localeCompare(clientName(b),'es',{sensitivity:'base'}));
+  }
+  function activeDocsForOT(ot){
+    return getDocs(ot).filter(d => d && d.anulada !== true && norm(d.estadoPago || d.estado_pago || d.estado) !== 'anulada');
+  }
+  function isDocPaid(doc, ot){
+    const st = norm(doc?.estadoPago || doc?.estado_pago || doc?.estado || doc?.pago_estado);
+    return doc?.pagada === true || st === 'pagado' || st === 'pagada' || (!!doc?.fechaPago) || isPaidOT(ot);
+  }
+  function docBaseDate(doc, ot){ return doc?.fechaRegistro || doc?.fecha_registro || doc?.fechaEnvio || doc?.fecha_envio || ot?.factura_registro_fecha || ot?.data?.facturaRegistroFecha || ot?.factura_enviada_fecha || ot?.data?.facturaEnviadaFecha || ''; }
+  function docPayDate(doc, ot){ return doc?.fechaPago || doc?.fecha_pago || doc?.pagoFecha || doc?.pago_fecha || ot?.data?.fechaPagoISO || ot?.data?.pagoFechaISO || ot?.data?.fechaPago || ot?.fechaPago || ''; }
+  function buildMetrics(client){
+    const jobs = jobsForClient(client);
+    const quotes = quotesForClient(client);
+    const programs = maintenanceForClient(client);
+    const realizada = jobs.filter(o => otState(o) === 'realizada');
+    const pendiente = jobs.filter(o => otState(o) === 'pendiente');
+    const enCurso = jobs.filter(o => otState(o) === 'en_curso');
+    const canceladas = jobs.filter(o => otState(o) === 'cancelada');
+    const pendingDocs = [];
+    const paidDelaySamples = [];
+    let montoPendiente = 0;
+    let montoFacturado = 0;
+    let montoPagado = 0;
+
+    jobs.forEach(ot => {
+      const amount = otAmount(ot);
+      const docs = activeDocsForOT(ot);
+      if(docs.length){
+        docs.forEach(doc => {
+          const base = docBaseDate(doc, ot);
+          const paid = isDocPaid(doc, ot);
+          const payDate = docPayDate(doc, ot);
+          const docAmount = Number(doc?.montoFacturado || doc?.monto_facturado || doc?.monto || doc?.total || amount || 0) || amount;
+          montoFacturado += docAmount;
+          if(paid){
+            montoPagado += Number(doc?.montoCancelado || doc?.monto_cancelado || doc?.montoPagado || doc?.monto_pagado || docAmount || 0) || docAmount;
+            const delay = daysBetween(base, payDate);
+            if(delay !== null) paidDelaySamples.push(delay);
+          } else {
+            montoPendiente += docAmount;
+            pendingDocs.push({ ot, doc, amount:docAmount, baseDate:base, days: base ? daysBetween(base, new Date()) : null });
+          }
+        });
+      } else if(otState(ot) === 'realizada'){
+        const cobro = otCobroState(ot);
+        if(cobro === 'pendiente_pago'){
+          montoPendiente += amount;
+          pendingDocs.push({ ot, doc:null, amount, baseDate:otDate(ot), days: daysBetween(otDate(ot), new Date()) });
+        }
+      }
+    });
+
+    const paidAverage = paidDelaySamples.length ? Math.round(paidDelaySamples.reduce((a,b)=>a+b,0) / paidDelaySamples.length) : null;
+    const totalEquipment = programs.reduce((sum,p) => sum + equipmentCount(p), 0);
+    const serviceMap = new Map();
+    jobs.forEach(o => { const cat = serviceCategory(otDesc(o)); serviceMap.set(cat, (serviceMap.get(cat) || 0) + 1); });
+    quotes.forEach(q => { const cat = serviceCategory(getQuoteType(q)); serviceMap.set(cat, (serviceMap.get(cat) || 0) + 1); });
+    const topServices = Array.from(serviceMap.entries()).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const latestJob = jobs.slice().sort((a,b) => String(otDate(b) || b?.created_at || '').localeCompare(String(otDate(a) || a?.created_at || '')))[0] || null;
+    const lastMaintenance = jobs.filter(o => serviceCategory(otDesc(o)) === 'Mantención').sort((a,b)=>String(otDate(b)).localeCompare(String(otDate(a))))[0] || null;
+
+    pendingDocs.sort((a,b)=>(b.days ?? -1) - (a.days ?? -1));
+    return { client, jobs, quotes, programs, realizada, pendiente, enCurso, canceladas, pendingDocs, paidDelaySamples, paidAverage, montoPendiente, montoFacturado, montoPagado, totalEquipment, topServices, latestJob, lastMaintenance };
+  }
+  function statusText(metrics){
+    if(metrics.pendingDocs.some(x => (x.days || 0) >= 31)) return 'Cobranza crítica';
+    if(metrics.pendingDocs.length) return 'Con pagos pendientes';
+    if(metrics.enCurso.length) return 'Trabajos en curso';
+    if(metrics.jobs.length || metrics.programs.length) return 'Cliente activo';
+    return 'Sin movimientos recientes';
+  }
+  function statusBadge(metrics){
+    const st = statusText(metrics);
+    if(st === 'Cobranza crítica') return '<span class="inline-flex px-3 py-1 rounded-full text-xs font-black bg-red-100 text-red-700">Cobranza crítica</span>';
+    if(st === 'Con pagos pendientes') return '<span class="inline-flex px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-700">Con pagos pendientes</span>';
+    if(st === 'Trabajos en curso') return '<span class="inline-flex px-3 py-1 rounded-full text-xs font-black bg-cyan-100 text-cyan-700">Trabajos en curso</span>';
+    if(st === 'Cliente activo') return '<span class="inline-flex px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-700">Cliente activo</span>';
+    return '<span class="inline-flex px-3 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-700">Sin movimientos</span>';
+  }
+  function summaryText(metrics){
+    const c = metrics.client;
+    const avg = metrics.paidAverage === null ? 'sin pagos cerrados suficientes para calcular promedio' : `un promedio de ${metrics.paidAverage} día${metrics.paidAverage === 1 ? '' : 's'} desde el ingreso/envío del documento hasta el pago`;
+    const service = metrics.topServices.length ? metrics.topServices.map(([k,v]) => `${k} (${v})`).join(', ') : 'sin servicios repetidos suficientes';
+    const lastJob = metrics.latestJob ? `La última OT registrada es ${otNumber(metrics.latestJob)} del ${dateLabel(otDate(metrics.latestJob))}.` : 'No registra OT recientes en el sistema.';
+    const equip = metrics.totalEquipment ? `Tiene ${metrics.totalEquipment} equipo${metrics.totalEquipment === 1 ? '' : 's'} considerado${metrics.totalEquipment === 1 ? '' : 's'} en programas de mantención.` : 'No registra cantidad de equipos en programas de mantención.';
+    const pay = metrics.pendingDocs.length ? `Actualmente mantiene ${metrics.pendingDocs.length} documento${metrics.pendingDocs.length === 1 ? '' : 's'} pendiente${metrics.pendingDocs.length === 1 ? '' : 's'} de pago por ${money(metrics.montoPendiente)}.` : 'Actualmente no se observan documentos pendientes de pago en las OT realizadas.';
+    const rec = metrics.pendingDocs.some(x => (x.days || 0) >= 31)
+      ? 'Se recomienda priorizar cobranza porque existe al menos un documento sobre 31 días.'
+      : (metrics.pendingDocs.length ? 'Se recomienda hacer seguimiento de cobranza antes de que los documentos superen 30 días.' : 'Se recomienda mantener el seguimiento preventivo y la programación de mantenciones al día.');
+    return `Resumen de ${clientName(c)}: registra ${metrics.jobs.length} OT en total, con ${metrics.realizada.length} realizada${metrics.realizada.length === 1 ? '' : 's'}, ${metrics.enCurso.length} en curso y ${metrics.pendiente.length} pendiente${metrics.pendiente.length === 1 ? '' : 's'}. ${pay} Su comportamiento de pago muestra ${avg}. ${equip} Los servicios más frecuentes son: ${service}. ${lastJob} ${rec}`;
+  }
+  function kpiCard(label, value, sub, color){
+    return `<div class="bg-white rounded-3xl shadow p-5 border border-slate-100"><p class="text-sm text-slate-500">${esc(label)}</p><p class="mt-1 text-3xl font-black ${color || 'text-slate-800'}">${esc(value)}</p>${sub ? `<p class="text-xs text-slate-500 mt-2">${esc(sub)}</p>` : ''}</div>`;
+  }
+  function renderPendingDocs(metrics){
+    const rows = metrics.pendingDocs.slice(0, 25);
+    if(!rows.length) return '<div class="bg-white border rounded-3xl p-6 text-slate-500">No hay facturas o boletas pendientes para esta empresa.</div>';
+    return `<div class="bg-white rounded-3xl shadow overflow-hidden"><table class="w-full ot-table"><thead class="bg-rose-50"><tr><th class="p-4 text-left">Documento</th><th class="p-4 text-left">OT</th><th class="p-4 text-left">Fecha ingreso/envío</th><th class="p-4 text-center">Días</th><th class="p-4 text-right">Monto</th></tr></thead><tbody>${rows.map(r => {
+      const docLabel = r.doc ? `${docTypeLabel(r.doc)} ${r.doc.numero ? 'N° ' + r.doc.numero : ''}` : 'Sin documento / pendiente';
+      const days = r.days === null || r.days === undefined ? '—' : String(r.days);
+      const dayClass = (r.days || 0) >= 31 ? 'text-red-700 bg-red-50' : ((r.days || 0) >= 14 ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50');
+      return `<tr class="border-t"><td class="p-4 font-semibold">${esc(docLabel)}</td><td class="p-4">OT ${esc(otNumber(r.ot))}</td><td class="p-4">${esc(dateLabel(r.baseDate))}</td><td class="p-4 text-center"><span class="inline-flex px-3 py-1 rounded-full text-xs font-black ${dayClass}">${esc(days)}</span></td><td class="p-4 text-right font-black">${esc(money(r.amount))}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  }
+  function renderWorks(metrics){
+    const rows = metrics.jobs.slice().sort((a,b)=>String(otDate(b)||'').localeCompare(String(otDate(a)||''))).slice(0,25);
+    if(!rows.length) return '<div class="bg-white border rounded-3xl p-6 text-slate-500">No hay OT registradas para esta empresa.</div>';
+    return `<div class="bg-white rounded-3xl shadow overflow-hidden"><table class="w-full ot-table"><thead class="bg-slate-50"><tr><th class="p-4 text-left">OT</th><th class="p-4 text-left">Fecha</th><th class="p-4 text-left">Trabajo</th><th class="p-4 text-center">Estado</th><th class="p-4 text-right">Monto</th></tr></thead><tbody>${rows.map(o => {
+      const st = otState(o).replace(/_/g,' ');
+      return `<tr class="border-t"><td class="p-4 font-black">${esc(otNumber(o))}</td><td class="p-4">${esc(dateLabel(otDate(o)))}</td><td class="p-4">${esc(otDesc(o))}</td><td class="p-4 text-center">${esc(st || '—')}</td><td class="p-4 text-right font-semibold">${esc(money(otAmount(o)))}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  }
+  function renderMaintenance(metrics){
+    if(!metrics.programs.length) return '<div class="bg-white border rounded-3xl p-6 text-slate-500">No hay programas de mantención registrados para esta empresa.</div>';
+    return `<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">${metrics.programs.map(p => `<div class="bg-white rounded-3xl shadow p-5 border border-slate-100"><div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-[0.15em] text-teal-700 font-black">Programa</p><h3 class="text-lg font-black text-slate-800 mt-1">${esc(maintenanceTitle(p))}</h3><p class="text-sm text-slate-500 mt-1">${esc(frequencyLabel(p))}</p></div><div class="text-right"><p class="text-sm text-slate-500">Equipos</p><p class="text-3xl font-black text-teal-700">${esc(String(equipmentCount(p)))}</p></div></div></div>`).join('')}</div>`;
+  }
+  function renderServices(metrics){
+    if(!metrics.topServices.length) return '<div class="bg-white border rounded-3xl p-6 text-slate-500">No hay suficientes trabajos para detectar servicios frecuentes.</div>';
+    const max = Math.max(...metrics.topServices.map(x=>x[1]), 1);
+    return `<div class="bg-white rounded-3xl shadow p-5 border border-slate-100 space-y-3">${metrics.topServices.map(([name,count]) => `<div><div class="flex justify-between text-sm mb-1"><span class="font-bold text-slate-700">${esc(name)}</span><span class="text-slate-500">${esc(String(count))}</span></div><div class="h-3 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-blue-600 rounded-full" style="width:${Math.max(8, Math.round((count/max)*100))}%"></div></div></div>`).join('')}</div>`;
+  }
+  function setText(id, value){ const el = document.getElementById(id); if(el) el.textContent = value; }
+  function setHtml(id, value){ const el = document.getElementById(id); if(el) el.innerHTML = value; }
+  function ensureSelectOptions(selectedId){
+    const sel = document.getElementById('intelCompanySelect');
+    if(!sel) return null;
+    const companies = getCompanies();
+    const current = String(selectedId || sel.value || '');
+    sel.innerHTML = companies.length
+      ? companies.map(c => `<option value="${esc(c.id)}" ${String(c.id) === current ? 'selected' : ''}>${esc(clientName(c))}</option>`).join('')
+      : '<option value="">Sin empresas con datos</option>';
+    if(companies.length){
+      if(current && companies.some(c => String(c.id) === current)) sel.value = current;
+      else sel.value = String(companies[0].id || '');
+    }
+    return companies.find(c => String(c.id) === String(sel.value)) || null;
+  }
+  function installStyle(){
+    if(document.getElementById('ecoluz-company-intelligence-style')) return;
+    const style = document.createElement('style');
+    style.id = 'ecoluz-company-intelligence-style';
+    style.textContent = `#btn-intelligence{--section-color:#7c3aed;--section-bg:#f5f3ff}.intel-summary-box{white-space:pre-wrap;line-height:1.65}.intel-chip{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .75rem;border-radius:999px;font-size:.75rem;font-weight:800;background:#f8fafc;color:#334155;border:1px solid #e2e8f0}`;
+    document.head.appendChild(style);
+  }
+  function installNav(){
+    if(document.getElementById(INTEL_NAV_ID)) return;
+    const nav = document.querySelector('#sidebar nav');
+    if(!nav) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = INTEL_NAV_ID;
+    btn.className = 'nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 flex items-center gap-3';
+    btn.setAttribute('onclick', "showView('intelligence')");
+    btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> <span class="sidebar-label">Inteligencia Empresas</span>';
+    const mandantes = document.getElementById('btn-mandantes');
+    if(mandantes && mandantes.parentNode === nav) nav.insertBefore(btn, mandantes.nextSibling);
+    else nav.insertBefore(btn, nav.firstChild);
+  }
+  function installView(){
+    if(document.getElementById(INTEL_VIEW_ID)) return;
+    const view = document.createElement('div');
+    view.id = INTEL_VIEW_ID;
+    view.className = 'hidden';
+    view.innerHTML = `
+      <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-3xl font-black text-slate-900">Inteligencia de Empresas</h1>
+          <p class="text-sm text-slate-500 mt-1">Resumen automático calculado desde OT, documentos, pagos, cotizaciones y programas de mantención. No usa IA externa ni genera costo.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="refreshCompanyIntelligenceData()" class="px-5 py-3 rounded-2xl bg-slate-900 text-white font-semibold hover:bg-black"><i class="fas fa-rotate mr-2"></i>Actualizar datos</button>
+          <button onclick="copyCompanyIntelligenceSummary()" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700"><i class="fas fa-copy mr-2"></i>Copiar resumen</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl shadow p-5 mb-6 border border-slate-100">
+        <label class="block text-sm font-bold text-slate-700 mb-2">Seleccionar empresa</label>
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
+          <select id="intelCompanySelect" onchange="renderCompanyIntelligence()" class="w-full px-4 py-3 border rounded-2xl bg-white"></select>
+          <button onclick="openSelectedCompanyMandante()" class="px-5 py-3 rounded-2xl border font-semibold hover:bg-slate-50"><i class="fas fa-building mr-2"></i>Ver en Mandantes</button>
+        </div>
+      </div>
+
+      <div id="intelNoData" class="hidden bg-white rounded-3xl shadow p-10 text-center text-slate-500">Aún no hay empresas con OT, cotizaciones o mantenciones para analizar.</div>
+
+      <div id="intelContent" class="space-y-8">
+        <div class="bg-gradient-to-br from-slate-900 to-blue-900 rounded-3xl shadow p-6 text-white">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+              <div id="intelStatusBadge" class="mb-3"></div>
+              <h2 id="intelCompanyName" class="text-3xl font-black">Empresa</h2>
+              <p id="intelCompanyMeta" class="text-blue-100 mt-1">—</p>
+            </div>
+            <div class="flex flex-wrap gap-2" id="intelQuickChips"></div>
+          </div>
+          <div id="intelExecutiveSummary" class="intel-summary-box mt-5 rounded-2xl bg-white/10 border border-white/15 p-5 text-sm md:text-base"></div>
+        </div>
+
+        <div id="intelKpis" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+        <div class="grid grid-cols-1 2xl:grid-cols-[1.2fr_0.8fr] gap-8">
+          <div>
+            <div class="flex items-center justify-between gap-3 mb-3"><h2 class="text-xl font-black text-slate-800">Facturas / boletas pendientes</h2><span id="intelPendingDocCount" class="intel-chip">0 pendientes</span></div>
+            <div id="intelPendingDocs"></div>
+          </div>
+          <div>
+            <h2 class="text-xl font-black text-slate-800 mb-3">Servicios más frecuentes</h2>
+            <div id="intelServices"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between gap-3 mb-3"><h2 class="text-xl font-black text-slate-800">Trabajos registrados</h2><span id="intelWorksCount" class="intel-chip">0 OT</span></div>
+          <div id="intelWorks"></div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between gap-3 mb-3"><h2 class="text-xl font-black text-teal-800">Mantenciones y equipos</h2><span id="intelEquipmentCount" class="intel-chip">0 equipos</span></div>
+          <div id="intelMaintenance"></div>
+        </div>
+      </div>`;
+    const main = document.getElementById('mainContent');
+    const mandantesView = document.getElementById('view-mandantes');
+    if(mandantesView && mandantesView.parentNode) mandantesView.parentNode.insertBefore(view, mandantesView.nextSibling);
+    else if(main) main.appendChild(view);
+    else document.body.appendChild(view);
+  }
+  function installUI(){ installStyle(); installNav(); installView(); }
+
+  window.renderCompanyIntelligence = function(selectedId){
+    installUI();
+    const client = ensureSelectOptions(selectedId);
+    const noData = document.getElementById('intelNoData');
+    const content = document.getElementById('intelContent');
+    if(!client){ if(noData) noData.classList.remove('hidden'); if(content) content.classList.add('hidden'); return; }
+    if(noData) noData.classList.add('hidden');
+    if(content) content.classList.remove('hidden');
+    const metrics = buildMetrics(client);
+    const summary = summaryText(metrics);
+    lastIntelligenceSummaryText = summary;
+
+    setText('intelCompanyName', clientName(client));
+    setText('intelCompanyMeta', `${clientRut(client)} · ${metrics.jobs.length} OT · ${metrics.quotes.length} cotización(es) · ${metrics.programs.length} programa(s) de mantención`);
+    setHtml('intelStatusBadge', statusBadge(metrics));
+    setHtml('intelQuickChips', [
+      `${metrics.realizada.length} realizadas`,
+      `${metrics.enCurso.length} en curso`,
+      `${metrics.pendingDocs.length} documentos pendientes`,
+      metrics.paidAverage === null ? 'Promedio pago: sin datos' : `Promedio pago: ${metrics.paidAverage} días`
+    ].map(x => `<span class="inline-flex px-3 py-1 rounded-full bg-white/15 border border-white/20 text-xs font-black">${esc(x)}</span>`).join(''));
+    setText('intelExecutiveSummary', summary);
+    setHtml('intelKpis', [
+      kpiCard('Trabajos realizados', String(metrics.realizada.length), `${metrics.jobs.length} OT totales`, 'text-emerald-700'),
+      kpiCard('Facturas pendientes', String(metrics.pendingDocs.length), money(metrics.montoPendiente), 'text-rose-700'),
+      kpiCard('Promedio de pago', metrics.paidAverage === null ? '—' : `${metrics.paidAverage} días`, 'desde ingreso/envío de documento', 'text-blue-700'),
+      kpiCard('Equipos mantención', String(metrics.totalEquipment), `${metrics.programs.length} programa(s)`, 'text-teal-700'),
+      kpiCard('OT en curso', String(metrics.enCurso.length), 'trabajos activos', 'text-cyan-700'),
+      kpiCard('OT pendientes', String(metrics.pendiente.length), 'por ejecutar', 'text-amber-700'),
+      kpiCard('Monto facturado', money(metrics.montoFacturado), 'documentos registrados', 'text-indigo-700'),
+      kpiCard('Monto pagado', money(metrics.montoPagado), 'según documentos/abonos', 'text-emerald-700')
+    ].join(''));
+    setText('intelPendingDocCount', `${metrics.pendingDocs.length} pendiente${metrics.pendingDocs.length === 1 ? '' : 's'}`);
+    setText('intelWorksCount', `${metrics.jobs.length} OT`);
+    setText('intelEquipmentCount', `${metrics.totalEquipment} equipo${metrics.totalEquipment === 1 ? '' : 's'}`);
+    setHtml('intelPendingDocs', renderPendingDocs(metrics));
+    setHtml('intelWorks', renderWorks(metrics));
+    setHtml('intelMaintenance', renderMaintenance(metrics));
+    setHtml('intelServices', renderServices(metrics));
+  };
+
+  window.copyCompanyIntelligenceSummary = async function(){
+    const txt = lastIntelligenceSummaryText || document.getElementById('intelExecutiveSummary')?.textContent || '';
+    if(!txt.trim()){ alert('No hay resumen para copiar.'); return; }
+    try{
+      await navigator.clipboard.writeText(txt.trim());
+      if(typeof window.toastSuccess === 'function') window.toastSuccess('Resumen copiado ✅');
+      else alert('Resumen copiado.');
+    }catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = txt.trim();
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      alert('Resumen copiado.');
+    }
+  };
+
+  window.refreshCompanyIntelligenceData = async function(){
+    try{
+      if(typeof window.refreshDataNow === 'function') await window.refreshDataNow(true);
+      else if(typeof window.loadData === 'function') await window.loadData();
+    }catch(e){ console.error(e); }
+    window.renderCompanyIntelligence(document.getElementById('intelCompanySelect')?.value || '');
+  };
+
+  window.openSelectedCompanyMandante = function(){
+    const id = document.getElementById('intelCompanySelect')?.value || '';
+    if(!id){ alert('Selecciona una empresa.'); return; }
+    try{
+      if(typeof window.showView === 'function') window.showView('mandantes');
+      setTimeout(() => {
+        try{
+          const client = safeArray('clients').find(c => String(c.id) === String(id));
+          if(client && typeof window.isMandanteClient === 'function' && !window.isMandanteClient(client)){
+            if(confirm('Esta empresa no está marcada como mandante. ¿Quieres marcarla como mandante para verla en esa sección?')){
+              if(typeof window.toggleClientMandante === 'function') window.toggleClientMandante(id, true);
+              return;
+            }
+          }
+          if(typeof window.renderMandanteDetail === 'function') window.renderMandanteDetail(id);
+        }catch(e){ console.error(e); }
+      }, 80);
+    }catch(e){ console.error(e); alert('No se pudo abrir Mandantes.'); }
+  };
+
+  function wrapShowView(){
+    const oldShowView = window.showView;
+    if(typeof oldShowView !== 'function' || oldShowView.__companyIntelligenceWrapped) return;
+    const wrapped = function(view){
+      const raw = String(view || '');
+      const normalized = ({ia:'intelligence', ai:'intelligence', inteligencia:'intelligence', inteligencia_empresas:'intelligence'})[raw] || raw;
+      installUI();
+      const result = oldShowView.apply(this, [normalized].concat(Array.prototype.slice.call(arguments, 1)));
+      if(normalized === 'intelligence'){
+        const t = document.getElementById('topbarTitle');
+        if(t) t.textContent = 'Inteligencia de Empresas';
+        setTimeout(() => window.renderCompanyIntelligence(document.getElementById('intelCompanySelect')?.value || ''), 0);
+      }
+      return result;
+    };
+    wrapped.__companyIntelligenceWrapped = true;
+    window.showView = wrapped;
+    try { showView = window.showView; } catch(e){}
+  }
+
+  installUI();
+  wrapShowView();
+  window.addEventListener('DOMContentLoaded', function(){ installUI(); wrapShowView(); });
+  setTimeout(function(){ installUI(); wrapShowView(); }, 300);
 })();
 </script>
 </body>
