@@ -8449,6 +8449,18 @@ window.renderQuotes = renderQuotes;
       return sucursal ? `${empresa} - ${sucursal}` : empresa;
     }
 
+    function getMaintenanceMonthFullName(n){
+      const months = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+      return months[Math.max(0, Number(n || 1) - 1)] || 'MES';
+    }
+
+    function buildMaintenanceOTTitle(program, month){
+      const year = Number(program?.programYear || maintenanceProgramYear || new Date().getFullYear());
+      const cliente = String(program?.clientName || program?.client_name || 'CLIENTE').trim().toUpperCase();
+      const sucursal = String(program?.siteName || program?.site_name || '').trim().toUpperCase();
+      return [`MANTENCIÓN ${getMaintenanceMonthFullName(month)} ${year}`, cliente, sucursal].filter(Boolean).join(' – ');
+    }
+
 
     function getMaintenanceLinkDataFromOT(ot){
       const data = ot?.data || {};
@@ -8965,6 +8977,7 @@ window.renderQuotes = renderQuotes;
         const otText = row.linkedOT ? (row.linkedOT.numeroOT || row.linkedOT.numero_ot || 'OT') : '—';
         const tech = p.responsible || row.history?.responsible || row.history?.tecnico || '';
         const service = `${getMaintenanceFrequencyLabel(p.frequency)}${getMaintenanceEquipmentCount(p) ? ' · ' + getMaintenanceEquipmentCount(p) + ' equipos' : ''}`;
+        const hasMatrixQuote = !!(getMaintenanceMatrixQuoteId(p) || getMaintenanceMatrixQuoteNumber(p) || getMaintenanceMatrixQuote(p));
         return `
           <tr>
             <td>
@@ -8986,7 +8999,10 @@ window.renderQuotes = renderQuotes;
                 <span class="maintenance-more-wrap">
                   <button type="button" class="maintenance-icon-btn" onclick="toggleMaintenanceRowMenu(this)" title="Más acciones"><i class="fas fa-ellipsis-vertical"></i></button>
                   <div class="maintenance-more-menu hidden">
-                    <button type="button" onclick="createOTFromMaintenance('${p.id}', ${row.scheduledMonth}); closeMaintenanceFloatingMenus();"><i class="fas fa-screwdriver-wrench"></i>Crear OT</button>
+                    ${hasMatrixQuote
+                      ? `<button type="button" onclick="createOTFromMaintenance('${p.id}', ${row.scheduledMonth}); closeMaintenanceFloatingMenus();"><i class="fas fa-screwdriver-wrench"></i>Generar OT del mes</button>`
+                      : `<button type="button" onclick="showMaintenanceMissingMatrixQuoteModal('${p.id}', ${row.scheduledMonth}); closeMaintenanceFloatingMenus();"><i class="fas fa-triangle-exclamation"></i>Falta cotización base</button>`
+                    }
                     <button type="button" onclick="sendMaintenanceMonthToCalendar('${p.id}', ${row.scheduledMonth}); closeMaintenanceFloatingMenus();"><i class="fas fa-calendar-days"></i>Calendario</button>
                     <button type="button" onclick="showMaintenanceProgramModal('${p.id}'); closeMaintenanceFloatingMenus();"><i class="fas fa-pen"></i>Editar programa</button>
                     <button type="button" onclick="showMaintenanceHistoryModal('${p.id}'); closeMaintenanceFloatingMenus();"><i class="fas fa-clock-rotate-left"></i>Historial</button>
@@ -9017,7 +9033,7 @@ window.renderQuotes = renderQuotes;
                 <div class="maintenance-program-meta">${escapeHtml(getMaintenanceFrequencyLabel(p.frequency))} · ${escapeHtml(getMaintenanceStatusLabel(p.status))} · Meses: ${escapeHtml(dueMonths || '—')}</div>
                 ${getMaintenanceEquipmentCount(p) ? `<div class="maintenance-program-meta">${escapeHtml(String(getMaintenanceEquipmentCount(p)))} equipos</div>` : ''}
                 ${p.responsible ? `<div class="maintenance-program-meta">Responsable: ${escapeHtml(p.responsible)}</div>` : ''}
-                <div class="maintenance-program-meta ${matrix ? 'text-indigo-600 font-semibold' : ''}">${escapeHtml(matrix ? ('Cotización matriz ' + String(matrix.numeroCotizacion || matrix.numero || 'S/N')) : (getMaintenanceMatrixQuoteNumber(p) ? ('Cotización matriz ' + getMaintenanceMatrixQuoteNumber(p)) : 'Sin cotización matriz'))}</div>
+                <div class="maintenance-program-meta ${matrix ? 'text-indigo-600 font-semibold' : ''}">${escapeHtml(matrix ? ('Cotización base ' + String(matrix.numeroCotizacion || matrix.numero || 'S/N')) : (getMaintenanceMatrixQuoteNumber(p) ? ('Cotización base ' + getMaintenanceMatrixQuoteNumber(p)) : 'Sin cotización base del plan'))}</div>
               </div>
               <div class="maintenance-action-icons">
                 <button class="maintenance-icon-btn" onclick="showMaintenanceProgramModal('${p.id}')" title="Editar"><i class="fas fa-pen"></i></button>
@@ -9178,7 +9194,7 @@ window.renderQuotes = renderQuotes;
       const relatedQuotes = getMaintenanceRelatedQuotes(program || {});
       const savedMatrixQuoteId = getMaintenanceMatrixQuoteId(program || {});
       const savedMatrixQuoteNumber = getMaintenanceMatrixQuoteNumber(program || {});
-      const matrixOptions = ['<option value="">Sin cotización matriz</option>']
+      const matrixOptions = ['<option value="">Sin cotización base del plan</option>']
         .concat(relatedQuotes.map(q => {
           const qid = String(q?.id || '');
           const qnum = String(q?.numeroCotizacion || q?.numero || 'S/N');
@@ -9242,13 +9258,13 @@ window.renderQuotes = renderQuotes;
               <textarea id="maintNotes" rows="3" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Notas, sucursal, observaciones, etc.">${escapeHtml(getMaintenanceNotesWithoutMeta(program?.notes || ''))}</textarea>
             </div>
             <div class="md:col-span-2 border border-indigo-100 bg-indigo-50/60 rounded-2xl p-4">
-              <label class="block text-sm font-semibold text-indigo-900 mb-2">Cotización matriz / raíz</label>
+              <label class="block text-sm font-semibold text-indigo-900 mb-2">Cotización base del plan</label>
               <select id="maintMatrixQuoteId" class="w-full px-4 py-3 border rounded-2xl bg-white">
                 ${matrixOptions}
               </select>
-              <p class="text-xs text-indigo-700 mt-2">Esta cotización quedará fija como base para crear todas las OTs de este programa de mantención.</p>
+              <p class="text-xs text-indigo-700 mt-2">Esta cotización queda fija como base comercial del plan. Cada mantención confirmada generará una OT mensual usando esta base, sin crear una cotización nueva.</p>
               <div class="flex flex-wrap gap-2 mt-3">
-                ${program ? `<button type="button" onclick="createMaintenanceMatrixQuote('${program.id}')" class="px-4 py-2 rounded-xl bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-100">Crear cotización base y dejar fija</button>` : `<span class="text-xs text-slate-500">Guarda primero la programación para poder crear o vincular la cotización matriz.</span>`}
+                ${program ? `<button type="button" onclick="createMaintenanceMatrixQuote('${program.id}')" class="px-4 py-2 rounded-xl bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-100">Crear cotización base y dejar fija</button>` : `<span class="text-xs text-slate-500">Guarda primero la programación para poder crear o vincular la cotización base del plan.</span>`}
                 ${program ? `<button type="button" onclick="openMaintenanceMatrixQuote('${program.id}','edit')" class="px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-200 font-semibold hover:bg-slate-100">Abrir / editar cotización base</button>` : ``}
               </div>
             </div>
@@ -9337,7 +9353,7 @@ window.renderQuotes = renderQuotes;
           quote = await ensureQuoteLoaded(quoteId);
           if(quote) return quote;
         }catch(err){
-          console.warn('No se pudo cargar la cotización matriz por ID:', err);
+          console.warn('No se pudo cargar la cotización base del plan por ID:', err);
         }
       }
 
@@ -9390,7 +9406,7 @@ window.renderQuotes = renderQuotes;
       }
       const quote = getMaintenanceMatrixQuote(program);
       if(!quote){
-        alert('Este programa todavía no tiene una cotización matriz vinculada.');
+        alert('Este programa todavía no tiene una cotización base del plan vinculada.');
         return;
       }
       closeModal();
@@ -9424,7 +9440,7 @@ window.renderQuotes = renderQuotes;
     function createMaintenanceMatrixQuote(programId='', options = {}){
       const program = programId ? getMaintenanceProgramById(programId) : null;
       if(!program){
-        alert('Primero guarda la programación para poder crear o vincular su cotización matriz.');
+        alert('Primero guarda la programación para poder crear o vincular su cotización base del plan.');
         return;
       }
       const prefill = buildMaintenanceMatrixQuotePrefill(program);
@@ -9456,7 +9472,7 @@ window.renderQuotes = renderQuotes;
           <div class="flex items-start justify-between gap-4 mb-5">
             <div>
               <h2 class="text-2xl font-black text-slate-900">Falta cotización base</h2>
-              <p class="text-sm text-slate-500 mt-1">Para crear la OT de mantención, primero debe quedar una cotización base fija en este programa.</p>
+              <p class="text-sm text-slate-500 mt-1">Para generar la OT mensual, primero debe quedar una cotización base del plan fija en este programa.</p>
             </div>
             <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
           </div>
@@ -9466,7 +9482,7 @@ window.renderQuotes = renderQuotes;
             <div class="text-sm text-amber-800 mt-1">
               ${escapeHtml(getMaintenanceMonthName(m))} ${escapeHtml(String(program.programYear || maintenanceProgramYear || ''))} · ${escapeHtml(getMaintenanceFrequencyLabel(program.frequency))}
             </div>
-            <p class="text-sm text-amber-800 mt-3">Puedes crear ahora la cotización base. Al guardarla, quedará fija en esta programación y se abrirá la OT del mes usando esa misma cotización.</p>
+            <p class="text-sm text-amber-800 mt-3">Puedes crear ahora la cotización base del plan. Al guardarla, quedará fija en esta programación y se abrirá la OT del mes usando esa misma base, sin crear otra cotización mensual.</p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -9916,7 +9932,7 @@ window.renderQuotes = renderQuotes;
                 <div style="margin-top:6px;font-size:16px;font-weight:800;">${escapeHtml(qty ? String(qty) : 'No informado')}</div>
               </div>
               <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#f8fafc;">
-                <div style="font-size:12px;color:#64748b;">Cotización matriz</div>
+                <div style="font-size:12px;color:#64748b;">Cotización base del plan</div>
                 <div style="margin-top:6px;font-size:16px;font-weight:800;">${escapeHtml(quote ? String(quote.numeroCotizacion || quote.numero || 'S/N') : (getMaintenanceMatrixQuoteNumber(program) || 'Sin vincular'))}</div>
               </div>
             </div>
@@ -10032,7 +10048,7 @@ window.renderQuotes = renderQuotes;
           'Equipos': Number(getMaintenanceEquipmentCount(program) || 0),
           'Responsable': String(program?.responsible || ''),
           'Tipo de servicio': String(program?.serviceType || 'Mantención preventiva'),
-          'Cotización matriz': String(matrixQuote?.numeroCotizacion || matrixQuote?.numero || getMaintenanceMatrixQuoteNumber(program) || ''),
+          'Cotización base del plan': String(matrixQuote?.numeroCotizacion || matrixQuote?.numero || getMaintenanceMatrixQuoteNumber(program) || ''),
           'Estado programa': String(getMaintenanceStatusLabel(program?.status)),
           'Observaciones': String(getMaintenanceNotesWithoutMeta(program?.notes || ''))
         };
@@ -10067,7 +10083,7 @@ window.renderQuotes = renderQuotes;
             'OT vinculada': linkedOT ? String(linkedOT?.numeroOT || linkedOT?.numero_ot || '') : '',
             'Estado OT': linkedOT ? String(getEffectiveOTTrabajoEstado(linkedOT) || '').replace(/_/g,' ') : '',
             'Documento OT': String(docNumber || ''),
-            'Cotización matriz': String(matrixQuote?.numeroCotizacion || matrixQuote?.numero || getMaintenanceMatrixQuoteNumber(program) || ''),
+            'Cotización base del plan': String(matrixQuote?.numeroCotizacion || matrixQuote?.numero || getMaintenanceMatrixQuoteNumber(program) || ''),
             'Realizada manual': isMaintenanceCompletedInMonth(program, m) ? 'Sí' : 'No',
             'Observaciones': String(proposal?.notes || getMaintenanceNotesWithoutMeta(program?.notes || ''))
           });
@@ -10493,7 +10509,7 @@ window.renderQuotes = renderQuotes;
       const monthLabel = getMaintenanceMonthName(month);
       const year = Number(program.programYear || maintenanceProgramYear || new Date().getFullYear());
       const dateISO = `${year}-${String(month).padStart(2,'0')}-01`;
-      const title = `${program.serviceType || 'Mantención preventiva'} · ${program.clientName || 'Cliente'} · ${monthLabel}`;
+      const title = buildMaintenanceOTTitle(program, month);
       const notes = [
         `Programa de mantención`,
         `Cliente: ${program.clientName || 'Cliente'}`,
@@ -10642,6 +10658,7 @@ window.renderQuotes = renderQuotes;
       const linkedOT = getMaintenanceLinkedOT(program.id, month, program.programYear);
       const paymentState = linkedOT ? getMaintenancePagoEstadoBadge(linkedOT) : '';
       const mainActionLabel = isDone ? 'Editar realización' : 'Marcar como realizada';
+      const hasMatrixQuote = !!(getMaintenanceMatrixQuoteId(program) || getMaintenanceMatrixQuoteNumber(program) || getMaintenanceMatrixQuote(program));
 
       openModal(`
         <div class="p-6 sm:p-8">
@@ -10707,7 +10724,7 @@ window.renderQuotes = renderQuotes;
             ${linkedOT ? `
               <button onclick="previewOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-eye mr-2 text-slate-700"></i>Abrir OT vinculada</button>
               <button onclick="editOT('${linkedOT.id}'); closeModal();" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-pen mr-2 text-blue-600"></i>Editar OT vinculada</button>
-            ` : `<button onclick="createOTFromMaintenance('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Crear OT desde cotización base</button>`}
+            ` : (hasMatrixQuote ? `<button onclick="createOTFromMaintenance('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold"><i class="fas fa-screwdriver-wrench mr-2 text-violet-600"></i>Confirmar mantención y generar OT del mes</button>` : `<button onclick="showMaintenanceMissingMatrixQuoteModal('${program.id}', ${month})" class="w-full text-left px-4 py-3 rounded-2xl border border-amber-200 bg-amber-50 hover:bg-amber-100 font-black text-amber-900"><i class="fas fa-triangle-exclamation mr-2 text-amber-600"></i>Falta cotización base · Crear o vincular antes de generar OT</button>`)}
           </div>
         </div>
       `);
@@ -10970,7 +10987,7 @@ window.renderQuotes = renderQuotes;
             </div>
           </div>
           <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Se duplican cliente, sucursal, frecuencia, mes de inicio, responsable, notas y cotización matriz. Las marcas de meses realizados se reinician para comenzar el nuevo año limpio.
+            Se duplican cliente, sucursal, frecuencia, mes de inicio, responsable, notas y cotización base del plan. Las marcas de meses realizados se reinician para comenzar el nuevo año limpio.
           </div>
           <div class="flex flex-wrap gap-3 mt-6">
             <button onclick="duplicateMaintenanceProgramsYear(this)" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700">Duplicar año</button>
@@ -15682,8 +15699,9 @@ function showNewOTManualModal(prefill = {}) {
 
         ${linkedQuote ? `
           <div class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <div class="font-bold text-emerald-900">OT vinculada a cotización</div>
+            <div class="font-bold text-emerald-900">${linkedMaintenance ? 'OT de mantención vinculada a cotización base del plan' : 'OT vinculada a cotización'}</div>
             <div class="text-sm text-emerald-800 mt-1">Cotización ${escapeHtml(String(linkedQuote.numeroCotizacion || linkedQuote.numero || 'S/N'))} · ${escapeHtml(String(quoteClient?.clientName || 'Cliente'))}</div>
+            ${linkedMaintenance ? `<div class="text-xs text-emerald-700 mt-2">Se generará una OT mensual para ${escapeHtml(String(linkedMaintenance.title || defaultDesc || 'mantención'))}. No se creará una nueva cotización.</div>` : ''}
           </div>` : ''}
 
         <div class="space-y-4">
@@ -15702,6 +15720,11 @@ function showNewOTManualModal(prefill = {}) {
             <p class="text-xs text-slate-500 mt-1">Aquí puedes dejar la fecha real del documento.</p>
           </div>
 
+          ${linkedMaintenance ? `
+          <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+            <div class="font-bold text-indigo-900">Cotización base del plan</div>
+            <p class="text-sm text-indigo-700 mt-1">Esta OT corresponde a una mantención mensual confirmada. Usa la cotización base del plan y no debe marcarse como cotización antigua.</p>
+          </div>` : `
           <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
               <input id="mOtHasLegacyQuote" type="checkbox" class="rounded border-slate-300" ${defaultLegacy ? 'checked' : ''} onchange="toggleOTLegacyQuoteFields()">
@@ -15717,7 +15740,7 @@ function showNewOTManualModal(prefill = {}) {
                 <input id="mOtLegacyQuoteDate" type="date" class="w-full px-3 py-2 border rounded-xl" value="${escapeHtml(defaultLegacyFecha)}">
               </div>
             </div>
-          </div>
+          </div>`}
 
           <div class="mb-3 flex gap-4 bg-white p-2 rounded-xl border border-gray-200">
             <label class="flex items-center gap-2 cursor-pointer font-medium text-sm">
@@ -15745,8 +15768,8 @@ function showNewOTManualModal(prefill = {}) {
           </div>
 
           <div>
-            <label class="block text-sm font-medium">Descripción del trabajo realizado *</label>
-            <textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Ej: Mantención correctiva, cambio de repuestos, revisión general...">${escapeHtml(defaultDesc)}</textarea>
+            <label class="block text-sm font-medium">${linkedMaintenance ? 'Nombre de la OT / trabajo mensual *' : 'Descripción del trabajo realizado *'}</label>
+            <textarea id="mOtDesc" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="${linkedMaintenance ? 'Ej: MANTENCIÓN JULIO 2026 – CLIENTE – SUCURSAL' : 'Ej: Mantención correctiva, cambio de repuestos, revisión general...'}">${escapeHtml(defaultDesc)}</textarea>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -16045,6 +16068,12 @@ async function saveNewOTManual(btn) {
         maintenanceYear: Number(linkedMaintenance?.year || 0),
         maintenance_year: Number(linkedMaintenance?.year || 0),
         maintenanceProgramTitle: linkedMaintenance?.title || '',
+        maintenanceOTTitle: linkedMaintenance?.title || desc || '',
+        maintenance_ot_title: linkedMaintenance?.title || desc || '',
+        maintenanceMatrixQuoteId: linkedMaintenance?.matrixQuoteId || '',
+        maintenance_matrix_quote_id: linkedMaintenance?.matrixQuoteId || '',
+        maintenanceMatrixQuoteNumber: linkedMaintenance?.matrixQuoteNumber || '',
+        maintenance_matrix_quote_number: linkedMaintenance?.matrixQuoteNumber || '',
         maintenanceServiceType: linkedMaintenance?.serviceType || '',
         maintenanceSiteName: linkedMaintenance?.siteName || ''
       }
@@ -33365,7 +33394,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
           <span class="maint-chip status ${status !== 'vigente' ? 'paused' : ''}"><i class="fas ${status === 'vigente' ? 'fa-circle-check' : 'fa-circle-pause'}"></i>${esc(statusLabel(p))}</span>
         </div>
         <div class="maint-tags-row">
-          ${hasMatrix ? `<span class="maint-chip matrix-ok"><i class="fas fa-file-invoice"></i>Matriz #${esc(matrixNum)}</span>` : `<span class="maint-chip matrix-missing"><i class="fas fa-triangle-exclamation"></i>Sin matriz</span>`}
+          ${hasMatrix ? `<span class="maint-chip matrix-ok"><i class="fas fa-file-invoice"></i>Base #${esc(matrixNum)}</span>` : `<span class="maint-chip matrix-missing"><i class="fas fa-triangle-exclamation"></i>Sin base</span>`}
           ${qty ? `<span class="maint-chip equipment"><i class="fas fa-snowflake"></i>${esc(String(qty))} equipos</span>` : ''}
         </div>
         <div class="maint-company-actions">
@@ -33729,7 +33758,7 @@ window.saveInternalProjectHistoryFromModal = saveInternalProjectHistoryFromModal
       const y = tableY + headerH + r*rowH;
       doc.setFillColor(255,255,255); doc.rect(margin, y, companyW, rowH, 'FD');
       doc.setTextColor(...C.text); doc.setFont('helvetica','bold'); doc.setFontSize(6.2); drawWrappedText(doc, programTitle(p).toUpperCase(), margin+1.5, y+3.3, companyW-3, 2.8, 1);
-      const meta = `${freqLabel(p)}${matrixNum(p) ? ' · Matriz #' + matrixNum(p) : ' · Sin matriz'}${equipmentCount(p) ? ' · ' + equipmentCount(p) + ' equipos' : ''}`;
+      const meta = `${freqLabel(p)}${matrixNum(p) ? ' · Base #' + matrixNum(p) : ' · Sin base'}${equipmentCount(p) ? ' · ' + equipmentCount(p) + ' equipos' : ''}`;
       doc.setFont('helvetica','normal'); doc.setFontSize(4.8); doc.setTextColor(...C.muted); drawWrappedText(doc, meta, margin+1.5, y+6.4, companyW-3, 2.2, 2);
       for(let m=1; m<=12; m++){
         const x = margin + companyW + (m-1)*monthW;
