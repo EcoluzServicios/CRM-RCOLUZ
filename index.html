@@ -11296,7 +11296,7 @@ window.renderAbonos = renderAbonos;
                   </button>
                 ` : `
                   <button onclick="showMaintenanceRescheduleModal('${program.id}', ${originalMonth})" class="w-full text-left px-5 py-4 rounded-2xl bg-blue-50 text-blue-800 border border-blue-200 font-semibold hover:bg-blue-100">
-                    <div class="flex items-center gap-3"><i class="fas fa-arrow-right text-lg text-blue-600"></i><div><div class="font-black">Reprogramar mantención</div><div class="text-sm text-blue-700">Mueve esta visita y recalcula los meses siguientes.</div></div></div>
+                    <div class="flex items-center gap-3"><i class="fas fa-arrows-left-right text-lg text-blue-600"></i><div><div class="font-black">Reprogramar mantención</div><div class="text-sm text-blue-700">Adelanta o posterga esta visita y recalcula los meses siguientes.</div></div></div>
                   </button>
                   <button onclick="sendMaintenanceMonthToCalendar('${program.id}', ${periodMonth}); closeModal();" class="md:col-span-2 w-full text-left px-5 py-3 rounded-2xl bg-white text-slate-700 border border-slate-200 font-semibold hover:bg-slate-50">
                     <div class="flex items-center gap-3"><i class="fas fa-calendar-days text-blue-600"></i><div><div class="font-black">Enviar al calendario</div><div class="text-sm text-slate-500">Agenda este periodo sin marcarlo como realizado.</div></div></div>
@@ -11498,15 +11498,10 @@ window.renderAbonos = renderAbonos;
 
       const existing = getMaintenanceExistingReprogram(program, sourceMonth);
       const currentTarget = Number(existing?.targetMonth || existing?.newMonth || existing?.toMonth || 0);
-      const firstAllowed = Math.min(12, sourceMonth + 1);
-      const options = Array.from({length:12 - sourceMonth}, (_,index) => sourceMonth + 1 + index)
+      const options = Array.from({length:12}, (_,index) => index + 1)
+        .filter(month => month !== sourceMonth)
         .map(month => `<option value="${month}" ${month === currentTarget ? 'selected' : ''}>${escapeHtml(getMaintenanceMonthName(month))}</option>`)
         .join('');
-
-      if(!options){
-        alert('Diciembre no se puede mover a un mes posterior dentro del mismo año.');
-        return;
-      }
 
       const linkedOT = getMaintenanceLinkedOT(program.id, currentTarget || sourceMonth, program.programYear)
         || getMaintenanceLinkedOT(program.id, sourceMonth, program.programYear);
@@ -11525,7 +11520,7 @@ window.renderAbonos = renderAbonos;
 
           <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 mb-5">
             <div class="font-black text-blue-950">¿Qué hará esta reprogramación?</div>
-            <div class="text-sm text-blue-800 mt-1">Moverá esta visita al nuevo mes y recalculará automáticamente las siguientes según la frecuencia del programa. Los meses ya realizados no se modifican.</div>
+            <div class="text-sm text-blue-800 mt-1">Puedes adelantar o postergar esta visita dentro del mismo año. El sistema recalculará automáticamente las siguientes según la frecuencia del programa y no modificará los meses ya realizados.</div>
           </div>
 
           ${(linkedOT || periodQuote) ? `
@@ -11549,7 +11544,7 @@ window.renderAbonos = renderAbonos;
             </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-semibold text-slate-700 mb-2">Motivo <span class="font-normal text-slate-400">(opcional)</span></label>
-              <textarea id="maintRescheduleReason" rows="3" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: Cliente solicita mover la mantención al próximo mes.">${escapeHtml(reason)}</textarea>
+              <textarea id="maintRescheduleReason" rows="3" class="w-full px-4 py-3 border rounded-2xl bg-white" placeholder="Ej: Cliente solicita adelantar la mantención de octubre a septiembre.">${escapeHtml(reason)}</textarea>
             </div>
           </div>
 
@@ -11577,8 +11572,29 @@ window.renderAbonos = renderAbonos;
         if(sourceMonth < 1 || sourceMonth > 12 || targetMonth < 1 || targetMonth > 12){
           throw new Error('Selecciona un mes válido.');
         }
-        if(targetMonth <= sourceMonth){
-          throw new Error('La nueva fecha debe quedar en un mes posterior.');
+        if(targetMonth === sourceMonth){
+          throw new Error('Selecciona un mes distinto al mes actual.');
+        }
+
+        // Permite adelantar la visita dentro del espacio disponible del ciclo,
+        // sin cruzar la mantención anterior ni superponer otro periodo activo.
+        if(targetMonth < sourceMonth){
+          const historyWithoutCurrent = (Array.isArray(program.completedHistory) ? program.completedHistory : []).filter(entry => !(
+            isMaintenanceReprogramHistoryEntry(entry) &&
+            Number(entry?.month || entry?.originalMonth || 0) === sourceMonth &&
+            Number(entry?.year || entry?.programYear || year) === year
+          ));
+          const programWithoutCurrent = Object.assign({}, program, { completedHistory: historyWithoutCurrent });
+          const cycleBeforeChange = getMaintenanceActiveCycleMonths(programWithoutCurrent);
+          const previousDueMonths = cycleBeforeChange.filter(month => Number(month) < sourceMonth);
+          const previousDueMonth = previousDueMonths.length ? Math.max(...previousDueMonths) : 0;
+
+          if(previousDueMonth && targetMonth <= previousDueMonth){
+            throw new Error(`Para adelantar ${getMaintenanceMonthName(sourceMonth)}, el nuevo mes debe quedar después de ${getMaintenanceMonthName(previousDueMonth)}, que corresponde a la mantención anterior del ciclo.`);
+          }
+          if(cycleBeforeChange.includes(targetMonth)){
+            throw new Error(`${getMaintenanceMonthName(targetMonth)} ya tiene una mantención programada en este ciclo.`);
+          }
         }
         if(isMaintenanceCompletedInMonth(program, sourceMonth)){
           throw new Error('Esta mantención ya está marcada como realizada.');
