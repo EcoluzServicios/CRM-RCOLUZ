@@ -3085,7 +3085,7 @@ body[data-ui-color-mode="dark"] .maint-company-name{color:var(--ui-text)!importa
         <div class="maintenance-page-head">
           <div>
             <h1 class="maintenance-page-title">Programa de mantención</h1>
-            <p class="maintenance-page-sub">Tablero anual compacto para revisar, gestionar y editar los programas de mantención sin duplicar vistas.</p>
+            <p class="maintenance-page-sub">Tablero anual recurrente: los programas activos continúan automáticamente cada año según su frecuencia y mes de inicio.</p>
           </div>
           <div class="maintenance-action-row">
             <button onclick="showMaintenanceProgramModal()" class="maintenance-primary-btn">
@@ -3097,7 +3097,6 @@ body[data-ui-color-mode="dark"] .maint-company-name{color:var(--ui-text)!importa
             <div id="maintenanceHeaderMenu" class="maintenance-header-menu hidden">
               <button type="button" onclick="showNewClientMaintenanceProposalModal(); closeMaintenanceFloatingMenus();"><i class="fas fa-file-signature"></i>Propuesta comercial</button>
               <button type="button" onclick="showMaintenanceExportModal(); closeMaintenanceFloatingMenus();"><i class="fas fa-download"></i>Descargar planes</button>
-              <button type="button" onclick="showDuplicateMaintenanceYearModal(); closeMaintenanceFloatingMenus();"><i class="fas fa-copy"></i>Duplicar año</button>
             </div>
           </div>
         </div>
@@ -9210,7 +9209,7 @@ window.renderAbonos = renderAbonos;
 
     async function loadMaintenancePrograms(){
       try{
-        const data = (await safeSelectWithAutoDrop(window.MAINTENANCE_PROGRAMS_TABLE, 'id, client_id, client_name, site_name, service_type, frequency, start_month, program_year, responsible, notes, status, completed_months, completed_history, created_by_name, created_at', {
+        const data = (await safeSelectWithAutoDrop(window.MAINTENANCE_PROGRAMS_TABLE, 'id, client_id, client_name, site_name, service_type, frequency, start_month, program_year, responsible, equipment_count, notes, status, completed_months, completed_history, created_by_name, created_by_email, created_at', {
           orderColumn: 'client_name',
           ascending: true
         })).data || [];
@@ -9240,9 +9239,67 @@ window.renderAbonos = renderAbonos;
       }
     }
 
+    function getMaintenanceOriginYear(program){
+      return Number(
+        program?.originProgramYear ||
+        program?.sourceProgramYear ||
+        program?.programYear ||
+        program?.program_year ||
+        new Date().getFullYear()
+      );
+    }
+
+    function getMaintenanceCompletionMonthsForYear(program, year){
+      const yy = Number(year || getMaintenanceOriginYear(program));
+      const originYear = getMaintenanceOriginYear(program);
+      const historyMonths = (Array.isArray(program?.completedHistory) ? program.completedHistory : [])
+        .filter(entry => !isMaintenanceReprogramHistoryEntry(entry))
+        .filter(entry => Number(entry?.year || originYear) === yy)
+        .map(entry => Number(entry?.month || 0))
+        .filter(month => month >= 1 && month <= 12);
+      const legacyMonths = yy === originYear
+        ? (Array.isArray(program?.completedMonths) ? program.completedMonths : []).map(Number).filter(month => month >= 1 && month <= 12)
+        : [];
+      return Array.from(new Set([...legacyMonths, ...historyMonths])).sort((a,b) => a - b);
+    }
+
+    function projectMaintenanceProgramForYear(program, year){
+      if(!program) return null;
+      const yy = Number(year || new Date().getFullYear());
+      const originYear = getMaintenanceOriginYear(program);
+      if(!yy || yy < originYear) return null;
+      if(String(program?.status || '').toLowerCase() === 'finalizada' && yy > originYear) return null;
+      return Object.assign({}, program, {
+        originProgramYear: originYear,
+        sourceProgramYear: originYear,
+        programYear: yy,
+        projectedYear: yy,
+        isProjectedYear: yy !== originYear,
+        completedMonths: getMaintenanceCompletionMonthsForYear(program, yy)
+      });
+    }
+
+    function getMaintenanceProgramRecurrenceKey(program){
+      const clientKey = String(program?.clientId || program?.client_id || '').trim() || normalizeText(program?.clientName || program?.client_name || '');
+      const siteKey = normalizeText(program?.siteName || program?.site_name || '');
+      const serviceKey = normalizeText(program?.serviceType || program?.service_type || 'mantencion preventiva');
+      return `${clientKey}||${siteKey}||${serviceKey}`;
+    }
+
     function getMaintenanceProgramsForYear(year){
-      return (maintenancePrograms || [])
-        .filter(p => Number(p.programYear || 0) === Number(year))
+      const yy = Number(year || new Date().getFullYear());
+      const candidates = (maintenancePrograms || [])
+        .filter(program => getMaintenanceOriginYear(program) <= yy)
+        .sort((a,b) => getMaintenanceOriginYear(a) - getMaintenanceOriginYear(b) || String(a?.createdAt || '').localeCompare(String(b?.createdAt || '')));
+
+      // Si existen copias antiguas creadas manualmente por año, la más reciente
+      // pasa a ser la base del ciclo y evita mostrar la misma empresa duplicada.
+      const latestByProgram = new Map();
+      candidates.forEach(program => latestByProgram.set(getMaintenanceProgramRecurrenceKey(program), program));
+
+      return Array.from(latestByProgram.values())
+        .map(program => projectMaintenanceProgramForYear(program, yy))
+        .filter(Boolean)
         .sort((a,b) => String(getMaintenanceProgramTitle(a)).localeCompare(String(getMaintenanceProgramTitle(b)), 'es'));
     }
 
@@ -9337,9 +9394,17 @@ window.renderAbonos = renderAbonos;
 
     function getMaintenanceBaseMonths(program){
       const step = getMaintenanceFrequencyStep(program?.frequency || 'mensual');
-      const start = Math.min(12, Math.max(1, Number(program?.startMonth || 1)));
+      const startMonth = Math.min(12, Math.max(1, Number(program?.startMonth || 1)));
+      const originYear = getMaintenanceOriginYear(program);
+      const viewYear = Number(program?.programYear || maintenanceProgramYear || new Date().getFullYear());
+      const originIndex = originYear * 12 + (startMonth - 1);
       const months = [];
-      for(let m = start; m <= 12; m += step) months.push(m);
+
+      for(let month = 1; month <= 12; month += 1){
+        const monthIndex = viewYear * 12 + (month - 1);
+        const distance = monthIndex - originIndex;
+        if(distance >= 0 && distance % step === 0) months.push(month);
+      }
       return months;
     }
 
@@ -9851,7 +9916,7 @@ window.renderAbonos = renderAbonos;
       if(!tbody) return;
       if(!programs.length){
         const hasAny = getMaintenanceProgramsForYear(year).length > 0;
-        tbody.innerHTML = `<tr><td class="p-6 text-center text-gray-500" colspan="13">${hasAny ? 'No hay programas que coincidan con los filtros aplicados.' : `No hay programaciones para ${year}. Crea la primera con “Nueva programación”.`}</td></tr>`;
+        tbody.innerHTML = `<tr><td class="p-6 text-center text-gray-500" colspan="13">${hasAny ? 'No hay programas que coincidan con los filtros aplicados.' : `No hay programas activos para ${year}. Crea uno con “Nueva programación”.`}</td></tr>`;
       }else{
         tbody.innerHTML = programs.map(program => `
           <tr>
@@ -9879,6 +9944,24 @@ window.renderAbonos = renderAbonos;
       renderMaintenancePrograms();
     }
 
+    let maintenanceCalendarYearSnapshot = new Date().getFullYear();
+    function syncMaintenanceProgramYearWithCalendar(){
+      const now = new Date();
+      const calendarYear = now.getFullYear();
+      if(calendarYear === maintenanceCalendarYearSnapshot) return;
+      const wasFollowingCurrentYear = Number(maintenanceProgramYear) === Number(maintenanceCalendarYearSnapshot);
+      maintenanceCalendarYearSnapshot = calendarYear;
+      if(!wasFollowingCurrentYear) return;
+      maintenanceProgramYear = calendarYear;
+      maintenanceProgramMonth = now.getMonth() + 1;
+      const view = document.getElementById('view-maintenance');
+      if(view && !view.classList.contains('hidden')) renderMaintenancePrograms();
+    }
+    setInterval(syncMaintenanceProgramYearWithCalendar, 60 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if(!document.hidden) syncMaintenanceProgramYearWithCalendar();
+    });
+
     function showMaintenanceProgramModal(programId=''){
       const program = programId ? (maintenancePrograms || []).find(x => String(x.id) === String(programId)) : null;
       const year = Number(program?.programYear || maintenanceProgramYear || new Date().getFullYear());
@@ -9902,7 +9985,7 @@ window.renderAbonos = renderAbonos;
           <div class="flex items-start justify-between gap-4 mb-6">
             <div>
               <h2 class="text-2xl font-black">${program ? 'Editar programación' : 'Nueva programación de mantención'}</h2>
-              <p class="text-sm text-gray-500 mt-1">Crea la fila anual para ver los meses en que toca la mantención.</p>
+              <p class="text-sm text-gray-500 mt-1">Define una sola vez el inicio y la frecuencia. El programa se proyecta automáticamente a los años siguientes.</p>
             </div>
             <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
           </div>
@@ -9916,7 +9999,7 @@ window.renderAbonos = renderAbonos;
               </select>
             </div>
             <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-2">Año programa</label>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Año de inicio del programa</label>
               <input id="maintProgramYear" type="number" min="2024" max="2035" value="${year}" class="w-full px-4 py-3 border rounded-2xl bg-white">
             </div>
             <div>
@@ -10069,8 +10152,14 @@ window.renderAbonos = renderAbonos;
       return [...meta, cleanNotes].filter(Boolean).join(' ').trim();
     }
 
-    function getMaintenanceProgramById(programId){
-      return (maintenancePrograms || []).find(x => String(x.id) === String(programId));
+    function getMaintenanceStoredProgramById(programId){
+      return (maintenancePrograms || []).find(x => String(x.id) === String(programId)) || null;
+    }
+
+    function getMaintenanceProgramById(programId, year = maintenanceProgramYear){
+      const stored = getMaintenanceStoredProgramById(programId);
+      if(!stored) return null;
+      return projectMaintenanceProgramForYear(stored, Number(year || new Date().getFullYear())) || stored;
     }
 
     function getMaintenanceRelatedQuotes(program){
@@ -10161,7 +10250,7 @@ window.renderAbonos = renderAbonos;
     function getMaintenanceQuotePeriodContext(quote){
       const link = getMaintenanceQuoteLinkData(quote);
       if(!link.programId || !link.month || !link.year) return null;
-      const program = getMaintenanceProgramById(link.programId);
+      const program = getMaintenanceProgramById(link.programId, link.year);
       if(!program) return { link, program:null, locked:false, reason:'Programa no disponible', linkedOT:null };
       const monthContext = resolveMaintenanceMonthContext(program, link.month);
       const operationalMonth = Number(monthContext?.operationalMonth || link.month);
@@ -11543,7 +11632,7 @@ window.renderAbonos = renderAbonos;
           .eq('id', programId);
         if(error) throw error;
 
-        program.completedHistory = nextHistory;
+        await loadMaintenancePrograms();
         closeModal();
         renderMaintenancePrograms();
         toastInfo(`Mantención reprogramada: ${getMaintenanceMonthName(sourceMonth)} → ${getMaintenanceMonthName(targetMonth)} ✅`);
@@ -11555,15 +11644,23 @@ window.renderAbonos = renderAbonos;
       }
     }
 
-    async function persistMaintenanceCompletionState(programId, completedMonths, completedHistory){
+    async function persistMaintenanceCompletionState(program, completedMonths, completedHistory){
+      const stored = getMaintenanceStoredProgramById(program?.id);
+      if(!stored) throw new Error('No se encontró la programación original.');
+      const viewYear = Number(program?.programYear || maintenanceProgramYear || new Date().getFullYear());
+      const originYear = getMaintenanceOriginYear(stored);
+      const payload = {
+        completed_history: completedHistory,
+        updated_at: new Date().toISOString()
+      };
+      // Compatibilidad con datos históricos: completed_months se conserva como
+      // resumen del año de origen. Los años posteriores se registran por historial.
+      if(viewYear === originYear) payload.completed_months = completedMonths;
+
       const { error } = await supabaseClient
         .from(window.MAINTENANCE_PROGRAMS_TABLE)
-        .update({
-          completed_months: completedMonths,
-          completed_history: completedHistory,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', programId);
+        .update(payload)
+        .eq('id', stored.id);
       if(error) throw error;
     }
 
@@ -11602,10 +11699,9 @@ window.renderAbonos = renderAbonos;
         const filteredHistory = currentHistory.filter(h => isMaintenanceReprogramHistoryEntry(h) || !(Number(h.month) === m && Number(h.year || program.programYear) === Number(program.programYear)));
         const nextHistory = [...filteredHistory, entry];
 
-        await persistMaintenanceCompletionState(programId, nextMonths, nextHistory);
+        await persistMaintenanceCompletionState(program, nextMonths, nextHistory);
 
-        program.completedMonths = nextMonths;
-        program.completedHistory = nextHistory;
+        await loadMaintenancePrograms();
         closeModal();
         renderMaintenancePrograms();
         toastInfo('Mantención marcada como realizada ✅');
@@ -11627,10 +11723,9 @@ window.renderAbonos = renderAbonos;
         const nextMonths = (program.completedMonths || []).map(Number).filter(x => x !== m);
         const nextHistory = (program.completedHistory || []).filter(h => isMaintenanceReprogramHistoryEntry(h) || !(Number(h.month) === m && Number(h.year || program.programYear) === Number(program.programYear)));
 
-        await persistMaintenanceCompletionState(programId, nextMonths, nextHistory);
+        await persistMaintenanceCompletionState(program, nextMonths, nextHistory);
 
-        program.completedMonths = nextMonths;
-        program.completedHistory = nextHistory;
+        await loadMaintenancePrograms();
         closeModal();
         renderMaintenancePrograms();
         toastInfo('Mantención desmarcada correctamente');
@@ -11646,6 +11741,8 @@ window.renderAbonos = renderAbonos;
     window.saveMaintenanceReschedule = saveMaintenanceReschedule;
     window.saveMaintenanceCompletion = saveMaintenanceCompletion;
     window.removeMaintenanceCompletion = removeMaintenanceCompletion;
+    window.getMaintenanceOriginYear = getMaintenanceOriginYear;
+    window.projectMaintenanceProgramForYear = projectMaintenanceProgramForYear;
     window.getMaintenanceChainSchedule = getMaintenanceChainSchedule;
     window.getMaintenanceActiveCycleMonths = getMaintenanceActiveCycleMonths;
     window.getMaintenanceDisplayMonths = getMaintenanceDisplayMonths;
@@ -11663,118 +11760,57 @@ window.renderAbonos = renderAbonos;
     window.showMaintenanceMissingPeriodQuoteModal = showMaintenanceMissingPeriodQuoteModal;
 
 
-    function showDuplicateMaintenanceYearModal(){
-      const years = Array.from(new Set((maintenancePrograms || []).map(p => Number(p?.programYear || 0)).filter(Boolean))).sort((a,b) => a - b);
-      const currentYear = Number(maintenanceProgramYear || new Date().getFullYear());
-      const sourceOptions = (years.length ? years : [currentYear]).map(year => `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`).join('');
-      const defaultTarget = currentYear + 1;
-      openModal(`
-        <div class="p-6 sm:p-8">
-          <div class="flex items-start justify-between gap-4 mb-6">
-            <div>
-              <h2 class="text-2xl font-black">Duplicar programa anual</h2>
-              <p class="text-sm text-gray-500 mt-1">Copia la estructura del año origen al año destino sin arrastrar las mantenciones marcadas como realizadas.</p>
-            </div>
-            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-2">Año origen</label>
-              <select id="duplicateMaintenanceSourceYear" class="w-full px-4 py-3 border rounded-2xl bg-white">${sourceOptions}</select>
-            </div>
-            <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-2">Año destino</label>
-              <input id="duplicateMaintenanceTargetYear" type="number" min="2020" max="2100" value="${defaultTarget}" class="w-full px-4 py-3 border rounded-2xl bg-white">
-            </div>
-          </div>
-          <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Se duplican cliente, sucursal, frecuencia, mes de inicio, responsable, notas y plantilla comercial opcional. Las cotizaciones de cada periodo y las marcas de realización no se arrastran al nuevo año.
-          </div>
-          <div class="flex flex-wrap gap-3 mt-6">
-            <button onclick="duplicateMaintenanceProgramsYear(this)" class="px-5 py-3 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700">Duplicar año</button>
-            <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border font-semibold hover:bg-gray-50">Cancelar</button>
-          </div>
-        </div>
-      `);
-    }
+    async function persistMaintenanceProgramRow(programId, row){
+      const table = window.MAINTENANCE_PROGRAMS_TABLE;
+      const optionalColumns = new Set([
+        'site_name', 'service_type', 'responsible', 'equipment_count', 'notes',
+        'status', 'completed_months', 'completed_history', 'created_by_name',
+        'created_by_email', 'updated_at'
+      ]);
+      const getMissingColumn = (error) => {
+        const msg = String(error?.message || error?.details || error || '').trim();
+        if(!msg) return '';
+        const patterns = [
+          new RegExp(`column\\s+${String(table || '')}\\.([a-zA-Z0-9_]+)\\s+does\\s+not\\s+exist`, 'i'),
+          /column\s+([a-zA-Z0-9_]+)\s+does\s+not\s+exist/i,
+          /Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i
+        ];
+        for(const rx of patterns){
+          const match = msg.match(rx);
+          if(match?.[1]) return String(match[1]).trim();
+        }
+        return '';
+      };
 
-    async function duplicateMaintenanceProgramsYear(btn){
-      try{
-        if(btn){ btn.disabled = true; btn.innerText = 'Duplicando...'; }
-        const sourceYear = Number(document.getElementById('duplicateMaintenanceSourceYear')?.value || maintenanceProgramYear || new Date().getFullYear());
-        const targetYear = Number(document.getElementById('duplicateMaintenanceTargetYear')?.value || 0);
-        if(!sourceYear || !targetYear) throw new Error('Debes indicar el año origen y destino.');
-        if(sourceYear === targetYear) throw new Error('El año destino debe ser distinto al año origen.');
+      let payload = Object.assign({}, row || {});
+      if(programId) payload.updated_at = new Date().toISOString();
 
-        const sourcePrograms = getMaintenanceProgramsForYear(sourceYear);
-        if(!sourcePrograms.length) throw new Error(`No existen programas para ${sourceYear}.`);
-
-        const existingTargetPrograms = getMaintenanceProgramsForYear(targetYear);
-        const signature = (program) => [
-          String(program?.clientId || '').trim().toLowerCase(),
-          String(program?.clientName || '').trim().toLowerCase(),
-          String(program?.siteName || '').trim().toLowerCase(),
-          String(program?.serviceType || '').trim().toLowerCase(),
-          String(program?.frequency || '').trim().toLowerCase(),
-          String(program?.startMonth || '').trim(),
-          String(program?.notes || '').trim().toLowerCase()
-        ].join('||');
-
-        const existingSignatures = new Set(existingTargetPrograms.map(signature));
-        const rows = sourcePrograms
-          .filter(program => !existingSignatures.has(signature(program)))
-          .map(program => ({
-            client_id: program.clientId || '',
-            client_name: program.clientName || 'Cliente',
-            site_name: program.siteName || '',
-            service_type: program.serviceType || 'Mantención preventiva',
-            frequency: String(program.frequency || 'mensual').toLowerCase(),
-            start_month: Number(program.startMonth || 1),
-            program_year: targetYear,
-            responsible: program.responsible || '',
-            notes: program.notes || '',
-            status: 'vigente',
-            completed_months: [],
-            completed_history: [],
-            created_by_name: currentUserDisplayName || 'Usuario',
-            created_by_email: currentUser?.email || ''
-          }));
-
-        if(!rows.length){
-          alert(`No hay programas nuevos para copiar a ${targetYear}.`);
-          return;
+      for(let attempt = 0; attempt < 15; attempt += 1){
+        const query = programId
+          ? supabaseClient.from(table).update(payload).eq('id', programId).select('id').maybeSingle()
+          : supabaseClient.from(table).insert([payload]).select('id').single();
+        const result = await query;
+        if(!result.error){
+          if(!result.data?.id){
+            throw new Error(programId
+              ? 'La programación no pudo actualizarse o no tienes permisos para modificarla.'
+              : 'Supabase no confirmó la creación de la programación.');
+          }
+          return result.data;
         }
 
-        const { error } = await supabaseClient.from(window.MAINTENANCE_PROGRAMS_TABLE).insert(rows);
-        if(error) throw error;
+        const missing = getMissingColumn(result.error);
+        if(!missing || !(missing in payload) || !optionalColumns.has(missing)){
+          throw result.error;
+        }
 
-        await loadMaintenancePrograms();
-        maintenanceProgramYear = targetYear;
-        renderMaintenancePrograms();
-        closeModal();
-        toastInfo(`Se copiaron ${rows.length} programa${rows.length === 1 ? '' : 's'} desde ${sourceYear} a ${targetYear} ✅`);
-      }catch(err){
-        console.error(err);
-        alert('No se pudo duplicar el año: ' + (err.message || err));
-      }finally{
-        if(btn){ btn.disabled = false; btn.innerText = 'Duplicar año'; }
+        console.warn(`[mantenciones] Columna opcional no disponible en ${table}: ${missing}. Se guarda sin ese campo.`);
+        const nextPayload = Object.assign({}, payload);
+        delete nextPayload[missing];
+        payload = nextPayload;
       }
-    }
 
-
-    async function persistMaintenanceProgramRow(programId, row){
-      let error = null;
-      if(programId){
-        ({ error } = await supabaseClient
-          .from(window.MAINTENANCE_PROGRAMS_TABLE)
-          .update(Object.assign({}, row, { updated_at: new Date().toISOString() }))
-          .eq('id', programId));
-      }else{
-        ({ error } = await supabaseClient
-          .from(window.MAINTENANCE_PROGRAMS_TABLE)
-          .insert([row]));
-      }
-      if(error) throw error;
+      throw new Error('No se pudo guardar la programación después de varios intentos.');
     }
 
     async function saveMaintenanceProgram(programId='', btn){
@@ -11797,6 +11833,10 @@ window.renderAbonos = renderAbonos;
           start_month: Number(document.getElementById('maintStartMonth')?.value || 1),
           program_year: Number(document.getElementById('maintProgramYear')?.value || maintenanceProgramYear || new Date().getFullYear()),
           responsible: String(document.getElementById('maintResponsible')?.value || '').trim(),
+          equipment_count: (() => {
+            const qty = Number(document.getElementById('maintEquipmentCount')?.value || 0);
+            return Number.isFinite(qty) && qty > 0 ? Math.round(qty) : null;
+          })(),
           notes: encodeMaintenanceNotes(
             String(document.getElementById('maintNotes')?.value || '').trim(),
             document.getElementById('maintEquipmentCount')?.value || '',
@@ -11818,6 +11858,24 @@ window.renderAbonos = renderAbonos;
         await persistMaintenanceProgramRow(programId, row);
 
         await loadMaintenancePrograms();
+        if(!programId){
+          const calendarYear = new Date().getFullYear();
+          maintenanceProgramYear = Math.max(Number(row.program_year || calendarYear), calendarYear);
+          maintenanceProgramMonth = maintenanceProgramYear === calendarYear
+            ? new Date().getMonth() + 1
+            : Number(row.start_month || 1);
+          const search = document.getElementById('maintenanceSearchFree');
+          const frequency = document.getElementById('maintenanceFilterFrequency');
+          const state = document.getElementById('maintenanceFilterState');
+          const monthFilter = document.getElementById('maintenanceFilterMonth');
+          const monthlyStatus = document.getElementById('maintenanceMonthlyStatusFilter');
+          if(search) search.value = '';
+          if(frequency) frequency.value = 'all';
+          if(state) state.value = 'all';
+          if(monthFilter) monthFilter.value = 'all';
+          if(monthlyStatus) monthlyStatus.value = 'all';
+          maintenanceQuickFilters = { frequency:'all', state:'all', month:'all' };
+        }
         renderMaintenancePrograms();
         closeModal();
         toastInfo('Programación guardada ✅');
