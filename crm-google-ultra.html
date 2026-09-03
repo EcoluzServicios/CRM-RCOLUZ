@@ -971,6 +971,8 @@ function toggleEditOTFacturaField(){
   const READ_CACHE_TTL_MS = 30000;
   const readCache = new Map();
   const inFlightReads = new Map();
+  let initialPrewarmPromise = null;
+  let initialPrewarmDone = false;
 
   function errorObj(message){
     const err = new Error(String(message || 'Error desconocido'));
@@ -1061,7 +1063,9 @@ function toggleEditOTFacturaField(){
     const cacheable = canCacheRead(action, payload);
     const key = readAction ? stableKey(action, payload) : '';
 
-    if(cacheable){
+    // Una respuesta precargada puede incluir columnas pesadas. Se reutiliza
+    // durante el arranque aunque normalmente no se cachearía automáticamente.
+    if(readAction){
       const cached = readCache.get(key);
       if(cached && (Date.now() - cached.ts) < READ_CACHE_TTL_MS){
         return cloneJson(cached.value);
@@ -1121,6 +1125,89 @@ function toggleEditOTFacturaField(){
       if(readAction) inFlightReads.delete(key);
     }
   }
+
+
+  function initialReadRequests(){
+    const clientsColumns = [
+      'id','rut','tipo','telefono','telefono2','email','contacto','ciudad','giro',
+      'documento_habitual','condicion_pago','observaciones','sucursales','is_mandante',
+      'name','created_by','created_by_email','created_by_name','created_at','data','direccion'
+    ];
+
+    const quoteColumns = [
+      'id','client_id','numero','monto','descripcion','obra','fecha','estado','tipo_servicio',
+      'enviado_por_correo','enviado_por_wsp','fecha_envio','ejecutor_envio','created_by',
+      'created_by_email','created_by_name','created_at','sucursal','direccion','bruto',
+      'descuento_pct','descuento_monto','neto','iva','items','data'
+    ];
+
+    const otColumns = [
+      'id','client_id','quote_id','numero_ot','descripcion','oc','hes','guia_despacho',
+      'estado','pago_estado','fecha','monto','factura_num','factura_numero',
+      'documento_numero','factura_enviada_fecha','factura_registro_fecha','cobro_estado',
+      'documento_tipo','created_by_name','created_by_email','created_by','created_at','data'
+    ];
+
+    const maintenanceColumns = [
+      'id','client_id','client_name','site_name','service_type','frequency','start_month',
+      'program_year','responsible','equipment_count','notes','status','completed_months',
+      'completed_history','created_by_name','created_by_email','created_at'
+    ];
+
+    const selectPayload = (table, columns, order) => ({
+      table,
+      filters:[],
+      orGroups:[],
+      order:order || null,
+      offset:0,
+      limit:null,
+      columns,
+      resolveOverflow:false
+    });
+
+    return [
+      { action:'select', payload:selectPayload('clients', clientsColumns, {column:'created_at',ascending:false}) },
+      { action:'select', payload:selectPayload('quotes', quoteColumns, {column:'created_at',ascending:false}) },
+      { action:'select', payload:selectPayload('ots', otColumns, {column:'created_at',ascending:false}) },
+      { action:'select', payload:selectPayload('maintenance_programs', maintenanceColumns, {column:'client_name',ascending:true}) }
+    ];
+  }
+
+  async function prewarmInitialData(){
+    if(initialPrewarmDone) return true;
+    if(initialPrewarmPromise) return initialPrewarmPromise;
+
+    const session = readStoredSession();
+    if(!session?.access_token) return false;
+
+    initialPrewarmPromise = (async () => {
+      const requests = initialReadRequests();
+      try {
+        const json = await apiRequest('batch', {requests});
+        const results = Array.isArray(json?.results) ? json.results : [];
+
+        requests.forEach((request, index) => {
+          const result = results[index];
+          if(result && result.ok !== false){
+            const key = stableKey(request.action, request.payload);
+            readCache.set(key, {ts:Date.now(), value:cloneJson(result)});
+          }
+        });
+
+        initialPrewarmDone = true;
+        return true;
+      } catch(error){
+        console.warn('Precarga rápida no disponible; se usará carga normal.', error);
+        return false;
+      } finally {
+        initialPrewarmPromise = null;
+      }
+    })();
+
+    return initialPrewarmPromise;
+  }
+
+  window.ecoluzPrewarmInitialData = prewarmInitialData;
 
   function splitTopLevel(str){
     const out=[];
@@ -1243,8 +1330,31 @@ function toggleEditOTFacturaField(){
     async enrichRelations(rows){
       const relClients = this.selectSpec.relations.find(r => r.name === 'clients');
       if(!relClients || this.table !== 'quotes' || !Array.isArray(rows) || !rows.length) return rows;
+
       const ids = [...new Set(rows.map(r=>r?.client_id).filter(Boolean).map(String))];
       if(!ids.length) return rows;
+
+      // Ruta ultrarrápida: clients ya fue cargado al iniciar. Evitamos otra ida
+      // completa a Apps Script solo para resolver nombre/RUT de la relación.
+      const localClients = Array.isArray(window.clients) ? window.clients : [];
+      if(localClients.length){
+        const byId = new Map(localClients.map(c => [String(c?.id || ''), c]));
+        rows.forEach(r => {
+          const local = byId.get(String(r.client_id));
+          if(!local){ r.clients = null; return; }
+          const picked = {};
+          const wanted = relClients.columns.length ? relClients.columns : ['id','name','rut'];
+          wanted.forEach(col => {
+            if(col === 'id') picked.id = local.id;
+            else if(col === 'name') picked.name = local.name;
+            else if(col === 'rut') picked.rut = local.rut;
+            else picked[col] = local[col] ?? local.data?.[col] ?? null;
+          });
+          r.clients = picked;
+        });
+        return rows;
+      }
+
       try {
         const res = await apiRequest('select', {
           table:'clients',
@@ -1342,6 +1452,7 @@ function toggleEditOTFacturaField(){
           const user = mapUser(json.user, json.token);
           const session = { access_token:json.token, token_type:'bearer', expires_at:json.expires_at, user };
           storeSession(session);
+          try { await prewarmInitialData(); } catch(e) {}
           return {data:{user,session}, error:null};
         } catch(err){
           return {data:{user:null,session:null}, error:errorObj(err?.message || err)};
@@ -1351,8 +1462,9 @@ function toggleEditOTFacturaField(){
         const session = readStoredSession();
         if(!session) return {data:{session:null}, error:null};
 
-        // La validez real del token sigue verificándose en cada operación
-        // del backend. Aquí evitamos una llamada extra solo para abrir el CRM.
+        // Aprovechamos una sola llamada batch para dejar preparadas las
+        // colecciones principales antes de que loadData haga sus lecturas.
+        try { await prewarmInitialData(); } catch(e) {}
         return {data:{session}, error:null};
       },
 
@@ -1393,7 +1505,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'FAST-2';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-3';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -8577,7 +8689,13 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     });
 
     await loadMaintenancePrograms();
-    try { await loadInternalProjects(); } catch(e) { console.warn('No se pudieron cargar proyectos internos', e); }
+    // Proyectos internos se cargan solo cuando se abre su vista.
+    // Evita 3 lecturas adicionales durante el ingreso al CRM.
+    try {
+      window.internalProjects = window.internalProjects || [];
+      window.internalProjectTasks = window.internalProjectTasks || [];
+      window.internalProjectHistory = window.internalProjectHistory || [];
+    } catch(e) {}
 
     // Exponer a window (para helpers/paginación)
     window.quotes = quotes;
@@ -8596,7 +8714,11 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
     // Render
     renderAll();
     renderDashboard();
-    try { if(typeof fetchLightDashboardCounts === 'function') await fetchLightDashboardCounts(); } catch(e) { console.warn('No se pudieron cargar contadores livianos del dashboard', e); }
+    try {
+      if(typeof fetchLightDashboardCounts === 'function'){
+        setTimeout(() => fetchLightDashboardCounts().catch(e => console.warn('No se pudieron cargar contadores livianos del dashboard', e)), 0);
+      }
+    } catch(e) {}
   try { renderDashboardMaintenanceSummary(); } catch(e) {}
   } catch (err) {
     console.error("Error en loadData:", err);
