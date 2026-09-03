@@ -968,6 +968,9 @@ function toggleEditOTFacturaField(){
 
   const API_URL = 'https://script.google.com/macros/s/AKfycbxXbQf80XeD1gCk_x3SfNWIrv5WE2qUhYAxsD8Scjd6qy2l10-6iPFF3ZHTBPyRPam-DA/exec';
   const STORAGE_KEY = 'ecoluz_google_api_session_v1';
+  const READ_CACHE_TTL_MS = 30000;
+  const readCache = new Map();
+  const inFlightReads = new Map();
 
   function errorObj(message){
     const err = new Error(String(message || 'Error desconocido'));
@@ -1015,37 +1018,108 @@ function toggleEditOTFacturaField(){
     };
   }
 
+  function stableKey(action, payload){
+    try { return action + '|' + JSON.stringify(payload || {}); }
+    catch(e){ return action + '|' + String(Date.now()); }
+  }
+
+  function cloneJson(value){
+    try {
+      if(typeof structuredClone === 'function') return structuredClone(value);
+      return JSON.parse(JSON.stringify(value));
+    } catch(e){
+      return value;
+    }
+  }
+
+  function isHeavyColumns(columns){
+    if(!Array.isArray(columns)) return true;
+    const heavy = new Set(['data','items','payload','sucursales','completed_months','completed_history']);
+    return columns.some(c => heavy.has(String(c)));
+  }
+
+  function canCacheRead(action, payload){
+    if(action === 'count') return true;
+    if(action !== 'select') return false;
+    return Array.isArray(payload?.columns) && !isHeavyColumns(payload.columns) && payload.resolveOverflow !== true;
+  }
+
+  function invalidateTableCache(table){
+    const needle = '"table":"' + String(table || '') + '"';
+    for(const key of Array.from(readCache.keys())){
+      if(key.includes(needle)) readCache.delete(key);
+    }
+  }
+
   async function apiRequest(action, payload = {}, options = {}){
     const includeToken = options.includeToken !== false;
     const session = readStoredSession();
     const body = Object.assign({}, payload, { action });
     if(includeToken && session?.access_token && !body.token) body.token = session.access_token;
 
-    let response;
+    const readAction = action === 'select' || action === 'count';
+    const cacheable = canCacheRead(action, payload);
+    const key = readAction ? stableKey(action, payload) : '';
+
+    if(cacheable){
+      const cached = readCache.get(key);
+      if(cached && (Date.now() - cached.ts) < READ_CACHE_TTL_MS){
+        return cloneJson(cached.value);
+      }
+      if(cached) readCache.delete(key);
+    }
+
+    if(readAction && inFlightReads.has(key)){
+      return cloneJson(await inFlightReads.get(key));
+    }
+
+    const execute = (async () => {
+      let response;
+      try {
+        response = await fetch(API_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body)
+        });
+      } catch(networkError){
+        throw errorObj('No se pudo conectar con Google Apps Script. Revisa que la implementación esté publicada para “Cualquier persona”. ' + (networkError?.message || networkError));
+      }
+
+      let text = '';
+      try { text = await response.text(); } catch(e){}
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch(e){
+        throw errorObj('Google Apps Script respondió en un formato no válido. HTTP ' + response.status);
+      }
+
+      if(!response.ok || !json || json.ok === false){
+        const msg = json?.error || ('Error HTTP ' + response.status);
+        if(/sesión no válida|sesion no valida|sesión venció|sesion vencio/i.test(String(msg))){
+          storeSession(null);
+        }
+        throw errorObj(msg);
+      }
+
+      if(cacheable){
+        readCache.set(key, { ts:Date.now(), value:cloneJson(json) });
+      }
+
+      if(!readAction && payload?.table){
+        invalidateTableCache(payload.table);
+      }
+
+      return json;
+    })();
+
+    if(readAction) inFlightReads.set(key, execute);
+
     try {
-      response = await fetch(API_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        cache: 'no-store',
-        // text/plain evita una preflight CORS por application/json.
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body)
-      });
-    } catch(networkError){
-      throw errorObj('No se pudo conectar con Google Apps Script. Revisa que la implementación esté publicada para “Cualquier persona”. ' + (networkError?.message || networkError));
+      return cloneJson(await execute);
+    } finally {
+      if(readAction) inFlightReads.delete(key);
     }
-
-    let text = '';
-    try { text = await response.text(); } catch(e){}
-    let json = null;
-    try { json = text ? JSON.parse(text) : null; } catch(e){
-      throw errorObj('Google Apps Script respondió en un formato no válido. HTTP ' + response.status);
-    }
-
-    if(!response.ok || !json || json.ok === false){
-      throw errorObj(json?.error || ('Error HTTP ' + response.status));
-    }
-    return json;
   }
 
   function splitTopLevel(str){
@@ -1212,7 +1286,12 @@ function toggleEditOTFacturaField(){
             order:this.orderSpec,
             offset:this.offset,
             limit:this.limitValue,
-            columns:this.selectSpec.columns
+            columns:this.selectSpec.columns,
+            // Los listados no abren JSON gigantes de Drive. El detalle por ID sí.
+            resolveOverflow: !!(
+              this.singleMode ||
+              this.filters.some(f => String(f.column) === 'id' && String(f.op) === 'eq')
+            )
           });
           let rows = Array.isArray(json.data) ? json.data : [];
           rows = await this.enrichRelations(rows);
@@ -1271,17 +1350,12 @@ function toggleEditOTFacturaField(){
       async getSession(){
         const session = readStoredSession();
         if(!session) return {data:{session:null}, error:null};
-        try {
-          const json = await apiRequest('me', {}, {includeToken:true});
-          const user = mapUser(json.user, session.access_token);
-          const refreshed = Object.assign({}, session, {user});
-          storeSession(refreshed);
-          return {data:{session:refreshed}, error:null};
-        } catch(err){
-          storeSession(null);
-          return {data:{session:null}, error:errorObj(err?.message || err)};
-        }
+
+        // La validez real del token sigue verificándose en cada operación
+        // del backend. Aquí evitamos una llamada extra solo para abrir el CRM.
+        return {data:{session}, error:null};
       },
+
       async signOut(){
         const session = readStoredSession();
         try { if(session?.access_token) await apiRequest('logout', {token:session.access_token}, {includeToken:false}); } catch(e){}
@@ -1318,6 +1392,8 @@ function toggleEditOTFacturaField(){
   }
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
+  window.ECOLUZ_GOOGLE_FAST_MODE = true;
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'FAST-2';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -8524,7 +8600,7 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
   try { renderDashboardMaintenanceSummary(); } catch(e) {}
   } catch (err) {
     console.error("Error en loadData:", err);
-    alert("Error cargando datos desde Supabase: " + (err.message || err));
+    alert("Error cargando datos desde Google Sheets: " + (err.message || err));
   }
 }
 
