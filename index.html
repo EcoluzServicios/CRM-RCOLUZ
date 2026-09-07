@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 5.1.1 — COTIZACIONES PENDIENTES ACTUALES PDF
+ECOLUZ CRM ULTRA 5.3.4 — CONSULTA MENSUAL DIRECTA
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -1583,7 +1583,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.1.1-COTIZACIONES-PENDIENTES-ACTUALES-PDF';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.3.4-CONSULTA-MENSUAL-DIRECTA';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -1593,7 +1593,7 @@ function toggleEditOTFacturaField(){
 </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECOLUZ CRM · Google Sheets</title>
+  <title>ECOLUZ SERVICIOS </title>
   <!-- Migración Google Sheets BETA 1 · Supabase reemplazado por capa compatible Apps Script -->
   <!-- V42: base v41 + Pendiente de facturar es el acceso directo al registro; sin botón adicional Sin documento -->
   <!-- Icono de pestaña / favicon ECOLUZ -->
@@ -3428,6 +3428,32 @@ body[data-ui-color-mode="dark"] .ot-more-v48-btn{background:var(--ui-surface)!im
 }
 </style>
 
+
+<style id="dashboard-period-selector-v52">
+.dashboard-v2-period-tools{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;justify-content:flex-end}
+.dashboard-v2-select{
+  height:44px;
+  border-radius:.9rem;
+  border:1px solid #dbe3ef;
+  background:#fff;
+  color:#334155;
+  font-size:.82rem;
+  font-weight:850;
+  padding:0 .95rem;
+  box-shadow:0 7px 18px rgba(15,23,42,.04);
+}
+.dashboard-v2-select--year{min-width:116px}
+body[data-ui-color-mode="dark"] .dashboard-v2-select{
+  background:var(--ui-surface)!important;
+  color:var(--ui-text)!important;
+  border-color:var(--ui-border)!important;
+}
+@media(max-width:720px){
+  .dashboard-v2-period-tools{width:100%;justify-content:stretch}
+  .dashboard-v2-select,.dashboard-v2-period,.dashboard-v2-action{flex:1}
+}
+</style>
+
 </head>
 
 <body class="bg-gray-100">
@@ -3577,7 +3603,12 @@ body[data-ui-color-mode="dark"] .ot-more-v48-btn{background:var(--ui-surface)!im
         <p class="dashboard-v2-subtitle">Bienvenido, <span id="welcomeName" class="font-bold text-slate-700"></span>. Aquí ves avance, conversión, cobranza y los pendientes que requieren una acción.</p>
       </div>
       <div class="dashboard-v2-head-actions">
-        <span id="dashV2Period" class="dashboard-v2-period"><i class="fas fa-calendar-days"></i>Mes actual</span>
+        <div class="dashboard-v2-period-tools">
+          <span id="dashV2Period" class="dashboard-v2-period"><i class="fas fa-calendar-days"></i>Mes actual</span>
+          <select id="dashV2MonthSelect" class="dashboard-v2-select" aria-label="Seleccionar mes"></select>
+          <select id="dashV2YearSelect" class="dashboard-v2-select dashboard-v2-select--year" aria-label="Seleccionar año"></select>
+          <button type="button" onclick="setDashboardCurrentMonth()" class="dashboard-v2-action"><i class="fas fa-rotate-left"></i>Mes actual</button>
+        </div>
         <button type="button" onclick="showView('ots')" class="dashboard-v2-action"><i class="fas fa-screwdriver-wrench"></i>Ver OT</button>
         <button type="button" onclick="showView('abonos')" class="dashboard-v2-action"><i class="fas fa-hand-holding-dollar"></i>Ir a cobranza</button>
       </div>
@@ -3587,7 +3618,7 @@ body[data-ui-color-mode="dark"] .ot-more-v48-btn{background:var(--ui-surface)!im
       <div class="dashboard-v2-section-head">
         <div>
           <h2 id="dashV2MetricsTitle" class="dashboard-v2-section-title">Indicadores principales</h2>
-          <p class="dashboard-v2-section-note">El porcentaje da contexto; debajo se mantiene el número exacto.</p>
+          <p id="dashV2MetricsNote" class="dashboard-v2-section-note">El porcentaje da contexto; debajo se mantiene el número exacto.</p>
         </div>
         <p id="dashV2Updated" class="dashboard-v2-updated">Actualizando…</p>
       </div>
@@ -3628,7 +3659,7 @@ body[data-ui-color-mode="dark"] .ot-more-v48-btn{background:var(--ui-surface)!im
             <span class="dashboard-v2-kpi-label">Cumplimiento de mantenciones</span>
             <span id="dashV2MaintenanceRatio" class="dashboard-v2-kpi-ratio block">0 de 0 realizadas</span>
             <span class="dashboard-v2-progress"><span id="dashV2MaintenanceBar"></span></span>
-            <span class="dashboard-v2-kpi-help block">Realizadas y pendientes del mes actual</span>
+            <span class="dashboard-v2-kpi-help block">Realizadas y pendientes del mes seleccionado</span>
           </span>
         </button>
       </div>
@@ -30854,6 +30885,7 @@ function toggleSidebarMore(forceOpen = null){
               <p class="text-slate-500 text-sm">Vista interna estable del documento, pensada para evitar la pantalla en blanco.</p>
             </div>
             <div class="flex items-center gap-2">
+              <button type="button" id="quotePreviewPrintBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Imprimir</button>
               <button type="button" id="quotePreviewDownloadBtn" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold">Descargar PDF</button>
               <button type="button" id="quotePreviewEditBtn" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Editar</button>
               <button type="button" id="quotePreviewCloseBtn" class="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 text-2xl leading-none">×</button>
@@ -30946,6 +30978,7 @@ function toggleSidebarMore(forceOpen = null){
       };
 
       modal.querySelector('#quotePreviewCloseBtn')?.addEventListener('click', closePreview);
+      modal.querySelector('#quotePreviewPrintBtn')?.addEventListener('click', async () => { await window.printQuoteDirect(quoteId); });
       modal.querySelector('#quotePreviewDownloadBtn')?.addEventListener('click', async () => { await window.generateQuotePDF(quoteId); });
       modal.querySelector('#quotePreviewEditBtn')?.addEventListener('click', async () => {
         closePreview();
@@ -39278,6 +39311,2033 @@ if(typeof window.registerViewHandler === 'function'){
       alert('No se pudo generar el PDF de cotizaciones pendientes: ' + (err?.message || err));
     }
   };
+})();
+</script>
+
+
+
+<script id="dashboard-period-control-v52">
+(function(){
+  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  function safeFn(name){
+    return typeof window[name] === 'function' ? window[name] : null;
+  }
+
+  function fmtMoney(v){
+    const fn = safeFn('formatCLP');
+    if(fn) return fn(v);
+    try{
+      return '$' + Number(v || 0).toLocaleString('es-CL');
+    }catch(e){
+      return '$0';
+    }
+  }
+
+  function dateValueLocal(v){
+    const fn = safeFn('dateValue');
+    if(fn) return fn(v);
+    if(!v) return null;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function sameMonthLocal(value, ref){
+    const fn = safeFn('sameMonth');
+    if(fn) return fn(value, ref);
+    const d = dateValueLocal(value);
+    return !!d && d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear();
+  }
+
+  function dayStartLocal(value){
+    const fn = safeFn('dayStart');
+    if(fn) return fn(value);
+    const d = dateValueLocal(value);
+    if(!d) return null;
+    d.setHours(0,0,0,0);
+    return d;
+  }
+
+  function percentLocal(part, total){
+    const fn = safeFn('percent');
+    if(fn) return fn(part, total);
+    return total > 0 ? Math.round((Number(part || 0) / Number(total || 1)) * 100) : 0;
+  }
+
+  function setTextLocal(id, value){
+    const el = document.getElementById(id);
+    if(el) el.textContent = String(value == null ? '' : value);
+  }
+
+  function setMetricLocal(prefix, pct){
+    const ring=document.getElementById(prefix+'Ring');
+    const value=document.getElementById(prefix+'Pct');
+    const bar=document.getElementById(prefix+'Bar');
+    const n=Math.max(0,Math.min(100,Number(pct)||0));
+    if(ring) ring.style.setProperty('--pct', n);
+    if(value) value.textContent=n+'%';
+    if(bar) bar.style.width=n+'%';
+  }
+
+  function getPeriodState(){
+    if(!window.dashboardPeriodState){
+      const now = new Date();
+      window.dashboardPeriodState = { month: now.getMonth() + 1, year: now.getFullYear() };
+    }
+    return window.dashboardPeriodState;
+  }
+
+  function getPeriodDate(){
+    const state = getPeriodState();
+    return new Date(Number(state.year), Number(state.month) - 1, 1);
+  }
+
+  function formatPeriodLabel(d){
+    return `${MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}`;
+  }
+
+  function gatherAvailableYears(){
+    const years = new Set();
+    const now = new Date();
+    years.add(now.getFullYear());
+
+    try{
+      (Array.isArray(window.ots) ? window.ots : []).forEach(o => {
+        const d = dateValueLocal((safeFn('getPreferredOTDate') ? safeFn('getPreferredOTDate')(o) : (o?.fecha || o?.created_at || '')));
+        if(d) years.add(d.getFullYear());
+      });
+    }catch(e){}
+
+    try{
+      (Array.isArray(window.quotes) ? window.quotes : []).forEach(q => {
+        const d = dateValueLocal((safeFn('getPreferredQuoteDate') ? safeFn('getPreferredQuoteDate')(q) : (q?.fecha || q?.created_at || '')));
+        if(d) years.add(d.getFullYear());
+      });
+    }catch(e){}
+
+    try{
+      const programs = Array.isArray(window.maintenancePrograms) ? window.maintenancePrograms : [];
+      programs.forEach(p => {
+        const y = Number(p?.programYear || p?.year || 0);
+        if(y) years.add(y);
+      });
+    }catch(e){}
+
+    const arr = Array.from(years).filter(Boolean).sort((a,b)=>a-b);
+    return arr.length ? arr : [now.getFullYear()];
+  }
+
+  function populatePeriodControls(){
+    const monthSel = document.getElementById('dashV2MonthSelect');
+    const yearSel = document.getElementById('dashV2YearSelect');
+    if(!monthSel || !yearSel) return;
+
+    if(!monthSel.dataset.ready){
+      monthSel.innerHTML = MONTH_NAMES.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
+      monthSel.dataset.ready = '1';
+      monthSel.addEventListener('change', () => {
+        const state = getPeriodState();
+        state.month = Number(monthSel.value || new Date().getMonth() + 1);
+        renderDashboardOperationalPeriod();
+      });
+    }
+
+    const currentValue = yearSel.value;
+    const years = gatherAvailableYears();
+    yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    if(!yearSel.dataset.ready){
+      yearSel.dataset.ready = '1';
+      yearSel.addEventListener('change', () => {
+        const state = getPeriodState();
+        state.year = Number(yearSel.value || new Date().getFullYear());
+        renderDashboardOperationalPeriod();
+      });
+    }
+
+    const state = getPeriodState();
+    monthSel.value = String(state.month);
+    yearSel.value = String(years.includes(Number(state.year)) ? state.year : years[years.length - 1]);
+    state.year = Number(yearSel.value);
+  }
+
+  function maintenanceSnapshotForPeriod(periodDate){
+    const year = periodDate.getFullYear();
+    const month = periodDate.getMonth() + 1;
+    let programs = [];
+    try{
+      const getter = safeFn('getMaintenanceProgramsForYear');
+      programs = getter ? getter(year) : [];
+    }catch(e){
+      programs = [];
+    }
+    programs = (Array.isArray(programs) ? programs : []).filter(p => String(p.status || '').toLowerCase() !== 'finalizada');
+
+    const dueMonth = [];
+    const overdue = [];
+    const doneMonth = [];
+    const doneKeys = new Set();
+
+    const isReprogram = safeFn('isMaintenanceReprogramHistoryEntry');
+    const actualMonthFn = safeFn('getMaintenanceHistoryActualMonth');
+    const actualYearFn = safeFn('getMaintenanceHistoryActualYear');
+    const dueMonthsFn = safeFn('getMaintenanceDueMonths');
+    const dueInMonthFn = safeFn('isMaintenanceDueInMonth');
+    const doneInMonthFn = safeFn('isMaintenanceCompletedInMonth');
+    const titleFn = safeFn('getMaintenanceProgramTitle');
+
+    programs.forEach(p => {
+      const programYear = Number(p.programYear || year || new Date().getFullYear());
+
+      (Array.isArray(p.completedHistory) ? p.completedHistory : []).forEach(history => {
+        if(isReprogram && isReprogram(history)) return;
+        const scheduledMonth = Number(history?.month || 0);
+        const actualMonth = actualMonthFn ? actualMonthFn(history, scheduledMonth) : scheduledMonth;
+        const actualYear = actualYearFn ? actualYearFn(history, programYear) : programYear;
+        const key = `${p.id || (titleFn ? titleFn(p) : 'programa')}-${scheduledMonth}-${actualMonth}-${actualYear}`;
+        if(actualYear === year && actualMonth === month && !doneKeys.has(key)){
+          doneKeys.add(key);
+          doneMonth.push({ program:p, month:scheduledMonth || actualMonth, actualMonth, history });
+        }
+      });
+
+      if(dueInMonthFn && dueInMonthFn(p, month) && !(doneInMonthFn && doneInMonthFn(p, month))){
+        dueMonth.push(p);
+      }
+
+      const dueMonths = dueMonthsFn ? dueMonthsFn(p) : [];
+      dueMonths.forEach(m => {
+        if(Number(m) < month && !(doneInMonthFn && doneInMonthFn(p, m))){
+          overdue.push({ program:p, month:m });
+        }
+      });
+    });
+
+    const done = doneMonth.length;
+    const due = dueMonth.length;
+    return { summary:{dueMonth, overdue, doneMonth}, done, due, total:done+due, overdue:overdue.length, pct:percentLocal(done, done+due) };
+  }
+
+  function buildSnapshotForPeriod(periodDate){
+    const actualNow = new Date();
+    const period = periodDate instanceof Date && !isNaN(periodDate.getTime()) ? periodDate : new Date();
+    const today = dayStartLocal(actualNow);
+    const allOts = (typeof otsList === 'function' ? otsList() : (Array.isArray(window.ots) ? window.ots : []));
+    const allQuotes = (typeof quotesList === 'function' ? quotesList() : (Array.isArray(window.quotes) ? window.quotes : []));
+
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextLimit = new Date(today); nextLimit.setDate(nextLimit.getDate() + 7);
+
+    const monthlyOts = allOts.filter(o => typeof otState === 'function' && otState(o) !== 'cancelada' && sameMonthLocal(typeof otMainDate === 'function' ? otMainDate(o) : '', period));
+    const monthlyOtDone = monthlyOts.filter(o => typeof otState === 'function' && otState(o) === 'realizada');
+
+    const monthlyQuotes = allQuotes.filter(q => sameMonthLocal(typeof quoteDate === 'function' ? quoteDate(q) : '', period));
+    const acceptedQuotes = monthlyQuotes.filter(q => ['aceptada','aceptado','aprobada','aprobado'].includes(typeof quoteState === 'function' ? quoteState(q) : ''));
+    const rejectedQuotes = monthlyQuotes.filter(q => ['rechazada','rechazado'].includes(typeof quoteState === 'function' ? quoteState(q) : ''));
+    const decidedQuotes = [...acceptedQuotes, ...rejectedQuotes];
+
+    const quoteIsClosed = q => {
+      const st = typeof quoteState === 'function' ? quoteState(q) : '';
+      return ['aceptada','aceptado','aprobada','aprobado','rechazada','rechazado','anulada','anulado','cancelada','cancelado'].includes(st);
+    };
+
+    const pendingQuotes = allQuotes
+      .filter(q => !quoteIsClosed(q))
+      .sort((a,b) => String(typeof quoteDate === 'function' ? quoteDate(b) : '').localeCompare(String(typeof quoteDate === 'function' ? quoteDate(a) : '')));
+
+    const openOts = allOts
+      .filter(o => ['pendiente','en_curso'].includes(typeof otState === 'function' ? otState(o) : ''))
+      .sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
+    const inProgressOts = openOts.filter(o => (typeof otState === 'function' ? otState(o) : '') === 'en_curso');
+
+    const todayOts = allOts
+      .filter(o => {
+        if((typeof otState === 'function' ? otState(o) : '') === 'cancelada') return false;
+        const d = dayStartLocal(typeof otMainDate === 'function' ? otMainDate(o) : '');
+        return !!d && d.getTime() === today.getTime();
+      })
+      .sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
+
+    const next7Ots = allOts
+      .filter(o => {
+        const st = typeof otState === 'function' ? otState(o) : '';
+        if(!['pendiente','en_curso'].includes(st)) return false;
+        const d = dayStartLocal(typeof otMainDate === 'function' ? otMainDate(o) : '');
+        return !!d && d >= tomorrow && d <= nextLimit;
+      })
+      .sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
+
+    const monthlyCollection = [], debts = [];
+    allOts.forEach(o => {
+      if((typeof otState === 'function' ? otState(o) : '') === 'cancelada') return;
+      const docs = (typeof documents === 'function' ? documents(o) : []).filter(d => typeof activeDocument === 'function' ? activeDocument(d) : true);
+      docs.forEach(doc => {
+        const amount = typeof documentAmount === 'function' ? documentAmount(doc, o, docs.length) : 0;
+        const paid = typeof documentPaidAmount === 'function' ? documentPaidAmount(doc, o, amount) : 0;
+        const balance = Math.max(0, amount - paid);
+        const baseDate = typeof documentDate === 'function' ? documentDate(doc, o) : '';
+        const days = typeof daysFrom === 'function' ? daysFrom(baseDate, actualNow) : 0;
+        const entry = { kind:'document', ot:o, doc, amount, paid, balance, baseDate, days };
+        if(sameMonthLocal(baseDate, period)) monthlyCollection.push(entry);
+        if(balance > 0) debts.push(entry);
+      });
+
+      if(!docs.length && (typeof otState === 'function' ? otState(o) : '') === 'realizada'){
+        const amount = typeof otAmount === 'function' ? otAmount(o) : 0;
+        const paid = (typeof otPaid === 'function' && otPaid(o)) ? amount : 0;
+        const balance = Math.max(0, amount - paid);
+        if(balance > 0){
+          debts.push({
+            kind:(typeof cobroMode === 'function' && cobroMode(o) === 'directo') ? 'direct' : 'unbilled',
+            ot:o, doc:null, amount, paid, balance,
+            baseDate:(typeof otMainDate === 'function' ? otMainDate(o) : ''),
+            days:(typeof daysFrom === 'function' ? daysFrom((typeof otMainDate === 'function' ? otMainDate(o) : ''), actualNow) : 0)
+          });
+        }
+      }
+    });
+
+    const invoicedMonth = monthlyCollection.reduce((s,x)=>s + Number(x.amount || 0),0);
+    const paidMonth = monthlyCollection.reduce((s,x)=>s + Number(x.paid || 0),0);
+
+    const overdueOts = allOts.filter(o => {
+      const st = typeof otState === 'function' ? otState(o) : '';
+      const d = dayStartLocal(typeof otMainDate === 'function' ? otMainDate(o) : '');
+      return ['pendiente','en_curso'].includes(st) && d && d < today;
+    }).sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
+
+    const unbilledOts = allOts.filter(o =>
+      (typeof otState === 'function' ? otState(o) : '') === 'realizada' &&
+      (typeof cobroMode === 'function' ? cobroMode(o) : '') === 'factura' &&
+      ((typeof documents === 'function' ? documents(o) : []).filter(d => typeof activeDocument === 'function' ? activeDocument(d) : true).length === 0)
+    );
+
+    const overdueInvoices = debts.filter(x => x.kind === 'document' && Number(x.days || 0) > 30);
+
+    return {
+      now: actualNow,
+      periodDate: period,
+      monthlyOts, monthlyOtDone,
+      monthlyQuotes, acceptedQuotes, rejectedQuotes, decidedQuotes,
+      pendingQuotes,
+      pendingQuotesAmount: pendingQuotes.reduce((s,q)=>s + (typeof quoteAmount === 'function' ? quoteAmount(q) : 0), 0),
+      openOts,
+      inProgressOts,
+      todayOts,
+      next7Ots,
+      monthlyCollection,
+      invoicedMonth,
+      paidMonth,
+      overdueOts,
+      unbilledOts,
+      unbilledAmount: unbilledOts.reduce((s,o)=>s + (typeof otAmount === 'function' ? otAmount(o) : 0), 0),
+      overdueInvoices,
+      debts,
+      outstanding: debts.reduce((s,x)=>s + Number(x.balance || 0), 0),
+      maintenance: maintenanceSnapshotForPeriod(period)
+    };
+  }
+
+  function renderDashboardOperationalPeriod(){
+    if(!document.getElementById('view-dashboard')) return;
+    populatePeriodControls();
+
+    const periodDate = getPeriodDate();
+    const m = buildSnapshotForPeriod(periodDate);
+
+    setTextLocal('dashV2Period', formatPeriodLabel(periodDate));
+    setTextLocal('dashV2Updated', 'Actualizado ' + m.now.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
+    setTextLocal('dashV2MetricsNote', 'Viendo indicadores de ' + formatPeriodLabel(periodDate) + '. Las secciones inferiores mantienen la situación actual.');
+
+    setMetricLocal('dashV2Ot', percentLocal(m.monthlyOtDone.length, m.monthlyOts.length));
+    setTextLocal('dashV2OtRatio', m.monthlyOtDone.length + ' de ' + m.monthlyOts.length + ' realizadas');
+
+    setMetricLocal('dashV2Quote', percentLocal(m.acceptedQuotes.length, m.decidedQuotes.length));
+    setTextLocal('dashV2QuoteRatio', m.acceptedQuotes.length + ' de ' + m.decidedQuotes.length + ' aceptadas');
+
+    setMetricLocal('dashV2Collection', percentLocal(m.paidMonth, m.invoicedMonth));
+    setTextLocal('dashV2CollectionRatio', fmtMoney(m.paidMonth) + ' de ' + fmtMoney(m.invoicedMonth) + ' pagado');
+
+    setMetricLocal('dashV2Maintenance', m.maintenance.pct);
+    setTextLocal('dashV2MaintenanceRatio', m.maintenance.done + ' de ' + m.maintenance.total + ' realizadas');
+
+    setTextLocal('dashV2OverdueOT', m.overdueOts.length);
+    setTextLocal('dashV2NoDocument', m.unbilledOts.length);
+    setTextLocal('dashV2OverdueInvoices', m.overdueInvoices.length);
+    setTextLocal('dashV2OverdueMaintenance', m.maintenance.overdue);
+    setTextLocal('dashV2Outstanding', fmtMoney(m.outstanding));
+
+    setTextLocal('dashV2PendingQuotes', m.pendingQuotes.length);
+    setTextLocal('dashV2PendingQuotesAmount', fmtMoney(m.pendingQuotesAmount) + ' en evaluación');
+    setTextLocal('dashV2OpenOts', m.openOts.length);
+    setTextLocal('dashV2OpenOtsSub', m.inProgressOts.length + ' en curso');
+    setTextLocal('dashV2ReadyInvoice', m.unbilledOts.length);
+    setTextLocal('dashV2ReadyInvoiceAmount', fmtMoney(m.unbilledAmount) + ' por facturar/boletar');
+    setTextLocal('dashV2DebtCount', m.debts.length);
+    setTextLocal('dashV2DebtAmount', fmtMoney(m.outstanding) + ' pendiente');
+    setTextLocal('dashV2TodayJobs', m.todayOts.length);
+    setTextLocal('dashV2NextJobsSub', m.next7Ots.length + ' próximos en 7 días');
+
+    if(typeof renderAgendaRows === 'function'){
+      setTextLocal('dashV2AgendaTodayCount', m.todayOts.length);
+      setTextLocal('dashV2AgendaNextCount', m.next7Ots.length);
+      renderAgendaRows('dashV2AgendaTodayList', m.todayOts, false);
+      renderAgendaRows('dashV2AgendaNextList', m.next7Ots, true);
+    }
+
+    try{
+      if(typeof window.renderCommercialFlow === 'function') window.renderCommercialFlow();
+    }catch(e){ console.warn('No se pudo actualizar el flujo comercial del inicio:', e); }
+
+    const welcome=document.getElementById('welcomeName');
+    if(welcome && !String(welcome.textContent || '').trim()) welcome.textContent = String(window.currentUser?.name || window.currentUser?.nombre || 'equipo');
+
+    window.dashboardOperationalSnapshot = m;
+  }
+
+  function periodTitle(base){
+    return `${base} · ${formatPeriodLabel(getPeriodDate())}`;
+  }
+
+  function renderMaintenanceDetailsForPeriod(m){
+    const items=[
+      `<button onclick="closeModal();showDashboardMaintenanceDetails('due')" class="w-full border rounded-2xl p-5 text-left hover:bg-slate-50"><p class="text-sm text-slate-500">Pendientes del período</p><p class="text-3xl font-black text-amber-700 mt-1">${m.maintenance.due}</p></button>`,
+      `<button onclick="closeModal();showDashboardMaintenanceDetails('done')" class="w-full border rounded-2xl p-5 text-left hover:bg-slate-50"><p class="text-sm text-slate-500">Realizadas del período</p><p class="text-3xl font-black text-emerald-700 mt-1">${m.maintenance.done}</p></button>`
+    ];
+    const footer = `<div class="mt-5"><button onclick="closeModal();showView('maintenance')" class="w-full px-4 py-3 rounded-xl bg-violet-700 text-white font-black">Abrir programa</button></div>`;
+    if(typeof openDetailsModal === 'function') openDetailsModal(periodTitle('Mantenciones del período'), 'Avance del mes seleccionado.', items, footer);
+  }
+
+  function showDashboardV2DetailsPeriod(kind){
+    const m = buildSnapshotForPeriod(getPeriodDate());
+    const goOT=`<div class="mt-5"><button onclick="closeModal();showView('ots')" class="w-full px-4 py-3 rounded-xl bg-slate-900 text-white font-black">Abrir Órdenes de Trabajo</button></div>`;
+    const goQuotes=`<div class="mt-5"><button onclick="closeModal();showView('quotes')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Cotizaciones</button></div>`;
+    const goBilling=`<div class="mt-5"><button onclick="closeModal();showView('abonos')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Facturación y Abonos</button></div>`;
+
+    if(kind==='overdue_maintenance') return typeof window.showDashboardMaintenanceDetails==='function' ? window.showDashboardMaintenanceDetails('overdue') : window.showView?.('maintenance');
+    if(kind==='monthly_maintenance') return renderMaintenanceDetailsForPeriod(m);
+    if(kind==='monthly_ots') return typeof openDetailsModal === 'function' ? openDetailsModal(periodTitle('OT del período'), `${m.monthlyOtDone.length} realizadas de ${m.monthlyOts.length}`, m.monthlyOts.map(o=>otCard(o)), goOT) : null;
+    if(kind==='monthly_quotes') return typeof openDetailsModal === 'function' ? openDetailsModal(periodTitle('Cotizaciones decididas del período'), `${m.acceptedQuotes.length} aceptadas y ${m.rejectedQuotes.length} rechazadas`, m.decidedQuotes.map(quoteCard), goQuotes) : null;
+    if(kind==='monthly_collection') return typeof openDetailsModal === 'function' ? openDetailsModal(periodTitle('Cobranza documentada del período'), `${fmtMoney(m.paidMonth)} pagado de ${fmtMoney(m.invoicedMonth)}`, m.monthlyCollection.map(debtCard), goBilling) : null;
+
+    // Para el resto de secciones se mantiene la lógica actual/situación actual.
+    return typeof window.__dashboardShowDetailsOriginal === 'function'
+      ? window.__dashboardShowDetailsOriginal(kind)
+      : null;
+  }
+
+  window.setDashboardCurrentMonth = function(){
+    const now = new Date();
+    window.dashboardPeriodState = { month: now.getMonth() + 1, year: now.getFullYear() };
+    populatePeriodControls();
+    renderDashboardOperationalPeriod();
+  };
+
+  window.__dashboardShowDetailsOriginal = typeof window.showDashboardV2Details === 'function' ? window.showDashboardV2Details : null;
+  window.showDashboardV2Details = showDashboardV2DetailsPeriod;
+  try{ showDashboardV2Details = window.showDashboardV2Details; }catch(e){}
+
+  window.renderDashboardOperational = renderDashboardOperationalPeriod;
+  window.renderDashboard = renderDashboardOperationalPeriod;
+  try{ renderDashboard = window.renderDashboard; }catch(e){}
+
+  const boot = () => { try{ renderDashboardOperationalPeriod(); }catch(e){ console.error('Dashboard por período:', e); } };
+  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
+  window.addEventListener('load', () => setTimeout(boot, 220));
+  setTimeout(boot, 900);
+})();
+</script>
+
+
+
+<script id="quote-direct-print-v53">
+(function(){
+  function qEsc(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+
+  function qTxt(v){
+    return String(v == null ? '' : v);
+  }
+
+  function qClp(v){
+    try{
+      if(typeof window.clp === 'function') return window.clp(v);
+      return '$' + Number(v || 0).toLocaleString('es-CL');
+    }catch(e){
+      return '$0';
+    }
+  }
+
+  function qSafeDate(v){
+    try{
+      if(typeof window.formatDDMMYY === 'function') return window.formatDDMMYY(v);
+    }catch(e){}
+    try{
+      const d = new Date(v);
+      if(isNaN(d.getTime())) return qTxt(v || '—');
+      return d.toLocaleDateString('es-CL');
+    }catch(e){
+      return qTxt(v || '—');
+    }
+  }
+
+  function qRental(q){
+    try{
+      return typeof window.isRentalQuoteType === 'function'
+        ? !!window.isRentalQuoteType(q?.tipo_servicio || q?.data?.tipo_servicio || '')
+        : false;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function getQuoteTotals(q){
+    try{
+      if(typeof window.computeTotalsForView === 'function') return window.computeTotalsForView(q);
+    }catch(e){}
+    return {
+      bruto: Number(q?.bruto || 0),
+      descPct: Number(q?.descuento_pct || 0),
+      descMonto: Number(q?.descuento_monto || 0),
+      neto: Number(q?.neto || 0),
+      iva: Number(q?.iva || 0),
+      total: Number(q?.monto || 0)
+    };
+  }
+
+  function buildQuotePrintHTML(q){
+    const totals = getQuoteTotals(q);
+    const items = Array.isArray(q?.items) ? q.items : [];
+    const isRental = qRental(q);
+    const fecha = qSafeDate(q?.fecha || q?.created_at);
+    const sucursal = qTxt(q?.sucursal || q?.direccion || q?.data?.sucursal || q?.data?.direccion || '—');
+    const obra = qTxt(q?.obra || q?.descripcion || q?.data?.obra || q?.data?.descripcion || 'Sin descripción');
+    const cliente = qTxt(q?.clientName || q?.razonSocial || 'Cliente no encontrado');
+    const rut = qTxt(q?.rut || '—');
+    const createdBy = qTxt((typeof window.formatShortName === 'function'
+      ? window.formatShortName(q?.createdByName || q?.createdBy || q?.createdByEmail || '')
+      : (q?.createdByName || q?.createdByEmail || '—')) || '—');
+    const pctRaw = Number(totals?.descPct || 0);
+    const pctText = Number.isInteger(pctRaw) ? String(pctRaw) : pctRaw.toLocaleString('es-CL', { maximumFractionDigits: 2 });
+    const showDiscount = Number(totals?.descMonto || 0) > 0 || pctRaw > 0;
+
+    const maintenanceSpecs = Array.isArray(q?.maintenance_specifications) ? q.maintenance_specifications : [];
+    const showMaintenanceSpecs = (!!q?.include_maintenance_specifications || maintenanceSpecs.length > 0) && maintenanceSpecs.length > 0;
+
+    const rows = items.length ? items.map((it, idx) => {
+      const dias = Number(it?.cantidad_dias || it?.dias || it?.days || 1) || 1;
+      const cantidad = Number(it?.cantidad_equipos || it?.cantidad || it?.cant || 0) || 1;
+      const precio = Number(it?.valor_unitario || it?.precio || it?.valor || 0) || 0;
+      const subtotal = Number(it?.subtotal || it?.total_arriendo || Math.round((isRental ? dias : 1) * cantidad * precio) || 0);
+      return isRental
+        ? `<tr>
+            <td class="c">${idx + 1}</td>
+            <td>${qEsc(it?.descripcion || it?.desc || '—')}</td>
+            <td class="c">${qEsc(dias)}</td>
+            <td class="c">${qEsc(cantidad)}</td>
+            <td class="r">${qEsc(qClp(precio))}</td>
+            <td class="r strong">${qEsc(qClp(subtotal))}</td>
+          </tr>`
+        : `<tr>
+            <td class="c">${idx + 1}</td>
+            <td>${qEsc(it?.descripcion || it?.desc || '—')}</td>
+            <td class="c">${qEsc(cantidad)}</td>
+            <td class="r">${qEsc(qClp(precio))}</td>
+            <td class="r strong">${qEsc(qClp(subtotal))}</td>
+          </tr>`;
+    }).join('') : `<tr><td colspan="${isRental ? 6 : 5}" class="empty">Sin ítems cargados</td></tr>`;
+
+    const maintenanceHtml = showMaintenanceSpecs ? `
+      <section class="box mt">
+        <div class="box-kicker">La mantención incluye</div>
+        <ol class="spec-list">
+          ${maintenanceSpecs.map(item => `<li>${qEsc(item)}</li>`).join('')}
+        </ol>
+      </section>` : '';
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cotización ${qEsc(q?.numeroCotizacion || q?.numero || 'S/N')}</title>
+<style>
+  :root{
+    --brand:#85AF28;
+    --ink:#0f172a;
+    --muted:#64748b;
+    --line:#dbe3ef;
+    --soft:#f8fafc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#ffffff;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+  body{padding:18px}
+  .page{max-width:1100px;margin:0 auto}
+  .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--line)}
+  .brand-kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#59771a;font-weight:900}
+  .title{font-size:30px;font-weight:900;margin:10px 0 0}
+  .meta{margin-top:8px;color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+  .box{border:1px solid var(--line);border-radius:18px;background:var(--soft);padding:15px}
+  .box-kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:900;margin-bottom:10px}
+  .client-name{font-size:19px;font-weight:900}
+  .subline{font-size:13px;color:#334155;margin-top:5px}
+  .desc{font-size:14px;line-height:1.5;white-space:pre-wrap}
+  table{width:100%;border-collapse:collapse;margin-top:18px;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  thead th{background:var(--brand);color:#fff;font-size:13px;padding:11px 10px;text-align:left}
+  tbody td{padding:10px;border-bottom:1px solid #edf2f7;font-size:13px;vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  .c{text-align:center}
+  .r{text-align:right}
+  .strong{font-weight:900}
+  .empty{text-align:center;color:var(--muted);padding:18px}
+  .mt{margin-top:18px}
+  .spec-list{margin:0;padding-left:20px;font-size:14px;line-height:1.5}
+  .totals-wrap{display:flex;justify-content:flex-end;margin-top:18px}
+  .totals{width:100%;max-width:360px;border:1px solid var(--line);border-radius:18px;background:var(--soft);padding:15px}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:14px}
+  .row.total{margin-top:8px;padding-top:10px;border-top:1px solid var(--line);font-size:24px;font-weight:900}
+  .foot{margin-top:18px;font-size:12px;color:var(--muted);text-align:right}
+  @media print{
+    body{padding:0}
+    .page{max-width:none}
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="head">
+      <div>
+        <div class="brand-kicker">ECOLUZ SERVICIOS</div>
+        <div class="title">Cotización N° ${qEsc(q?.numeroCotizacion || q?.numero || 'S/N')}</div>
+        <div class="meta">Fecha: ${qEsc(fecha)} · Creado por: ${qEsc(createdBy || '—')}</div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="box">
+        <div class="box-kicker">Cliente</div>
+        <div class="client-name">${qEsc(cliente)}</div>
+        <div class="subline">RUT: ${qEsc(rut)}</div>
+        <div class="subline">Sucursal / Dirección: ${qEsc(sucursal)}</div>
+      </div>
+      <div class="box">
+        <div class="box-kicker">Descripción de obra</div>
+        <div class="desc">${qEsc(obra)}</div>
+      </div>
+    </section>
+
+    <table>
+      <thead>
+        ${isRental
+          ? `<tr>
+              <th style="width:50px;text-align:center;">#</th>
+              <th>Equipo arrendado</th>
+              <th style="width:80px;text-align:center;">Días</th>
+              <th style="width:95px;text-align:center;">Equipos</th>
+              <th style="width:130px;text-align:right;">V. Unit.</th>
+              <th style="width:145px;text-align:right;">Total</th>
+            </tr>`
+          : `<tr>
+              <th style="width:50px;text-align:center;">#</th>
+              <th>Descripción</th>
+              <th style="width:95px;text-align:center;">Cant.</th>
+              <th style="width:130px;text-align:right;">V. Unit.</th>
+              <th style="width:145px;text-align:right;">Subtotal</th>
+            </tr>`}
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    ${maintenanceHtml}
+
+    <div class="totals-wrap">
+      <div class="totals">
+        <div class="row"><span>Neto</span><span>${qEsc(qClp(totals?.neto || 0))}</span></div>
+        ${showDiscount ? `<div class="row"><span>Descuento (${qEsc(pctText)}%)</span><span>-${qEsc(qClp(totals?.descMonto || 0))}</span></div>` : ''}
+        <div class="row"><span>IVA (19%)</span><span>${qEsc(qClp(totals?.iva || 0))}</span></div>
+        <div class="row total"><span>TOTAL</span><span>${qEsc(qClp(totals?.total || 0))}</span></div>
+      </div>
+    </div>
+
+    <div class="foot">Documento emitido desde el CRM ECOLUZ</div>
+  </div>
+</body>
+</html>`;
+  }
+
+  window.printQuoteDirect = async function(quoteId){
+    try{
+      if(typeof window.fetchQuoteFull !== 'function') throw new Error('No está disponible la carga completa de cotizaciones.');
+      const q = await window.fetchQuoteFull(quoteId);
+      if(!q) throw new Error('No se encontró la cotización.');
+
+      const html = buildQuotePrintHTML(q);
+      const printWin = window.open('', '_blank', 'width=1100,height=900');
+      if(!printWin) throw new Error('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para este sitio.');
+      printWin.document.open();
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+
+      const launchPrint = () => {
+        try{
+          printWin.focus();
+          printWin.print();
+        }catch(e){
+          console.error('printQuoteDirect.print', e);
+        }
+      };
+
+      if(printWin.document.readyState === 'complete'){
+        setTimeout(launchPrint, 250);
+      }else{
+        printWin.addEventListener('load', () => setTimeout(launchPrint, 250), { once:true });
+      }
+    }catch(err){
+      console.error('printQuoteDirect', err);
+      alert('No se pudo imprimir la cotización: ' + (err?.message || err));
+    }
+  };
+
+  // Extender "Más opciones" de cotización.
+  const originalMore = window.showQuoteMoreOptions;
+  if(typeof originalMore === 'function'){
+    window.showQuoteMoreOptions = function(quoteId){
+      const r = originalMore.apply(this, arguments);
+      setTimeout(() => {
+        const grid = document.querySelector('#modalContent .grid.grid-cols-1.gap-3');
+        if(!grid || grid.querySelector('.quote-print-direct-btn')) return;
+        const btn = document.createElement('button');
+        btn.className = 'quote-print-direct-btn w-full text-left px-4 py-3 rounded-2xl border hover:bg-gray-50 font-semibold';
+        btn.setAttribute('onclick', `printQuoteDirect('${String(quoteId).replace(/'/g,"\\'")}'); closeModal();`);
+        btn.innerHTML = '<i class="fa-solid fa-print mr-2 text-emerald-700"></i> Imprimir cotización';
+        const firstPdf = Array.from(grid.querySelectorAll('button')).find(el => /Descargar PDF/i.test(el.textContent || ''));
+        if(firstPdf && firstPdf.parentNode){
+          firstPdf.parentNode.insertBefore(btn, firstPdf);
+        }else{
+          grid.prepend(btn);
+        }
+      }, 120);
+      return r;
+    };
+    try{ showQuoteMoreOptions = window.showQuoteMoreOptions; }catch(e){}
+  }
+})();
+</script>
+
+
+
+<script id="ecoluz-v531-fixes">
+(function(){
+  'use strict';
+
+  // ============================================================
+  // 1) IMPRESIÓN DIRECTA DE COTIZACIONES
+  // Usa el mismo generador PDF canónico del CRM.
+  // No depende de window.fetchQuoteFull (esa función es interna).
+  // ============================================================
+  window.printQuoteDirect = async function(quoteId){
+    let printWin = null;
+    try{
+      // Abrir inmediatamente para que el navegador no lo bloquee después del await.
+      printWin = window.open('', '_blank', 'width=1100,height=900');
+      if(!printWin){
+        throw new Error('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para este sitio.');
+      }
+
+      printWin.document.open();
+      printWin.document.write(`<!doctype html>
+        <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <title>Preparando impresión...</title>
+            <style>
+              body{font-family:Arial,sans-serif;background:#f8fafc;color:#334155;display:grid;place-items:center;height:100vh;margin:0}
+              .box{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:28px 34px;box-shadow:0 12px 30px rgba(15,23,42,.08);text-align:center}
+              .spinner{width:36px;height:36px;border:4px solid #e2e8f0;border-top-color:#85af28;border-radius:50%;margin:0 auto 15px;animation:s .8s linear infinite}
+              @keyframes s{to{transform:rotate(360deg)}}
+              b{display:block;font-size:18px;margin-bottom:5px}
+              span{font-size:13px;color:#64748b}
+            </style>
+          </head>
+          <body>
+            <div class="box"><div class="spinner"></div><b>Preparando cotización</b><span>En unos segundos se abrirá la impresión.</span></div>
+          </body>
+        </html>`);
+      printWin.document.close();
+
+      if(typeof window.buildQuotePDFDoc !== 'function'){
+        throw new Error('No está disponible el generador de cotizaciones.');
+      }
+
+      const doc = await window.buildQuotePDFDoc(quoteId);
+
+      // jsPDF incluye autoPrint en esta instalación. Agrega la instrucción
+      // de impresión al PDF sin descargar el archivo.
+      if(typeof doc.autoPrint === 'function'){
+        try{ doc.autoPrint({ variant:'non-conform' }); }
+        catch(e){ try{ doc.autoPrint(); }catch(_e){} }
+      }
+
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Abrir el PDF listo para imprimir.
+      printWin.location.replace(blobUrl);
+      printWin.focus();
+
+      // Liberar URL más adelante, una vez que el visor ya la haya tomado.
+      setTimeout(() => {
+        try{ URL.revokeObjectURL(blobUrl); }catch(e){}
+      }, 120000);
+
+    }catch(err){
+      console.error('printQuoteDirect.v531', err);
+      try{
+        if(printWin && !printWin.closed){
+          printWin.document.open();
+          printWin.document.write(`<div style="font-family:Arial;padding:30px">
+            <h2>No se pudo preparar la impresión</h2>
+            <p>${String(err?.message || err).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</p>
+          </div>`);
+          printWin.document.close();
+        }
+      }catch(e){}
+      alert('No se pudo imprimir la cotización: ' + (err?.message || err));
+    }
+  };
+
+
+  // ============================================================
+  // 2) DASHBOARD HISTÓRICO POR MES/AÑO
+  // Corrección completa: la V5.2 dependía de helpers privados de otro
+  // script. Esta versión contiene sus propios cálculos y, además,
+  // recupera el histórico completo desde Google Sheets una vez.
+  // ============================================================
+
+  const MONTH_NAMES = [
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+  ];
+
+  const histState = {
+    loaded:false,
+    loading:false,
+    promise:null,
+    ots:null,
+    quotes:null,
+    loadedAt:0
+  };
+
+  function txt(v){ return String(v == null ? '' : v).trim(); }
+  function num(v){ const n=Number(v); return Number.isFinite(n) ? n : 0; }
+  function norm(v){
+    return txt(v)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase().replace(/[\s-]+/g,'_');
+  }
+  function esc(v){
+    return txt(v).replace(/[&<>'"]/g, ch => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'
+    }[ch]));
+  }
+  function money(v){
+    try{
+      return new Intl.NumberFormat('es-CL',{
+        style:'currency',currency:'CLP',maximumFractionDigits:0
+      }).format(num(v));
+    }catch(e){
+      return '$' + Math.round(num(v)).toLocaleString('es-CL');
+    }
+  }
+
+  function parseDate(v){
+    if(!v) return null;
+    if(v instanceof Date) return isNaN(v.getTime()) ? null : new Date(v.getTime());
+
+    const raw=txt(v);
+    let m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m) return new Date(+m[1], +m[2]-1, +m[3], 12);
+
+    m=raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if(m) return new Date(+m[3], +m[2]-1, +m[1], 12);
+
+    m=raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+    if(m){
+      const yy=+m[3];
+      return new Date(2000+yy, +m[2]-1, +m[1], 12);
+    }
+
+    const d=new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function sameMonth(v, ref){
+    const d=parseDate(v);
+    return !!d && d.getFullYear()===ref.getFullYear() && d.getMonth()===ref.getMonth();
+  }
+
+  function dayStart(v){
+    const d=parseDate(v);
+    return d ? new Date(d.getFullYear(),d.getMonth(),d.getDate()) : null;
+  }
+
+  function daysFrom(v, ref){
+    const a=dayStart(v), b=dayStart(ref);
+    return a&&b ? Math.max(0,Math.floor((b-a)/86400000)) : null;
+  }
+
+  function pct(done,total){
+    return total>0 ? Math.max(0,Math.min(100,Math.round(done/total*100))) : null;
+  }
+
+  function setText(id,v){
+    const el=document.getElementById(id);
+    if(el) el.textContent=String(v == null ? '' : v);
+  }
+
+  function setMetric(prefix,v){
+    const p=v==null ? 0 : Math.max(0,Math.min(100,num(v)));
+    setText(prefix+'Pct', v==null ? '—' : p+'%');
+    const ring=document.getElementById(prefix+'Ring');
+    const bar=document.getElementById(prefix+'Bar');
+    if(ring) ring.style.setProperty('--pct',String(p));
+    if(bar) bar.style.width=p+'%';
+  }
+
+  function periodState(){
+    if(!window.dashboardPeriodState){
+      const now=new Date();
+      window.dashboardPeriodState={month:now.getMonth()+1,year:now.getFullYear()};
+    }
+    return window.dashboardPeriodState;
+  }
+
+  function periodDate(){
+    const s=periodState();
+    return new Date(Number(s.year),Number(s.month)-1,1);
+  }
+
+  function periodLabel(d){
+    return `${MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}`;
+  }
+
+  function clientMap(){
+    return new Map((Array.isArray(window.clients)?window.clients:[]).map(c=>[String(c?.id||''),c]));
+  }
+
+  function quoteDate(q){
+    return q?.fecha || q?.fecha_cotizacion || q?.data?.fecha ||
+      q?.data?.fechaDocumento || q?.data?.fechaCotizacion || q?.created_at || '';
+  }
+
+  function quoteState(q){
+    const s=norm(q?.estado || q?.status || q?.data?.estado || q?.data?.status || 'pendiente');
+    if(['aceptada','aceptado','aprobada','aprobado'].includes(s)) return 'aceptada';
+    if(['rechazada','rechazado'].includes(s)) return 'rechazada';
+    if(['vencida','vencido'].includes(s)) return 'vencida';
+    if(['reemplazada','reemplazado'].includes(s)) return 'reemplazada';
+    return s || 'pendiente';
+  }
+
+  function quoteNumber(q){ return txt(q?.numeroCotizacion || q?.numero_cotizacion || q?.numero || q?.folio || q?.data?.numeroCotizacion || 'S/N'); }
+  function quoteAmount(q){ return num(q?.monto || q?.total || q?.bruto || q?.data?.monto || q?.data?.total || 0); }
+  function quoteClient(q){
+    const c=clientMap().get(String(q?.clientId || q?.client_id || ''));
+    return txt(q?.clientName || q?.client_name || q?.razonSocial || q?.data?.clientName || c?.name || 'Cliente');
+  }
+  function quoteDesc(q){
+    return txt(q?.tipo_servicio || q?.tipoServicio || q?.obra || q?.descripcion || q?.data?.descripcion || 'Sin descripción');
+  }
+
+  function otDate(o){
+    const d=o?.data||{};
+    return o?.fecha_programada || o?.fechaProgramada ||
+      d.fecha_programada || d.fechaProgramada || d.scheduledDate || d.scheduled_date ||
+      o?.fecha || d.fecha || d.fechaDocumento || o?.created_at || '';
+  }
+
+  function otState(o){
+    const s=norm(o?.estado || o?.data?.estado || 'pendiente');
+    if(['realizada','realizado','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].includes(s)) return 'realizada';
+    if(['cancelada','cancelado','anulada','anulado','rechazada','rechazado'].includes(s)) return 'cancelada';
+    if(['en_curso','encurso'].includes(s)) return 'en_curso';
+    return 'pendiente';
+  }
+
+  function otNumber(o){ return txt(o?.numeroOT || o?.numero_ot || o?.folio || o?.data?.numeroOT || 'S/N'); }
+  function otAmount(o){ return num(o?.monto || o?.total || o?.monto_total || o?.data?.monto || o?.data?.total || o?.data?.montoTotal || 0); }
+  function otClient(o){
+    const c=clientMap().get(String(o?.clientId || o?.client_id || ''));
+    return txt(o?.clientName || o?.client_name || o?.data?.clientName || o?.data?.nombre || c?.name || 'Cliente');
+  }
+  function otDesc(o){ return txt(o?.descripcion || o?.obra || o?.data?.descripcion || o?.data?.descripcion_trabajo || 'Sin descripción'); }
+
+  function cobroMode(o){
+    const s=norm(o?.modalidadCobro || o?.modalidad_cobro || o?.data?.modalidadCobro || o?.data?.modalidad_cobro || '');
+    return s==='directo' ? 'directo' : (s==='por_definir' ? 'por_definir' : 'factura');
+  }
+
+  function otPaid(o){
+    const st=norm(o?.pago_estado || o?.cobro_estado || o?.data?.pago_estado || o?.data?.cobro_estado || '');
+    return ['pagado','pagada','paid'].includes(st) || o?.data?.pagoConfirmado===true;
+  }
+
+  function docs(o){
+    const d=o?.data||{};
+    let out=[];
+    if(Array.isArray(d.documentos)) out=d.documentos.filter(Boolean);
+    else if(Array.isArray(d.documents)) out=d.documents.filter(Boolean);
+
+    if(!out.length){
+      const n=txt(
+        o?.factura_num || o?.factura_numero || o?.documento_numero ||
+        d.facturaNumero || d.factura_num || d.documentoNumero || d.documento_numero || d.factura
+      );
+      if(n){
+        out=[{
+          numero:n,
+          tipo:o?.documento_tipo || d.documentoTipo || d.documento_tipo || 'factura',
+          fechaRegistro:o?.factura_registro_fecha || d.facturaRegistroFecha || d.factura_registro_fecha ||
+            o?.factura_enviada_fecha || d.facturaEnviadaFecha || d.factura_enviada_fecha || otDate(o),
+          pagada:otPaid(o),
+          estadoPago:o?.cobro_estado || o?.pago_estado || d.cobro_estado || d.pago_estado || ''
+        }];
+      }
+    }
+    return out;
+  }
+
+  function activeDoc(d){
+    return d && d.anulada!==true && !['anulada','anulado','cancelada','cancelado'].includes(norm(d?.estadoPago || d?.estado_pago || d?.estado));
+  }
+
+  function docDate(d,o){
+    return d?.fechaRegistro || d?.fecha_registro || d?.fechaEnvio || d?.fecha_envio ||
+      d?.createdAt || d?.created_at || o?.factura_registro_fecha || o?.data?.facturaRegistroFecha ||
+      o?.factura_enviada_fecha || o?.data?.facturaEnviadaFecha || otDate(o);
+  }
+
+  function docAmount(d,o,count){
+    const explicit=num(d?.montoFacturado || d?.monto_facturado || d?.monto || d?.total);
+    return explicit>0 ? explicit : (count>1 ? otAmount(o)/count : otAmount(o));
+  }
+
+  function docPaid(d,o,amount){
+    const explicit=num(d?.montoCancelado || d?.monto_cancelado || d?.montoPagado || d?.monto_pagado);
+    if(explicit>0) return Math.min(amount,explicit);
+    const st=norm(d?.estadoPago || d?.estado_pago || d?.estado || d?.pago_estado);
+    const paid=d?.pagada===true || ['pagado','pagada','paid'].includes(st) ||
+      !!(d?.fechaPago || d?.fecha_pago || d?.pagoFecha || d?.pago_fecha) || otPaid(o);
+    return paid ? amount : 0;
+  }
+
+  function normalizeServerQuote(r){
+    const d=r?.data||{};
+    const c=clientMap().get(String(r?.client_id||''));
+    const name=txt(d.clientName || d.razonSocial || c?.name || 'Cliente');
+    return {
+      ...r,
+      clientId:r?.client_id,
+      clientName:name,
+      razonSocial:name,
+      numeroCotizacion:txt(r?.numero || d.numeroCotizacion || 'S/N'),
+      monto:num(r?.monto || d.total || d.monto || 0),
+      fecha:r?.fecha || d.fecha || d.fechaDocumento || d.fechaCotizacion || r?.created_at || '',
+      estado:txt(r?.estado || d.estado || 'pendiente').toLowerCase(),
+      data:d
+    };
+  }
+
+  function normalizeServerOT(r){
+    const d=r?.data||{};
+    const c=clientMap().get(String(r?.client_id||''));
+    const amount=num(d.total ?? d.monto ?? r?.monto ?? 0);
+    return {
+      ...r,
+      clientId:r?.client_id,
+      quoteId:r?.quote_id || d.quoteId || d.quote_id || null,
+      clientName:txt(d.clientName || d.nombre || c?.name || 'Cliente'),
+      numeroOT:txt(r?.numero_ot || d.numeroOT || d.numero_ot || 'S/N'),
+      numero_ot:txt(r?.numero_ot || d.numeroOT || d.numero_ot || 'S/N'),
+      descripcion:r?.descripcion || d.descripcion || d.descripcion_trabajo || '',
+      estado:txt(r?.estado || d.estado || 'pendiente').toLowerCase(),
+      pago_estado:txt(r?.pago_estado || d.pago_estado || '').toLowerCase(),
+      cobro_estado:txt(r?.cobro_estado || d.cobro_estado || '').toLowerCase(),
+      modalidadCobro:d.modalidadCobro || d.modalidad_cobro || 'factura',
+      fecha:r?.fecha || d.fecha || d.fechaDocumento || r?.created_at || '',
+      monto:amount,total:amount,
+      data:d
+    };
+  }
+
+  async function loadFullHistory(force=false){
+    if(!force && histState.loaded && Date.now()-histState.loadedAt < 300000) return histState;
+    if(histState.promise) return histState.promise;
+
+    histState.loading=true;
+
+    async function fetchTableAll(table){
+      const sb=window.supabaseClient;
+      if(!sb || typeof sb.from!=='function'){
+        throw new Error('No está disponible la conexión con Google Sheets.');
+      }
+
+      const rows=[];
+      const seen=new Set();
+      let offset=0;
+      const requestSize=250;
+      let total=null;
+
+      // La API puede limitar internamente el número de filas por respuesta.
+      // Por eso NO terminamos solo porque devuelva menos de 250:
+      // seguimos avanzando hasta llegar al total informado o recibir 0 filas.
+      for(let guard=0; guard<50; guard++){
+        const res=await sb
+          .from(table)
+          .select('*')
+          .order('created_at',{ascending:false})
+          .range(offset, offset + requestSize - 1);
+
+        if(res?.error) throw res.error;
+
+        const batch=Array.isArray(res?.data)?res.data:[];
+        const reported=Number(res?.count);
+        if(Number.isFinite(reported) && reported>=0) total=reported;
+
+        if(!batch.length) break;
+
+        let added=0;
+        batch.forEach(row=>{
+          const key=String(row?.id || `${table}-${offset+added}`);
+          if(!seen.has(key)){
+            seen.add(key);
+            rows.push(row);
+            added++;
+          }
+        });
+
+        // Avanzamos por filas RECIBIDAS, no por requestSize, porque el
+        // servidor puede aplicar un máximo interno menor.
+        offset += batch.length;
+
+        if(total !== null && offset >= total) break;
+
+        // Protección contra una API que repita la misma página.
+        if(added===0) break;
+      }
+
+      return rows;
+    }
+
+    histState.promise=(async()=>{
+      try{
+        const [qSet,oSet]=await Promise.allSettled([
+          fetchTableAll('quotes'),
+          fetchTableAll('ots')
+        ]);
+
+        let quoteRows=[];
+        let otRows=[];
+
+        if(qSet.status==='fulfilled'){
+          quoteRows=qSet.value;
+        }else{
+          console.warn('Dashboard histórico: error cargando cotizaciones completas.',qSet.reason);
+        }
+
+        if(oSet.status==='fulfilled'){
+          otRows=oSet.value;
+        }else{
+          console.warn('Dashboard histórico: error cargando OT completas.',oSet.reason);
+        }
+
+        histState.quotes = quoteRows.length
+          ? quoteRows.map(normalizeServerQuote)
+          : (Array.isArray(window.quotes)?window.quotes.slice():[]);
+
+        histState.ots = otRows.length
+          ? otRows.map(normalizeServerOT)
+          : (Array.isArray(window.ots)?window.ots.slice():[]);
+
+        histState.loaded=true;
+        histState.loadedAt=Date.now();
+
+        console.info(
+          '[Dashboard histórico] carga completa:',
+          histState.quotes.length,'cotizaciones ·',
+          histState.ots.length,'OT'
+        );
+
+      }catch(err){
+        console.warn('Dashboard histórico: se usará la colección local.',err);
+        histState.quotes=Array.isArray(window.quotes)?window.quotes.slice():[];
+        histState.ots=Array.isArray(window.ots)?window.ots.slice():[];
+        histState.loaded=true;
+        histState.loadedAt=Date.now();
+      }finally{
+        histState.loading=false;
+        histState.promise=null;
+      }
+
+      return histState;
+    })();
+
+    return histState.promise;
+  }
+
+  function sourceData(){
+    return {
+      quotes: histState.loaded && Array.isArray(histState.quotes) ? histState.quotes : (Array.isArray(window.quotes)?window.quotes:[]),
+      ots: histState.loaded && Array.isArray(histState.ots) ? histState.ots : (Array.isArray(window.ots)?window.ots:[])
+    };
+  }
+
+  // ----- Mantenciones históricas -----
+  function freqStep(f){
+    const n=norm(f);
+    return ({mensual:1,bimestral:2,trimestral:3,cuatrimestral:4,semestral:6,anual:12})[n] || 12;
+  }
+
+  function baseMonths(p,year){
+    const step=freqStep(p?.frequency || p?.frecuencia || 'mensual');
+    const start=Math.max(1,Math.min(12,num(p?.startMonth || p?.start_month || 1) || 1));
+    const originYear=num(p?.programYear || p?.program_year || year) || year;
+    const originIndex=originYear*12+(start-1);
+    const out=[];
+    for(let m=1;m<=12;m++){
+      const idx=year*12+(m-1);
+      const distance=idx-originIndex;
+      if(distance>=0 && distance%step===0) out.push(m);
+    }
+    return out;
+  }
+
+  function isReprogram(h){
+    return ['reprogram','reprogrammed','reprogramacion'].includes(norm(h?.type || h?.action || ''));
+  }
+
+  function reprogramEntries(p,year){
+    return (Array.isArray(p?.completedHistory)?p.completedHistory:[])
+      .filter(isReprogram)
+      .map((h,index)=>({
+        h,index,
+        original:num(h?.month || h?.originalMonth || h?.scheduledMonth),
+        target:num(h?.targetMonth || h?.newMonth || h?.toMonth),
+        year:num(h?.year || h?.programYear || year),
+        created:txt(h?.createdAt || h?.created_at || h?.date || '')
+      }))
+      .filter(x=>x.year===year && x.original>=1&&x.original<=12&&x.target>=1&&x.target<=12)
+      .sort((a,b)=>xSafeCmp(a.created,b.created)||a.index-b.index);
+  }
+  function xSafeCmp(a,b){ return String(a||'').localeCompare(String(b||'')); }
+
+  function dueMonths(p,year){
+    let effective=baseMonths(p,year);
+    const step=freqStep(p?.frequency || p?.frecuencia || 'mensual');
+    reprogramEntries(p,year).forEach(e=>{
+      const idx=effective.indexOf(e.original);
+      if(idx<0) return;
+      const head=effective.slice(0,idx);
+      const tail=[];
+      for(let m=e.target;m<=12;m+=step) tail.push(m);
+      effective=Array.from(new Set([...head,...tail])).sort((a,b)=>a-b);
+    });
+    return effective;
+  }
+
+  function completedMonths(p){
+    return Array.isArray(p?.completedMonths) ? p.completedMonths.map(Number) :
+      (Array.isArray(p?.completed_months) ? p.completed_months.map(Number) : []);
+  }
+
+  function historyActualMonth(h,fallback){
+    const explicit=num(h?.actualMonth || h?.actual_month || h?.doneMonth || h?.done_month);
+    if(explicit>=1&&explicit<=12) return explicit;
+    const d=parseDate(h?.date);
+    return d ? d.getMonth()+1 : num(fallback || h?.month);
+  }
+
+  function historyActualYear(h,fallback){
+    const explicit=num(h?.actualYear || h?.actual_year || h?.doneYear || h?.done_year);
+    if(explicit) return explicit;
+    const d=parseDate(h?.date);
+    return d ? d.getFullYear() : num(fallback || h?.year);
+  }
+
+  function maintenanceForPeriod(ref){
+    const year=ref.getFullYear(),month=ref.getMonth()+1;
+    const programs=(Array.isArray(window.maintenancePrograms)?window.maintenancePrograms:[])
+      .filter(p=>norm(p?.status||'vigente')!=='finalizada')
+      .filter(p=>{
+        const py=num(p?.programYear || p?.program_year || year);
+        // Los programas son anuales; solo corresponde el año seleccionado.
+        return py===year;
+      });
+
+    let done=0,due=0,overdue=0;
+    const doneKeys=new Set();
+
+    programs.forEach(p=>{
+      const completed=completedMonths(p);
+      const scheduled=dueMonths(p,year);
+
+      const hist=Array.isArray(p?.completedHistory)?p.completedHistory:
+        (Array.isArray(p?.completed_history)?p.completed_history:[]);
+
+      hist.forEach(h=>{
+        if(isReprogram(h)) return;
+        const scheduledMonth=num(h?.month || 0);
+        const actualM=historyActualMonth(h,scheduledMonth);
+        const actualY=historyActualYear(h,year);
+        const key=`${p?.id||p?.clientName||'p'}-${scheduledMonth}-${actualM}-${actualY}`;
+        if(actualY===year && actualM===month && !doneKeys.has(key)){
+          doneKeys.add(key);
+          done++;
+        }
+      });
+
+      if(scheduled.includes(month) && !completed.includes(month)) due++;
+      scheduled.forEach(m=>{
+        if(m<month && !completed.includes(m)) overdue++;
+      });
+    });
+
+    return {done,due,total:done+due,overdue,pct:pct(done,done+due)};
+  }
+
+  function buildSnapshot(ref){
+    const now=new Date(), today=dayStart(now);
+    const {quotes,ots}=sourceData();
+
+    const monthlyOts=ots.filter(o=>otState(o)!=='cancelada' && sameMonth(otDate(o),ref));
+    const monthlyOtDone=monthlyOts.filter(o=>otState(o)==='realizada');
+
+    const monthlyQuotes=quotes.filter(q=>sameMonth(quoteDate(q),ref));
+    const acceptedQuotes=monthlyQuotes.filter(q=>quoteState(q)==='aceptada');
+    const rejectedQuotes=monthlyQuotes.filter(q=>quoteState(q)==='rechazada');
+    const decidedQuotes=[...acceptedQuotes,...rejectedQuotes];
+
+    const quoteClosed=q=>['aceptada','rechazada','vencida','reemplazada','anulada','cancelada'].includes(quoteState(q));
+    const pendingQuotes=quotes.filter(q=>!quoteClosed(q));
+
+    const openOts=ots.filter(o=>['pendiente','en_curso'].includes(otState(o)));
+    const inProgressOts=openOts.filter(o=>otState(o)==='en_curso');
+
+    const tomorrow=new Date(today);tomorrow.setDate(tomorrow.getDate()+1);
+    const nextLimit=new Date(today);nextLimit.setDate(nextLimit.getDate()+7);
+
+    const todayOts=ots.filter(o=>{
+      if(otState(o)==='cancelada') return false;
+      const d=dayStart(otDate(o));
+      return !!d&&d.getTime()===today.getTime();
+    });
+    const next7Ots=ots.filter(o=>{
+      if(!['pendiente','en_curso'].includes(otState(o))) return false;
+      const d=dayStart(otDate(o));
+      return !!d&&d>=tomorrow&&d<=nextLimit;
+    });
+
+    const monthlyCollection=[],debts=[];
+    ots.forEach(o=>{
+      if(otState(o)==='cancelada') return;
+      const list=docs(o).filter(activeDoc);
+      list.forEach(d=>{
+        const amount=docAmount(d,o,list.length);
+        const paid=docPaid(d,o,amount);
+        const balance=Math.max(0,amount-paid);
+        const baseDate=docDate(d,o);
+        const entry={kind:'document',ot:o,doc:d,amount,paid,balance,baseDate,days:daysFrom(baseDate,now)};
+        if(sameMonth(baseDate,ref)) monthlyCollection.push(entry);
+        if(balance>0) debts.push(entry);
+      });
+
+      if(!list.length && otState(o)==='realizada'){
+        const amount=otAmount(o),paid=otPaid(o)?amount:0,balance=Math.max(0,amount-paid);
+        if(balance>0) debts.push({
+          kind:cobroMode(o)==='directo'?'direct':'unbilled',
+          ot:o,doc:null,amount,paid,balance,baseDate:otDate(o),days:daysFrom(otDate(o),now)
+        });
+      }
+    });
+
+    const invoicedMonth=monthlyCollection.reduce((s,x)=>s+x.amount,0);
+    const paidMonth=monthlyCollection.reduce((s,x)=>s+x.paid,0);
+
+    const overdueOts=ots.filter(o=>{
+      const d=dayStart(otDate(o));
+      return ['pendiente','en_curso'].includes(otState(o))&&d&&d<today;
+    });
+
+    const unbilledOts=ots.filter(o=>
+      otState(o)==='realizada' &&
+      cobroMode(o)==='factura' &&
+      docs(o).filter(activeDoc).length===0
+    );
+
+    const overdueInvoices=debts.filter(x=>x.kind==='document'&&num(x.days)>30);
+
+    return {
+      now,ref,
+      monthlyOts,monthlyOtDone,
+      monthlyQuotes,acceptedQuotes,rejectedQuotes,decidedQuotes,
+      pendingQuotes,pendingQuotesAmount:pendingQuotes.reduce((s,q)=>s+quoteAmount(q),0),
+      openOts,inProgressOts,todayOts,next7Ots,
+      monthlyCollection,invoicedMonth,paidMonth,
+      debts,outstanding:debts.reduce((s,x)=>s+x.balance,0),
+      overdueOts,overdueInvoices,
+      unbilledOts,unbilledAmount:unbilledOts.reduce((s,o)=>s+otAmount(o),0),
+      maintenance:maintenanceForPeriod(ref)
+    };
+  }
+
+  function availableYears(){
+    const years=new Set([new Date().getFullYear()]);
+    const {quotes,ots}=sourceData();
+    quotes.forEach(q=>{const d=parseDate(quoteDate(q));if(d)years.add(d.getFullYear());});
+    ots.forEach(o=>{const d=parseDate(otDate(o));if(d)years.add(d.getFullYear());});
+    (Array.isArray(window.maintenancePrograms)?window.maintenancePrograms:[]).forEach(p=>{
+      const y=num(p?.programYear||p?.program_year);if(y)years.add(y);
+    });
+    return Array.from(years).sort((a,b)=>a-b);
+  }
+
+  function setupSelectors(){
+    const month=document.getElementById('dashV2MonthSelect');
+    const year=document.getElementById('dashV2YearSelect');
+    if(!month||!year)return;
+
+    if(month.dataset.v531!=='1'){
+      month.innerHTML=MONTH_NAMES.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+      month.dataset.v531='1';
+      month.onchange=()=>{
+        periodState().month=num(month.value)||new Date().getMonth()+1;
+        window.renderDashboard();
+      };
+    }
+
+    const years=availableYears();
+    const old=txt(year.value);
+    year.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    if(year.dataset.v531!=='1'){
+      year.dataset.v531='1';
+      year.onchange=()=>{
+        periodState().year=num(year.value)||new Date().getFullYear();
+        window.renderDashboard();
+      };
+    }
+
+    const s=periodState();
+    month.value=String(s.month);
+    if(year.querySelector(`option[value="${s.year}"]`)) year.value=String(s.year);
+    else{
+      year.value=old&&year.querySelector(`option[value="${old}"]`)?old:String(years[years.length-1]);
+      s.year=num(year.value)||new Date().getFullYear();
+    }
+  }
+
+  function renderAgendaRowsSimple(id,rows,includeDate){
+    const host=document.getElementById(id);
+    if(!host)return;
+    const list=(rows||[]).slice(0,6);
+    if(!list.length){
+      host.innerHTML=`<div class="dashboard-v2-agenda-empty">${includeDate?'No hay trabajos próximos con fecha asignada.':'Sin trabajos programados para hoy.'}</div>`;
+      return;
+    }
+    host.innerHTML=list.map(o=>{
+      const d=parseDate(otDate(o));
+      const dLabel=includeDate&&d?d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'}):'Hoy';
+      const state=({pendiente:'Pendiente',en_curso:'En curso',realizada:'Realizada',cancelada:'Cancelada'})[otState(o)]||otState(o);
+      return `<button type="button" class="dashboard-v2-job-row w-full text-left" onclick="showDashboardV2Details('${includeDate?'next_jobs':'today_jobs'}')">
+        <span class="dashboard-v2-job-date">${esc(dLabel)}</span>
+        <span class="dashboard-v2-job-main">
+          <span class="dashboard-v2-job-title block">OT ${esc(otNumber(o))} · ${esc(otClient(o))}</span>
+          <span class="dashboard-v2-job-sub block">${esc(otDesc(o))}</span>
+        </span>
+        <span class="dashboard-v2-job-state">${esc(state)}</span>
+      </button>`;
+    }).join('');
+  }
+
+  let rendering=false;
+  async function renderDashboardFixed(){
+    if(rendering || !document.getElementById('view-dashboard')) return;
+    rendering=true;
+
+    try{
+      setupSelectors();
+
+      const ref=periodDate();
+      const now=new Date();
+      const isCurrentPeriod =
+        ref.getFullYear()===now.getFullYear() &&
+        ref.getMonth()===now.getMonth();
+
+      // Para meses históricos no mostramos un 0 provisional:
+      // primero esperamos a que Google Sheets entregue la colección completa.
+      if(!isCurrentPeriod && !histState.loaded){
+        setText('dashV2MetricsNote','Cargando todas las OT y cotizaciones históricas para '+periodLabel(ref)+'…');
+        setText('dashV2Updated','Cargando histórico…');
+        await loadFullHistory();
+        setupSelectors();
+      }
+
+      const s=buildSnapshot(ref);
+
+      setText('dashV2Period',periodLabel(ref));
+      setText('dashV2Updated','Actualizado '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
+      setText('dashV2MetricsNote','Viendo indicadores de '+periodLabel(ref)+'. Las secciones inferiores mantienen la situación actual.');
+
+      setMetric('dashV2Ot',pct(s.monthlyOtDone.length,s.monthlyOts.length));
+      setText('dashV2OtRatio',s.monthlyOtDone.length+' de '+s.monthlyOts.length+' realizadas');
+
+      setMetric('dashV2Quote',pct(s.acceptedQuotes.length,s.decidedQuotes.length));
+      setText('dashV2QuoteRatio',s.acceptedQuotes.length+' de '+s.decidedQuotes.length+' aceptadas');
+
+      setMetric('dashV2Collection',pct(s.paidMonth,s.invoicedMonth));
+      setText('dashV2CollectionRatio',money(s.paidMonth)+' de '+money(s.invoicedMonth)+' pagado');
+
+      setMetric('dashV2Maintenance',s.maintenance.pct);
+      setText('dashV2MaintenanceRatio',s.maintenance.done+' de '+s.maintenance.total+' realizadas');
+
+      // Situación actual: siempre se mantiene actual.
+      setText('dashV2OverdueOT',s.overdueOts.length);
+      setText('dashV2NoDocument',s.unbilledOts.length);
+      setText('dashV2OverdueInvoices',s.overdueInvoices.length);
+      setText('dashV2OverdueMaintenance',s.maintenance.overdue);
+      setText('dashV2Outstanding',money(s.outstanding));
+
+      setText('dashV2PendingQuotes',s.pendingQuotes.length);
+      setText('dashV2PendingQuotesAmount',money(s.pendingQuotesAmount)+' en evaluación');
+      setText('dashV2OpenOts',s.openOts.length);
+      setText('dashV2OpenOtsSub',s.inProgressOts.length+' en curso');
+      setText('dashV2ReadyInvoice',s.unbilledOts.length);
+      setText('dashV2ReadyInvoiceAmount',money(s.unbilledAmount)+' por facturar/boletar');
+      setText('dashV2DebtCount',s.debts.length);
+      setText('dashV2DebtAmount',money(s.outstanding)+' pendiente');
+      setText('dashV2TodayJobs',s.todayOts.length);
+      setText('dashV2NextJobsSub',s.next7Ots.length+' próximos en 7 días');
+      setText('dashV2AgendaTodayCount',s.todayOts.length);
+      setText('dashV2AgendaNextCount',s.next7Ots.length);
+      renderAgendaRowsSimple('dashV2AgendaTodayList',s.todayOts,false);
+      renderAgendaRowsSimple('dashV2AgendaNextList',s.next7Ots,true);
+
+      window.dashboardOperationalSnapshot=s;
+
+      try{
+        if(typeof window.renderCommercialFlow==='function') window.renderCommercialFlow();
+      }catch(e){}
+
+      // En el mes actual cargamos el histórico en segundo plano para que,
+      // cuando se cambie de mes, ya esté disponible.
+      if(isCurrentPeriod && !histState.loaded){
+        loadFullHistory().then(()=>{
+          // No forzamos el mes actual a repintarse, pero si el usuario cambió
+          // a un período histórico mientras cargaba, sí actualizamos ese período.
+          const selected=periodDate();
+          const current=new Date();
+          const nowHistorical =
+            selected.getFullYear()!==current.getFullYear() ||
+            selected.getMonth()!==current.getMonth();
+          if(nowHistorical) renderDashboardFixed();
+        }).catch(()=>{});
+      }
+
+    }finally{
+      rendering=false;
+    }
+  }
+
+  function dateLabel(v){
+    const d=parseDate(v);
+    return d?d.toLocaleDateString('es-CL'):'Sin fecha';
+  }
+
+  function otCard(o,extra){
+    const state=({pendiente:'Pendiente',en_curso:'En curso',realizada:'Realizada',cancelada:'Cancelada'})[otState(o)]||otState(o);
+    return `<article class="border rounded-2xl p-4 bg-white">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-black text-slate-900">OT ${esc(otNumber(o))} · ${esc(otClient(o))}</p>
+          <p class="text-sm text-slate-600 mt-1">${esc(otDesc(o))}</p>
+        </div>
+        <span class="shrink-0 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-black">${esc(state)}</span>
+      </div>
+      <p class="text-xs text-slate-500 mt-3">${esc(extra||('Fecha: '+dateLabel(otDate(o))))}</p>
+    </article>`;
+  }
+
+  function quoteCard(q){
+    return `<article class="border rounded-2xl p-4 bg-white">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="font-black text-slate-900">Cot. ${esc(quoteNumber(q))} · ${esc(quoteClient(q))}</p>
+          <p class="text-sm text-slate-600 mt-1">${esc(quoteDesc(q))}</p>
+        </div>
+        <span class="shrink-0 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-black capitalize">${esc(quoteState(q))}</span>
+      </div>
+      <p class="text-xs text-slate-500 mt-3">Fecha: ${esc(dateLabel(quoteDate(q)))}</p>
+    </article>`;
+  }
+
+  function debtCard(x){
+    const docName=x.kind==='direct'?'Pago directo':
+      (x.kind==='unbilled'?'Sin documento':
+        ((norm(x.doc?.tipo)==='boleta'?'Boleta':'Factura')+' '+txt(x.doc?.numero||'S/N')));
+    return `<article class="border rounded-2xl p-4 bg-white">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="font-black text-slate-900">${esc(docName)} · OT ${esc(otNumber(x.ot))}</p>
+          <p class="text-sm text-slate-600 mt-1">${esc(otClient(x.ot))}</p>
+        </div>
+        <p class="font-black text-rose-700 whitespace-nowrap">${esc(money(x.balance))}</p>
+      </div>
+      <p class="text-xs text-slate-500 mt-3">Fecha base: ${esc(dateLabel(x.baseDate))}${x.days!=null?' · '+esc(x.days)+' días':''}</p>
+    </article>`;
+  }
+
+  function openDetails(title,subtitle,items,footer=''){
+    const body=items.length?items.join(''):`<div class="border border-dashed rounded-2xl p-6 text-center text-slate-500">No hay registros para mostrar.</div>`;
+    const html=`<div class="p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div><h2 class="text-2xl font-black">${esc(title)}</h2><p class="text-sm text-slate-500 mt-1">${esc(subtitle)}</p></div>
+        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+      </div>
+      <div class="space-y-3 max-h-[65vh] overflow-auto pr-1">${body}</div>
+      ${footer}
+    </div>`;
+    if(typeof window.openModal==='function') window.openModal(html);
+    else{
+      const c=document.getElementById('modalContent'),m=document.getElementById('modal');
+      if(c)c.innerHTML=html;if(m)m.classList.remove('hidden');
+    }
+  }
+
+  const previousDetails=window.showDashboardV2Details;
+
+  window.showDashboardV2Details=async function(kind){
+    const ref=periodDate();
+    const now=new Date();
+    const isHistorical=ref.getFullYear()!==now.getFullYear() || ref.getMonth()!==now.getMonth();
+    if(isHistorical && !histState.loaded){
+      await loadFullHistory();
+    }
+    const s=buildSnapshot(ref);
+    const p=periodLabel(periodDate());
+    const goOT=`<div class="mt-5"><button onclick="closeModal();showView('ots')" class="w-full px-4 py-3 rounded-xl bg-slate-900 text-white font-black">Abrir Órdenes de Trabajo</button></div>`;
+    const goQuotes=`<div class="mt-5"><button onclick="closeModal();showView('quotes')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Cotizaciones</button></div>`;
+    const goBilling=`<div class="mt-5"><button onclick="closeModal();showView('abonos')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Facturación y Abonos</button></div>`;
+
+    if(kind==='monthly_ots')
+      return openDetails(`OT · ${p}`,`${s.monthlyOtDone.length} realizadas de ${s.monthlyOts.length}`,s.monthlyOts.map(o=>otCard(o)),goOT);
+
+    if(kind==='monthly_quotes')
+      return openDetails(`Cotizaciones · ${p}`,`${s.acceptedQuotes.length} aceptadas y ${s.rejectedQuotes.length} rechazadas`,s.decidedQuotes.map(quoteCard),goQuotes);
+
+    if(kind==='monthly_collection')
+      return openDetails(`Cobranza documentada · ${p}`,`${money(s.paidMonth)} pagado de ${money(s.invoicedMonth)}`,s.monthlyCollection.map(debtCard),goBilling);
+
+    if(kind==='monthly_maintenance'){
+      const items=[
+        `<div class="border rounded-2xl p-5"><p class="text-sm text-slate-500">Pendientes del mes</p><p class="text-3xl font-black text-amber-700 mt-1">${s.maintenance.due}</p></div>`,
+        `<div class="border rounded-2xl p-5"><p class="text-sm text-slate-500">Realizadas del mes</p><p class="text-3xl font-black text-emerald-700 mt-1">${s.maintenance.done}</p></div>`
+      ];
+      return openDetails(`Mantenciones · ${p}`,'Avance del mes seleccionado.',items,
+        `<div class="mt-5"><button onclick="closeModal();showView('maintenance')" class="w-full px-4 py-3 rounded-xl bg-violet-700 text-white font-black">Abrir programa</button></div>`);
+    }
+
+    // Para Situación actual / Agenda se conserva la funcionalidad anterior.
+    if(typeof previousDetails==='function') return previousDetails(kind);
+  };
+
+  window.setDashboardCurrentMonth=function(){
+    const n=new Date();
+    window.dashboardPeriodState={month:n.getMonth()+1,year:n.getFullYear()};
+    setupSelectors();
+    renderDashboardFixed();
+  };
+
+  window.renderDashboardOperational=renderDashboardFixed;
+  window.renderDashboard=renderDashboardFixed;
+  try{ renderDashboard=window.renderDashboard; }catch(e){}
+  try{ showDashboardV2Details=window.showDashboardV2Details; }catch(e){}
+
+  // Carga inicial y refresco una vez obtenido el histórico.
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(renderDashboardFixed,50));
+  window.addEventListener('load',()=>setTimeout(renderDashboardFixed,350));
+  setTimeout(renderDashboardFixed,1200);
+})();
+</script>
+
+
+
+<script id="dashboard-direct-month-v534">
+(function(){
+  'use strict';
+
+  const MONTH_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const monthCache=new Map();
+
+  function txt(v){return String(v==null?'':v).trim();}
+  function num(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+  function norm(v){
+    return txt(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase().replace(/[\s-]+/g,'_');
+  }
+  function parseDate(v){
+    if(!v)return null;
+    if(v instanceof Date)return isNaN(v.getTime())?null:new Date(v.getTime());
+    const s=txt(v);
+    let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m)return new Date(+m[1],+m[2]-1,+m[3],12);
+    m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if(m)return new Date(+m[3],+m[2]-1,+m[1],12);
+    m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+    if(m)return new Date(2000+(+m[3]),+m[2]-1,+m[1],12);
+    const d=new Date(s);return isNaN(d.getTime())?null:d;
+  }
+  function sameMonth(v,ref){
+    const d=parseDate(v);
+    return !!d&&d.getFullYear()===ref.getFullYear()&&d.getMonth()===ref.getMonth();
+  }
+  function pct(a,b){return b>0?Math.round((a/b)*100):null;}
+  function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=String(v==null?'':v);}
+  function setMetric(prefix,p){
+    const ring=document.getElementById(prefix+'Ring');
+    const value=document.getElementById(prefix+'Pct');
+    const bar=document.getElementById(prefix+'Bar');
+    const n=p==null?0:Math.max(0,Math.min(100,Number(p)||0));
+    if(ring)ring.style.setProperty('--pct',String(n));
+    if(value)value.textContent=p==null?'—':n+'%';
+    if(bar)bar.style.width=n+'%';
+  }
+  function money(v){
+    try{
+      if(typeof window.formatCLP==='function')return window.formatCLP(v);
+      return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(num(v));
+    }catch(e){return '$'+Math.round(num(v)).toLocaleString('es-CL');}
+  }
+  function state(){
+    if(!window.dashboardPeriodState){
+      const n=new Date();window.dashboardPeriodState={month:n.getMonth()+1,year:n.getFullYear()};
+    }
+    return window.dashboardPeriodState;
+  }
+  function refDate(){
+    const s=state();return new Date(Number(s.year),Number(s.month)-1,1);
+  }
+  function ym(ref){
+    return `${ref.getFullYear()}-${String(ref.getMonth()+1).padStart(2,'0')}`;
+  }
+  function label(ref){return `${MONTH_NAMES[ref.getMonth()]} de ${ref.getFullYear()}`;}
+
+  function clientMap(){
+    return new Map((Array.isArray(window.clients)?window.clients:[]).map(c=>[String(c?.id||''),c]));
+  }
+  function quoteNormalize(r){
+    const d=(r&&typeof r.data==='object'&&!Array.isArray(r.data))?r.data:{};
+    const c=clientMap().get(String(r?.client_id||''));
+    return {
+      ...r,
+      clientId:r?.client_id||d.clientId||d.client_id||'',
+      clientName:txt(d.clientName||d.razonSocial||c?.name||'Cliente'),
+      numeroCotizacion:txt(r?.numero||d.numeroCotizacion||r?.numero_cotizacion||'S/N'),
+      monto:num(r?.monto||r?.total||d.monto||d.total||0),
+      fecha:r?.fecha||r?.fecha_documento||r?.fecha_cotizacion||d.fecha||d.fechaDocumento||d.fechaCotizacion||r?.created_at||'',
+      estado:txt(r?.estado||d.estado||'pendiente'),
+      descripcion:r?.descripcion||r?.obra||d.descripcion||d.obra||'',
+      tipo_servicio:r?.tipo_servicio||d.tipo_servicio||''
+    };
+  }
+  function otNormalize(r){
+    const d=(r&&typeof r.data==='object'&&!Array.isArray(r.data))?r.data:{};
+    const c=clientMap().get(String(r?.client_id||''));
+    return {
+      ...r,
+      clientId:r?.client_id||d.clientId||d.client_id||'',
+      clientName:txt(d.clientName||d.nombre||c?.name||'Cliente'),
+      numeroOT:txt(r?.numero_ot||d.numeroOT||d.numero_ot||'S/N'),
+      descripcion:r?.descripcion||d.descripcion||d.descripcion_trabajo||'',
+      fecha:r?.fecha||r?.fecha_documento||d.fecha||d.fechaDocumento||r?.created_at||'',
+      estado:txt(r?.estado||d.estado||'pendiente'),
+      monto:num(r?.monto||d.monto||d.total||0),
+      pago_estado:txt(r?.pago_estado||d.pago_estado||''),
+      cobro_estado:txt(r?.cobro_estado||d.cobro_estado||''),
+      factura_num:r?.factura_num||d.facturaNumero||d.factura_num||'',
+      documento_numero:r?.documento_numero||d.documentoNumero||d.documento_numero||'',
+      factura_registro_fecha:r?.factura_registro_fecha||d.facturaRegistroFecha||d.factura_registro_fecha||'',
+      factura_enviada_fecha:r?.factura_enviada_fecha||d.facturaEnviadaFecha||d.factura_enviada_fecha||'',
+      documento_tipo:r?.documento_tipo||d.documentoTipo||d.documento_tipo||'',
+      data:d
+    };
+  }
+
+  async function queryMonth(table,ref){
+    const sb=window.supabaseClient;
+    if(!sb||typeof sb.from!=='function')throw new Error('No está disponible la conexión con Google Sheets.');
+    const key=ym(ref);
+
+    // Consulta directa sobre la columna FECHA que ya usa la lista del CRM.
+    // Apps Script convierte las fechas reales de Sheets a ISO (YYYY-MM-DD...),
+    // por eso ilike(key) encuentra exactamente el mes seleccionado.
+    let res=await sb.from(table)
+      .select('*')
+      .ilike('fecha',key)
+      .order('fecha',{ascending:true});
+
+    if(res?.error)throw res.error;
+    let rows=Array.isArray(res?.data)?res.data:[];
+
+    // Fallback para registros históricos cuya fecha principal quedó vacía:
+    // buscamos por created_at y luego unimos sin duplicar.
+    if(!rows.length){
+      const fallback=await sb.from(table)
+        .select('*')
+        .ilike('created_at',key)
+        .order('created_at',{ascending:true});
+      if(!fallback?.error&&Array.isArray(fallback?.data))rows=fallback.data;
+    }
+    return rows;
+  }
+
+  async function queryCollectionMonth(ref){
+    const sb=window.supabaseClient;
+    if(!sb||typeof sb.from!=='function')return [];
+    const key=ym(ref);
+
+    const fields=['factura_registro_fecha','factura_enviada_fecha'];
+    const out=[],seen=new Set();
+
+    for(const field of fields){
+      try{
+        const res=await sb.from('ots').select('*').ilike(field,key).order(field,{ascending:true});
+        if(!res?.error&&Array.isArray(res?.data)){
+          res.data.forEach(r=>{
+            const id=String(r?.id||'');
+            if(id&&!seen.has(id)){seen.add(id);out.push(r);}
+          });
+        }
+      }catch(e){}
+    }
+
+    // Si no existen registros por columnas tributarias, usamos las OT del mes
+    // para revisar documentos guardados dentro de data.
+    if(!out.length){
+      try{
+        const res=await sb.from('ots').select('*').ilike('fecha',key).order('fecha',{ascending:true});
+        if(!res?.error&&Array.isArray(res?.data))return res.data;
+      }catch(e){}
+    }
+    return out;
+  }
+
+  async function getMonthData(ref,force=false){
+    const key=ym(ref);
+    const cached=monthCache.get(key);
+    if(!force&&cached&&Date.now()-cached.ts<300000)return cached.value;
+
+    const [qSet,oSet,cSet]=await Promise.allSettled([
+      queryMonth('quotes',ref),
+      queryMonth('ots',ref),
+      queryCollectionMonth(ref)
+    ]);
+
+    const value={
+      quotes:(qSet.status==='fulfilled'?qSet.value:[]).map(quoteNormalize),
+      ots:(oSet.status==='fulfilled'?oSet.value:[]).map(otNormalize),
+      collectionOts:(cSet.status==='fulfilled'?cSet.value:[]).map(otNormalize)
+    };
+    monthCache.set(key,{ts:Date.now(),value});
+    return value;
+  }
+
+  function quoteState(q){
+    const s=norm(q?.estado||'pendiente');
+    if(['aceptada','aceptado','aprobada','aprobado'].includes(s))return 'aceptada';
+    if(['rechazada','rechazado'].includes(s))return 'rechazada';
+    return s;
+  }
+  function otState(o){
+    const s=norm(o?.estado||'pendiente');
+    if(['realizada','realizado','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].includes(s))return 'realizada';
+    if(['cancelada','cancelado','anulada','anulado'].includes(s))return 'cancelada';
+    if(['en_curso','encurso'].includes(s))return 'en_curso';
+    return 'pendiente';
+  }
+  function docs(o){
+    const d=o?.data||{};
+    if(Array.isArray(d.documentos))return d.documentos.filter(Boolean);
+    if(Array.isArray(d.documents))return d.documents.filter(Boolean);
+    const n=txt(o?.factura_num||o?.documento_numero||d.facturaNumero||d.documentoNumero||'');
+    if(!n)return [];
+    return [{
+      numero:n,
+      fechaRegistro:o?.factura_registro_fecha||d.facturaRegistroFecha||'',
+      fechaEnvio:o?.factura_enviada_fecha||d.facturaEnviadaFecha||'',
+      montoFacturado:num(d.montoFacturado||d.monto_facturado||o?.monto||d.total||0),
+      montoCancelado:num(d.montoCancelado||d.monto_cancelado||0),
+      pagada:['pagado','pagada'].includes(norm(o?.pago_estado||o?.cobro_estado||d.pago_estado||d.cobro_estado||''))||d.pagoConfirmado===true
+    }];
+  }
+  function docDate(d,o){return d?.fechaRegistro||d?.fecha_registro||d?.fechaEnvio||d?.fecha_envio||o?.factura_registro_fecha||o?.factura_enviada_fecha||o?.fecha||'';}
+  function docAmount(d,o,count){
+    const n=num(d?.montoFacturado||d?.monto_facturado||d?.monto||d?.total);
+    return n>0?n:(count>1?num(o?.monto)/count:num(o?.monto));
+  }
+  function paidAmount(d,o,amount){
+    const explicit=num(d?.montoCancelado||d?.monto_cancelado||d?.montoPagado||d?.monto_pagado);
+    if(explicit>0)return Math.min(amount,explicit);
+    const paid=d?.pagada===true||['pagado','pagada'].includes(norm(o?.pago_estado||o?.cobro_estado||d?.estadoPago||d?.estado_pago||''));
+    return paid?amount:0;
+  }
+
+  function collectionStats(rows,ref){
+    let invoiced=0,paid=0;
+    rows.forEach(o=>{
+      const list=docs(o);
+      list.forEach(d=>{
+        const date=docDate(d,o);
+        if(!sameMonth(date,ref))return;
+        const a=docAmount(d,o,list.length);
+        invoiced+=a;
+        paid+=paidAmount(d,o,a);
+      });
+    });
+    return {invoiced,paid};
+  }
+
+  function maintenanceStats(ref){
+    // Mantenciones ya estaban funcionando correctamente en V5.3.3.
+    // Conservamos el cálculo que dejó el dashboard anterior.
+    try{
+      const snap=window.dashboardOperationalSnapshot;
+      if(snap?.ref&&sameMonth(snap.ref,ref)&&snap?.maintenance)return snap.maintenance;
+    }catch(e){}
+    return null;
+  }
+
+  function renderMonthly(data,ref){
+    const monthlyOts=data.ots.filter(o=>otState(o)!=='cancelada');
+    const done=monthlyOts.filter(o=>otState(o)==='realizada');
+
+    const accepted=data.quotes.filter(q=>quoteState(q)==='aceptada');
+    const rejected=data.quotes.filter(q=>quoteState(q)==='rechazada');
+    const decided=[...accepted,...rejected];
+
+    const coll=collectionStats(data.collectionOts,ref);
+
+    setText('dashV2Period',label(ref));
+    setText('dashV2Updated','Actualizado '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
+    setText(
+      'dashV2MetricsNote',
+      `Viendo indicadores de ${label(ref)} · ${monthlyOts.length} OT · ${data.quotes.length} cotizaciones encontradas. Las secciones inferiores mantienen la situación actual.`
+    );
+
+    setMetric('dashV2Ot',pct(done.length,monthlyOts.length));
+    setText('dashV2OtRatio',done.length+' de '+monthlyOts.length+' realizadas');
+
+    setMetric('dashV2Quote',pct(accepted.length,decided.length));
+    setText('dashV2QuoteRatio',accepted.length+' de '+decided.length+' aceptadas');
+
+    setMetric('dashV2Collection',pct(coll.paid,coll.invoiced));
+    setText('dashV2CollectionRatio',money(coll.paid)+' de '+money(coll.invoiced)+' pagado');
+
+    // Mantención queda a cargo del renderer previo, que sí funciona.
+    window.__dashV534MonthData={ref,data,monthlyOts,done,accepted,rejected,decided,collection:coll};
+  }
+
+  const previousRender=window.renderDashboard;
+  let directRendering=false;
+
+  window.renderDashboard=async function(){
+    if(directRendering)return;
+    directRendering=true;
+    try{
+      // Primero conservamos todo el contenido actual del dashboard:
+      // situación actual, agenda, flujo, mantenciones, etc.
+      if(typeof previousRender==='function'){
+        try{await previousRender();}catch(e){console.warn('Dashboard base:',e);}
+      }
+
+      const ref=refDate();
+      setText('dashV2MetricsNote','Consultando Google Sheets para '+label(ref)+'…');
+
+      const data=await getMonthData(ref);
+      renderMonthly(data,ref);
+    }catch(err){
+      console.error('Dashboard mensual directo:',err);
+      setText('dashV2MetricsNote','No se pudieron consultar los datos del período: '+txt(err?.message||err));
+    }finally{
+      directRendering=false;
+    }
+  };
+
+  window.renderDashboardOperational=window.renderDashboard;
+  try{renderDashboard=window.renderDashboard;}catch(e){}
+
+  const previousDetails=window.showDashboardV2Details;
+  window.showDashboardV2Details=async function(kind){
+    if(!['monthly_ots','monthly_quotes','monthly_collection'].includes(kind)){
+      return typeof previousDetails==='function'?previousDetails(kind):null;
+    }
+
+    const ref=refDate();
+    const data=await getMonthData(ref);
+    const m={
+      monthlyOts:data.ots.filter(o=>otState(o)!=='cancelada'),
+      accepted:data.quotes.filter(q=>quoteState(q)==='aceptada'),
+      rejected:data.quotes.filter(q=>quoteState(q)==='rechazada')
+    };
+    const coll=collectionStats(data.collectionOts,ref);
+
+    const open=(title,subtitle,items,footer='')=>{
+      const html=`<div class="p-6 sm:p-8">
+        <div class="flex items-start justify-between gap-4 mb-6">
+          <div><h2 class="text-2xl font-black">${txt(title)}</h2><p class="text-sm text-slate-500 mt-1">${txt(subtitle)}</p></div>
+          <button onclick="closeModal()" class="text-gray-500 text-2xl">&times;</button>
+        </div>
+        <div class="space-y-3 max-h-[65vh] overflow-auto pr-1">${items.length?items.join(''):'<div class="border border-dashed rounded-2xl p-6 text-center text-slate-500">No hay registros para mostrar.</div>'}</div>
+        ${footer}
+      </div>`;
+      if(typeof window.openModal==='function')window.openModal(html);
+    };
+
+    const oCard=o=>`<article class="border rounded-2xl p-4 bg-white">
+      <p class="font-black">OT ${txt(o.numeroOT)} · ${txt(o.clientName)}</p>
+      <p class="text-sm text-slate-600 mt-1">${txt(o.descripcion)}</p>
+      <p class="text-xs text-slate-500 mt-2">Fecha: ${txt(o.fecha)}</p>
+    </article>`;
+
+    const qCard=q=>`<article class="border rounded-2xl p-4 bg-white">
+      <p class="font-black">Cot. ${txt(q.numeroCotizacion)} · ${txt(q.clientName)}</p>
+      <p class="text-sm text-slate-600 mt-1">${txt(q.descripcion||q.tipo_servicio)}</p>
+      <p class="text-xs text-slate-500 mt-2">Fecha: ${txt(q.fecha)} · ${txt(quoteState(q))}</p>
+    </article>`;
+
+    if(kind==='monthly_ots'){
+      return open(`OT · ${label(ref)}`,`${m.monthlyOts.filter(o=>otState(o)==='realizada').length} realizadas de ${m.monthlyOts.length}`,m.monthlyOts.map(oCard),
+        `<div class="mt-5"><button onclick="closeModal();showView('ots')" class="w-full px-4 py-3 rounded-xl bg-slate-900 text-white font-black">Abrir Órdenes de Trabajo</button></div>`);
+    }
+    if(kind==='monthly_quotes'){
+      return open(`Cotizaciones · ${label(ref)}`,`${m.accepted.length} aceptadas y ${m.rejected.length} rechazadas`,[...m.accepted,...m.rejected].map(qCard),
+        `<div class="mt-5"><button onclick="closeModal();showView('quotes')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Cotizaciones</button></div>`);
+    }
+    if(kind==='monthly_collection'){
+      return open(`Cobranza documentada · ${label(ref)}`,`${money(coll.paid)} pagado de ${money(coll.invoiced)}`,[],
+        `<div class="mt-5"><button onclick="closeModal();showView('abonos')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Facturación y Abonos</button></div>`);
+    }
+  };
+  try{showDashboardV2Details=window.showDashboardV2Details;}catch(e){}
+
+  // Los selectores ya llaman window.renderDashboard() en las versiones previas.
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.renderDashboard(),120));
+  window.addEventListener('load',()=>setTimeout(()=>window.renderDashboard(),500));
+  setTimeout(()=>window.renderDashboard(),1500);
 })();
 </script>
 
