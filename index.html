@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 5.0 — VERSIÓN FINAL ESTABLE
+ECOLUZ CRM ULTRA 5.1.1 — COTIZACIONES PENDIENTES ACTUALES PDF
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -1583,7 +1583,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.0-FINAL-ESTABLE';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.1.1-COTIZACIONES-PENDIENTES-ACTUALES-PDF';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -3536,6 +3536,9 @@ body[data-ui-color-mode="dark"] .ot-more-v48-btn{background:var(--ui-surface)!im
             </button>
             <button onclick="generatePendientesPDF()" class="sidebar-mini-link" title="PDF Pendientes">
               <i class="fa-solid fa-file-pdf"></i> <span class="sidebar-label">Pendientes (PDF)</span>
+            </button>
+            <button onclick="generatePendingQuotesPDF()" class="sidebar-mini-link" title="Cotizaciones pendientes de aceptación o rechazo">
+              <i class="fa-solid fa-file-circle-question"></i> <span class="sidebar-label">Cotizaciones pendientes (PDF)</span>
             </button>
             <button onclick="generateRealizadosPorMesPDF()" class="sidebar-mini-link" title="PDF Trabajos realizados por mes">
               <i class="fa-solid fa-calendar-check"></i> <span class="sidebar-label">Realizados por mes (PDF)</span>
@@ -39056,6 +39059,225 @@ if(typeof window.registerViewHandler === 'function'){
     };
     try{ showOTMoreOptions=window.showOTMoreOptions; }catch(e){}
   }
+})();
+</script>
+
+
+
+<script id="pending-quotes-pdf-v51">
+(function(){
+  function normState(v){
+    return String(v || 'pendiente')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase()
+      .replace(/[\s-]+/g,'_')
+      .trim();
+  }
+
+  function safe(v){ return v === null || v === undefined ? '' : String(v); }
+
+  function quoteNumber(q){
+    return safe(q?.numeroCotizacion || q?.numero || q?.cotizacion || q?.folio || 'S/N');
+  }
+
+  function quoteDate(q){
+    return safe(
+      q?.fecha ||
+      q?.data?.fecha ||
+      q?.data?.fechaDocumento ||
+      q?.data?.fechaCotizacion ||
+      (q?.created_at ? String(q.created_at).slice(0,10) : '')
+    );
+  }
+
+  function quoteAmount(q){
+    return Number(q?.monto || q?.total || q?.data?.total || q?.data?.monto || 0) || 0;
+  }
+
+  function quoteClientName(q, clientsMap){
+    const cid = String(q?.clientId || q?.client_id || '');
+    const c = clientsMap.get(cid);
+    return safe(
+      q?.clientName ||
+      q?.razonSocial ||
+      q?.nombre ||
+      q?.clients?.name ||
+      c?.name ||
+      'Cliente no encontrado'
+    );
+  }
+
+  function quoteDescription(q){
+    return safe(
+      q?.obra ||
+      q?.descripcion ||
+      q?.data?.obra ||
+      q?.data?.descripcion ||
+      q?.tipo_servicio ||
+      'Sin descripción'
+    );
+  }
+
+  function quoteSendLabel(q){
+    const correo = !!(q?.enviado_por_correo || q?.data?.enviado_por_correo);
+    const wsp = !!(q?.enviado_por_wsp || q?.data?.enviado_por_wsp);
+    if(correo && wsp) return 'Correo + WhatsApp';
+    if(correo) return 'Correo';
+    if(wsp) return 'WhatsApp';
+    return 'Sin envío registrado';
+  }
+
+  function pendingDays(q){
+    const raw = quoteDate(q) || q?.created_at || '';
+    if(!raw) return '';
+    const d = new Date(raw);
+    if(isNaN(d.getTime())) return '';
+    d.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    return Math.max(0, Math.floor((today - d) / 86400000));
+  }
+
+  async function fetchAllQuotesForPendingPDF(){
+    // IMPORTANTE:
+    // Se consulta exactamente el mismo grupo que alimenta la sección
+    // "Cotizaciones Pendientes" del CRM. No se leen cotizaciones históricas.
+    //
+    // Estados incluidos por la lista actual:
+    // - sin estado
+    // - pendiente
+    // - enviada
+    // - borrador
+    const { data, error } = await supabaseClient
+      .from('quotes')
+      .select('*')
+      .or('estado.is.null,estado.eq.pendiente,estado.eq.enviada,estado.eq.borrador')
+      .order('created_at', { ascending:false });
+
+    if(error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+
+    // Segunda protección: conservar solo registros que el CRM considera
+    // pertenecientes al bloque actual "Pendientes".
+    return rows.filter(q => {
+      try{
+        if(typeof window.getQuoteStateBucket === 'function'){
+          return window.getQuoteStateBucket(q) === 'pendiente';
+        }
+        if(typeof window.getQuoteNormalizedState === 'function'){
+          const st = window.getQuoteNormalizedState(q);
+          return !['aceptada','rechazada','vencida','reemplazada'].includes(st);
+        }
+      }catch(e){}
+
+      const st = normState(q?.estado || q?.status || q?.data?.estado || 'pendiente');
+      return ['pendiente','enviada','borrador',''].includes(st);
+    });
+  }
+
+  window.generatePendingQuotesPDF = async function(){
+    try{
+      if(!window.jspdf || !window.jspdf.jsPDF){
+        throw new Error('La librería jsPDF no está disponible.');
+      }
+
+      const rawQuotes = await fetchAllQuotesForPendingPDF();
+
+      const clientsList = Array.isArray(window.clients)
+        ? window.clients
+        : (typeof clients !== 'undefined' && Array.isArray(clients) ? clients : []);
+
+      const clientsMap = new Map(clientsList.map(c => [String(c?.id || ''), c]));
+
+      // rawQuotes ya corresponde únicamente a la lista ACTUAL
+      // de "Cotizaciones Pendientes" del CRM.
+      const pending = rawQuotes
+        .sort((a,b) => {
+          const da = pendingDays(a);
+          const db = pendingDays(b);
+          if(da !== db) return Number(db || 0) - Number(da || 0); // más antiguas primero
+          return quoteNumber(b).localeCompare(quoteNumber(a), 'es', {numeric:true});
+        });
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'landscape' });
+
+      if(typeof doc.autoTable !== 'function'){
+        throw new Error('El complemento jsPDF-AutoTable no está disponible.');
+      }
+
+      const logoWriter = typeof window.addLogoToPdf === 'function'
+        ? window.addLogoToPdf
+        : (typeof addLogoToPdf === 'function' ? addLogoToPdf : null);
+
+      const headerWriter = typeof window.addCompanyHeaderRight === 'function'
+        ? window.addCompanyHeaderRight
+        : (typeof addCompanyHeaderRight === 'function' ? addCompanyHeaderRight : null);
+
+      if(logoWriter) await logoWriter(doc);
+      if(headerWriter) await headerWriter(doc);
+
+      const totalAmount = pending.reduce((sum,q) => sum + quoteAmount(q), 0);
+      const fechaGen = new Date().toLocaleString('es-CL');
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(16);
+      doc.text('COTIZACIONES PENDIENTES DE RESPUESTA', 14, 38);
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.text(`Generado: ${fechaGen}`, 14, 44);
+      doc.text(`Pendientes: ${pending.length}`, 14, 50);
+      doc.text(`Monto total pendiente de decisión: ${typeof formatCLP === 'function' ? formatCLP(totalAmount) : '$' + totalAmount.toLocaleString('es-CL')}`, 70, 50);
+
+      const rows = pending.length
+        ? pending.map(q => [
+            quoteNumber(q),
+            quoteDate(q) || '—',
+            quoteClientName(q, clientsMap),
+            quoteDescription(q),
+            typeof formatCLP === 'function' ? formatCLP(quoteAmount(q)) : '$' + quoteAmount(q).toLocaleString('es-CL'),
+            quoteSendLabel(q),
+            String(pendingDays(q) ?? '')
+          ])
+        : [['—','—','Sin cotizaciones pendientes','—','—','—','—']];
+
+      doc.autoTable({
+        startY: 57,
+        head: [['Cotización','Fecha','Cliente','Descripción / servicio','Total','Envío','Días pendiente']],
+        body: rows,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.3,
+          valign: 'top',
+          overflow: 'linebreak'
+        },
+        headStyles: {
+          fillColor: [240,240,240],
+          textColor: 20,
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 23 },
+          2: { cellWidth: 48 },
+          3: { cellWidth: 93 },
+          4: { cellWidth: 32, halign:'right' },
+          5: { cellWidth: 38 },
+          6: { cellWidth: 25, halign:'center' }
+        },
+        margin: { left:14, right:14 }
+      });
+
+      const fileDate = new Date().toISOString().slice(0,10);
+      doc.save(`Cotizaciones_pendientes_${fileDate}.pdf`);
+    }catch(err){
+      console.error('Error generando PDF de cotizaciones pendientes:', err);
+      alert('No se pudo generar el PDF de cotizaciones pendientes: ' + (err?.message || err));
+    }
+  };
 })();
 </script>
 
