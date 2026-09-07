@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 5.3.4 — CONSULTA MENSUAL DIRECTA
+ECOLUZ CRM ULTRA 5.4 — FACTURACIÓN AGRUPADA
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -1583,7 +1583,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.3.4-CONSULTA-MENSUAL-DIRECTA';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.4-FACTURACION-AGRUPADA';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -1593,7 +1593,7 @@ function toggleEditOTFacturaField(){
 </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECOLUZ SERVICIOS </title>
+  <title>ECOLUZ SERVICIOS</title>
   <!-- Migración Google Sheets BETA 1 · Supabase reemplazado por capa compatible Apps Script -->
   <!-- V42: base v41 + Pendiente de facturar es el acceso directo al registro; sin botón adicional Sin documento -->
   <!-- Icono de pestaña / favicon ECOLUZ -->
@@ -3452,6 +3452,59 @@ body[data-ui-color-mode="dark"] .dashboard-v2-select{
   .dashboard-v2-period-tools{width:100%;justify-content:stretch}
   .dashboard-v2-select,.dashboard-v2-period,.dashboard-v2-action{flex:1}
 }
+</style>
+
+
+<style id="facturacion-grouped-v54-styles">
+/* V5.4 — una factura visual por número, con trabajos agrupados */
+.facturacion-group-badge{
+  display:inline-flex;align-items:center;gap:.35rem;margin-top:.22rem;
+  padding:.24rem .48rem;border-radius:999px;border:1px solid rgba(148,163,184,.35);
+  background:rgba(255,255,255,.6);font-size:.66rem;font-weight:850;
+}
+.facturacion-group-invoice{
+  display:flex;align-items:center;gap:.45rem;font-weight:950;white-space:nowrap;
+}
+.facturacion-group-invoice i{opacity:.72}
+.facturacion-group-detail-row td{
+  position:static!important;
+  left:auto!important;right:auto!important;
+  padding:.75rem 1rem!important;
+  background:#f8fafc!important;color:#334155!important;
+  box-shadow:none!important;border-bottom:1px solid #cbd5e1!important;
+}
+.facturacion-group-detail{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;
+}
+.facturacion-group-item{
+  border:1px solid #e2e8f0;border-radius:.9rem;background:#fff;padding:.7rem .8rem;
+}
+.facturacion-group-item-top{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem
+}
+.facturacion-group-item-title{font-size:.75rem;font-weight:900;color:#172033}
+.facturacion-group-item-amount{font-size:.76rem;font-weight:950;color:#0f172a;white-space:nowrap}
+.facturacion-group-item-work{font-size:.7rem;color:#64748b;margin-top:.25rem;line-height:1.3}
+.facturacion-group-item-meta{font-size:.66rem;color:#94a3b8;margin-top:.35rem}
+.facturacion-group-item-actions{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.55rem}
+.facturacion-group-mini-btn{
+  display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .5rem;border-radius:.58rem;
+  border:1px solid #dbe3ef;background:#fff;color:#475569;font-size:.62rem;font-weight:850
+}
+.facturacion-group-mini-btn:hover{background:#f8fafc}
+.facturacion-group-summary{
+  display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.3rem;color:#7f1d1d;font-size:.68rem
+}
+.facturacion-group-summary span{
+  display:inline-flex;align-items:center;gap:.3rem
+}
+body[data-ui-color-mode="dark"] .facturacion-group-detail-row td{background:var(--ui-table-head)!important;color:var(--ui-text)!important;border-color:var(--ui-border)!important}
+body[data-ui-color-mode="dark"] .facturacion-group-item{background:var(--ui-surface)!important;border-color:var(--ui-border)!important}
+body[data-ui-color-mode="dark"] .facturacion-group-item-title,
+body[data-ui-color-mode="dark"] .facturacion-group-item-amount{color:var(--ui-text)!important}
+body[data-ui-color-mode="dark"] .facturacion-group-mini-btn{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+@media(max-width:1100px){.facturacion-group-detail{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.facturacion-group-detail{grid-template-columns:1fr}}
 </style>
 
 </head>
@@ -41338,6 +41391,450 @@ if(typeof window.registerViewHandler === 'function'){
   document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.renderDashboard(),120));
   window.addEventListener('load',()=>setTimeout(()=>window.renderDashboard(),500));
   setTimeout(()=>window.renderDashboard(),1500);
+})();
+</script>
+
+
+
+<script id="facturacion-grouped-v54">
+(function(){
+  'use strict';
+
+  function text(v){ return String(v == null ? '' : v).trim(); }
+  function esc(v){
+    try{return typeof escapeHtml==='function'?escapeHtml(text(v)):text(v);}
+    catch(e){return text(v);}
+  }
+  function money(v){
+    try{return typeof formatCLP==='function'?formatCLP(Number(v||0)):'$'+Number(v||0).toLocaleString('es-CL');}
+    catch(e){return '$'+Number(v||0).toLocaleString('es-CL');}
+  }
+  function unique(values){
+    return Array.from(new Set(values.map(text).filter(v=>v && v!=='—')));
+  }
+
+  function groupStatus(rows){
+    const states=unique(rows.map(r=>r.status));
+    if(states.length===1) return states[0];
+    if(rows.every(r=>r.status==='pagada')) return 'pagada';
+    if(rows.every(r=>r.status==='anulada')) return 'anulada';
+    // Si la misma factura quedó inconsistente entre OT, se mantiene como pendiente
+    // para que no desaparezca del seguimiento.
+    return 'pendiente';
+  }
+
+  function buildGroups(rows){
+    const map=new Map();
+    rows.forEach((r,index)=>{
+      const factura=text(r.factura);
+      const tipo=text(r.doc?.tipo||'factura').toLowerCase();
+      // Documentos sin número nunca se agrupan entre sí.
+      const key=factura ? `${tipo}|${factura.toLowerCase()}` : `sin-numero|${index}`;
+      if(!map.has(key)) map.set(key,{key,rows:[]});
+      map.get(key).rows.push(r);
+    });
+
+    const groups=Array.from(map.values()).map((g,index)=>{
+      const rs=g.rows;
+      const clientes=unique(rs.map(r=>r.cliente));
+      const ruts=unique(rs.map(r=>r.rut));
+      const cots=unique(rs.map(r=>r.cotizacion));
+      const ocs=unique(rs.map(r=>r.oc));
+      const fechas=unique(rs.map(r=>r.fechaFactura));
+      const pagos=unique(rs.map(r=>r.fechaPago));
+      const observaciones=unique(rs.map(r=>r.observacion));
+      const status=groupStatus(rs);
+
+      const latest=rs.slice().sort((a,b)=>{
+        const da=String(a.ultimaGestion||'');
+        const db=String(b.ultimaGestion||'');
+        return db.localeCompare(da);
+      })[0];
+
+      return {
+        id:`factgrp_${index}`,
+        key:g.key,
+        rows:rs,
+        status,
+        factura:text(rs[0]?.factura||''),
+        rut:ruts.length===1?ruts[0]:'',
+        cliente:clientes.length===1?clientes[0]:`${clientes.length} clientes`,
+        cotizacion:cots.length===1?cots[0]:(cots.length?`${cots.length} cotizaciones`:'—'),
+        oc:ocs.length===1?ocs[0]:(ocs.length?`${ocs.length} OC`:'—'),
+        fechaFactura:fechas[0]||'',
+        fechaPago:pagos.length===1?pagos[0]:'',
+        monto:rs.reduce((s,r)=>s+Number(r.monto||0),0),
+        montoCancelado:rs.reduce((s,r)=>s+Number(r.montoCancelado||0),0),
+        observacion:observaciones.length===1?observaciones[0]:(observaciones.length?'Varias observaciones':''),
+        ultimaGestion:latest?.ultimaGestion||'',
+        ultimaGestionTexto:latest?.ultimaGestionTexto||'',
+        vecesCobrada:Math.max(0,...rs.map(r=>Number(r.vecesCobrada||0)))
+      };
+    });
+
+    groups.sort((a,b)=>{
+      try{
+        if(typeof compareFacturacionByInvoice==='function'){
+          return compareFacturacionByInvoice({factura:a.factura},{factura:b.factura});
+        }
+      }catch(e){}
+      return String(a.factura).localeCompare(String(b.factura),'es',{numeric:true});
+    });
+    return groups;
+  }
+
+  function storeGroups(groups){
+    window.__facturacionGroupedMap=new Map(groups.map(g=>[g.id,g]));
+  }
+  function getGroup(id){
+    return window.__facturacionGroupedMap?.get(String(id))||null;
+  }
+
+  window.toggleFacturacionGroupDetail=function(groupId){
+    const row=document.getElementById(`detail_${groupId}`);
+    const icon=document.querySelector(`[data-group-toggle="${groupId}"] i`);
+    if(!row)return;
+    const opening=row.classList.contains('hidden');
+    row.classList.toggle('hidden',!opening);
+    if(icon){
+      icon.classList.toggle('fa-chevron-down',!opening);
+      icon.classList.toggle('fa-chevron-up',opening);
+    }
+    setTimeout(()=>{try{syncFacturacionTopScrollbar();}catch(e){}},0);
+  };
+
+  function itemActions(r){
+    const otId=esc(String(r.ot?.id||''));
+    const docId=esc(String(r.doc?.id||''));
+    return `
+      <button type="button" class="facturacion-group-mini-btn" onclick="previewOT('${otId}')" title="Ver OT"><i class="fas fa-eye"></i>OT</button>
+      ${r.status==='pendiente'?`<button type="button" class="facturacion-group-mini-btn" onclick="showFacturacionCobranzaModal('${otId}','${docId}')" title="Cobranza"><i class="fas fa-copy"></i>Cobranza</button>`:''}
+      <button type="button" class="facturacion-group-mini-btn" onclick="showFacturacionHistorialModal('${otId}','${docId}')" title="Historial"><i class="fas fa-clock-rotate-left"></i>Historial</button>
+      <button type="button" class="facturacion-group-mini-btn" onclick="showFacturacionEditarModal('${otId}','${docId}')" title="Editar vínculo de este trabajo"><i class="fas fa-pen"></i>Editar</button>`;
+  }
+
+  function detailHTML(g){
+    return `
+      <tr id="detail_${g.id}" class="facturacion-group-detail-row hidden">
+        <td colspan="13">
+          <div class="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">
+            Trabajos incluidos en factura N° ${esc(g.factura||'—')}
+          </div>
+          <div class="facturacion-group-detail">
+            ${g.rows.map(r=>`
+              <article class="facturacion-group-item">
+                <div class="facturacion-group-item-top">
+                  <div class="facturacion-group-item-title">${esc(r.cliente||'—')}</div>
+                  <div class="facturacion-group-item-amount">${esc(money(r.monto||0))}</div>
+                </div>
+                <div class="facturacion-group-item-work">${esc(r.trabajo||'Trabajo sin descripción')}</div>
+                <div class="facturacion-group-item-meta">
+                  Cot. ${esc(r.cotizacion||'—')} · OC ${esc(r.oc||'—')}
+                </div>
+                <div class="facturacion-group-item-actions">${itemActions(r)}</div>
+              </article>`).join('')}
+          </div>
+        </td>
+      </tr>`;
+  }
+
+  window.showFacturacionGroupPagoModal=function(groupId){
+    const g=getGroup(groupId);
+    if(!g)return alert('Factura agrupada no encontrada.');
+    const html=`
+      <div class="p-8">
+        <h2 class="text-2xl font-black mb-2">Registrar pago de factura completa</h2>
+        <p class="text-sm text-slate-500 mb-5">
+          Factura N° <b>${esc(g.factura||'')}</b> · ${g.rows.length} trabajo(s) · Total ${esc(money(g.monto))}
+        </p>
+        <div class="rounded-2xl border bg-slate-50 p-4 mb-5 text-sm text-slate-600">
+          El pago se aplicará a todos los trabajos vinculados a esta misma factura, manteniendo el monto correspondiente de cada OT.
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold mb-1">Fecha de pago</label>
+            <input id="facturacionGroupPagoFecha" type="date" value="${typeof todayISO==='function'?todayISO():''}" class="w-full px-3 py-2 border rounded-xl">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Monto total</label>
+            <input type="text" value="${esc(money(g.monto))}" readonly class="w-full px-3 py-2 border rounded-xl bg-slate-100 font-black">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Método</label>
+            <select id="facturacionGroupPagoMetodo" class="w-full px-3 py-2 border rounded-xl">
+              <option>Transferencia</option><option>Cheque</option><option>Efectivo</option><option>Tarjeta</option><option>Otro</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Observación</label>
+            <textarea id="facturacionGroupPagoComentario" rows="2" class="w-full px-3 py-2 border rounded-xl" placeholder="Opcional"></textarea>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button onclick="saveFacturacionGroupPago('${esc(groupId)}',this)" class="flex-1 bg-emerald-600 text-white py-3 rounded-2xl font-black">Confirmar pago completo</button>
+            <button onclick="closeModal()" class="flex-1 border py-3 rounded-2xl">Cancelar</button>
+          </div>
+        </div>
+      </div>`;
+    openModal(html);
+  };
+
+  window.saveFacturacionGroupPago=async function(groupId,btn){
+    const g=getGroup(groupId);
+    if(!g)return alert('Factura agrupada no encontrada.');
+    const original=btn?.innerText||'';
+    if(btn){btn.disabled=true;btn.innerText='Guardando...';}
+
+    try{
+      const fecha=document.getElementById('facturacionGroupPagoFecha')?.value || (typeof todayISO==='function'?todayISO():'');
+      const metodo=document.getElementById('facturacionGroupPagoMetodo')?.value||'Transferencia';
+      const comentario=document.getElementById('facturacionGroupPagoComentario')?.value||'';
+
+      // Tomamos snapshots antes de guardar para no depender de las recargas entre registros.
+      const operations=g.rows.map(r=>({
+        otId:String(r.ot?.id||''),
+        docId:String(r.doc?.id||''),
+        monto:Number(r.monto||0)
+      }));
+
+      for(const op of operations){
+        const found=findFacturacionOTAndDoc(op.otId,op.docId);
+        const ot=found.ot;
+        const docs=found.docs;
+        const index=found.index;
+        if(!ot||index<0)continue;
+
+        const doc=Object.assign({},docs[index],{
+          pagada:true,anulada:false,estadoPago:'pagado',
+          fechaPago:fecha,montoCancelado:op.monto,metodoPago:metodo,
+          observacion:comentario||docs[index].observacion||''
+        });
+        const hist=Array.isArray(doc.cobranzaGestiones)?doc.cobranzaGestiones.slice():[];
+        hist.unshift({
+          fecha,tipo:'pago',accion:'Pago de factura agrupada registrado',
+          respuesta:'Cliente pagó',
+          comentario:`${metodo}${comentario?' · '+comentario:''}`,
+          documentoNumero:doc.numero||'',
+          createdAt:new Date().toISOString(),
+          userName:currentUserDisplayName||currentUser?.email||'Usuario'
+        });
+        doc.cobranzaGestiones=hist.slice(0,80);
+        docs[index]=doc;
+
+        if(!ot.data)ot.data={};
+        ot.data.documentos=docs;
+        syncOTDocumentsLegacyFields(ot);
+
+        const active=docs.filter(d=>!d.anulada);
+        const allPaid=active.length>0&&active.every(d=>d.pagada===true||String(d.estadoPago||'').toLowerCase()==='pagado');
+        if(allPaid){
+          ot.data.fechaPagoISO=fecha;
+          if(typeof toCLDateFromISO==='function')ot.data.fechaPago=toCLDateFromISO(fecha);
+          ot.data.pagoConfirmado=true;
+          ot.data.metodoPago=metodo;
+        }
+
+        const payload={
+          data:ot.data,
+          pago_estado:allPaid?'pagado':'facturado',
+          cobro_estado:allPaid?'pagado':'facturado'
+        };
+        let {error}=await supabaseClient.from('ots').update(payload).eq('id',ot.id);
+        if(error&&String(error.message||'').toLowerCase().includes('column')){
+          const retry={data:ot.data,pago_estado:payload.pago_estado};
+          ({error}=await supabaseClient.from('ots').update(retry).eq('id',ot.id));
+        }
+        if(error)throw error;
+
+        try{
+          await supabaseClient.from('payments').insert({
+            ot_id:ot.id,
+            monto:op.monto,
+            data:{
+              facturaNumero:g.factura||'',
+              documentoTipo:doc.tipo||'factura',
+              metodoPago:metodo,
+              fechaPago:typeof toCLDateFromISO==='function'?toCLDateFromISO(fecha):fecha,
+              source:'facturacion_agrupada'
+            },
+            created_by:currentUser?.id||null,
+            created_by_email:currentUser?.email||'',
+            created_by_name:currentUserDisplayName||''
+          });
+        }catch(e){}
+      }
+
+      await loadData();
+      try{renderOTs();}catch(e){}
+      try{renderAbonos();}catch(e){}
+      try{window.renderFacturacionMensual();}catch(e){}
+      closeModal();
+      toastInfo(`Factura ${g.factura} marcada como pagada en ${operations.length} trabajo(s) ✅`);
+    }catch(e){
+      console.error('Pago agrupado',e);
+      alert('No se pudo registrar el pago completo: '+(e?.message||e));
+    }finally{
+      if(btn){btn.disabled=false;btn.innerText=original||'Confirmar pago completo';}
+    }
+  };
+
+  window.showFacturacionGroupManager=function(groupId){
+    const g=getGroup(groupId);
+    if(!g)return alert('Factura agrupada no encontrada.');
+    const html=`
+      <div class="p-7 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <div class="text-xs uppercase tracking-wider font-black text-slate-500">Factura agrupada</div>
+            <h2 class="text-2xl font-black mt-1">Factura N° ${esc(g.factura||'—')}</h2>
+            <p class="text-sm text-slate-500 mt-1">${g.rows.length} trabajos · Total ${esc(money(g.monto))}</p>
+          </div>
+          <button onclick="closeModal()" class="text-2xl text-slate-500">&times;</button>
+        </div>
+        ${g.status==='pendiente'?`
+          <button onclick="showFacturacionGroupPagoModal('${esc(groupId)}')" class="w-full mb-5 bg-emerald-600 text-white py-3 rounded-2xl font-black">
+            <i class="fas fa-circle-check mr-2"></i>Registrar pago de toda la factura
+          </button>`:''}
+        <div class="space-y-3">
+          ${g.rows.map(r=>`
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="font-black">${esc(r.cliente||'—')}</div>
+                  <div class="text-sm text-slate-600 mt-1">${esc(r.trabajo||'')}</div>
+                  <div class="text-xs text-slate-400 mt-2">Cot. ${esc(r.cotizacion||'—')} · OC ${esc(r.oc||'—')}</div>
+                </div>
+                <div class="font-black whitespace-nowrap">${esc(money(r.monto||0))}</div>
+              </div>
+              <div class="facturacion-group-item-actions mt-3">${itemActions(r)}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    openModal(html);
+  };
+
+  function renderGroupedFacturacion(){
+    const tbody=document.getElementById('facturacionMensualTable');
+    if(!tbody || typeof getFacturacionRows!=='function') return;
+
+    const selected=typeof getFacturacionSelectedMonth==='function'
+      ? getFacturacionSelectedMonth()
+      : {year:new Date().getFullYear(),month:new Date().getMonth()+1};
+
+    const monthSel=document.getElementById('facturacionMonthSelect');
+    const yearInput=document.getElementById('facturacionYearInput');
+    if(monthSel)monthSel.value=String(selected.month);
+    if(yearInput)yearInput.value=String(selected.year);
+
+    const header=document.getElementById('facturacionTrabajoHeader');
+    if(header && typeof facturacionMonthNames==='function'){
+      header.textContent=`Trabajos facturados de ${facturacionMonthNames()[selected.month-1]}`;
+    }
+
+    const rows=getFacturacionRows();
+    const groups=buildGroups(rows);
+    storeGroups(groups);
+
+    // Totales siguen calculándose sobre los trabajos incluidos, porque el total
+    // de una factura agrupada es la suma de los montos que la componen.
+    const totals=rows.reduce((acc,r)=>{
+      if(r.status==='pendiente')acc.adeudado+=Number(r.monto||0);
+      if(r.status==='pagada')acc.cancelado+=Number(r.montoCancelado||r.monto||0);
+      if(r.status==='anulada')acc.anulado+=Number(r.monto||0);
+      if(r.status!=='anulada')acc.vigente+=Number(r.monto||0);
+      return acc;
+    },{adeudado:0,cancelado:0,anulado:0,vigente:0});
+
+    const setMoney=(id,val)=>{
+      const el=document.getElementById(id);
+      if(el)el.textContent=money(val);
+    };
+    setMoney('facturacionTotalAdeudado',totals.adeudado);
+    setMoney('facturacionTotalCancelado',totals.cancelado);
+    setMoney('facturacionTotalAnulado',totals.anulado);
+    setMoney('facturacionTotalVigente',totals.vigente);
+
+    if(!groups.length){
+      const monthName=typeof facturacionMonthNames==='function'?facturacionMonthNames()[selected.month-1]:'este mes';
+      tbody.innerHTML=`<tr><td colspan="13" class="p-6 text-center text-slate-500 bg-white">No hay facturas registradas para ${esc(monthName)} ${selected.year} con los filtros actuales.</td></tr>`;
+    }else{
+      tbody.innerHTML=groups.map(g=>{
+        const many=g.rows.length>1;
+        const statusClass=typeof getFacturacionRowClass==='function'?getFacturacionRowClass(g.status):'';
+        const ult=g.ultimaGestion
+          ? `${typeof formatDDMMYY==='function'?formatDDMMYY(g.ultimaGestion):g.ultimaGestion}${g.ultimaGestionTexto?' · '+esc(String(g.ultimaGestionTexto).slice(0,38)):''}`
+          :'—';
+
+        const acciones=many
+          ? `<div class="facturacion-action-bar">
+               <button data-group-toggle="${g.id}" onclick="toggleFacturacionGroupDetail('${g.id}')" class="facturacion-action-btn history" title="Ver trabajos incluidos"><i class="fas fa-chevron-down"></i></button>
+               ${g.status==='pendiente'?`<button onclick="showFacturacionGroupPagoModal('${g.id}')" class="facturacion-action-btn pay" title="Registrar pago de toda la factura"><i class="fas fa-circle-check"></i></button>`:''}
+               <button onclick="showFacturacionGroupManager('${g.id}')" class="facturacion-action-btn" title="Gestionar factura agrupada"><i class="fas fa-layer-group"></i></button>
+             </div>`
+          : (()=>{
+              const r=g.rows[0];
+              const otId=esc(String(r.ot?.id||''));
+              const docId=esc(String(r.doc?.id||''));
+              return `<div class="facturacion-action-bar">
+                ${r.status==='pendiente'?`<button onclick="showFacturacionCobranzaModal('${otId}','${docId}')" class="facturacion-action-btn copy" title="Copiar cobranza"><i class="fas fa-copy"></i></button>`:''}
+                <button onclick="showFacturacionHistorialModal('${otId}','${docId}')" class="facturacion-action-btn history" title="Historial"><i class="fas fa-clock-rotate-left"></i></button>
+                ${r.status==='anulada'?`<button onclick="showFacturacionReemplazoModal('${otId}','${docId}')" class="facturacion-action-btn replace" title="Registrar reemplazo"><i class="fas fa-file-circle-plus"></i></button>`:''}
+                ${r.status!=='pagada'&&r.status!=='anulada'?`<button onclick="showFacturacionPagoModal('${otId}','${docId}')" class="facturacion-action-btn pay" title="Registrar pago"><i class="fas fa-circle-check"></i></button>`:''}
+                ${r.status!=='anulada'?`<button onclick="showFacturacionAnularModal('${otId}','${docId}')" class="facturacion-action-btn annul" title="Marcar anulada"><i class="fas fa-triangle-exclamation"></i></button>`:''}
+                <button onclick="showFacturacionEditarModal('${otId}','${docId}')" class="facturacion-action-btn" title="Editar factura"><i class="fas fa-pen"></i></button>
+              </div>`;
+            })();
+
+        const workCell=many
+          ? `<div class="facturacion-cliente-name">${esc(g.cliente||'—')}</div>
+             <div class="facturacion-cliente-work">${g.rows.length} trabajos incluidos en la misma factura</div>
+             <div class="facturacion-group-summary">
+               <span><i class="fas fa-layer-group"></i>${g.rows.length} trabajos</span>
+               ${unique(g.rows.map(r=>r.cotizacion)).length>1?`<span><i class="fas fa-file-lines"></i>${unique(g.rows.map(r=>r.cotizacion)).length} cotizaciones</span>`:''}
+             </div>`
+          : `<div class="facturacion-cliente-name">${esc(g.rows[0].cliente||'—')}</div>
+             <div class="facturacion-cliente-work" title="${esc(g.rows[0].trabajo)}">${esc(g.rows[0].trabajo)}</div>`;
+
+        const main=`
+          <tr class="${statusClass}">
+            <td class="font-semibold whitespace-nowrap">${esc(typeof formatRut==='function'?formatRut(g.rut||''):(g.rut||''))}</td>
+            <td class="facturacion-cliente-cell">${workCell}</td>
+            <td class="whitespace-nowrap">${esc(g.cotizacion||'—')}</td>
+            <td class="whitespace-nowrap">${esc(g.oc||'—')}</td>
+            <td class="font-black whitespace-nowrap">${esc(money(g.monto))}</td>
+            <td><div class="facturacion-group-invoice"><i class="fas fa-file-invoice"></i>${esc(g.factura||'—')}${many?`<span class="facturacion-group-badge">${g.rows.length} trabajos</span>`:''}</div></td>
+            <td class="whitespace-nowrap">${g.fechaFactura?(typeof formatDDMMYY==='function'?esc(formatDDMMYY(g.fechaFactura)):esc(g.fechaFactura)):'—'}</td>
+            <td class="whitespace-nowrap">${g.fechaPago?(typeof formatDDMMYY==='function'?esc(formatDDMMYY(g.fechaPago)):esc(g.fechaPago)):'—'}</td>
+            <td class="font-black whitespace-nowrap">${g.montoCancelado?esc(money(g.montoCancelado)):'—'}</td>
+            <td><div class="facturacion-note" title="${esc(g.observacion||'')}">${esc(g.observacion||'—')}</div></td>
+            <td class="whitespace-nowrap">${ult}</td>
+            <td class="text-center font-black">${Number(g.vecesCobrada||0)}</td>
+            <td class="text-center">${acciones}</td>
+          </tr>`;
+
+        return main+(many?detailHTML(g):'');
+      }).join('');
+    }
+
+    const hint=document.getElementById('facturacionMonthlyHint');
+    if(hint){
+      const monthName=typeof facturacionMonthNames==='function'?facturacionMonthNames()[selected.month-1]:'';
+      const groupedCount=groups.filter(g=>g.rows.length>1).length;
+      hint.innerHTML=`<b>${groups.length}</b> factura(s) en ${esc(monthName)} ${selected.year} · <b>${rows.length}</b> trabajo(s) facturado(s)${groupedCount?` · <b>${groupedCount}</b> factura(s) agrupan varios trabajos`:''}.`;
+    }
+    setTimeout(()=>{try{syncFacturacionTopScrollbar();}catch(e){}},0);
+  }
+
+  // Reemplazamos solo la representación visual. Los datos y funciones originales
+  // siguen existiendo para Excel, PDF, filtros y edición.
+  window.renderFacturacionMensual=renderGroupedFacturacion;
+  try{renderFacturacionMensual=window.renderFacturacionMensual;}catch(e){}
+
+  // Refrescar si ya se está viendo el módulo.
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{
+    try{
+      if(document.getElementById('facturacionMensualTable'))renderGroupedFacturacion();
+    }catch(e){}
+  },500));
 })();
 </script>
 
