@@ -1593,7 +1593,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.4.1-AUTH-ROBUSTO';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.4.2-NOMBRE-ARCHIVO-COTIZACION';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -30861,11 +30861,74 @@ function toggleSidebarMore(forceOpen = null){
     return buildQuotePDFDocument(q);
   };
 
+  function sanitizeQuoteFileNamePart(value){
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'')
+      .replace(/[\\/:*?"<>|]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim()
+      .replace(/\s/g,'_')
+      .replace(/_+/g,'_')
+      .slice(0,120);
+  }
+
+  function getQuoteClientNameForFile(q){
+    const direct = String(
+      q?.clientName ||
+      q?.client_name ||
+      q?.razonSocial ||
+      q?.data?.clientName ||
+      q?.data?.cliente ||
+      q?.clients?.name ||
+      ''
+    ).trim();
+
+    if(direct) return direct;
+
+    const clientId = String(
+      q?.clientId ||
+      q?.client_id ||
+      q?.data?.clientId ||
+      q?.data?.client_id ||
+      ''
+    ).trim();
+
+    if(clientId){
+      const list = Array.isArray(window.clients) ? window.clients : (Array.isArray(clients) ? clients : []);
+      const client = list.find(c => String(c?.id || '') === clientId);
+      if(client){
+        return String(
+          client?.name ||
+          client?.data?.name ||
+          client?.data?.razonSocial ||
+          ''
+        ).trim();
+      }
+    }
+
+    return 'Cliente';
+  }
+
   window.generateQuotePDF = async function(quoteId){
     try{
       const q = await fetchQuoteFull(quoteId);
       const doc = await window.buildQuotePDFDoc(quoteId, q);
-      doc.save(`Cotizacion_${q.numeroCotizacion || q.numero || 'S_N'}.pdf`);
+
+      const numero = sanitizeQuoteFileNamePart(
+        q.numeroCotizacion ||
+        q.numero ||
+        q.numero_cotizacion ||
+        'S_N'
+      ) || 'S_N';
+
+      const empresa = sanitizeQuoteFileNamePart(
+        getQuoteClientNameForFile(q)
+      ) || 'Cliente';
+
+      // Se conserva la descarga ORIGINAL mediante jsPDF.
+      // Solo cambia el nombre del archivo.
+      doc.save(`Cotizacion_${numero}_${empresa}.pdf`);
     }catch(err){
       console.error('generateQuotePDF.canonical', err);
       alert('No se pudo generar el PDF: ' + (err.message || err));
