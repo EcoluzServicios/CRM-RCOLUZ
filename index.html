@@ -982,6 +982,7 @@ function toggleEditOTFacturaField(){
   const API_URL = 'https://script.google.com/macros/s/AKfycbxXbQf80XeD1gCk_x3SfNWIrv5WE2qUhYAxsD8Scjd6qy2l10-6iPFF3ZHTBPyRPam-DA/exec';
   const STORAGE_KEY = 'ecoluz_google_api_session_v1';
   const READ_CACHE_TTL_MS = 30000;
+  const REQUEST_TIMEOUT_MS = 25000;
   const readCache = new Map();
   const inFlightReads = new Map();
   let initialPrewarmPromise = null;
@@ -1093,16 +1094,24 @@ function toggleEditOTFacturaField(){
 
     const execute = (async () => {
       let response;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
         response = await fetch(API_URL, {
           method: 'POST',
           redirect: 'follow',
           cache: 'no-store',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
+          signal: controller.signal
         });
       } catch(networkError){
-        throw errorObj('No se pudo conectar con Google Apps Script. Revisa que la implementación esté publicada para “Cualquier persona”. ' + (networkError?.message || networkError));
+        if(networkError?.name === 'AbortError'){
+          throw errorObj('La conexión con Google Apps Script tardó demasiado y fue cancelada. Intenta nuevamente. Si estás abriendo el CRM como archivo local, prueba también desde la versión publicada en GitHub Pages.');
+        }
+        throw errorObj('No se pudo conectar con Google Apps Script. Revisa la conexión a internet y que la implementación esté publicada para “Cualquier persona”. ' + (networkError?.message || networkError));
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       let text = '';
@@ -1523,7 +1532,13 @@ function toggleEditOTFacturaField(){
           const user = mapUser(json.user, json.token);
           const session = { access_token:json.token, token_type:'bearer', expires_at:json.expires_at, user };
           storeSession(session);
-          try { await prewarmInitialData(); } catch(e) {}
+
+          // La precarga es una optimización, no debe bloquear el inicio de sesión.
+          // Se ejecuta en segundo plano y, si falla, loadData usa la carga normal.
+          try {
+            prewarmInitialData().catch(error => console.warn('Precarga en segundo plano no disponible:', error));
+          } catch(e) {}
+
           return {data:{user,session}, error:null};
         } catch(err){
           return {data:{user:null,session:null}, error:errorObj(err?.message || err)};
@@ -1533,17 +1548,12 @@ function toggleEditOTFacturaField(){
         const session = readStoredSession();
         if(!session) return {data:{session:null}, error:null};
 
-        // Aprovechamos una sola llamada batch para dejar preparadas las
-        // colecciones principales antes de que loadData haga sus lecturas.
-        try { await prewarmInitialData(); } catch(e) {}
+        // Restaurar una sesión existente tampoco debe quedar esperando el batch.
+        try {
+          prewarmInitialData().catch(error => console.warn('Precarga de sesión en segundo plano no disponible:', error));
+        } catch(e) {}
 
-        // El backend puede invalidar el token durante el prewarm. No debemos
-        // devolver la sesión antigua porque eso abre el CRM sin datos y hace
-        // parecer que los registros desaparecieron.
-        const validatedSession = readStoredSession();
-        if(!validatedSession) return {data:{session:null}, error:null};
-
-        return {data:{session:validatedSession}, error:null};
+        return {data:{session}, error:null};
       },
 
       async signOut(){
@@ -1583,7 +1593,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.4.1-NUEVA-IMPLEMENTACION-APPS-SCRIPT';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.4.1-AUTH-ROBUSTO';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -5414,21 +5424,24 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
-          if(errorEl) errorEl.classList.remove('hidden');
+          if(errorEl){
+            errorEl.textContent = String(error?.message || 'No fue posible iniciar sesión.');
+            errorEl.classList.remove('hidden');
+          }
           console.error("Login error:", error);
           return;
         }
 
-        const errorEl = document.getElementById('loginError');
-        if(errorEl){
-          errorEl.textContent = 'Usuario o contraseña incorrectos';
-          errorEl.classList.add('hidden');
-        }
+        if(errorEl) errorEl.classList.add('hidden');
+        if(btn) btn.textContent = 'Cargando datos...';
 
         await completeLoginFlow(data?.user || null, email);
       } catch (err) {
         console.error('Error al iniciar sesión:', err);
-        if(errorEl) errorEl.classList.remove('hidden');
+        if(errorEl){
+          errorEl.textContent = String(err?.message || 'No fue posible iniciar sesión.');
+          errorEl.classList.remove('hidden');
+        }
       } finally {
         if(btn){
           btn.disabled = false;
