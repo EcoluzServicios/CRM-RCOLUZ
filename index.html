@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 5.4 — FACTURACIÓN AGRUPADA
+ECOLUZ CRM ULTRA 5.9 — ACTA SOBRE VER OT
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -8,6 +8,10 @@ Auditoría estática final:
 - Respaldos y auditoría conservados.
 - Sin IDs HTML duplicados detectados.
 - Scripts embebidos validados sintácticamente.
+- Dashboard consolidado: una sola implementación activa para indicadores principales.
+- Eliminadas las capas dashboard-period-control-v52 y dashboard-direct-month-v534 desplazadas.
+- Actas de recepción: impresión conservada + descarga PDF directa cliente/terreno.
+- La librería auxiliar de render PDF se carga solo al descargar un acta, no al iniciar el CRM.
 - Handlers inline principales resueltos.
 - V4.8 conservada como base funcional; V5.0 no agrega módulos nuevos.
 -->
@@ -981,7 +985,7 @@ function toggleEditOTFacturaField(){
 
   const API_URL = 'https://script.google.com/macros/s/AKfycbxXbQf80XeD1gCk_x3SfNWIrv5WE2qUhYAxsD8Scjd6qy2l10-6iPFF3ZHTBPyRPam-DA/exec';
   const STORAGE_KEY = 'ecoluz_google_api_session_v1';
-  const READ_CACHE_TTL_MS = 30000;
+  const READ_CACHE_TTL_MS = 120000;
   const REQUEST_TIMEOUT_MS = 25000;
   const readCache = new Map();
   const inFlightReads = new Map();
@@ -1015,6 +1019,40 @@ function toggleEditOTFacturaField(){
       if(session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
       else localStorage.removeItem(STORAGE_KEY);
     } catch(e){}
+  }
+
+  const SESSION_REFRESH_MIN_INTERVAL_MS = 45 * 60 * 1000;
+  let lastSessionRefreshAt = 0;
+  let sessionRefreshPromise = null;
+
+  async function refreshStoredSession(force = false){
+    const session = readStoredSession();
+    if(!session?.access_token) return null;
+
+    if(!force && lastSessionRefreshAt && (Date.now() - lastSessionRefreshAt) < SESSION_REFRESH_MIN_INTERVAL_MS){
+      return session;
+    }
+    if(sessionRefreshPromise) return sessionRefreshPromise;
+
+    sessionRefreshPromise = (async () => {
+      const json = await apiRequest('refresh_session', {}, { includeToken:true });
+      const current = readStoredSession();
+      if(!current?.access_token) throw errorObj('Sesión no válida.');
+      const user = mapUser(json.user || current.user, current.access_token);
+      const next = Object.assign({}, current, {
+        expires_at: json.expires_at || current.expires_at,
+        user: user || current.user
+      });
+      storeSession(next);
+      lastSessionRefreshAt = Date.now();
+      return next;
+    })();
+
+    try {
+      return await sessionRefreshPromise;
+    } finally {
+      sessionRefreshPromise = null;
+    }
   }
 
   function mapUser(user, token){
@@ -1239,6 +1277,10 @@ function toggleEditOTFacturaField(){
   }
 
   window.ecoluzPrewarmInitialData = prewarmInitialData;
+  window.ecoluzInvalidateReadCache = function(table){
+    if(table){ invalidateTableCache(table); return; }
+    readCache.clear();
+  };
 
   window.ecoluzRequestPasswordReset = async function(email){
     return await apiRequest(
@@ -1532,12 +1574,9 @@ function toggleEditOTFacturaField(){
           const user = mapUser(json.user, json.token);
           const session = { access_token:json.token, token_type:'bearer', expires_at:json.expires_at, user };
           storeSession(session);
+          lastSessionRefreshAt = Date.now();
 
-          // La precarga es una optimización, no debe bloquear el inicio de sesión.
-          // Se ejecuta en segundo plano y, si falla, loadData usa la carga normal.
-          try {
-            prewarmInitialData().catch(error => console.warn('Precarga en segundo plano no disponible:', error));
-          } catch(e) {}
+          // La precarga se coordina desde completeLoginFlow para evitar lecturas duplicadas.
 
           return {data:{user,session}, error:null};
         } catch(err){
@@ -1548,10 +1587,16 @@ function toggleEditOTFacturaField(){
         const session = readStoredSession();
         if(!session) return {data:{session:null}, error:null};
 
-        // Restaurar una sesión existente tampoco debe quedar esperando el batch.
+        // Si queda poco tiempo de sesión, la renovamos antes de reconstruir el CRM.
         try {
-          prewarmInitialData().catch(error => console.warn('Precarga de sesión en segundo plano no disponible:', error));
-        } catch(e) {}
+          const expiresAt = new Date(session.expires_at || 0).getTime();
+          if (expiresAt && (expiresAt - Date.now()) < (90 * 60 * 1000)) {
+            const refreshed = await refreshStoredSession(true);
+            if (refreshed) return {data:{session:refreshed}, error:null};
+          }
+        } catch(error) {
+          console.warn('No se pudo renovar anticipadamente la sesión:', error);
+        }
 
         return {data:{session}, error:null};
       },
@@ -1560,7 +1605,20 @@ function toggleEditOTFacturaField(){
         const session = readStoredSession();
         try { if(session?.access_token) await apiRequest('logout', {token:session.access_token}, {includeToken:false}); } catch(e){}
         storeSession(null);
+        readCache.clear();
+        inFlightReads.clear();
+        initialPrewarmDone = false;
+        initialPrewarmPromise = null;
+        lastSessionRefreshAt = 0;
         return {error:null};
+      },
+      async refreshSession(){
+        try {
+          const session = await refreshStoredSession(true);
+          return {data:{session}, error:null};
+        } catch(err){
+          return {data:{session:null}, error:errorObj(err?.message || err)};
+        }
       },
       async updateUser({password}={}){
         try {
@@ -1593,7 +1651,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.4.2-NOMBRE-ARCHIVO-COTIZACION';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.9.0-ACTA-SOBRE-VER-OT';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -5226,6 +5284,50 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
     let inactivityTimer = null;
     let inactivityBound = false;
     let appBootstrapped = false;
+    const SESSION_KEEPALIVE_MS = 60 * 60 * 1000;
+    let sessionKeepAliveTimer = null;
+    let lastSessionKeepAliveAt = 0;
+    let sessionKeepAliveRunning = false;
+
+    function clearSessionKeepAlive(){
+      if(sessionKeepAliveTimer){
+        clearInterval(sessionKeepAliveTimer);
+        sessionKeepAliveTimer = null;
+      }
+      sessionKeepAliveRunning = false;
+      lastSessionKeepAliveAt = 0;
+    }
+
+    async function refreshActiveSession(force = false){
+      if(!currentUser || sessionKeepAliveRunning) return false;
+      if(!force && lastSessionKeepAliveAt && (Date.now() - lastSessionKeepAliveAt) < SESSION_KEEPALIVE_MS) return true;
+      sessionKeepAliveRunning = true;
+      try{
+        if(typeof supabaseClient?.auth?.refreshSession !== 'function') return false;
+        const {data, error} = await supabaseClient.auth.refreshSession();
+        if(error) throw error;
+        const nextUser = data?.session?.user || null;
+        if(nextUser){
+          currentUser = nextUser;
+          window.currentUser = nextUser;
+        }
+        lastSessionKeepAliveAt = Date.now();
+        return true;
+      }catch(error){
+        console.warn('No se pudo renovar la sesión activa:', error?.message || error);
+        return false;
+      }finally{
+        sessionKeepAliveRunning = false;
+      }
+    }
+
+    function startSessionKeepAlive(){
+      clearSessionKeepAlive();
+      lastSessionKeepAliveAt = Date.now();
+      sessionKeepAliveTimer = setInterval(() => {
+        if(currentUser && document.visibilityState === 'visible') void refreshActiveSession(true);
+      }, SESSION_KEEPALIVE_MS);
+    }
 
     function setAppAuthVisibility(isLoggedIn) {
       const loginScreen = document.getElementById('loginScreen');
@@ -5298,6 +5400,9 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
           }
         }
         restartInactivityTimer();
+        if(lastSessionKeepAliveAt && (Date.now() - lastSessionKeepAliveAt) >= (SESSION_KEEPALIVE_MS / 2)){
+          void refreshActiveSession(true);
+        }
       });
     }
 
@@ -5317,6 +5422,7 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
 
       registerActivity();
       bindInactivityTracking();
+      startSessionKeepAlive();
 
       const mustChange = currentUser?.user_metadata?.must_change_password === true;
       if (mustChange) {
@@ -5325,14 +5431,16 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
       }
 
       if (!appBootstrapped) {
+        if(typeof window.ecoluzPrewarmInitialData === 'function'){
+          try{ await window.ecoluzPrewarmInitialData(); }
+          catch(error){ console.warn('Precarga inicial no disponible; se usará carga normal.', error); }
+        }
         await loadData();
-        renderAll();
         showView('dashboard');
         updateAutoModeUI();
         suscribirseACambios();
         appBootstrapped = true;
       } else if (!preserveView) {
-        renderAll();
         showView('dashboard');
       }
     }
@@ -5454,6 +5562,7 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
       const { reload = true, silent = false, reason = 'manual' } = options;
       try {
         clearInactivityTimer();
+        clearSessionKeepAlive();
         if (sharedSyncInterval) {
           clearInterval(sharedSyncInterval);
           sharedSyncInterval = null;
@@ -6667,8 +6776,10 @@ function todayISO() {
         closeModal();
 
         if(!appBootstrapped){
+          if(typeof window.ecoluzPrewarmInitialData === 'function'){
+            try{ await window.ecoluzPrewarmInitialData(); }catch(e){}
+          }
           await loadData();
-          renderAll();
           showView('dashboard');
           updateAutoModeUI();
           suscribirseACambios();
@@ -11087,10 +11198,11 @@ let sharedSyncForceFullRefresh = false;
 
 async function refreshSelectiveSharedData(tables){
   const refreshSet = new Set((tables || []).filter(Boolean));
-  if (!refreshSet.size) {
-    await loadData();
-    return;
-  }
+  if (!refreshSet.size) return;
+
+  refreshSet.forEach(table => {
+    try { if(typeof window.ecoluzInvalidateReadCache === 'function') window.ecoluzInvalidateReadCache(table); } catch(e) {}
+  });
 
   if (refreshSet.has('quotes')) await refreshQuotesCollectionFromServer();
   if (refreshSet.has('ots')) await refreshOTsCollectionFromServer();
@@ -11114,7 +11226,11 @@ async function refreshSelectiveSharedData(tables){
   window.internalProjectHistory = internalProjectHistory;
   window.clients = clients;
 
-  renderAll();
+  const currentView = String(window.currentMainView || 'dashboard');
+  const pagedViewAlreadyRendered =
+    (currentView === 'quotes' && refreshSet.has('quotes')) ||
+    (currentView === 'ots' && refreshSet.has('ots'));
+  if(!pagedViewAlreadyRendered) renderAll();
   renderDashboard();
   try { renderDashboardMaintenanceSummary(); } catch(e) {}
 }
@@ -11754,6 +11870,7 @@ window.renderAbonos = renderAbonos;
         sharedSyncForceFullRefresh = false;
 
         if (shouldFullRefresh) {
+          try { if(typeof window.ecoluzInvalidateReadCache === 'function') window.ecoluzInvalidateReadCache(); } catch(e) {}
           await loadData();
         } else {
           await refreshSelectiveSharedData(pendingTables);
@@ -11803,13 +11920,38 @@ window.renderAbonos = renderAbonos;
       }, reason === 'manual' ? 100 : SHARED_SYNC_DEBOUNCE_MS);
     }
 
+    function getVisibleSharedRefreshTarget(){
+      const view = String(window.currentMainView || 'dashboard');
+      if(view === 'quotes') return 'quotes';
+      if(['ots','admin-control','abonos','payments'].includes(view)) return 'ots';
+      if(view === 'visitas') return 'visitas';
+      if(['reqs','requerimientos'].includes(view)) return 'requerimientos';
+      if(['reports','informes'].includes(view)) return REPORTS_TABLE;
+      if(view === 'calendar') return 'calendar_events';
+      if(view === 'maintenance') return 'maintenance_programs';
+      if(view === 'projects') return 'internal_projects';
+      if(view === 'trash') return RECYCLE_BIN_TABLE;
+      return '';
+    }
+
     function refreshSharedDataIfNeededOnVisible() {
       if (!currentUser) return;
       const elapsed = Date.now() - sharedSyncLastRefreshAt;
       const shouldRefresh = sharedSyncNeedsRefreshWhenVisible || !sharedSyncLastRefreshAt || elapsed >= SHARED_SYNC_REFRESH_ON_VISIBLE_MS;
-      if (shouldRefresh) {
-        scheduleSharedDataRefresh(false, 'visible');
+      if (!shouldRefresh) return;
+
+      const target = getVisibleSharedRefreshTarget();
+      if(target){
+        scheduleSharedDataRefresh(false, 'visible', target);
+        return;
       }
+
+      // Dashboard/clientes no fuerzan una recarga completa al recuperar foco.
+      // El dashboard actualiza sus contadores livianos y el usuario conserva
+      // respuesta inmediata; el botón Actualizar sigue disponible para recarga total.
+      sharedSyncNeedsRefreshWhenVisible = false;
+      sharedSyncLastRefreshAt = Date.now();
+      try { if(typeof fetchLightDashboardCounts === 'function') void fetchLightDashboardCounts(); } catch(e) {}
     }
 
     function suscribirseACambios() {
@@ -16708,6 +16850,7 @@ function showView(requestedView) {
   });
   if(view === 'clients'){
     ['clientsPager','clientsPagerTop'].forEach(id=>{ const p=document.getElementById(id); if(p) p.style.display=''; });
+    try { if (typeof renderClients === 'function') renderClients(); } catch(e){ console.error('Error al abrir Clientes:', e); }
   }
   if(view === 'quotes'){
     ['pendingQuotesPager','pendingQuotesPagerTop','acceptedQuotesPager','acceptedQuotesPagerTop','rejectedQuotesPager','rejectedQuotesPagerTop'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; });
@@ -16775,11 +16918,6 @@ function showView(requestedView) {
       otSearchFree = '';
       try { updateOTSearchClearButton(); } catch(e){}
       if (typeof renderOTs === 'function') renderOTs();
-      if (typeof refreshOTsCollectionFromServer === 'function') {
-        Promise.resolve(refreshOTsCollectionFromServer())
-          .then(() => { try { renderOTs(); } catch(e) { console.error(e); } })
-          .catch(err => console.error('No se pudo refrescar OTs al abrir la vista:', err));
-      }
     } catch(e){}
     setTimeout(() => { try { applyOTsActive(); applyOTsClosed(); } catch(e){} }, 0);
   }
@@ -17203,25 +17341,34 @@ function renderDashboardMaintenanceSummary(){
 
 
 function renderAll() {
-  renderClients();
-  renderMandantes();
-      try { populateVTClients(); } catch(e) {}
-      try { populateVTClients(); } catch(e) {}
-  renderQuotes();
-  renderOTs();
-  renderReports();
-  renderAbonos();
-  renderVisitas();
-  renderReqs();
-  try { renderMaintenancePrograms(); } catch(e) {}
-  try { renderInternalProjects(); } catch(e) {}
-  try { if (typeof window.renderCalendar === 'function') window.renderCalendar(); } catch(e) {}
-  // aplicar paginación si ya está definida
-  setTimeout(() => { try { applyClients(); } catch(e){} }, 0);
-  setTimeout(() => { try { applyPendingQuotes(); applyAcceptedQuotes(); applyRejectedQuotes(); } catch(e){} }, 0);
-  setTimeout(() => { try { applyOTsActive(); applyOTsClosed(); } catch(e){} }, 0);
-  setTimeout(() => { try { applyAbonos(); applyAbonosClosed(); } catch(e){} }, 0);
+  const view = (typeof normalizeViewName === 'function')
+    ? normalizeViewName(window.currentMainView || 'dashboard')
+    : String(window.currentMainView || 'dashboard');
+
+  // Mantener actualizados los selectores livianos sin disparar consultas remotas.
+  try { populateVTClients(); } catch(e) {}
+
+  // Solo se renderiza la vista que el usuario está usando. Las demás vistas
+  // se renderizan al abrirse mediante showView(), evitando 5+ consultas
+  // paginadas durante el arranque o cada sincronización.
+  if(view === 'clients') { try { renderClients(); } catch(e) {} }
+  else if(view === 'mandantes') { try { renderMandantes(); } catch(e) {} }
+  else if(view === 'quotes') { try { renderQuotes(); } catch(e) {} }
+  else if(view === 'ots') { try { renderOTs(); } catch(e) {} }
+  else if(view === 'admin-control') { try { renderAdministrativeControl(); } catch(e) {} }
+  else if(view === 'reports' || view === 'informes') { try { renderReports(); } catch(e) {} }
+  else if(view === 'abonos' || view === 'payments') {
+    try { renderAbonos(); } catch(e) {}
+    setTimeout(() => { try { applyAbonos(); applyAbonosClosed(); } catch(e) {} }, 0);
+  }
+  else if(view === 'visitas') { try { renderVisitas(); } catch(e) {} }
+  else if(view === 'reqs' || view === 'requerimientos') { try { renderReqs(); } catch(e) {} }
+  else if(view === 'maintenance') { try { renderMaintenancePrograms(); } catch(e) {} }
+  else if(view === 'projects') { try { renderInternalProjects(); } catch(e) {} }
+  else if(view === 'calendar') { try { if (typeof window.renderCalendar === 'function') window.renderCalendar(); } catch(e) {} }
+  else if(view === 'trash') { try { renderTrash(); } catch(e) {} }
 }
+
 
 
     function splitSelectColumnsTopLevel(selectStr){
@@ -23485,6 +23632,7 @@ async function saveNewReq() {
                   </div>
                   <div class="flex flex-wrap gap-3">
                     ${linkedQuote ? `<button type="button" onclick="previewQuote('${String(linkedQuote.id || '')}')" class="px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold">Abrir cotización</button>` : ''}
+                    <button type="button" onclick="showActaRecepcionModal('ot','${String(otId)}')" class="px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 font-bold"><i class="fa-solid fa-file-signature mr-2"></i>Acta de recepción</button>
                     <button type="button" onclick="goToCobranzaForOT('${String(otId)}')" class="px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold">Ver cobranza</button>
                     ${reportAction}
                   </div>
@@ -24415,145 +24563,173 @@ function clearActaSignaturePad(){
 window.clearActaSignaturePad = clearActaSignaturePad;
 
 
+function closeActaRecepcionModal(){
+  const overlay = document.getElementById('actaRecepcionModal');
+  if(overlay) overlay.remove();
+}
+window.closeActaRecepcionModal = closeActaRecepcionModal;
+
 function showActaRecepcionModal(sourceType, sourceId){
   const ctx = getActaSourceContext(sourceType, sourceId);
   if(!ctx){
     alert('No se encontraron los datos para generar el acta.');
     return;
   }
-  openModal(`
-    <div class="p-6 sm:p-7">
-      <div class="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h2 class="text-2xl font-black text-slate-900">Actas de recepción / terreno</h2>
-          <p class="text-sm text-gray-500 mt-1">Aquí puedes imprimir dos formatos distintos: uno formal para entregar al cliente y otro tipo hoja de terreno para que lo lleve y devuelva el técnico.</p>
-        </div>
-        <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
-      </div>
 
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-        <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-          <div class="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <div class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Versión cliente</div>
-              <h3 class="text-xl font-black text-slate-900 mt-1">Formal y empresarial</h3>
-            </div>
-            <div class="w-11 h-11 rounded-2xl bg-white border border-emerald-200 flex items-center justify-center text-emerald-700">
-              <i class="fa-solid fa-file-lines text-lg"></i>
-            </div>
+  // El acta usa su propio overlay para poder abrirse por encima de "Ver OT"
+  // sin cerrar ni reemplazar la vista que queda debajo.
+  closeActaRecepcionModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'actaRecepcionModal';
+  overlay.className = 'fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4';
+  overlay.style.zIndex = '12050';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Actas de recepción y terreno');
+  overlay.innerHTML = `
+    <div class="bg-white rounded-3xl max-w-5xl w-full mx-auto max-h-[94vh] overflow-y-auto overflow-x-hidden relative shadow-2xl" onclick="event.stopPropagation()">
+      <div class="p-6 sm:p-7">
+        <div class="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900">Actas de recepción / terreno</h2>
+            <p class="text-sm text-gray-500 mt-1">Aquí puedes imprimir dos formatos distintos: uno formal para entregar al cliente y otro tipo hoja de terreno para que lo lleve y devuelva el técnico.</p>
           </div>
-          <ul class="text-sm text-slate-700 space-y-2 leading-relaxed">
-            <li>• Presentación más limpia y profesional.</li>
-            <li>• Pensada para dejarla al cliente firmada en papel.</li>
-            <li>• Incluye bloque elegante para detalle manual del servicio.</li>
-          </ul>
+          <button onclick="closeActaRecepcionModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Cerrar</button>
         </div>
 
-        <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5">
-          <div class="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <div class="text-xs font-black uppercase tracking-[0.2em] text-amber-700">Versión técnico</div>
-              <h3 class="text-xl font-black text-slate-900 mt-1">Hoja de terreno</h3>
-            </div>
-            <div class="w-11 h-11 rounded-2xl bg-white border border-amber-200 flex items-center justify-center text-amber-700">
-              <i class="fa-solid fa-helmet-safety text-lg"></i>
-            </div>
-          </div>
-          <ul class="text-sm text-slate-700 space-y-2 leading-relaxed">
-            <li>• Más operativa y práctica para uso en terreno.</li>
-            <li>• Con área amplia para escribir requerimientos, trabajo y observaciones.</li>
-            <li>• Ideal para que el técnico la lleve y luego la devuelva firmada.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">Empresa / cliente</label>
-          <input type="text" value="${escapeHtml(ctx.clientName)}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
-        </div>
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">Fecha del acta</label>
-          <input id="actaFecha" type="date" value="${todayISO()}" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" />
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-bold text-slate-700 mb-1">Dirección</label>
-          <input type="text" value="${escapeHtml(ctx.direccion || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-bold text-slate-700 mb-1">Detalle del trabajo</label>
-          <textarea id="actaDetalleTrabajo" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600 min-h-[92px]">${escapeHtml(getActaTrabajoDetalleLabel(ctx))}</textarea>
-          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <i class="fa-solid fa-layer-group"></i>
-              Equipos detectados: <strong>${escapeHtml(String(getActaEquipmentCount(ctx) || 0))}</strong>
-            </span>
-            <span>Puedes ajustar el texto antes de imprimir. Ejemplo: “Mantención preventiva de 15 equipos de aire acondicionado”.</span>
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">Cotización asociada</label>
-          <input type="text" value="${escapeHtml(ctx.numeroCotizacion || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
-        </div>
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">OT asociada</label>
-          <input type="text" value="${escapeHtml(ctx.numeroOT || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-bold text-slate-700 mb-1">Técnico asignado</label>
-          <input id="actaTecnico" type="text" value="${escapeHtml(ctx.tecnico || currentUserDisplayName || '')}" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" placeholder="Nombre del técnico" />
-        </div>
-      </div>
-
-      <div class="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="rounded-3xl border border-slate-200 bg-white p-4">
-          <div class="text-sm font-black text-slate-800 mb-2">Vista rápida del formato formal</div>
-          <div class="rounded-2xl border border-slate-200 p-3 bg-slate-50">
-            <div class="h-2 rounded-full bg-emerald-600 mb-3"></div>
-            <div class="flex justify-between items-start gap-3 mb-3">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+          <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+            <div class="flex items-start justify-between gap-3 mb-3">
               <div>
-                <div class="h-3 w-40 rounded bg-slate-800 mb-2"></div>
-                <div class="h-2.5 w-28 rounded bg-slate-300"></div>
+                <div class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Versión cliente</div>
+                <h3 class="text-xl font-black text-slate-900 mt-1">Formal y empresarial</h3>
               </div>
-              <div class="space-y-2 w-28">
-                <div class="h-2.5 rounded bg-slate-300"></div>
-                <div class="h-2.5 rounded bg-slate-300"></div>
+              <div class="w-11 h-11 rounded-2xl bg-white border border-emerald-200 flex items-center justify-center text-emerald-700">
+                <i class="fa-solid fa-file-lines text-lg"></i>
               </div>
             </div>
-            <div class="space-y-2 mb-3">
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+            <ul class="text-sm text-slate-700 space-y-2 leading-relaxed">
+              <li>• Presentación más limpia y profesional.</li>
+              <li>• Pensada para dejarla al cliente firmada en papel.</li>
+              <li>• Incluye bloque elegante para detalle manual del servicio.</li>
+            </ul>
+          </div>
+
+          <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+            <div class="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div class="text-xs font-black uppercase tracking-[0.2em] text-amber-700">Versión técnico</div>
+                <h3 class="text-xl font-black text-slate-900 mt-1">Hoja de terreno</h3>
+              </div>
+              <div class="w-11 h-11 rounded-2xl bg-white border border-amber-200 flex items-center justify-center text-amber-700">
+                <i class="fa-solid fa-helmet-safety text-lg"></i>
+              </div>
             </div>
-            <div class="h-24 rounded-2xl bg-white border border-dashed border-slate-300"></div>
+            <ul class="text-sm text-slate-700 space-y-2 leading-relaxed">
+              <li>• Más operativa y práctica para uso en terreno.</li>
+              <li>• Con área amplia para escribir requerimientos, trabajo y observaciones.</li>
+              <li>• Ideal para que el técnico la lleve y luego la devuelva firmada.</li>
+            </ul>
           </div>
         </div>
 
-        <div class="rounded-3xl border border-slate-200 bg-white p-4">
-          <div class="text-sm font-black text-slate-800 mb-2">Vista rápida hoja de terreno</div>
-          <div class="rounded-2xl border border-slate-200 p-3 bg-slate-50">
-            <div class="flex items-center justify-between gap-3 mb-3">
-              <div class="h-3 w-36 rounded bg-amber-700"></div>
-              <div class="h-7 w-24 rounded-xl bg-white border border-slate-200"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Empresa / cliente</label>
+            <input type="text" value="${escapeHtml(ctx.clientName)}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Fecha del acta</label>
+            <input id="actaFecha" type="date" value="${todayISO()}" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-bold text-slate-700 mb-1">Dirección</label>
+            <input type="text" value="${escapeHtml(ctx.direccion || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-bold text-slate-700 mb-1">Detalle del trabajo</label>
+            <textarea id="actaDetalleTrabajo" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600 min-h-[92px]">${escapeHtml(getActaTrabajoDetalleLabel(ctx))}</textarea>
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <i class="fa-solid fa-layer-group"></i>
+                Equipos detectados: <strong>${escapeHtml(String(getActaEquipmentCount(ctx) || 0))}</strong>
+              </span>
+              <span>Puedes ajustar el texto antes de imprimir. Ejemplo: “Mantención preventiva de 15 equipos de aire acondicionado”.</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 mb-3">
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
-              <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
-            </div>
-            <div class="h-24 rounded-2xl bg-white border-2 border-slate-300"></div>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Cotización asociada</label>
+            <input type="text" value="${escapeHtml(ctx.numeroCotizacion || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">OT asociada</label>
+            <input type="text" value="${escapeHtml(ctx.numeroOT || '—')}" readonly class="w-full px-4 py-3 border rounded-xl bg-slate-50 text-slate-700" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-bold text-slate-700 mb-1">Técnico asignado</label>
+            <input id="actaTecnico" type="text" value="${escapeHtml(ctx.tecnico || currentUserDisplayName || '')}" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:border-blue-600" placeholder="Nombre del técnico" />
           </div>
         </div>
-      </div>
 
-      <div class="flex flex-wrap gap-3 pt-4">
-        <button onclick="printActaRecepcion('${sourceType}','${sourceId}','formal')" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-print mr-2"></i>Imprimir versión cliente</button>
-        <button onclick="printActaRecepcion('${sourceType}','${sourceId}','terreno')" class="px-5 py-3 rounded-2xl bg-amber-600 text-white font-semibold hover:bg-amber-700"><i class="fa-solid fa-print mr-2"></i>Imprimir hoja de terreno</button>
-        <button onclick="closeModal()" class="px-5 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">Cancelar</button>
+        <div class="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="rounded-3xl border border-slate-200 bg-white p-4">
+            <div class="text-sm font-black text-slate-800 mb-2">Vista rápida del formato formal</div>
+            <div class="rounded-2xl border border-slate-200 p-3 bg-slate-50">
+              <div class="h-2 rounded-full bg-emerald-600 mb-3"></div>
+              <div class="flex justify-between items-start gap-3 mb-3">
+                <div>
+                  <div class="h-3 w-40 rounded bg-slate-800 mb-2"></div>
+                  <div class="h-2.5 w-28 rounded bg-slate-300"></div>
+                </div>
+                <div class="space-y-2 w-28">
+                  <div class="h-2.5 rounded bg-slate-300"></div>
+                  <div class="h-2.5 rounded bg-slate-300"></div>
+                </div>
+              </div>
+              <div class="space-y-2 mb-3">
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              </div>
+              <div class="h-24 rounded-2xl bg-white border border-dashed border-slate-300"></div>
+            </div>
+          </div>
+
+          <div class="rounded-3xl border border-slate-200 bg-white p-4">
+            <div class="text-sm font-black text-slate-800 mb-2">Vista rápida hoja de terreno</div>
+            <div class="rounded-2xl border border-slate-200 p-3 bg-slate-50">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <div class="h-3 w-36 rounded bg-amber-700"></div>
+                <div class="h-7 w-24 rounded-xl bg-white border border-slate-200"></div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mb-3">
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+                <div class="h-8 rounded-xl bg-white border border-slate-200"></div>
+              </div>
+              <div class="h-24 rounded-2xl bg-white border-2 border-slate-300"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-4">
+          <button onclick="downloadActaRecepcion('${sourceType}','${sourceId}','formal',this)" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"><i class="fa-solid fa-file-arrow-down mr-2"></i>Descargar acta cliente</button>
+          <button onclick="downloadActaRecepcion('${sourceType}','${sourceId}','terreno',this)" class="px-5 py-3 rounded-2xl bg-amber-600 text-white font-semibold hover:bg-amber-700"><i class="fa-solid fa-file-arrow-down mr-2"></i>Descargar hoja terreno</button>
+          <button onclick="printActaRecepcion('${sourceType}','${sourceId}','formal')" class="px-5 py-3 rounded-2xl border border-emerald-200 bg-white text-emerald-800 font-semibold hover:bg-emerald-50"><i class="fa-solid fa-print mr-2"></i>Imprimir cliente</button>
+          <button onclick="printActaRecepcion('${sourceType}','${sourceId}','terreno')" class="px-5 py-3 rounded-2xl border border-amber-200 bg-white text-amber-800 font-semibold hover:bg-amber-50"><i class="fa-solid fa-print mr-2"></i>Imprimir terreno</button>
+        </div>
+        <div class="pt-3">
+          <button onclick="closeActaRecepcionModal()" class="px-5 py-3 rounded-2xl border bg-white hover:bg-gray-50 font-semibold">Cancelar</button>
+        </div>
       </div>
     </div>
-  `);
+  `;
+
+  overlay.addEventListener('click', (event) => {
+    if(event.target === overlay) closeActaRecepcionModal();
+  });
+  document.body.appendChild(overlay);
 }
 window.showActaRecepcionModal = showActaRecepcionModal;
 
@@ -24826,57 +25002,118 @@ function removeActaPrintHost(){
 }
 window.removeActaPrintHost = removeActaPrintHost;
 
-function printActaRecepcion(sourceType, sourceId, variant){
+function getActaRecepcionPreparedData(sourceType, sourceId){
   const ctxData = getActaSourceContext(sourceType, sourceId);
-  if(!ctxData){
-    alert('No se encontraron los datos base para el acta.');
-    return;
-  }
+  if(!ctxData) return null;
   const fecha = safeText(document.getElementById('actaFecha')?.value || todayISO());
   const tecnico = safeText(document.getElementById('actaTecnico')?.value || ctxData.tecnico || currentUserDisplayName || '');
   const detalleTrabajo = safeText(document.getElementById('actaDetalleTrabajo')?.value || getActaTrabajoDetalleLabel(ctxData));
-  const selectedVariant = String(variant || 'formal').toLowerCase().trim() === 'terreno' ? 'terreno' : 'formal';
-  const printHtml = buildActaRecepcionPrintHtml({
-    ...ctxData,
-    fecha,
-    tecnico,
-    detalleTrabajo,
-    descripcionTrabajo: detalleTrabajo
-  }, selectedVariant);
+  return { ...ctxData, fecha, tecnico, detalleTrabajo, descripcionTrabajo: detalleTrabajo };
+}
 
-  const printFrame = document.createElement('iframe');
-  printFrame.style.position = 'fixed';
-  printFrame.style.right = '0';
-  printFrame.style.bottom = '0';
-  printFrame.style.width = '0';
-  printFrame.style.height = '0';
-  printFrame.style.border = '0';
-  printFrame.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(printFrame);
-  const doc = printFrame.contentWindow?.document;
-  if(!doc){
-    alert('No se pudo preparar la impresión del acta.');
-    printFrame.remove();
+function getActaRecepcionPdfFileName(data, variant){
+  const clean = value => String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9_-]+/g,'_')
+    .replace(/_+/g,'_')
+    .replace(/^_+|_+$/g,'') || 'Sin_dato';
+  const tipo = String(variant || 'formal').toLowerCase().trim() === 'terreno' ? 'Hoja_Terreno' : 'Acta_Recepcion';
+  const numero = clean(data?.numeroOT || data?.numeroCotizacion || 'Sin_numero');
+  const cliente = clean(data?.clientName || 'Cliente');
+  return `${tipo}_${numero}_${cliente}.pdf`;
+}
+
+async function ensureActaHtml2Canvas(){
+  if(typeof window.html2canvas === 'function') return window.html2canvas;
+  if(window.__actaHtml2CanvasPromise) return window.__actaHtml2CanvasPromise;
+  window.__actaHtml2CanvasPromise = new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.async=true;
+    script.onload=()=>typeof window.html2canvas==='function' ? resolve(window.html2canvas) : reject(new Error('html2canvas no quedó disponible.'));
+    script.onerror=()=>reject(new Error('No se pudo cargar el generador visual del PDF.'));
+    document.head.appendChild(script);
+  }).finally(()=>{ window.__actaHtml2CanvasPromise=null; });
+  return window.__actaHtml2CanvasPromise;
+}
+
+async function downloadActaRecepcion(sourceType, sourceId, variant, button){
+  const data = getActaRecepcionPreparedData(sourceType, sourceId);
+  if(!data){ alert('No se encontraron los datos base para el acta.'); return; }
+  if(!window.jspdf?.jsPDF){
+    alert('No está disponible la librería PDF. Puedes usar Imprimir mientras recargas la página.');
     return;
   }
-  doc.open();
-  doc.write(printHtml);
-  doc.close();
+  try{
+    await ensureActaHtml2Canvas();
+  }catch(error){
+    alert('No se pudo preparar la descarga PDF: '+(error?.message||error));
+    return;
+  }
 
-  const cleanup = () => {
-    try { printFrame.remove(); } catch(e) {}
-  };
-  printFrame.onload = () => {
-    try {
-      const w = printFrame.contentWindow;
-      if(w){
-        w.onafterprint = cleanup;
-      }
-    } catch(e) {}
-    setTimeout(cleanup, 30000);
+  const selectedVariant = String(variant || 'formal').toLowerCase().trim() === 'terreno' ? 'terreno' : 'formal';
+  const originalButton = button?.innerHTML || '';
+  if(button){ button.disabled=true; button.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-2"></i>Preparando PDF…'; }
+
+  const frame=document.createElement('iframe');
+  frame.setAttribute('aria-hidden','true');
+  Object.assign(frame.style,{position:'fixed',left:'-10000px',top:'0',width:'794px',height:'1123px',opacity:'0',pointerEvents:'none',border:'0'});
+  document.body.appendChild(frame);
+  const cleanup=()=>{try{frame.remove();}catch(e){}};
+
+  try{
+    const sourceHtml=buildActaRecepcionPrintHtml(data,selectedVariant).replace(/<body\s+onload="[^"]*">/i,'<body>');
+    const frameDoc=frame.contentWindow?.document;
+    if(!frameDoc) throw new Error('No se pudo preparar el documento.');
+    frameDoc.open(); frameDoc.write(sourceHtml); frameDoc.close();
+    await new Promise(resolve=>setTimeout(resolve,180));
+    const images=Array.from(frameDoc.images||[]);
+    await Promise.all(images.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{
+      img.onload=img.onerror=resolve; setTimeout(resolve,1500);
+    })));
+
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+    const fileName=getActaRecepcionPdfFileName(data,selectedVariant);
+    await new Promise((resolve,reject)=>{
+      try{
+        pdf.html(frameDoc.body,{
+          x:0,y:0,width:210,windowWidth:794,autoPaging:'text',
+          html2canvas:{scale:1,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false},
+          callback:doc=>{try{doc.save(fileName);resolve();}catch(error){reject(error);}}
+        });
+      }catch(error){reject(error);}
+    });
+  }catch(error){
+    console.error('Error descargando acta de recepción:',error);
+    alert('No se pudo descargar el acta en PDF: '+(error?.message||error));
+  }finally{
+    cleanup();
+    if(button){button.disabled=false;button.innerHTML=originalButton;}
+  }
+}
+window.downloadActaRecepcion=downloadActaRecepcion;
+
+function printActaRecepcion(sourceType, sourceId, variant){
+  const data=getActaRecepcionPreparedData(sourceType,sourceId);
+  if(!data){ alert('No se encontraron los datos base para el acta.'); return; }
+  const selectedVariant=String(variant||'formal').toLowerCase().trim()==='terreno'?'terreno':'formal';
+  const printHtml=buildActaRecepcionPrintHtml(data,selectedVariant);
+
+  const printFrame=document.createElement('iframe');
+  Object.assign(printFrame.style,{position:'fixed',right:'0',bottom:'0',width:'0',height:'0',border:'0'});
+  printFrame.setAttribute('aria-hidden','true');
+  document.body.appendChild(printFrame);
+  const doc=printFrame.contentWindow?.document;
+  if(!doc){alert('No se pudo preparar la impresión del acta.');printFrame.remove();return;}
+  doc.open();doc.write(printHtml);doc.close();
+  const cleanup=()=>{try{printFrame.remove();}catch(e){}};
+  printFrame.onload=()=>{
+    try{const w=printFrame.contentWindow;if(w)w.onafterprint=cleanup;}catch(e){}
+    setTimeout(cleanup,30000);
   };
 }
-window.printActaRecepcion = printActaRecepcion;
+window.printActaRecepcion=printActaRecepcion;
 
 
 // Crear cotización desde una OT manual (vincula quote_id al guardar)
@@ -28991,9 +29228,9 @@ function toggleSidebarMore(forceOpen = null){
     'id, rut, name, created_at, data'
   ];
   const QUOTE_SELECTS = [
-    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, neto, iva, bruto, descuento_pct, descuento_monto, items, data',
-    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, items, data',
-    'id, client_id, numero, monto, descripcion, obra, fecha, estado, created_by_name, created_by_email, created_by, created_at, items, data'
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, sucursal, direccion, neto, iva, bruto, descuento_pct, descuento_monto',
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at',
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, created_by_name, created_by_email, created_by, created_at'
   ];
   const OT_SELECTS = [window.OT_LIGHT_SELECT || 'id, client_id, quote_id, numero_ot, descripcion, oc, hes, guia_despacho, estado, pago_estado, fecha, monto, factura_num, factura_numero, documento_numero, factura_enviada_fecha, factura_registro_fecha, cobro_estado, documento_tipo, created_by_name, created_by_email, created_by, created_at, data',
                       window.OT_LIGHT_SELECT_MIN || 'id, client_id, quote_id, numero_ot, descripcion, estado, pago_estado, fecha, monto, created_by_name, created_by_email, created_by, created_at, data'];
@@ -29084,6 +29321,7 @@ function toggleSidebarMore(forceOpen = null){
       createdBy: r.created_by_email || '',
       created_by: r.created_by || null,
       created_at: r.created_at || null,
+      __lightweight: true,
       data: r.data || {}
     };
   }
@@ -29483,7 +29721,7 @@ function toggleSidebarMore(forceOpen = null){
     rows.forEach(o => {
       try {
         const btnView = `<button onclick="previewOT('${o.id}')" class="text-slate-600 hover:text-slate-900 transition" title="Ver OT en pantalla"><i class="fa-solid fa-eye text-lg"></i></button>`;
-        const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button>`;
+          const btnMore = `<button onclick="showOTMoreOptions('${o.id}')" class="text-slate-600 hover:text-slate-800" title="Más opciones"><i class="fa-solid fa-ellipsis text-xl"></i></button>`;
         const groupId = `ot-${String(o.id || '')}`;
         const tr = document.createElement('tr');
         tr.className = 'ot-main-row border-t hover:bg-gray-50';
@@ -29647,13 +29885,6 @@ function toggleSidebarMore(forceOpen = null){
     ]);
   };
 
-  if(typeof window.registerViewHandler === 'function'){
-    window.registerViewHandler('server-pagination-render', function(context){
-      if(context.view === 'clients') setTimeout(() => window.renderClients(), 0);
-      if(context.view === 'quotes') setTimeout(() => window.renderQuotes(), 0);
-      if(context.view === 'ots') setTimeout(() => window.renderOTs(), 0);
-    }, { views:['clients','quotes','ots'] });
-  }
 })();
 
 (function(){
@@ -36042,14 +36273,8 @@ if(typeof window.registerViewHandler === 'function'){
     if(kind==='outstanding_balance') return openDetailsModal('Saldo total pendiente de cobro',`${money(m.outstanding)} en ${m.debts.length} registro(s)`,m.debts.slice().sort((a,b)=>b.balance-a.balance).map(debtCard),goBilling);
   }
 
-  window.renderDashboardOperational=renderDashboardOperational;
-  window.showDashboardV2Details=showDashboardV2Details;
-  window.renderDashboard=renderDashboardOperational;
-  try { renderDashboard=window.renderDashboard; } catch(e){}
-  const boot=()=>{try{renderDashboardOperational();}catch(e){console.error('Dashboard operativo:',e);}};
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));
-  window.addEventListener('load',()=>setTimeout(boot,250));
-  setTimeout(boot,900);
+  window.renderDashboardOperationalBase=renderDashboardOperational;
+  window.showDashboardCurrentDetails=showDashboardV2Details;
 })();
 </script>
 
@@ -39129,6 +39354,7 @@ if(typeof window.registerViewHandler === 'function'){
         ${q ? `<button type="button" onclick="previewQuote('${esc(q.id)}')" class="ot-v48-action px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold"><i class="fas fa-file-lines"></i>Ver cotización</button>` : ''}
         <button type="button" onclick="${report ? `previewReport('${esc(report.id)}')` : `showNewReportModal({otId:'${esc(id)}'})`}" class="ot-v48-action px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold"><i class="fas fa-file-circle-plus"></i>${report?'Ver informe':'Crear informe'}</button>
         <button type="button" onclick="programCalendarFromOT('${esc(id)}')" class="ot-v48-action px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold"><i class="fas fa-calendar-plus"></i>Calendario</button>
+        <button type="button" onclick="showActaRecepcionModal('ot','${esc(id)}')" class="ot-v48-action px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 font-bold"><i class="fas fa-file-signature"></i>Acta de recepción</button>
         <button type="button" onclick="handleOTFacturaPagoClick('${esc(id)}')" class="ot-v48-action px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold"><i class="fas fa-file-invoice-dollar"></i>Factura / pago</button>
         <button type="button" onclick="showCRMHistoryModal('ots','${esc(id)}')" class="ot-v48-action px-4 py-2 rounded-xl bg-white border hover:bg-gray-50 text-slate-700 font-bold"><i class="fas fa-clock-rotate-left"></i>Historial</button>`;
     }
@@ -39445,436 +39671,6 @@ if(typeof window.registerViewHandler === 'function'){
 
 
 
-<script id="dashboard-period-control-v52">
-(function(){
-  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
-  function safeFn(name){
-    return typeof window[name] === 'function' ? window[name] : null;
-  }
-
-  function fmtMoney(v){
-    const fn = safeFn('formatCLP');
-    if(fn) return fn(v);
-    try{
-      return '$' + Number(v || 0).toLocaleString('es-CL');
-    }catch(e){
-      return '$0';
-    }
-  }
-
-  function dateValueLocal(v){
-    const fn = safeFn('dateValue');
-    if(fn) return fn(v);
-    if(!v) return null;
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  function sameMonthLocal(value, ref){
-    const fn = safeFn('sameMonth');
-    if(fn) return fn(value, ref);
-    const d = dateValueLocal(value);
-    return !!d && d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear();
-  }
-
-  function dayStartLocal(value){
-    const fn = safeFn('dayStart');
-    if(fn) return fn(value);
-    const d = dateValueLocal(value);
-    if(!d) return null;
-    d.setHours(0,0,0,0);
-    return d;
-  }
-
-  function percentLocal(part, total){
-    const fn = safeFn('percent');
-    if(fn) return fn(part, total);
-    return total > 0 ? Math.round((Number(part || 0) / Number(total || 1)) * 100) : 0;
-  }
-
-  function setTextLocal(id, value){
-    const el = document.getElementById(id);
-    if(el) el.textContent = String(value == null ? '' : value);
-  }
-
-  function setMetricLocal(prefix, pct){
-    const ring=document.getElementById(prefix+'Ring');
-    const value=document.getElementById(prefix+'Pct');
-    const bar=document.getElementById(prefix+'Bar');
-    const n=Math.max(0,Math.min(100,Number(pct)||0));
-    if(ring) ring.style.setProperty('--pct', n);
-    if(value) value.textContent=n+'%';
-    if(bar) bar.style.width=n+'%';
-  }
-
-  function getPeriodState(){
-    if(!window.dashboardPeriodState){
-      const now = new Date();
-      window.dashboardPeriodState = { month: now.getMonth() + 1, year: now.getFullYear() };
-    }
-    return window.dashboardPeriodState;
-  }
-
-  function getPeriodDate(){
-    const state = getPeriodState();
-    return new Date(Number(state.year), Number(state.month) - 1, 1);
-  }
-
-  function formatPeriodLabel(d){
-    return `${MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}`;
-  }
-
-  function gatherAvailableYears(){
-    const years = new Set();
-    const now = new Date();
-    years.add(now.getFullYear());
-
-    try{
-      (Array.isArray(window.ots) ? window.ots : []).forEach(o => {
-        const d = dateValueLocal((safeFn('getPreferredOTDate') ? safeFn('getPreferredOTDate')(o) : (o?.fecha || o?.created_at || '')));
-        if(d) years.add(d.getFullYear());
-      });
-    }catch(e){}
-
-    try{
-      (Array.isArray(window.quotes) ? window.quotes : []).forEach(q => {
-        const d = dateValueLocal((safeFn('getPreferredQuoteDate') ? safeFn('getPreferredQuoteDate')(q) : (q?.fecha || q?.created_at || '')));
-        if(d) years.add(d.getFullYear());
-      });
-    }catch(e){}
-
-    try{
-      const programs = Array.isArray(window.maintenancePrograms) ? window.maintenancePrograms : [];
-      programs.forEach(p => {
-        const y = Number(p?.programYear || p?.year || 0);
-        if(y) years.add(y);
-      });
-    }catch(e){}
-
-    const arr = Array.from(years).filter(Boolean).sort((a,b)=>a-b);
-    return arr.length ? arr : [now.getFullYear()];
-  }
-
-  function populatePeriodControls(){
-    const monthSel = document.getElementById('dashV2MonthSelect');
-    const yearSel = document.getElementById('dashV2YearSelect');
-    if(!monthSel || !yearSel) return;
-
-    if(!monthSel.dataset.ready){
-      monthSel.innerHTML = MONTH_NAMES.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
-      monthSel.dataset.ready = '1';
-      monthSel.addEventListener('change', () => {
-        const state = getPeriodState();
-        state.month = Number(monthSel.value || new Date().getMonth() + 1);
-        renderDashboardOperationalPeriod();
-      });
-    }
-
-    const currentValue = yearSel.value;
-    const years = gatherAvailableYears();
-    yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
-    if(!yearSel.dataset.ready){
-      yearSel.dataset.ready = '1';
-      yearSel.addEventListener('change', () => {
-        const state = getPeriodState();
-        state.year = Number(yearSel.value || new Date().getFullYear());
-        renderDashboardOperationalPeriod();
-      });
-    }
-
-    const state = getPeriodState();
-    monthSel.value = String(state.month);
-    yearSel.value = String(years.includes(Number(state.year)) ? state.year : years[years.length - 1]);
-    state.year = Number(yearSel.value);
-  }
-
-  function maintenanceSnapshotForPeriod(periodDate){
-    const year = periodDate.getFullYear();
-    const month = periodDate.getMonth() + 1;
-    let programs = [];
-    try{
-      const getter = safeFn('getMaintenanceProgramsForYear');
-      programs = getter ? getter(year) : [];
-    }catch(e){
-      programs = [];
-    }
-    programs = (Array.isArray(programs) ? programs : []).filter(p => String(p.status || '').toLowerCase() !== 'finalizada');
-
-    const dueMonth = [];
-    const overdue = [];
-    const doneMonth = [];
-    const doneKeys = new Set();
-
-    const isReprogram = safeFn('isMaintenanceReprogramHistoryEntry');
-    const actualMonthFn = safeFn('getMaintenanceHistoryActualMonth');
-    const actualYearFn = safeFn('getMaintenanceHistoryActualYear');
-    const dueMonthsFn = safeFn('getMaintenanceDueMonths');
-    const dueInMonthFn = safeFn('isMaintenanceDueInMonth');
-    const doneInMonthFn = safeFn('isMaintenanceCompletedInMonth');
-    const titleFn = safeFn('getMaintenanceProgramTitle');
-
-    programs.forEach(p => {
-      const programYear = Number(p.programYear || year || new Date().getFullYear());
-
-      (Array.isArray(p.completedHistory) ? p.completedHistory : []).forEach(history => {
-        if(isReprogram && isReprogram(history)) return;
-        const scheduledMonth = Number(history?.month || 0);
-        const actualMonth = actualMonthFn ? actualMonthFn(history, scheduledMonth) : scheduledMonth;
-        const actualYear = actualYearFn ? actualYearFn(history, programYear) : programYear;
-        const key = `${p.id || (titleFn ? titleFn(p) : 'programa')}-${scheduledMonth}-${actualMonth}-${actualYear}`;
-        if(actualYear === year && actualMonth === month && !doneKeys.has(key)){
-          doneKeys.add(key);
-          doneMonth.push({ program:p, month:scheduledMonth || actualMonth, actualMonth, history });
-        }
-      });
-
-      if(dueInMonthFn && dueInMonthFn(p, month) && !(doneInMonthFn && doneInMonthFn(p, month))){
-        dueMonth.push(p);
-      }
-
-      const dueMonths = dueMonthsFn ? dueMonthsFn(p) : [];
-      dueMonths.forEach(m => {
-        if(Number(m) < month && !(doneInMonthFn && doneInMonthFn(p, m))){
-          overdue.push({ program:p, month:m });
-        }
-      });
-    });
-
-    const done = doneMonth.length;
-    const due = dueMonth.length;
-    return { summary:{dueMonth, overdue, doneMonth}, done, due, total:done+due, overdue:overdue.length, pct:percentLocal(done, done+due) };
-  }
-
-  function buildSnapshotForPeriod(periodDate){
-    const actualNow = new Date();
-    const period = periodDate instanceof Date && !isNaN(periodDate.getTime()) ? periodDate : new Date();
-    const today = dayStartLocal(actualNow);
-    const allOts = (typeof otsList === 'function' ? otsList() : (Array.isArray(window.ots) ? window.ots : []));
-    const allQuotes = (typeof quotesList === 'function' ? quotesList() : (Array.isArray(window.quotes) ? window.quotes : []));
-
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextLimit = new Date(today); nextLimit.setDate(nextLimit.getDate() + 7);
-
-    const monthlyOts = allOts.filter(o => typeof otState === 'function' && otState(o) !== 'cancelada' && sameMonthLocal(typeof otMainDate === 'function' ? otMainDate(o) : '', period));
-    const monthlyOtDone = monthlyOts.filter(o => typeof otState === 'function' && otState(o) === 'realizada');
-
-    const monthlyQuotes = allQuotes.filter(q => sameMonthLocal(typeof quoteDate === 'function' ? quoteDate(q) : '', period));
-    const acceptedQuotes = monthlyQuotes.filter(q => ['aceptada','aceptado','aprobada','aprobado'].includes(typeof quoteState === 'function' ? quoteState(q) : ''));
-    const rejectedQuotes = monthlyQuotes.filter(q => ['rechazada','rechazado'].includes(typeof quoteState === 'function' ? quoteState(q) : ''));
-    const decidedQuotes = [...acceptedQuotes, ...rejectedQuotes];
-
-    const quoteIsClosed = q => {
-      const st = typeof quoteState === 'function' ? quoteState(q) : '';
-      return ['aceptada','aceptado','aprobada','aprobado','rechazada','rechazado','anulada','anulado','cancelada','cancelado'].includes(st);
-    };
-
-    const pendingQuotes = allQuotes
-      .filter(q => !quoteIsClosed(q))
-      .sort((a,b) => String(typeof quoteDate === 'function' ? quoteDate(b) : '').localeCompare(String(typeof quoteDate === 'function' ? quoteDate(a) : '')));
-
-    const openOts = allOts
-      .filter(o => ['pendiente','en_curso'].includes(typeof otState === 'function' ? otState(o) : ''))
-      .sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
-    const inProgressOts = openOts.filter(o => (typeof otState === 'function' ? otState(o) : '') === 'en_curso');
-
-    const todayOts = allOts
-      .filter(o => {
-        if((typeof otState === 'function' ? otState(o) : '') === 'cancelada') return false;
-        const d = dayStartLocal(typeof otMainDate === 'function' ? otMainDate(o) : '');
-        return !!d && d.getTime() === today.getTime();
-      })
-      .sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
-
-    const next7Ots = allOts
-      .filter(o => {
-        const st = typeof otState === 'function' ? otState(o) : '';
-        if(!['pendiente','en_curso'].includes(st)) return false;
-        const d = dayStartLocal(typeof otMainDate === 'function' ? otMainDate(o) : '');
-        return !!d && d >= tomorrow && d <= nextLimit;
-      })
-      .sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
-
-    const monthlyCollection = [], debts = [];
-    allOts.forEach(o => {
-      if((typeof otState === 'function' ? otState(o) : '') === 'cancelada') return;
-      const docs = (typeof documents === 'function' ? documents(o) : []).filter(d => typeof activeDocument === 'function' ? activeDocument(d) : true);
-      docs.forEach(doc => {
-        const amount = typeof documentAmount === 'function' ? documentAmount(doc, o, docs.length) : 0;
-        const paid = typeof documentPaidAmount === 'function' ? documentPaidAmount(doc, o, amount) : 0;
-        const balance = Math.max(0, amount - paid);
-        const baseDate = typeof documentDate === 'function' ? documentDate(doc, o) : '';
-        const days = typeof daysFrom === 'function' ? daysFrom(baseDate, actualNow) : 0;
-        const entry = { kind:'document', ot:o, doc, amount, paid, balance, baseDate, days };
-        if(sameMonthLocal(baseDate, period)) monthlyCollection.push(entry);
-        if(balance > 0) debts.push(entry);
-      });
-
-      if(!docs.length && (typeof otState === 'function' ? otState(o) : '') === 'realizada'){
-        const amount = typeof otAmount === 'function' ? otAmount(o) : 0;
-        const paid = (typeof otPaid === 'function' && otPaid(o)) ? amount : 0;
-        const balance = Math.max(0, amount - paid);
-        if(balance > 0){
-          debts.push({
-            kind:(typeof cobroMode === 'function' && cobroMode(o) === 'directo') ? 'direct' : 'unbilled',
-            ot:o, doc:null, amount, paid, balance,
-            baseDate:(typeof otMainDate === 'function' ? otMainDate(o) : ''),
-            days:(typeof daysFrom === 'function' ? daysFrom((typeof otMainDate === 'function' ? otMainDate(o) : ''), actualNow) : 0)
-          });
-        }
-      }
-    });
-
-    const invoicedMonth = monthlyCollection.reduce((s,x)=>s + Number(x.amount || 0),0);
-    const paidMonth = monthlyCollection.reduce((s,x)=>s + Number(x.paid || 0),0);
-
-    const overdueOts = allOts.filter(o => {
-      const st = typeof otState === 'function' ? otState(o) : '';
-      const d = dayStartLocal(typeof otMainDate === 'function' ? otMainDate(o) : '');
-      return ['pendiente','en_curso'].includes(st) && d && d < today;
-    }).sort((a,b) => String(typeof otMainDate === 'function' ? otMainDate(a) : '').localeCompare(String(typeof otMainDate === 'function' ? otMainDate(b) : '')));
-
-    const unbilledOts = allOts.filter(o =>
-      (typeof otState === 'function' ? otState(o) : '') === 'realizada' &&
-      (typeof cobroMode === 'function' ? cobroMode(o) : '') === 'factura' &&
-      ((typeof documents === 'function' ? documents(o) : []).filter(d => typeof activeDocument === 'function' ? activeDocument(d) : true).length === 0)
-    );
-
-    const overdueInvoices = debts.filter(x => x.kind === 'document' && Number(x.days || 0) > 30);
-
-    return {
-      now: actualNow,
-      periodDate: period,
-      monthlyOts, monthlyOtDone,
-      monthlyQuotes, acceptedQuotes, rejectedQuotes, decidedQuotes,
-      pendingQuotes,
-      pendingQuotesAmount: pendingQuotes.reduce((s,q)=>s + (typeof quoteAmount === 'function' ? quoteAmount(q) : 0), 0),
-      openOts,
-      inProgressOts,
-      todayOts,
-      next7Ots,
-      monthlyCollection,
-      invoicedMonth,
-      paidMonth,
-      overdueOts,
-      unbilledOts,
-      unbilledAmount: unbilledOts.reduce((s,o)=>s + (typeof otAmount === 'function' ? otAmount(o) : 0), 0),
-      overdueInvoices,
-      debts,
-      outstanding: debts.reduce((s,x)=>s + Number(x.balance || 0), 0),
-      maintenance: maintenanceSnapshotForPeriod(period)
-    };
-  }
-
-  function renderDashboardOperationalPeriod(){
-    if(!document.getElementById('view-dashboard')) return;
-    populatePeriodControls();
-
-    const periodDate = getPeriodDate();
-    const m = buildSnapshotForPeriod(periodDate);
-
-    setTextLocal('dashV2Period', formatPeriodLabel(periodDate));
-    setTextLocal('dashV2Updated', 'Actualizado ' + m.now.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
-    setTextLocal('dashV2MetricsNote', 'Viendo indicadores de ' + formatPeriodLabel(periodDate) + '. Las secciones inferiores mantienen la situación actual.');
-
-    setMetricLocal('dashV2Ot', percentLocal(m.monthlyOtDone.length, m.monthlyOts.length));
-    setTextLocal('dashV2OtRatio', m.monthlyOtDone.length + ' de ' + m.monthlyOts.length + ' realizadas');
-
-    setMetricLocal('dashV2Quote', percentLocal(m.acceptedQuotes.length, m.decidedQuotes.length));
-    setTextLocal('dashV2QuoteRatio', m.acceptedQuotes.length + ' de ' + m.decidedQuotes.length + ' aceptadas');
-
-    setMetricLocal('dashV2Collection', percentLocal(m.paidMonth, m.invoicedMonth));
-    setTextLocal('dashV2CollectionRatio', fmtMoney(m.paidMonth) + ' de ' + fmtMoney(m.invoicedMonth) + ' pagado');
-
-    setMetricLocal('dashV2Maintenance', m.maintenance.pct);
-    setTextLocal('dashV2MaintenanceRatio', m.maintenance.done + ' de ' + m.maintenance.total + ' realizadas');
-
-    setTextLocal('dashV2OverdueOT', m.overdueOts.length);
-    setTextLocal('dashV2NoDocument', m.unbilledOts.length);
-    setTextLocal('dashV2OverdueInvoices', m.overdueInvoices.length);
-    setTextLocal('dashV2OverdueMaintenance', m.maintenance.overdue);
-    setTextLocal('dashV2Outstanding', fmtMoney(m.outstanding));
-
-    setTextLocal('dashV2PendingQuotes', m.pendingQuotes.length);
-    setTextLocal('dashV2PendingQuotesAmount', fmtMoney(m.pendingQuotesAmount) + ' en evaluación');
-    setTextLocal('dashV2OpenOts', m.openOts.length);
-    setTextLocal('dashV2OpenOtsSub', m.inProgressOts.length + ' en curso');
-    setTextLocal('dashV2ReadyInvoice', m.unbilledOts.length);
-    setTextLocal('dashV2ReadyInvoiceAmount', fmtMoney(m.unbilledAmount) + ' por facturar/boletar');
-    setTextLocal('dashV2DebtCount', m.debts.length);
-    setTextLocal('dashV2DebtAmount', fmtMoney(m.outstanding) + ' pendiente');
-    setTextLocal('dashV2TodayJobs', m.todayOts.length);
-    setTextLocal('dashV2NextJobsSub', m.next7Ots.length + ' próximos en 7 días');
-
-    if(typeof renderAgendaRows === 'function'){
-      setTextLocal('dashV2AgendaTodayCount', m.todayOts.length);
-      setTextLocal('dashV2AgendaNextCount', m.next7Ots.length);
-      renderAgendaRows('dashV2AgendaTodayList', m.todayOts, false);
-      renderAgendaRows('dashV2AgendaNextList', m.next7Ots, true);
-    }
-
-    try{
-      if(typeof window.renderCommercialFlow === 'function') window.renderCommercialFlow();
-    }catch(e){ console.warn('No se pudo actualizar el flujo comercial del inicio:', e); }
-
-    const welcome=document.getElementById('welcomeName');
-    if(welcome && !String(welcome.textContent || '').trim()) welcome.textContent = String(window.currentUser?.name || window.currentUser?.nombre || 'equipo');
-
-    window.dashboardOperationalSnapshot = m;
-  }
-
-  function periodTitle(base){
-    return `${base} · ${formatPeriodLabel(getPeriodDate())}`;
-  }
-
-  function renderMaintenanceDetailsForPeriod(m){
-    const items=[
-      `<button onclick="closeModal();showDashboardMaintenanceDetails('due')" class="w-full border rounded-2xl p-5 text-left hover:bg-slate-50"><p class="text-sm text-slate-500">Pendientes del período</p><p class="text-3xl font-black text-amber-700 mt-1">${m.maintenance.due}</p></button>`,
-      `<button onclick="closeModal();showDashboardMaintenanceDetails('done')" class="w-full border rounded-2xl p-5 text-left hover:bg-slate-50"><p class="text-sm text-slate-500">Realizadas del período</p><p class="text-3xl font-black text-emerald-700 mt-1">${m.maintenance.done}</p></button>`
-    ];
-    const footer = `<div class="mt-5"><button onclick="closeModal();showView('maintenance')" class="w-full px-4 py-3 rounded-xl bg-violet-700 text-white font-black">Abrir programa</button></div>`;
-    if(typeof openDetailsModal === 'function') openDetailsModal(periodTitle('Mantenciones del período'), 'Avance del mes seleccionado.', items, footer);
-  }
-
-  function showDashboardV2DetailsPeriod(kind){
-    const m = buildSnapshotForPeriod(getPeriodDate());
-    const goOT=`<div class="mt-5"><button onclick="closeModal();showView('ots')" class="w-full px-4 py-3 rounded-xl bg-slate-900 text-white font-black">Abrir Órdenes de Trabajo</button></div>`;
-    const goQuotes=`<div class="mt-5"><button onclick="closeModal();showView('quotes')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Cotizaciones</button></div>`;
-    const goBilling=`<div class="mt-5"><button onclick="closeModal();showView('abonos')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Facturación y Abonos</button></div>`;
-
-    if(kind==='overdue_maintenance') return typeof window.showDashboardMaintenanceDetails==='function' ? window.showDashboardMaintenanceDetails('overdue') : window.showView?.('maintenance');
-    if(kind==='monthly_maintenance') return renderMaintenanceDetailsForPeriod(m);
-    if(kind==='monthly_ots') return typeof openDetailsModal === 'function' ? openDetailsModal(periodTitle('OT del período'), `${m.monthlyOtDone.length} realizadas de ${m.monthlyOts.length}`, m.monthlyOts.map(o=>otCard(o)), goOT) : null;
-    if(kind==='monthly_quotes') return typeof openDetailsModal === 'function' ? openDetailsModal(periodTitle('Cotizaciones decididas del período'), `${m.acceptedQuotes.length} aceptadas y ${m.rejectedQuotes.length} rechazadas`, m.decidedQuotes.map(quoteCard), goQuotes) : null;
-    if(kind==='monthly_collection') return typeof openDetailsModal === 'function' ? openDetailsModal(periodTitle('Cobranza documentada del período'), `${fmtMoney(m.paidMonth)} pagado de ${fmtMoney(m.invoicedMonth)}`, m.monthlyCollection.map(debtCard), goBilling) : null;
-
-    // Para el resto de secciones se mantiene la lógica actual/situación actual.
-    return typeof window.__dashboardShowDetailsOriginal === 'function'
-      ? window.__dashboardShowDetailsOriginal(kind)
-      : null;
-  }
-
-  window.setDashboardCurrentMonth = function(){
-    const now = new Date();
-    window.dashboardPeriodState = { month: now.getMonth() + 1, year: now.getFullYear() };
-    populatePeriodControls();
-    renderDashboardOperationalPeriod();
-  };
-
-  window.__dashboardShowDetailsOriginal = typeof window.showDashboardV2Details === 'function' ? window.showDashboardV2Details : null;
-  window.showDashboardV2Details = showDashboardV2DetailsPeriod;
-  try{ showDashboardV2Details = window.showDashboardV2Details; }catch(e){}
-
-  window.renderDashboardOperational = renderDashboardOperationalPeriod;
-  window.renderDashboard = renderDashboardOperationalPeriod;
-  try{ renderDashboard = window.renderDashboard; }catch(e){}
-
-  const boot = () => { try{ renderDashboardOperationalPeriod(); }catch(e){ console.error('Dashboard por período:', e); } };
-  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
-  window.addEventListener('load', () => setTimeout(boot, 220));
-  setTimeout(boot, 900);
-})();
-</script>
 
 
 
@@ -40254,14 +40050,6 @@ if(typeof window.registerViewHandler === 'function'){
     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
   ];
 
-  const histState = {
-    loaded:false,
-    loading:false,
-    promise:null,
-    ots:null,
-    quotes:null,
-    loadedAt:0
-  };
 
   function txt(v){ return String(v == null ? '' : v).trim(); }
   function num(v){ const n=Number(v); return Number.isFinite(n) ? n : 0; }
@@ -40466,164 +40254,12 @@ if(typeof window.registerViewHandler === 'function'){
     return paid ? amount : 0;
   }
 
-  function normalizeServerQuote(r){
-    const d=r?.data||{};
-    const c=clientMap().get(String(r?.client_id||''));
-    const name=txt(d.clientName || d.razonSocial || c?.name || 'Cliente');
-    return {
-      ...r,
-      clientId:r?.client_id,
-      clientName:name,
-      razonSocial:name,
-      numeroCotizacion:txt(r?.numero || d.numeroCotizacion || 'S/N'),
-      monto:num(r?.monto || d.total || d.monto || 0),
-      fecha:r?.fecha || d.fecha || d.fechaDocumento || d.fechaCotizacion || r?.created_at || '',
-      estado:txt(r?.estado || d.estado || 'pendiente').toLowerCase(),
-      data:d
-    };
-  }
-
-  function normalizeServerOT(r){
-    const d=r?.data||{};
-    const c=clientMap().get(String(r?.client_id||''));
-    const amount=num(d.total ?? d.monto ?? r?.monto ?? 0);
-    return {
-      ...r,
-      clientId:r?.client_id,
-      quoteId:r?.quote_id || d.quoteId || d.quote_id || null,
-      clientName:txt(d.clientName || d.nombre || c?.name || 'Cliente'),
-      numeroOT:txt(r?.numero_ot || d.numeroOT || d.numero_ot || 'S/N'),
-      numero_ot:txt(r?.numero_ot || d.numeroOT || d.numero_ot || 'S/N'),
-      descripcion:r?.descripcion || d.descripcion || d.descripcion_trabajo || '',
-      estado:txt(r?.estado || d.estado || 'pendiente').toLowerCase(),
-      pago_estado:txt(r?.pago_estado || d.pago_estado || '').toLowerCase(),
-      cobro_estado:txt(r?.cobro_estado || d.cobro_estado || '').toLowerCase(),
-      modalidadCobro:d.modalidadCobro || d.modalidad_cobro || 'factura',
-      fecha:r?.fecha || d.fecha || d.fechaDocumento || r?.created_at || '',
-      monto:amount,total:amount,
-      data:d
-    };
-  }
-
-  async function loadFullHistory(force=false){
-    if(!force && histState.loaded && Date.now()-histState.loadedAt < 300000) return histState;
-    if(histState.promise) return histState.promise;
-
-    histState.loading=true;
-
-    async function fetchTableAll(table){
-      const sb=window.supabaseClient;
-      if(!sb || typeof sb.from!=='function'){
-        throw new Error('No está disponible la conexión con Google Sheets.');
-      }
-
-      const rows=[];
-      const seen=new Set();
-      let offset=0;
-      const requestSize=250;
-      let total=null;
-
-      // La API puede limitar internamente el número de filas por respuesta.
-      // Por eso NO terminamos solo porque devuelva menos de 250:
-      // seguimos avanzando hasta llegar al total informado o recibir 0 filas.
-      for(let guard=0; guard<50; guard++){
-        const res=await sb
-          .from(table)
-          .select('*')
-          .order('created_at',{ascending:false})
-          .range(offset, offset + requestSize - 1);
-
-        if(res?.error) throw res.error;
-
-        const batch=Array.isArray(res?.data)?res.data:[];
-        const reported=Number(res?.count);
-        if(Number.isFinite(reported) && reported>=0) total=reported;
-
-        if(!batch.length) break;
-
-        let added=0;
-        batch.forEach(row=>{
-          const key=String(row?.id || `${table}-${offset+added}`);
-          if(!seen.has(key)){
-            seen.add(key);
-            rows.push(row);
-            added++;
-          }
-        });
-
-        // Avanzamos por filas RECIBIDAS, no por requestSize, porque el
-        // servidor puede aplicar un máximo interno menor.
-        offset += batch.length;
-
-        if(total !== null && offset >= total) break;
-
-        // Protección contra una API que repita la misma página.
-        if(added===0) break;
-      }
-
-      return rows;
-    }
-
-    histState.promise=(async()=>{
-      try{
-        const [qSet,oSet]=await Promise.allSettled([
-          fetchTableAll('quotes'),
-          fetchTableAll('ots')
-        ]);
-
-        let quoteRows=[];
-        let otRows=[];
-
-        if(qSet.status==='fulfilled'){
-          quoteRows=qSet.value;
-        }else{
-          console.warn('Dashboard histórico: error cargando cotizaciones completas.',qSet.reason);
-        }
-
-        if(oSet.status==='fulfilled'){
-          otRows=oSet.value;
-        }else{
-          console.warn('Dashboard histórico: error cargando OT completas.',oSet.reason);
-        }
-
-        histState.quotes = quoteRows.length
-          ? quoteRows.map(normalizeServerQuote)
-          : (Array.isArray(window.quotes)?window.quotes.slice():[]);
-
-        histState.ots = otRows.length
-          ? otRows.map(normalizeServerOT)
-          : (Array.isArray(window.ots)?window.ots.slice():[]);
-
-        histState.loaded=true;
-        histState.loadedAt=Date.now();
-
-        console.info(
-          '[Dashboard histórico] carga completa:',
-          histState.quotes.length,'cotizaciones ·',
-          histState.ots.length,'OT'
-        );
-
-      }catch(err){
-        console.warn('Dashboard histórico: se usará la colección local.',err);
-        histState.quotes=Array.isArray(window.quotes)?window.quotes.slice():[];
-        histState.ots=Array.isArray(window.ots)?window.ots.slice():[];
-        histState.loaded=true;
-        histState.loadedAt=Date.now();
-      }finally{
-        histState.loading=false;
-        histState.promise=null;
-      }
-
-      return histState;
-    })();
-
-    return histState.promise;
-  }
-
   function sourceData(){
+    // loadData() ya trae todas las cotizaciones y OT necesarias para los listados.
+    // El Dashboard reutiliza esas colecciones para evitar una segunda lectura remota.
     return {
-      quotes: histState.loaded && Array.isArray(histState.quotes) ? histState.quotes : (Array.isArray(window.quotes)?window.quotes:[]),
-      ots: histState.loaded && Array.isArray(histState.ots) ? histState.ots : (Array.isArray(window.ots)?window.ots:[])
+      quotes: Array.isArray(window.quotes) ? window.quotes : [],
+      ots: Array.isArray(window.ots) ? window.ots : []
     };
   }
 
@@ -40903,24 +40539,11 @@ if(typeof window.registerViewHandler === 'function'){
 
       const ref=periodDate();
       const now=new Date();
-      const isCurrentPeriod =
-        ref.getFullYear()===now.getFullYear() &&
-        ref.getMonth()===now.getMonth();
-
-      // Para meses históricos no mostramos un 0 provisional:
-      // primero esperamos a que Google Sheets entregue la colección completa.
-      if(!isCurrentPeriod && !histState.loaded){
-        setText('dashV2MetricsNote','Cargando todas las OT y cotizaciones históricas para '+periodLabel(ref)+'…');
-        setText('dashV2Updated','Cargando histórico…');
-        await loadFullHistory();
-        setupSelectors();
-      }
-
       const s=buildSnapshot(ref);
 
       setText('dashV2Period',periodLabel(ref));
       setText('dashV2Updated','Actualizado '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
-      setText('dashV2MetricsNote','Viendo indicadores de '+periodLabel(ref)+'. Las secciones inferiores mantienen la situación actual.');
+      setText('dashV2MetricsNote','Viendo indicadores de '+periodLabel(ref)+' · '+s.monthlyOts.length+' OT · '+s.monthlyQuotes.length+' cotizaciones encontradas. Las secciones inferiores mantienen la situación actual.');
 
       setMetric('dashV2Ot',pct(s.monthlyOtDone.length,s.monthlyOts.length));
       setText('dashV2OtRatio',s.monthlyOtDone.length+' de '+s.monthlyOts.length+' realizadas');
@@ -40962,20 +40585,6 @@ if(typeof window.registerViewHandler === 'function'){
         if(typeof window.renderCommercialFlow==='function') window.renderCommercialFlow();
       }catch(e){}
 
-      // En el mes actual cargamos el histórico en segundo plano para que,
-      // cuando se cambie de mes, ya esté disponible.
-      if(isCurrentPeriod && !histState.loaded){
-        loadFullHistory().then(()=>{
-          // No forzamos el mes actual a repintarse, pero si el usuario cambió
-          // a un período histórico mientras cargaba, sí actualizamos ese período.
-          const selected=periodDate();
-          const current=new Date();
-          const nowHistorical =
-            selected.getFullYear()!==current.getFullYear() ||
-            selected.getMonth()!==current.getMonth();
-          if(nowHistorical) renderDashboardFixed();
-        }).catch(()=>{});
-      }
 
     }finally{
       rendering=false;
@@ -41047,15 +40656,10 @@ if(typeof window.registerViewHandler === 'function'){
     }
   }
 
-  const previousDetails=window.showDashboardV2Details;
+  const currentDetails=window.showDashboardCurrentDetails;
 
   window.showDashboardV2Details=async function(kind){
     const ref=periodDate();
-    const now=new Date();
-    const isHistorical=ref.getFullYear()!==now.getFullYear() || ref.getMonth()!==now.getMonth();
-    if(isHistorical && !histState.loaded){
-      await loadFullHistory();
-    }
     const s=buildSnapshot(ref);
     const p=periodLabel(periodDate());
     const goOT=`<div class="mt-5"><button onclick="closeModal();showView('ots')" class="w-full px-4 py-3 rounded-xl bg-slate-900 text-white font-black">Abrir Órdenes de Trabajo</button></div>`;
@@ -41081,7 +40685,7 @@ if(typeof window.registerViewHandler === 'function'){
     }
 
     // Para Situación actual / Agenda se conserva la funcionalidad anterior.
-    if(typeof previousDetails==='function') return previousDetails(kind);
+    if(typeof currentDetails==='function') return currentDetails(kind);
   };
 
   window.setDashboardCurrentMonth=function(){
@@ -41105,370 +40709,6 @@ if(typeof window.registerViewHandler === 'function'){
 
 
 
-<script id="dashboard-direct-month-v534">
-(function(){
-  'use strict';
-
-  const MONTH_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const monthCache=new Map();
-
-  function txt(v){return String(v==null?'':v).trim();}
-  function num(v){const n=Number(v);return Number.isFinite(n)?n:0;}
-  function norm(v){
-    return txt(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .toLowerCase().replace(/[\s-]+/g,'_');
-  }
-  function parseDate(v){
-    if(!v)return null;
-    if(v instanceof Date)return isNaN(v.getTime())?null:new Date(v.getTime());
-    const s=txt(v);
-    let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if(m)return new Date(+m[1],+m[2]-1,+m[3],12);
-    m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if(m)return new Date(+m[3],+m[2]-1,+m[1],12);
-    m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
-    if(m)return new Date(2000+(+m[3]),+m[2]-1,+m[1],12);
-    const d=new Date(s);return isNaN(d.getTime())?null:d;
-  }
-  function sameMonth(v,ref){
-    const d=parseDate(v);
-    return !!d&&d.getFullYear()===ref.getFullYear()&&d.getMonth()===ref.getMonth();
-  }
-  function pct(a,b){return b>0?Math.round((a/b)*100):null;}
-  function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=String(v==null?'':v);}
-  function setMetric(prefix,p){
-    const ring=document.getElementById(prefix+'Ring');
-    const value=document.getElementById(prefix+'Pct');
-    const bar=document.getElementById(prefix+'Bar');
-    const n=p==null?0:Math.max(0,Math.min(100,Number(p)||0));
-    if(ring)ring.style.setProperty('--pct',String(n));
-    if(value)value.textContent=p==null?'—':n+'%';
-    if(bar)bar.style.width=n+'%';
-  }
-  function money(v){
-    try{
-      if(typeof window.formatCLP==='function')return window.formatCLP(v);
-      return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(num(v));
-    }catch(e){return '$'+Math.round(num(v)).toLocaleString('es-CL');}
-  }
-  function state(){
-    if(!window.dashboardPeriodState){
-      const n=new Date();window.dashboardPeriodState={month:n.getMonth()+1,year:n.getFullYear()};
-    }
-    return window.dashboardPeriodState;
-  }
-  function refDate(){
-    const s=state();return new Date(Number(s.year),Number(s.month)-1,1);
-  }
-  function ym(ref){
-    return `${ref.getFullYear()}-${String(ref.getMonth()+1).padStart(2,'0')}`;
-  }
-  function label(ref){return `${MONTH_NAMES[ref.getMonth()]} de ${ref.getFullYear()}`;}
-
-  function clientMap(){
-    return new Map((Array.isArray(window.clients)?window.clients:[]).map(c=>[String(c?.id||''),c]));
-  }
-  function quoteNormalize(r){
-    const d=(r&&typeof r.data==='object'&&!Array.isArray(r.data))?r.data:{};
-    const c=clientMap().get(String(r?.client_id||''));
-    return {
-      ...r,
-      clientId:r?.client_id||d.clientId||d.client_id||'',
-      clientName:txt(d.clientName||d.razonSocial||c?.name||'Cliente'),
-      numeroCotizacion:txt(r?.numero||d.numeroCotizacion||r?.numero_cotizacion||'S/N'),
-      monto:num(r?.monto||r?.total||d.monto||d.total||0),
-      fecha:r?.fecha||r?.fecha_documento||r?.fecha_cotizacion||d.fecha||d.fechaDocumento||d.fechaCotizacion||r?.created_at||'',
-      estado:txt(r?.estado||d.estado||'pendiente'),
-      descripcion:r?.descripcion||r?.obra||d.descripcion||d.obra||'',
-      tipo_servicio:r?.tipo_servicio||d.tipo_servicio||''
-    };
-  }
-  function otNormalize(r){
-    const d=(r&&typeof r.data==='object'&&!Array.isArray(r.data))?r.data:{};
-    const c=clientMap().get(String(r?.client_id||''));
-    return {
-      ...r,
-      clientId:r?.client_id||d.clientId||d.client_id||'',
-      clientName:txt(d.clientName||d.nombre||c?.name||'Cliente'),
-      numeroOT:txt(r?.numero_ot||d.numeroOT||d.numero_ot||'S/N'),
-      descripcion:r?.descripcion||d.descripcion||d.descripcion_trabajo||'',
-      fecha:r?.fecha||r?.fecha_documento||d.fecha||d.fechaDocumento||r?.created_at||'',
-      estado:txt(r?.estado||d.estado||'pendiente'),
-      monto:num(r?.monto||d.monto||d.total||0),
-      pago_estado:txt(r?.pago_estado||d.pago_estado||''),
-      cobro_estado:txt(r?.cobro_estado||d.cobro_estado||''),
-      factura_num:r?.factura_num||d.facturaNumero||d.factura_num||'',
-      documento_numero:r?.documento_numero||d.documentoNumero||d.documento_numero||'',
-      factura_registro_fecha:r?.factura_registro_fecha||d.facturaRegistroFecha||d.factura_registro_fecha||'',
-      factura_enviada_fecha:r?.factura_enviada_fecha||d.facturaEnviadaFecha||d.factura_enviada_fecha||'',
-      documento_tipo:r?.documento_tipo||d.documentoTipo||d.documento_tipo||'',
-      data:d
-    };
-  }
-
-  async function queryMonth(table,ref){
-    const sb=window.supabaseClient;
-    if(!sb||typeof sb.from!=='function')throw new Error('No está disponible la conexión con Google Sheets.');
-    const key=ym(ref);
-
-    // Consulta directa sobre la columna FECHA que ya usa la lista del CRM.
-    // Apps Script convierte las fechas reales de Sheets a ISO (YYYY-MM-DD...),
-    // por eso ilike(key) encuentra exactamente el mes seleccionado.
-    let res=await sb.from(table)
-      .select('*')
-      .ilike('fecha',key)
-      .order('fecha',{ascending:true});
-
-    if(res?.error)throw res.error;
-    let rows=Array.isArray(res?.data)?res.data:[];
-
-    // Fallback para registros históricos cuya fecha principal quedó vacía:
-    // buscamos por created_at y luego unimos sin duplicar.
-    if(!rows.length){
-      const fallback=await sb.from(table)
-        .select('*')
-        .ilike('created_at',key)
-        .order('created_at',{ascending:true});
-      if(!fallback?.error&&Array.isArray(fallback?.data))rows=fallback.data;
-    }
-    return rows;
-  }
-
-  async function queryCollectionMonth(ref){
-    const sb=window.supabaseClient;
-    if(!sb||typeof sb.from!=='function')return [];
-    const key=ym(ref);
-
-    const fields=['factura_registro_fecha','factura_enviada_fecha'];
-    const out=[],seen=new Set();
-
-    for(const field of fields){
-      try{
-        const res=await sb.from('ots').select('*').ilike(field,key).order(field,{ascending:true});
-        if(!res?.error&&Array.isArray(res?.data)){
-          res.data.forEach(r=>{
-            const id=String(r?.id||'');
-            if(id&&!seen.has(id)){seen.add(id);out.push(r);}
-          });
-        }
-      }catch(e){}
-    }
-
-    // Si no existen registros por columnas tributarias, usamos las OT del mes
-    // para revisar documentos guardados dentro de data.
-    if(!out.length){
-      try{
-        const res=await sb.from('ots').select('*').ilike('fecha',key).order('fecha',{ascending:true});
-        if(!res?.error&&Array.isArray(res?.data))return res.data;
-      }catch(e){}
-    }
-    return out;
-  }
-
-  async function getMonthData(ref,force=false){
-    const key=ym(ref);
-    const cached=monthCache.get(key);
-    if(!force&&cached&&Date.now()-cached.ts<300000)return cached.value;
-
-    const [qSet,oSet,cSet]=await Promise.allSettled([
-      queryMonth('quotes',ref),
-      queryMonth('ots',ref),
-      queryCollectionMonth(ref)
-    ]);
-
-    const value={
-      quotes:(qSet.status==='fulfilled'?qSet.value:[]).map(quoteNormalize),
-      ots:(oSet.status==='fulfilled'?oSet.value:[]).map(otNormalize),
-      collectionOts:(cSet.status==='fulfilled'?cSet.value:[]).map(otNormalize)
-    };
-    monthCache.set(key,{ts:Date.now(),value});
-    return value;
-  }
-
-  function quoteState(q){
-    const s=norm(q?.estado||'pendiente');
-    if(['aceptada','aceptado','aprobada','aprobado'].includes(s))return 'aceptada';
-    if(['rechazada','rechazado'].includes(s))return 'rechazada';
-    return s;
-  }
-  function otState(o){
-    const s=norm(o?.estado||'pendiente');
-    if(['realizada','realizado','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].includes(s))return 'realizada';
-    if(['cancelada','cancelado','anulada','anulado'].includes(s))return 'cancelada';
-    if(['en_curso','encurso'].includes(s))return 'en_curso';
-    return 'pendiente';
-  }
-  function docs(o){
-    const d=o?.data||{};
-    if(Array.isArray(d.documentos))return d.documentos.filter(Boolean);
-    if(Array.isArray(d.documents))return d.documents.filter(Boolean);
-    const n=txt(o?.factura_num||o?.documento_numero||d.facturaNumero||d.documentoNumero||'');
-    if(!n)return [];
-    return [{
-      numero:n,
-      fechaRegistro:o?.factura_registro_fecha||d.facturaRegistroFecha||'',
-      fechaEnvio:o?.factura_enviada_fecha||d.facturaEnviadaFecha||'',
-      montoFacturado:num(d.montoFacturado||d.monto_facturado||o?.monto||d.total||0),
-      montoCancelado:num(d.montoCancelado||d.monto_cancelado||0),
-      pagada:['pagado','pagada'].includes(norm(o?.pago_estado||o?.cobro_estado||d.pago_estado||d.cobro_estado||''))||d.pagoConfirmado===true
-    }];
-  }
-  function docDate(d,o){return d?.fechaRegistro||d?.fecha_registro||d?.fechaEnvio||d?.fecha_envio||o?.factura_registro_fecha||o?.factura_enviada_fecha||o?.fecha||'';}
-  function docAmount(d,o,count){
-    const n=num(d?.montoFacturado||d?.monto_facturado||d?.monto||d?.total);
-    return n>0?n:(count>1?num(o?.monto)/count:num(o?.monto));
-  }
-  function paidAmount(d,o,amount){
-    const explicit=num(d?.montoCancelado||d?.monto_cancelado||d?.montoPagado||d?.monto_pagado);
-    if(explicit>0)return Math.min(amount,explicit);
-    const paid=d?.pagada===true||['pagado','pagada'].includes(norm(o?.pago_estado||o?.cobro_estado||d?.estadoPago||d?.estado_pago||''));
-    return paid?amount:0;
-  }
-
-  function collectionStats(rows,ref){
-    let invoiced=0,paid=0;
-    rows.forEach(o=>{
-      const list=docs(o);
-      list.forEach(d=>{
-        const date=docDate(d,o);
-        if(!sameMonth(date,ref))return;
-        const a=docAmount(d,o,list.length);
-        invoiced+=a;
-        paid+=paidAmount(d,o,a);
-      });
-    });
-    return {invoiced,paid};
-  }
-
-  function maintenanceStats(ref){
-    // Mantenciones ya estaban funcionando correctamente en V5.3.3.
-    // Conservamos el cálculo que dejó el dashboard anterior.
-    try{
-      const snap=window.dashboardOperationalSnapshot;
-      if(snap?.ref&&sameMonth(snap.ref,ref)&&snap?.maintenance)return snap.maintenance;
-    }catch(e){}
-    return null;
-  }
-
-  function renderMonthly(data,ref){
-    const monthlyOts=data.ots.filter(o=>otState(o)!=='cancelada');
-    const done=monthlyOts.filter(o=>otState(o)==='realizada');
-
-    const accepted=data.quotes.filter(q=>quoteState(q)==='aceptada');
-    const rejected=data.quotes.filter(q=>quoteState(q)==='rechazada');
-    const decided=[...accepted,...rejected];
-
-    const coll=collectionStats(data.collectionOts,ref);
-
-    setText('dashV2Period',label(ref));
-    setText('dashV2Updated','Actualizado '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
-    setText(
-      'dashV2MetricsNote',
-      `Viendo indicadores de ${label(ref)} · ${monthlyOts.length} OT · ${data.quotes.length} cotizaciones encontradas. Las secciones inferiores mantienen la situación actual.`
-    );
-
-    setMetric('dashV2Ot',pct(done.length,monthlyOts.length));
-    setText('dashV2OtRatio',done.length+' de '+monthlyOts.length+' realizadas');
-
-    setMetric('dashV2Quote',pct(accepted.length,decided.length));
-    setText('dashV2QuoteRatio',accepted.length+' de '+decided.length+' aceptadas');
-
-    setMetric('dashV2Collection',pct(coll.paid,coll.invoiced));
-    setText('dashV2CollectionRatio',money(coll.paid)+' de '+money(coll.invoiced)+' pagado');
-
-    // Mantención queda a cargo del renderer previo, que sí funciona.
-    window.__dashV534MonthData={ref,data,monthlyOts,done,accepted,rejected,decided,collection:coll};
-  }
-
-  const previousRender=window.renderDashboard;
-  let directRendering=false;
-
-  window.renderDashboard=async function(){
-    if(directRendering)return;
-    directRendering=true;
-    try{
-      // Primero conservamos todo el contenido actual del dashboard:
-      // situación actual, agenda, flujo, mantenciones, etc.
-      if(typeof previousRender==='function'){
-        try{await previousRender();}catch(e){console.warn('Dashboard base:',e);}
-      }
-
-      const ref=refDate();
-      setText('dashV2MetricsNote','Consultando Google Sheets para '+label(ref)+'…');
-
-      const data=await getMonthData(ref);
-      renderMonthly(data,ref);
-    }catch(err){
-      console.error('Dashboard mensual directo:',err);
-      setText('dashV2MetricsNote','No se pudieron consultar los datos del período: '+txt(err?.message||err));
-    }finally{
-      directRendering=false;
-    }
-  };
-
-  window.renderDashboardOperational=window.renderDashboard;
-  try{renderDashboard=window.renderDashboard;}catch(e){}
-
-  const previousDetails=window.showDashboardV2Details;
-  window.showDashboardV2Details=async function(kind){
-    if(!['monthly_ots','monthly_quotes','monthly_collection'].includes(kind)){
-      return typeof previousDetails==='function'?previousDetails(kind):null;
-    }
-
-    const ref=refDate();
-    const data=await getMonthData(ref);
-    const m={
-      monthlyOts:data.ots.filter(o=>otState(o)!=='cancelada'),
-      accepted:data.quotes.filter(q=>quoteState(q)==='aceptada'),
-      rejected:data.quotes.filter(q=>quoteState(q)==='rechazada')
-    };
-    const coll=collectionStats(data.collectionOts,ref);
-
-    const open=(title,subtitle,items,footer='')=>{
-      const html=`<div class="p-6 sm:p-8">
-        <div class="flex items-start justify-between gap-4 mb-6">
-          <div><h2 class="text-2xl font-black">${txt(title)}</h2><p class="text-sm text-slate-500 mt-1">${txt(subtitle)}</p></div>
-          <button onclick="closeModal()" class="text-gray-500 text-2xl">&times;</button>
-        </div>
-        <div class="space-y-3 max-h-[65vh] overflow-auto pr-1">${items.length?items.join(''):'<div class="border border-dashed rounded-2xl p-6 text-center text-slate-500">No hay registros para mostrar.</div>'}</div>
-        ${footer}
-      </div>`;
-      if(typeof window.openModal==='function')window.openModal(html);
-    };
-
-    const oCard=o=>`<article class="border rounded-2xl p-4 bg-white">
-      <p class="font-black">OT ${txt(o.numeroOT)} · ${txt(o.clientName)}</p>
-      <p class="text-sm text-slate-600 mt-1">${txt(o.descripcion)}</p>
-      <p class="text-xs text-slate-500 mt-2">Fecha: ${txt(o.fecha)}</p>
-    </article>`;
-
-    const qCard=q=>`<article class="border rounded-2xl p-4 bg-white">
-      <p class="font-black">Cot. ${txt(q.numeroCotizacion)} · ${txt(q.clientName)}</p>
-      <p class="text-sm text-slate-600 mt-1">${txt(q.descripcion||q.tipo_servicio)}</p>
-      <p class="text-xs text-slate-500 mt-2">Fecha: ${txt(q.fecha)} · ${txt(quoteState(q))}</p>
-    </article>`;
-
-    if(kind==='monthly_ots'){
-      return open(`OT · ${label(ref)}`,`${m.monthlyOts.filter(o=>otState(o)==='realizada').length} realizadas de ${m.monthlyOts.length}`,m.monthlyOts.map(oCard),
-        `<div class="mt-5"><button onclick="closeModal();showView('ots')" class="w-full px-4 py-3 rounded-xl bg-slate-900 text-white font-black">Abrir Órdenes de Trabajo</button></div>`);
-    }
-    if(kind==='monthly_quotes'){
-      return open(`Cotizaciones · ${label(ref)}`,`${m.accepted.length} aceptadas y ${m.rejected.length} rechazadas`,[...m.accepted,...m.rejected].map(qCard),
-        `<div class="mt-5"><button onclick="closeModal();showView('quotes')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Cotizaciones</button></div>`);
-    }
-    if(kind==='monthly_collection'){
-      return open(`Cobranza documentada · ${label(ref)}`,`${money(coll.paid)} pagado de ${money(coll.invoiced)}`,[],
-        `<div class="mt-5"><button onclick="closeModal();showView('abonos')" class="w-full px-4 py-3 rounded-xl bg-blue-700 text-white font-black">Abrir Facturación y Abonos</button></div>`);
-    }
-  };
-  try{showDashboardV2Details=window.showDashboardV2Details;}catch(e){}
-
-  // Los selectores ya llaman window.renderDashboard() en las versiones previas.
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.renderDashboard(),120));
-  window.addEventListener('load',()=>setTimeout(()=>window.renderDashboard(),500));
-  setTimeout(()=>window.renderDashboard(),1500);
-})();
-</script>
 
 
 
