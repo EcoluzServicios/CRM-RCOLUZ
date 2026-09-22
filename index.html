@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 6.0 — PDF PENDIENTES GOOGLE SHEETS
+ECOLUZ CRM ULTRA 6.1 — DASHBOARD PRIORITARIO
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -1651,7 +1651,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-6.0.0-PDF-PENDIENTES-GOOGLE-SHEETS';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-6.1.0-DASHBOARD-PRIORITARIO';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -5406,6 +5406,188 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
       });
     }
 
+    // ================= DASHBOARD PRIORITARIO =================
+    // El inicio muestra primero los indicadores principales. La carga completa
+    // del CRM continúa después en segundo plano y reemplaza estos datos con el
+    // cálculo completo cuando termina.
+    const DASHBOARD_PRIORITY_CACHE_KEY = 'ecoluz_dashboard_priority_v1';
+
+    function getDashboardPriorityPeriod(){
+      const now = new Date();
+      return {
+        year: now.getFullYear(),
+        month: now.getMonth() + 1,
+        key: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,
+        label: now.toLocaleDateString('es-CL', { month:'long', year:'numeric' }).replace(/^./, c => c.toUpperCase())
+      };
+    }
+
+    function dashboardPriorityPct(done, total){
+      const d = Number(done || 0), t = Number(total || 0);
+      return t > 0 ? Math.max(0, Math.min(100, Math.round((d / t) * 100))) : null;
+    }
+
+    function dashboardPriorityMoney(value){
+      try { return new Intl.NumberFormat('es-CL', { style:'currency', currency:'CLP', maximumFractionDigits:0 }).format(Number(value || 0)); }
+      catch(e){ return '$' + Math.round(Number(value || 0)).toLocaleString('es-CL'); }
+    }
+
+    function setDashboardPriorityMetric(prefix, value){
+      const p = value == null ? null : Math.max(0, Math.min(100, Number(value || 0)));
+      const pctEl = document.getElementById(prefix + 'Pct');
+      const ring = document.getElementById(prefix + 'Ring');
+      const bar = document.getElementById(prefix + 'Bar');
+      if(pctEl) pctEl.textContent = p == null ? '…' : Math.round(p) + '%';
+      if(ring) ring.style.setProperty('--pct', String(p == null ? 0 : p));
+      if(bar) bar.style.width = (p == null ? 0 : p) + '%';
+    }
+
+    function readDashboardPriorityCache(){
+      try {
+        const raw = localStorage.getItem(DASHBOARD_PRIORITY_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch(e){ return null; }
+    }
+
+    function saveDashboardPriorityCache(summary){
+      try {
+        if(!summary || typeof summary !== 'object') return;
+        localStorage.setItem(DASHBOARD_PRIORITY_CACHE_KEY, JSON.stringify(summary));
+      } catch(e){}
+    }
+    window.ecoluzSaveDashboardPriorityCache = saveDashboardPriorityCache;
+
+    function applyDashboardPrioritySummary(summary, options = {}){
+      if(!summary) return false;
+      const period = getDashboardPriorityPeriod();
+      if(String(summary.period || '') !== period.key) return false;
+
+      const ot = summary.ot || {};
+      const quote = summary.quote || {};
+      const collection = summary.collection || {};
+      const maintenance = summary.maintenance || {};
+
+      const otPct = dashboardPriorityPct(ot.done, ot.total);
+      const quotePct = dashboardPriorityPct(quote.accepted, quote.decided);
+      const collectionPct = collection.ready === false ? null : dashboardPriorityPct(collection.paid, collection.invoiced);
+      const maintenancePct = dashboardPriorityPct(maintenance.done, maintenance.total);
+
+      setDashboardPriorityMetric('dashV2Ot', otPct);
+      setDashboardPriorityMetric('dashV2Quote', quotePct);
+      setDashboardPriorityMetric('dashV2Collection', collectionPct);
+      setDashboardPriorityMetric('dashV2Maintenance', maintenancePct);
+
+      const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value == null ? '' : value); };
+      setText('dashV2OtRatio', `${Number(ot.done || 0)} de ${Number(ot.total || 0)} realizadas`);
+      setText('dashV2QuoteRatio', `${Number(quote.accepted || 0)} de ${Number(quote.decided || 0)} aceptadas`);
+      setText('dashV2CollectionRatio', collectionPct == null ? 'Calculando cobranza documentada…' : `${dashboardPriorityMoney(collection.paid)} de ${dashboardPriorityMoney(collection.invoiced)} pagado`);
+      setText('dashV2MaintenanceRatio', `${Number(maintenance.done || 0)} de ${Number(maintenance.total || 0)} realizadas`);
+      setText('dashV2Period', period.label);
+
+      const sourceLabel = options.cached ? 'Mostrando último resumen guardado mientras se actualiza' : 'Indicadores prioritarios actualizados';
+      setText('dashV2MetricsNote', `${sourceLabel} · ${Number(ot.total || 0)} OT · ${Number(quote.total || 0)} cotizaciones en ${period.label}.`);
+      setText('dashV2Updated', options.cached
+        ? 'Actualizando…'
+        : 'Actualizado ' + new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}));
+      return true;
+    }
+
+    function showDashboardPriorityPlaceholder(){
+      const cached = readDashboardPriorityCache();
+      if(cached && applyDashboardPrioritySummary(cached, {cached:true})) return;
+      const period = getDashboardPriorityPeriod();
+      setDashboardPriorityMetric('dashV2Ot', null);
+      setDashboardPriorityMetric('dashV2Quote', null);
+      setDashboardPriorityMetric('dashV2Collection', null);
+      setDashboardPriorityMetric('dashV2Maintenance', null);
+      const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
+      setText('dashV2Period', period.label);
+      setText('dashV2OtRatio', 'Cargando OT del mes…');
+      setText('dashV2QuoteRatio', 'Cargando cotizaciones…');
+      setText('dashV2CollectionRatio', 'Cargando cobranza…');
+      setText('dashV2MaintenanceRatio', 'Cargando mantenciones…');
+      setText('dashV2MetricsNote', 'Cargando primero los indicadores principales. El resto del CRM continuará en segundo plano.');
+      setText('dashV2Updated', 'Cargando…');
+    }
+
+    function summarizePriorityMaintenance(rows, year, month){
+      const programs = Array.isArray(rows) ? rows : [];
+      const freqStep = value => ({mensual:1,bimestral:2,trimestral:3,cuatrimestral:4,semestral:6,anual:12})[String(value||'').toLowerCase().trim()] || 12;
+      let done = 0, due = 0;
+      programs.forEach(p => {
+        if(String(p?.status || 'vigente').toLowerCase().trim() === 'finalizada') return;
+        const py = Number(p?.program_year || year) || year;
+        if(py !== year) return;
+        const step = freqStep(p?.frequency);
+        const start = Math.max(1, Math.min(12, Number(p?.start_month || 1) || 1));
+        const scheduled = month >= start && ((month - start) % step === 0);
+        const completedMonths = Array.isArray(p?.completed_months) ? p.completed_months.map(Number) : [];
+        const history = Array.isArray(p?.completed_history) ? p.completed_history : [];
+        const historyDone = history.some(h => {
+          const type = String(h?.type || h?.action || '').toLowerCase().trim();
+          if(['reprogram','reprogrammed','reprogramacion','reprogramación'].includes(type)) return false;
+          const d = h?.date ? new Date(h.date) : null;
+          const actualMonth = Number(h?.actualMonth || h?.actual_month || h?.doneMonth || h?.done_month || (d && !isNaN(d) ? d.getMonth()+1 : h?.month || 0));
+          const actualYear = Number(h?.actualYear || h?.actual_year || h?.doneYear || h?.done_year || (d && !isNaN(d) ? d.getFullYear() : h?.year || py));
+          return actualYear === year && actualMonth === month;
+        });
+        const completed = completedMonths.includes(month) || historyDone;
+        if(completed) done += 1;
+        if(scheduled && !completed) due += 1;
+      });
+      return {done, total:done + due};
+    }
+
+    async function loadDashboardPriorityData(){
+      const period = getDashboardPriorityPeriod();
+      const monthOr = [[
+        {column:'fecha', op:'ilike', value:period.key},
+        {column:'created_at', op:'ilike', value:period.key}
+      ]];
+      const notCancelled = ['cancelada','cancelado','anulada','anulado','rechazada','rechazado']
+        .map(value => ({column:'estado', op:'neq', value}));
+      const doneStates = ['realizada','realizado','finalizada','finalizado','cerrada','cerrado','terminada','terminado'];
+      const acceptedStates = ['aceptada','aceptado','aprobada','aprobado'];
+      const rejectedStates = ['rechazada','rechazado'];
+      const countPayload = (table, filters=[], orGroups=[]) => ({table, filters, orGroups});
+
+      const requests = [
+        {action:'count', payload:countPayload('ots', notCancelled, monthOr)},
+        {action:'count', payload:countPayload('ots', [...notCancelled,{column:'estado',op:'in',value:doneStates}], monthOr)},
+        {action:'count', payload:countPayload('quotes', [], monthOr)},
+        {action:'count', payload:countPayload('quotes', [{column:'estado',op:'in',value:acceptedStates}], monthOr)},
+        {action:'count', payload:countPayload('quotes', [{column:'estado',op:'in',value:rejectedStates}], monthOr)},
+        {action:'select', payload:{
+          table:'maintenance_programs', filters:[], orGroups:[], order:null, offset:0, limit:null,
+          columns:['id','frequency','start_month','program_year','status','completed_months','completed_history'],
+          resolveOverflow:false
+        }}
+      ];
+
+      if(typeof window.__ecoluzGoogleApiRequest !== 'function') return null;
+      const response = await window.__ecoluzGoogleApiRequest('batch', {requests});
+      const results = Array.isArray(response?.results) ? response.results : [];
+      const cached = readDashboardPriorityCache();
+      const collection = cached && cached.period === period.key && cached.collection
+        ? cached.collection
+        : {ready:false, paid:0, invoiced:0};
+      const maintenanceRows = Array.isArray(results[5]?.data) ? results[5].data : [];
+      const maintenance = summarizePriorityMaintenance(maintenanceRows, period.year, period.month);
+      const summary = {
+        period: period.key,
+        updatedAt: Date.now(),
+        ot:{done:Number(results[1]?.count || 0), total:Number(results[0]?.count || 0)},
+        quote:{accepted:Number(results[3]?.count || 0), rejected:Number(results[4]?.count || 0), decided:Number(results[3]?.count || 0)+Number(results[4]?.count || 0), total:Number(results[2]?.count || 0)},
+        collection,
+        maintenance
+      };
+      saveDashboardPriorityCache(summary);
+      applyDashboardPrioritySummary(summary, {cached:false});
+      return summary;
+    }
+    window.ecoluzLoadDashboardPriorityData = loadDashboardPriorityData;
+
     async function completeLoginFlow(user, fallbackEmail, options = {}) {
       const { preserveView = false } = options;
       currentUser = user || null;
@@ -5431,15 +5613,36 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
       }
 
       if (!appBootstrapped) {
-        if(typeof window.ecoluzPrewarmInitialData === 'function'){
-          try{ await window.ecoluzPrewarmInitialData(); }
-          catch(error){ console.warn('Precarga inicial no disponible; se usará carga normal.', error); }
-        }
-        await loadData();
+        // El Dashboard se muestra ANTES de la carga completa del CRM.
+        // Primero restaura un resumen local (si existe), luego consulta solo
+        // los indicadores esenciales y finalmente carga el resto en segundo plano.
         showView('dashboard');
+        showDashboardPriorityPlaceholder();
         updateAutoModeUI();
-        suscribirseACambios();
         appBootstrapped = true;
+
+        try {
+          await loadDashboardPriorityData();
+        } catch(error) {
+          console.warn('No se pudo completar la carga prioritaria del Dashboard; continuará la carga completa.', error);
+        }
+
+        window.ecoluzInitialFullLoadReady = false;
+        window.ecoluzInitialFullLoadPromise = (async () => {
+          try {
+            if(typeof window.ecoluzPrewarmInitialData === 'function'){
+              try{ await window.ecoluzPrewarmInitialData(); }
+              catch(error){ console.warn('Precarga inicial no disponible; se usará carga normal.', error); }
+            }
+            await loadData();
+            window.ecoluzInitialFullLoadReady = true;
+            try { if(typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
+            suscribirseACambios();
+          } catch(error) {
+            window.ecoluzInitialFullLoadReady = false;
+            console.error('No se pudo completar la carga del CRM en segundo plano:', error);
+          }
+        })();
       } else if (!preserveView) {
         showView('dashboard');
       }
@@ -40580,6 +40783,19 @@ if(typeof window.registerViewHandler === 'function'){
       renderAgendaRowsSimple('dashV2AgendaNextList',s.next7Ots,true);
 
       window.dashboardOperationalSnapshot=s;
+
+      try{
+        if(typeof window.ecoluzSaveDashboardPriorityCache==='function'){
+          window.ecoluzSaveDashboardPriorityCache({
+            period:`${ref.getFullYear()}-${String(ref.getMonth()+1).padStart(2,'0')}`,
+            updatedAt:Date.now(),
+            ot:{done:s.monthlyOtDone.length,total:s.monthlyOts.length},
+            quote:{accepted:s.acceptedQuotes.length,rejected:s.rejectedQuotes.length,decided:s.decidedQuotes.length,total:s.monthlyQuotes.length},
+            collection:{ready:true,paid:s.paidMonth,invoiced:s.invoicedMonth},
+            maintenance:{done:s.maintenance.done,total:s.maintenance.total}
+          });
+        }
+      }catch(e){}
 
       try{
         if(typeof window.renderCommercialFlow==='function') window.renderCommercialFlow();
