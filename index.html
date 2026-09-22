@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 5.9 — ACTA SOBRE VER OT
+ECOLUZ CRM ULTRA 6.0 — PDF PENDIENTES GOOGLE SHEETS
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -1651,7 +1651,7 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-5.9.0-ACTA-SOBRE-VER-OT';
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-6.0.0-PDF-PENDIENTES-GOOGLE-SHEETS';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -23688,22 +23688,27 @@ async function saveNewReq() {
           throw new Error('La librería jsPDF no está disponible.');
         }
 
-        // Antes de generar el PDF se consulta SIEMPRE el estado actual del servidor.
-        // No se permite usar una colección antigua: así una OT o requerimiento eliminado/corregido
-        // deja de aparecer inmediatamente en la siguiente descarga.
-        if (typeof refreshOTsCollectionFromServer !== 'function') {
-          throw new Error('No está disponible la actualización de Órdenes de Trabajo.');
+        // Se intenta refrescar las fuentes desde Google Sheets / Apps Script antes de generar.
+        // Una falla puntual de red no bloquea la descarga si el CRM ya tiene las colecciones
+        // cargadas en memoria: en ese caso se usa la última información disponible en pantalla.
+        const refreshTasks = [];
+        if (typeof refreshOTsCollectionFromServer === 'function') {
+          refreshTasks.push({ name:'OT', promise:refreshOTsCollectionFromServer() });
         }
-        if (typeof refreshRequerimientosCollectionFromServer !== 'function') {
-          throw new Error('No está disponible la actualización de requerimientos.');
+        if (typeof refreshRequerimientosCollectionFromServer === 'function') {
+          refreshTasks.push({ name:'Requerimientos', promise:refreshRequerimientosCollectionFromServer() });
         }
 
-        try {
-          await refreshOTsCollectionFromServer();
-          await refreshRequerimientosCollectionFromServer();
-        } catch (refreshError) {
-          console.error('PDF pendientes: no fue posible obtener datos actuales del servidor.', refreshError);
-          throw new Error('No se pudo actualizar la información desde Supabase. El PDF no se generó para evitar mostrar pendientes desactualizados.');
+        if (refreshTasks.length) {
+          const refreshResults = await Promise.allSettled(refreshTasks.map(item => item.promise));
+          refreshResults.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              console.warn(
+                `PDF pendientes: no se pudo refrescar ${refreshTasks[index].name} desde Google Sheets. Se utilizarán los datos cargados en el CRM.`,
+                result.reason
+              );
+            }
+          });
         }
 
         const { jsPDF } = window.jspdf;
@@ -23736,10 +23741,8 @@ async function saveNewReq() {
           : (Array.isArray(localList) ? localList : []);
 
         const clientsList = listFrom(window.clients, (typeof clients !== 'undefined' ? clients : []));
-        // Estas dos colecciones fueron recargadas directamente desde Supabase unas líneas arriba.
-        // Se usan como fuente principal para impedir que una copia antigua de window.* vuelva al PDF.
-        const otsList = Array.isArray(ots) ? ots : [];
-        const reqsList = Array.isArray(requerimientos) ? requerimientos : [];
+        const otsList = listFrom(window.ots, (typeof ots !== 'undefined' ? ots : []));
+        const reqsList = listFrom(window.requerimientos, (typeof requerimientos !== 'undefined' ? requerimientos : []));
         const clientsMap = new Map(clientsList.map(c => [String(c?.id || ''), c]));
         const getClientByIdSafe = (id) => clientsMap.get(String(id || '')) || null;
 
@@ -23808,7 +23811,6 @@ async function saveNewReq() {
           startReqY = 40;
         }
 
-        // El módulo de requerimientos usa exactamente: pendiente / realizado / cancelado.
         const reqPend = reqsList.filter(r => normalizeState(r?.estado || r?.data?.estado || 'pendiente') === 'pendiente')
           .sort((a,b) => String(b?.created_at || b?.fecha || '').localeCompare(String(a?.created_at || a?.fecha || '')));
 
@@ -23847,7 +23849,6 @@ async function saveNewReq() {
           margin: { left: 14, right: 14 }
         });
 
-        // Nombre único por descarga para que el navegador no confunda el PDF nuevo con uno anterior del mismo día.
         const fileStamp = [
           now.getFullYear(),
           String(now.getMonth() + 1).padStart(2,'0'),
@@ -23863,7 +23864,6 @@ async function saveNewReq() {
         alert(`No se pudo generar el PDF de pendientes. ${err?.message || 'Revisa la consola con F12.'}`);
       }
     }
-
 
     // ================= EXPORT / MODAL =================
     function exportData() {
