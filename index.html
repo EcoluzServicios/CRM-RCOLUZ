@@ -1,5 +1,5 @@
 <!--
-ECOLUZ CRM ULTRA 6.1 — DASHBOARD PRIORITARIO
+ECOLUZ CRM ULTRA 6.3 — CLIENTES EN COTIZACIONES
 Auditoría estática final:
 - API Google Apps Script V7 conservada sin cambios.
 - Vista interna Control Administrativo conservada y oculta para compatibilidad.
@@ -986,7 +986,10 @@ function toggleEditOTFacturaField(){
   const API_URL = 'https://script.google.com/macros/s/AKfycbxXbQf80XeD1gCk_x3SfNWIrv5WE2qUhYAxsD8Scjd6qy2l10-6iPFF3ZHTBPyRPam-DA/exec';
   const STORAGE_KEY = 'ecoluz_google_api_session_v1';
   const READ_CACHE_TTL_MS = 120000;
-  const REQUEST_TIMEOUT_MS = 25000;
+  const REQUEST_TIMEOUT_READ_MS = 60000;
+  const REQUEST_TIMEOUT_BATCH_MS = 90000;
+  const REQUEST_TIMEOUT_WRITE_MS = 90000;
+  const READ_RETRY_DELAY_MS = 1200;
   const readCache = new Map();
   const inFlightReads = new Map();
   let initialPrewarmPromise = null;
@@ -1131,25 +1134,44 @@ function toggleEditOTFacturaField(){
     }
 
     const execute = (async () => {
-      let response;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      try {
-        response = await fetch(API_URL, {
-          method: 'POST',
-          redirect: 'follow',
-          cache: 'no-store',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(body),
-          signal: controller.signal
-        });
-      } catch(networkError){
-        if(networkError?.name === 'AbortError'){
-          throw errorObj('La conexión con Google Apps Script tardó demasiado y fue cancelada. Intenta nuevamente. Si estás abriendo el CRM como archivo local, prueba también desde la versión publicada en GitHub Pages.');
+      const safeRetryAction = readAction || action === 'batch' || action === 'me' || action === 'refresh_session';
+      const timeoutMs = Number(options.timeoutMs || (
+        action === 'batch' ? REQUEST_TIMEOUT_BATCH_MS :
+        (readAction ? REQUEST_TIMEOUT_READ_MS : REQUEST_TIMEOUT_WRITE_MS)
+      ));
+      const maxAttempts = safeRetryAction ? 2 : 1;
+      let response = null;
+      let lastNetworkError = null;
+
+      for(let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          response = await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(body),
+            signal: controller.signal
+          });
+          lastNetworkError = null;
+          break;
+        } catch(networkError){
+          lastNetworkError = networkError;
+          const retryable = safeRetryAction && attempt < maxAttempts;
+          if(!retryable) break;
+          await new Promise(resolve => setTimeout(resolve, READ_RETRY_DELAY_MS));
+        } finally {
+          clearTimeout(timeoutId);
         }
-        throw errorObj('No se pudo conectar con Google Apps Script. Revisa la conexión a internet y que la implementación esté publicada para “Cualquier persona”. ' + (networkError?.message || networkError));
-      } finally {
-        clearTimeout(timeoutId);
+      }
+
+      if(!response){
+        if(lastNetworkError?.name === 'AbortError'){
+          throw errorObj('Google Apps Script está respondiendo más lento de lo normal. La solicitud superó el tiempo de espera. El CRM mantendrá los datos ya cargados y puedes intentar nuevamente.');
+        }
+        throw errorObj('No se pudo conectar con Google Apps Script. Revisa la conexión a internet y que la implementación esté publicada para “Cualquier persona”. ' + (lastNetworkError?.message || lastNetworkError || ''));
       }
 
       let text = '';
@@ -1456,38 +1478,53 @@ function toggleEditOTFacturaField(){
       const ids = [...new Set(rows.map(r=>r?.client_id).filter(Boolean).map(String))];
       if(!ids.length) return rows;
 
-      // Ruta ultrarrápida: clients ya fue cargado al iniciar. Evitamos otra ida
-      // completa a Apps Script solo para resolver nombre/RUT de la relación.
+      const wanted = relClients.columns.length ? relClients.columns : ['id','name','rut'];
       const localClients = Array.isArray(window.clients) ? window.clients : [];
-      if(localClients.length){
-        const byId = new Map(localClients.map(c => [String(c?.id || ''), c]));
-        rows.forEach(r => {
-          const local = byId.get(String(r.client_id));
-          if(!local){ r.clients = null; return; }
-          const picked = {};
-          const wanted = relClients.columns.length ? relClients.columns : ['id','name','rut'];
-          wanted.forEach(col => {
-            if(col === 'id') picked.id = local.id;
-            else if(col === 'name') picked.name = local.name;
-            else if(col === 'rut') picked.rut = local.rut;
-            else picked[col] = local[col] ?? local.data?.[col] ?? null;
+      const byId = new Map(localClients.map(c => [String(c?.id || ''), c]));
+      const missingIds = ids.filter(id => !byId.has(String(id)));
+
+      // Si la colección local todavía está vacía o incompleta (por ejemplo,
+      // mientras el Dashboard termina la carga en segundo plano), recuperamos
+      // únicamente los clientes requeridos por la página de cotizaciones.
+      if(missingIds.length){
+        try {
+          const res = await apiRequest('select', {
+            table:'clients',
+            filters:[{column:'id', op:'in', value:missingIds}],
+            columns:wanted
           });
-          r.clients = picked;
-        });
-        return rows;
+          const fetched = Array.isArray(res?.data) ? res.data : [];
+          fetched.forEach(c => {
+            const key = String(c?.id || '');
+            if(key) byId.set(key, c);
+          });
+
+          if(fetched.length){
+            const merged = new Map(localClients.map(c => [String(c?.id || ''), c]));
+            fetched.forEach(c => {
+              const key = String(c?.id || '');
+              if(key) merged.set(key, Object.assign({}, merged.get(key) || {}, c));
+            });
+            window.clients = Array.from(merged.values());
+            window.clientsById = new Map(window.clients.map(c => [String(c?.id || ''), c]));
+          }
+        } catch(e){
+          console.warn('No se pudo completar la relación clients de cotizaciones:', e);
+        }
       }
 
-      try {
-        const res = await apiRequest('select', {
-          table:'clients',
-          filters:[{column:'id', op:'in', value:ids}],
-          columns: relClients.columns.length ? relClients.columns : null
+      rows.forEach(r => {
+        const local = byId.get(String(r.client_id));
+        if(!local){ r.clients = null; return; }
+        const picked = {};
+        wanted.forEach(col => {
+          if(col === 'id') picked.id = local.id;
+          else if(col === 'name') picked.name = local.name;
+          else if(col === 'rut') picked.rut = local.rut;
+          else picked[col] = local[col] ?? local.data?.[col] ?? null;
         });
-        const byId = new Map((res.data || []).map(c=>[String(c.id),c]));
-        rows.forEach(r => { r.clients = byId.get(String(r.client_id)) || null; });
-      } catch(e){
-        console.warn('No se pudo enriquecer relación clients:', e);
-      }
+        r.clients = picked;
+      });
       return rows;
     }
 
@@ -1651,7 +1688,8 @@ function toggleEditOTFacturaField(){
 
   window.ECOLUZ_GOOGLE_API_URL = API_URL;
   window.ECOLUZ_GOOGLE_FAST_MODE = true;
-  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-6.1.0-DASHBOARD-PRIORITARIO';
+  window.ECOLUZ_GOOGLE_REQUEST_TIMEOUTS = { read:REQUEST_TIMEOUT_READ_MS, batch:REQUEST_TIMEOUT_BATCH_MS, write:REQUEST_TIMEOUT_WRITE_MS };
+  window.ECOLUZ_GOOGLE_COMPAT_VERSION = 'ULTRA-6.3.0-CLIENTES-COTIZACIONES';
   window.__ecoluzGoogleApiRequest = apiRequest;
   window.supabase = {
     createClient(){ return createCompatClient(); }
@@ -5631,10 +5669,17 @@ console.info('ECOLUZ CRM · Backend activo: Google Sheets', GOOGLE_APPS_SCRIPT_U
         window.ecoluzInitialFullLoadPromise = (async () => {
           try {
             if(typeof window.ecoluzPrewarmInitialData === 'function'){
-              try{ await window.ecoluzPrewarmInitialData(); }
-              catch(error){ console.warn('Precarga inicial no disponible; se usará carga normal.', error); }
+              try{
+                const prewarm = window.ecoluzPrewarmInitialData();
+                await Promise.race([
+                  prewarm,
+                  new Promise(resolve => setTimeout(resolve, 8000))
+                ]);
+              } catch(error){
+                console.warn('Precarga inicial no disponible; se usará carga normal.', error);
+              }
             }
-            await loadData();
+            await loadData({ silent:true });
             window.ecoluzInitialFullLoadReady = true;
             try { if(typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
             suscribirseACambios();
@@ -8769,7 +8814,8 @@ function exportMandanteToPDF(clientId, filters = {}){
     // ================= CARGA DE DATOS SUPABASE =================
     // --- 1. CARGA DE DATOS (loadData) ---
 
-async function loadData() {
+async function loadData(options = {}) {
+  const { silent = false } = options || {};
   const ecoluzLoadStartedAt = performance.now();
   try {
 
@@ -10769,6 +10815,7 @@ async function showCalendarEventModal(dateISO='', eventId=''){
     window.clients = clients;
     try { populateVTClients(); } catch(e) {}
 clientsById = new Map(clients.map(c => [String(c.id), c]));
+    window.clientsById = clientsById;
 
 
     // ================= ADJUNTOS (OTS Y COTIZACIONES) =================
@@ -11208,7 +11255,11 @@ clientsById = new Map(clients.map(c => [String(c.id), c]));
       }
       throw err;
     }
-    alert("Error cargando datos desde Google Sheets: " + msg);
+    if(!silent){
+      alert("Error cargando datos desde Google Sheets: " + msg);
+    } else {
+      console.warn('Carga de fondo incompleta; se conservarán los datos ya disponibles.', msg);
+    }
     throw err;
   }
 }
@@ -29431,7 +29482,7 @@ function toggleSidebarMore(forceOpen = null){
     'id, rut, name, created_at, data'
   ];
   const QUOTE_SELECTS = [
-    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, sucursal, direccion, neto, iva, bruto, descuento_pct, descuento_monto',
+    'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at, sucursal, direccion, neto, iva, bruto, descuento_pct, descuento_monto, clients(id, name, rut)',
     'id, client_id, numero, monto, descripcion, obra, fecha, estado, tipo_servicio, enviado_por_correo, enviado_por_wsp, fecha_envio, ejecutor_envio, created_by_name, created_by_email, created_by, created_at',
     'id, client_id, numero, monto, descripcion, obra, fecha, estado, created_by_name, created_by_email, created_by, created_at'
   ];
@@ -29493,9 +29544,18 @@ function toggleSidebarMore(forceOpen = null){
   }
 
   function mapQuoteRow(r){
-    const c = (window.clientsById && window.clientsById.get(String(r.client_id))) || (window.clients || clients || []).find(x => String(x.id || '') === String(r.client_id || ''));
-    const clientName = safeText(r.clientName) || safeText(r.razonSocial) || safeText(r.data && r.data.clientName) || safeText(c && c.name) || 'Cliente no encontrado';
-    const clientRut = (c && c.rut) || r.client_rut || '';
+    const relationClient = r?.clients && typeof r.clients === 'object' ? r.clients : null;
+    const c = relationClient ||
+      (window.clientsById && window.clientsById.get(String(r.client_id))) ||
+      (window.clients || clients || []).find(x => String(x.id || '') === String(r.client_id || ''));
+    const clientName =
+      safeText(relationClient?.name) ||
+      safeText(r.clientName) ||
+      safeText(r.razonSocial) ||
+      safeText(r.data && (r.data.clientName || r.data.nombreCliente || r.data.razonSocial)) ||
+      safeText(c && c.name) ||
+      'Cliente no encontrado';
+    const clientRut = safeText(relationClient?.rut) || safeText(c && c.rut) || safeText(r.client_rut) || safeText(r.data && r.data.clientRut) || '';
     return {
       id: r.id,
       clientId: r.client_id,
