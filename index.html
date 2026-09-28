@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ERP ECOLUZ CLIMA </title>
+<title>ERP ECOLUZ CLIMA</title>
 <style>
 :root{--navy:#0e2335;--slate:#33566d;--muted:#698295;--line:#d7eaf3;--bg:#f2fbfd;--panel:#ffffff;--green:#24c7d8;--green2:#46a6f1;--orange:#0f8db3;--red:#d34b6a;--blue:#3a93f0;--violet:#5f7ef1;--shadow:0 18px 40px rgba(16,61,94,.10);--brand-dark:#103d5e;--brand-soft:#ebf9fd;--brand-soft-2:#eef5ff}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--navy)}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -47,7 +47,14 @@
 .quote-history-item{border:1px solid #dbe6ee;border-radius:18px;padding:14px 16px;background:#fff}
 .quote-history-item strong{display:block;color:#0f172a;margin-bottom:4px}
 .quote-history-meta{font-size:12px;color:#64748b}
-.quote-status-note{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+.quote-status-note{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}.quote-linked-ots{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.quote-linked-ots .ot-linked-quote{padding:5px 9px;font-size:11px}
+.quote-table tbody tr.quote-row-accepted td{background:#fff;border-bottom-color:#bfeee2}
+.quote-table tbody tr.quote-row-accepted td:first-child{box-shadow:inset 5px 0 0 #22c97a}
+.quote-table tbody tr.quote-row-accepted:hover td{background:#fbfffd}
+.quote-table tbody tr.quote-row-rejected td{background:#fff1f1;border-bottom-color:#f3c8c8}
+.quote-table tbody tr.quote-row-rejected td:first-child{box-shadow:inset 5px 0 0 #ef4444}
+.quote-table tbody tr.quote-row-rejected:hover td{background:#ffe9e9}
+
 .quote-soft-badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid #d6e2ea;color:#0f172a;background:#fff}
 
 .quote-delivery-action{border:0;background:transparent;padding:4px;display:inline-grid;place-items:center;cursor:pointer;border-radius:10px;color:inherit}
@@ -174,7 +181,7 @@
 @media(max-width:820px){.quote-maintenance-details{grid-template-columns:1fr}.quote-summary-columns{grid-template-columns:1fr;gap:0}.quote-summary{padding:16px!important}.quote-summary-row{grid-template-columns:1fr minmax(130px,170px)!important}.quote-summary-total{font-size:27px!important}}
 
 
-/* ===== ERP 1.18.10.65 · Facturación y Abonos (módulo aislado) ===== */
+/* ===== ERP 1.18.10.73 · Facturación y Abonos (módulo aislado) ===== */
 .billing-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .billing-filters .input.billing-search{min-width:300px;flex:1;max-width:520px}
 .billing-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
@@ -198,7 +205,7 @@
 .billing-period-note{font-size:11px;color:#7b94a6;margin-left:auto}
 @media(max-width:900px){.billing-detail-grid{grid-template-columns:1fr 1fr}.billing-filters .input.billing-search{min-width:220px}}
 @media(max-width:620px){.billing-detail-grid{grid-template-columns:1fr}.billing-payment-item{grid-template-columns:1fr}.billing-filters .input.billing-search{min-width:100%;max-width:none}}
-/* ===== ERP 1.18.10.65 · Facturación: colores, acciones y PDF pendientes ===== */
+/* ===== ERP 1.18.10.73 · Facturación: colores, acciones y PDF pendientes ===== */
 .billing-table tbody tr.billing-row-pending td{background:#fff1f1;border-bottom-color:#f3cccc}
 .billing-table tbody tr.billing-row-pending td:first-child{box-shadow:inset 5px 0 0 #ef4444}
 .billing-table tbody tr.billing-row-pending:hover td{background:#ffe7e7}
@@ -214,7 +221,7 @@
 
 
 
-/* ===== ERP 1.18.10.65 · Facturación: historial completo + acciones visuales ===== */
+/* ===== ERP 1.18.10.73 · Facturación: historial completo + acciones visuales ===== */
 .billing-action-row{min-width:202px;gap:7px;justify-content:flex-start}
 .billing-act{width:40px;height:40px;border-radius:13px;border:1px solid #d6e6ee;background:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,background .14s ease,border-color .14s ease;color:var(--brand-dark)}
 .billing-act svg{width:21px;height:21px;display:block;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
@@ -229,7 +236,7 @@
 .billing-history-state.complete{color:#0b806f;font-weight:800}
 
 
-/* ===== ERP 1.18.10.65 · Clientes (módulo aislado) ===== */
+/* ===== ERP 1.18.10.73 · Clientes (módulo aislado) ===== */
 .client-doc-badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .client-doc-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:900;white-space:nowrap;border:1px solid #d6e6ee;background:#f7fcfe;color:#456579}
 .client-doc-badge.oc{background:#eef7ff;border-color:#b9d9f3;color:#175f95}.client-doc-badge.hes{background:#f2f0ff;border-color:#d3cbfb;color:#5b48a7}.client-doc-badge.none{background:#ecfdf8;border-color:#aae7dc;color:#087d6c}.client-doc-badge.unknown{background:#fff9e8;border-color:#f3d28b;color:#966107}
@@ -240,7 +247,7 @@
 .client-detail-docs{padding:12px 0;border-bottom:1px solid #eef2f6}.client-detail-docs>b{display:block;font-size:12px;color:#64748b;margin-bottom:8px}
 @media(max-width:760px){.client-billing-checks.document-options{grid-template-columns:1fr}}
 
-/* ===== ERP 1.18.10.65 · Programa de Mantenciones (módulo aislado) ===== */
+/* ===== ERP 1.18.10.73 · Programa de Mantenciones (módulo aislado) ===== */
 .maint-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .maint-toolbar .maint-search{min-width:280px;flex:1;max-width:520px}
 .maint-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
@@ -265,7 +272,7 @@
 @media(max-width:620px){.maint-summary,.maint-detail-grid{grid-template-columns:1fr}.maint-toolbar .maint-search{min-width:100%;max-width:none}}
 
 
-/* ===== ERP 1.18.10.65 · Pulido visual Programa de Mantención ===== */
+/* ===== ERP 1.18.10.73 · Pulido visual Programa de Mantención ===== */
 .maint-modern-shell{border:1px solid #dbe9ef;border-radius:22px;background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);overflow:hidden;box-shadow:0 12px 30px rgba(16,61,94,.06)}
 .maint-modern-head{padding:18px 20px 16px;border-bottom:1px solid #e4eef3;background:linear-gradient(135deg,#f7fcff 0%,#f3fbfd 55%,#ffffff 100%)}
 .maint-toolbar{gap:9px}.maint-year-switch{display:inline-flex;align-items:center;gap:6px;padding:4px;border:1px solid #d4e6ee;border-radius:15px;background:#fff;box-shadow:0 4px 12px rgba(16,61,94,.05)}
@@ -284,7 +291,7 @@
 @media(max-width:900px){.maint-modern-head{padding:14px}.maint-year-switch{order:0}.maint-download{width:auto}}
 
 
-/* ===== ERP 1.18.10.65 · accesos, PDFs y acciones rápidas ===== */
+/* ===== ERP 1.18.10.73 · accesos, PDFs y acciones rápidas ===== */
 button{touch-action:manipulation}
 .nav button.external-link{color:#31566d}.nav button.external-link:hover{background:#eef8fb;color:#087f9b}
 .nav-tools{display:grid;gap:6px;margin-top:3px}
@@ -317,7 +324,7 @@ button[disabled]{cursor:wait;opacity:.66;pointer-events:none}
 @media(max-width:900px){.admin-users-layout,.pdf-center-grid{grid-template-columns:1fr}.admin-user-row{grid-template-columns:1fr}.admin-user-actions{justify-content:flex-start}}
 
 
-/* ===== ERP 1.18.10.65 · Facturación estilo CRM anterior ===== */
+/* ===== ERP 1.18.10.73 · Facturación estilo CRM anterior ===== */
 .billing-table.crm-old{min-width:1280px}
 .billing-table.crm-old th{white-space:nowrap}
 .billing-table.crm-old tbody tr.billing-row-paid td{background:#fff;border-bottom-color:#bfeee2}
@@ -357,7 +364,7 @@ button[disabled]{cursor:wait;opacity:.66;pointer-events:none}
       <button id="loginBtn" class="primary" style="width:100%" type="submit">Ingresar</button>
       <div id="loginError" class="error hidden"></div>
     </form>
-    <p class="hint" style="margin-top:18px">ECOLUZ ERP 1.18.10.65 · conectado a Google Sheets API 7.4</p>
+    <p class="hint" style="margin-top:18px">ECOLUZ ERP 1.18.10.73 · conectado a Google Sheets API 7.4</p>
   </div>
 </section>
 
@@ -457,9 +464,9 @@ button[disabled]{cursor:wait;opacity:.66;pointer-events:none}
     </div>
   </aside>
   <main class="main">
-    <header class="topbar"><div class="crumb" id="crumb">Cotizaciones</div><div style="display:flex;gap:8px;align-items:center"><span class="version">ERP 1.18.10.65</span><button id="refreshBtn" class="secondary">Actualizar</button></div></header>
+    <header class="topbar"><div class="crumb" id="crumb">Cotizaciones</div><div style="display:flex;gap:8px;align-items:center"><span class="version">ERP 1.18.10.73</span><button id="refreshBtn" class="secondary">Actualizar</button></div></header>
     <div class="content" id="content"></div>
-    <div class="footer-note">ECOLUZ ERP 1.18.10.65 · Cotizaciones compatibles con el esquema real de Google Sheets.</div>
+    <div class="footer-note">ECOLUZ ERP 1.18.10.73 · Cotizaciones compatibles con el esquema real de Google Sheets.</div>
   </main>
 </section>
 <div id="modalRoot"></div>
@@ -478,7 +485,7 @@ const SNAP_MAX=365*24*60*60*1000;
 const FRESH=2*60*1000;
 const PAGE_SIZE=20;
 const QUOTE_VIEW_CACHE_PREFIX='ecoluz_erp_quote_view_v1_';
-const OT_VIEW_CACHE_PREFIX='ecoluz_erp_ot_view_v2_';
+const OT_VIEW_CACHE_PREFIX='ecoluz_erp_ot_view_v5_';
 const OT_VIEW_FRESH=2*60*1000;
 const OT_VIEW_SNAP_MAX=365*24*60*60*1000;
 const STARTUP_GRACE_MS=30000;
@@ -486,7 +493,7 @@ let startupGraceUntil=0;
 
 const ERP={
   view:'quotes',session:null,
-  store:{clients:[],quotes:[],ots:[],maintenance:[],billingRows:[],adminUsers:[],billingDetails:new Map(),quoteRefs:new Map(),quoteDetails:new Map(),otDetails:new Map(),clientDetails:new Map()},
+  store:{clients:[],quotes:[],ots:[],maintenance:[],billingRows:[],adminUsers:[],billingDetails:new Map(),quoteRefs:new Map(),quoteOTRefs:new Map(),quoteDetails:new Map(),otDetails:new Map(),clientDetails:new Map()},
   state:{clients:mkState(),quotes:mkState(),ots:mkState(),maintenance:mkState(),billing:mkState(),users:mkState()},
   ui:{quotes:{page:1,status:'pendiente',search:''},ots:{page:1,filter:'pendientes',search:''},clients:{page:1,search:''},billing:{month:new Date().getMonth()+1,year:new Date().getFullYear(),page:1,status:'todos',search:''},maintenance:{year:new Date().getFullYear(),search:'',status:'vigente'}},
   maps:{clients:new Map(),quotes:new Map()},
@@ -531,7 +538,7 @@ function statusBadge(value){const s=norm(value).replace(/_/g,' ');let c='b-neutr
 
 function readSession(){try{let raw=null;try{raw=localStorage.getItem(SESSION_KEY)}catch(e){}if(!raw){try{raw=sessionStorage.getItem(SESSION_KEY)}catch(e){}}const s=JSON.parse(raw||'null');if(!s?.token)return null;if(s.expires_at&&Date.now()>=new Date(s.expires_at).getTime()){try{localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY)}catch(e){}return null}return s}catch(e){return null}}
 function saveSession(s){ERP.session=s;try{if(s){const raw=JSON.stringify(s);localStorage.setItem(SESSION_KEY,raw);sessionStorage.setItem(SESSION_KEY,raw)}else{localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY)}}catch(e){try{s?sessionStorage.setItem(SESSION_KEY,JSON.stringify(s)):sessionStorage.removeItem(SESSION_KEY)}catch(_){} }}
-function resetRuntimeState(){ERP.store.clients=[];ERP.store.quotes=[];ERP.store.ots=[];ERP.store.maintenance=[];ERP.store.billingRows=[];ERP.store.adminUsers=[];ERP.store.billingDetails.clear();ERP.store.quoteRefs.clear();ERP.store.quoteDetails.clear();ERP.store.otDetails.clear();ERP.store.clientDetails.clear();ERP.maps.clients.clear();ERP.maps.quotes.clear();Object.keys(ERP.state).forEach(k=>ERP.state[k]=mkState());ERP.remote.quotes.pages.clear();ERP.remote.quotes.counts={pendiente:null,aceptada:null,rechazada:null};ERP.remote.quotes.currentRows=[];ERP.remote.quotes.currentTotal=0;ERP.remote.quotes.currentKey='';ERP.remote.quotes.searchClients.clear();ERP.remote.ots.scans.clear();ERP.remote.ots.currentRows=[];ERP.remote.ots.hasMore=false;ERP.remote.ots.currentKnownTotal=null;ERP.remote.ots.loadingKey='';ERP.remote.ots.searchClients.clear();ERP.remote.ots.searchQuotes.clear();try{inflight.clear()}catch(e){}ERP._billingHistoryComplete=false;ERP._billingHistoryLoading=null;ERP._billingHistoryProgress=null;}
+function resetRuntimeState(){ERP.store.clients=[];ERP.store.quotes=[];ERP.store.ots=[];ERP.store.maintenance=[];ERP.store.billingRows=[];ERP.store.adminUsers=[];ERP.store.billingDetails.clear();ERP.store.quoteRefs.clear();ERP.store.quoteOTRefs.clear();ERP.store.quoteDetails.clear();ERP.store.otDetails.clear();ERP.store.clientDetails.clear();ERP.maps.clients.clear();ERP.maps.quotes.clear();Object.keys(ERP.state).forEach(k=>ERP.state[k]=mkState());ERP.remote.quotes.pages.clear();ERP.remote.quotes.counts={todas:null,pendiente:null,aceptada:null,rechazada:null};ERP.remote.quotes.currentRows=[];ERP.remote.quotes.currentTotal=0;ERP.remote.quotes.currentKey='';ERP.remote.quotes.searchClients.clear();ERP.remote.ots.scans.clear();ERP.remote.ots.currentRows=[];ERP.remote.ots.hasMore=false;ERP.remote.ots.currentKnownTotal=null;ERP.remote.ots.loadingKey='';ERP.remote.ots.searchClients.clear();ERP.remote.ots.searchQuotes.clear();try{inflight.clear()}catch(e){}ERP._billingHistoryComplete=false;ERP._billingHistoryLoading=null;ERP._billingHistoryProgress=null;}
 const inflight=new Map();
 function abortError(){const e=new Error('Solicitud cancelada');e.name='AbortError';return e}
 function isAbortError(e){return e?.name==='AbortError'||/aborted|cancelada/i.test(String(e?.message||''))}
@@ -585,7 +592,7 @@ async function loadClients(force=false){const st=ERP.state.clients;if(!force&&st
 async function loadClientBillingData(ids,opts={}){const clean=[...new Set((ids||[]).map(String).filter(Boolean))];const missing=clean.filter(id=>!ERP.store.clientDetails.has(id));if(missing.length){try{const rows=await detailMany('clients',missing,['id','name','rut','data'],opts);(rows||[]).forEach(r=>ERP.store.clientDetails.set(String(r.id),r));mergeClientRefs(rows||[])}catch(e){if(isAbortError(e))throw e;return}}const map=new Map((ERP.store.clients||[]).map(c=>[String(c.id),c]));let changed=false;for(const id of clean){const r=ERP.store.clientDetails.get(String(id));if(!r?.data)continue;const current=map.get(String(id))||normalizeClient({id:r.id,name:r.name||'Sin nombre',rut:r.rut||'',data:r.data});const next=normalizeClient({...current,name:text(r.name)||current.name,rut:text(r.rut)||current.rut,data:r.data});if(next.requireOC!==current.requireOC||next.requireHES!==current.requireHES||next.noDocumentation!==current.noDocumentation||next.billingReqConfigured!==current.billingReqConfigured||next.data!==current.data)changed=true;map.set(String(id),next)}if(changed||map.size!==ERP.store.clients.length){ERP.store.clients=[...map.values()];rebuildMaps()}}
 function clientBillingRequirementText(c){if(!c?.billingReqConfigured)return'Documentación por definir';if(c?.noDocumentation||(!c?.requireOC&&!c?.requireHES))return'No requiere documentación';const req=[];if(c?.requireOC)req.push('OC');if(c?.requireHES)req.push('HES');return req.join(' + ')}
 function clientBillingRequirementBadges(c){if(!c?.billingReqConfigured)return'<span class="client-doc-badge unknown">Por definir</span>';if(c?.noDocumentation||(!c?.requireOC&&!c?.requireHES))return'<span class="client-doc-badge none">No requiere documentación</span>';const out=[];if(c?.requireOC)out.push('<span class="client-doc-badge oc">OC</span>');if(c?.requireHES)out.push('<span class="client-doc-badge hes">HES</span>');return out.join('')}
-function mergeClientRefs(rows){if(!Array.isArray(rows)||!rows.length)return;const map=new Map(ERP.store.clients.map(c=>[String(c.id),c]));for(const r of rows){if(!r?.id)continue;const fresh=normalizeClient(r),old=map.get(String(r.id));map.set(String(r.id),old?{...fresh,...old,name:fresh.name||old.name,rut:fresh.rut||old.rut}:{...fresh})}ERP.store.clients=[...map.values()];rebuildMaps()}
+function mergeClientRefs(rows){if(!Array.isArray(rows)||!rows.length)return;const map=new Map(ERP.store.clients.map(c=>[String(c.id),c]));for(const r of rows){if(!r?.id)continue;const fresh=normalizeClient(r),old=map.get(String(r.id));if(!old){map.set(String(r.id),fresh);continue}const hasFullData=!!(r.data&&typeof r.data==='object'&&!r.data.__drive_ref);map.set(String(r.id),{...old,...fresh,name:fresh.name||old.name,rut:fresh.rut||old.rut,data:hasFullData?fresh.data:old.data,requireOC:hasFullData?fresh.requireOC:old.requireOC,requireHES:hasFullData?fresh.requireHES:old.requireHES,noDocumentation:hasFullData?fresh.noDocumentation:old.noDocumentation,billingReqConfigured:hasFullData?fresh.billingReqConfigured:old.billingReqConfigured})}ERP.store.clients=[...map.values()];rebuildMaps()}
 async function loadQuoteClientRefs(){const quotes=ERP.store.quotes||[];if(!quotes.length)return;const missingQuoteIds=quotes.filter(q=>!q.clientId).map(q=>String(q.id)).filter(Boolean);if(missingQuoteIds.length){try{const refs=await detailMany('quotes',missingQuoteIds,['id','client_id','data']);const byId=new Map((refs||[]).map(r=>[String(r.id),r]));ERP.store.quotes=quotes.map(q=>{const r=byId.get(String(q.id));if(!r)return q;const d=(r.data&&typeof r.data==='object')?r.data:{};return {...q,clientId:text(r.client_id||d.client_id||d.clientId||q.clientId),data:r.data||q.data}});rebuildMaps()}catch(e){}}
  const ids=[...new Set((ERP.store.quotes||[]).map(q=>String(q.clientId||'')).filter(Boolean))];const missing=ids.filter(id=>!clientFor(id));if(!missing.length)return;try{const rows=await detailMany('clients',missing,['id','name','rut']);mergeClientRefs(rows)}catch(e){}}
 
@@ -594,6 +601,20 @@ const OT_PAGE_COLUMNS=['id','created_at','numero_ot','quote_id','client_id','des
 const OT_SCAN_CHUNK=30;
 function mergeQuotePageRows(rows){const map=new Map((ERP.store.quotes||[]).map(q=>[String(q.id),q]));for(const raw of rows||[]){const q=normalizeQuote(raw);const old=map.get(String(q.id));map.set(String(q.id),old?{...old,...q}:q)}ERP.store.quotes=[...map.values()];rebuildMaps()}
 function mergeOTPageRows(rows){const map=new Map((ERP.store.ots||[]).map(o=>[String(o.id),o]));for(const raw of rows||[]){const o=raw?.id&&raw.numero!==undefined?normalizeOT(raw):normalizeOT(raw);if(!o?.id)continue;const old=map.get(String(o.id));map.set(String(o.id),old?{...old,...o,data:o.data||old.data}:o)}ERP.store.ots=[...map.values()]}
+
+function quoteRowClass(q){
+  const state=norm(q?.estado||'');
+  const special=norm(q?.specialStatus||'');
+  if(state.includes('rechaz')||state.includes('cancel')||state.includes('anulad')||
+     special.includes('rechaz')||special.includes('cancel')||special.includes('anulad')){
+    return 'quote-row-rejected';
+  }
+  if(state.includes('acept')){
+    return 'quote-row-accepted';
+  }
+  return '';
+}
+
 function quoteStatusNeedle(status){if(status==='todas')return'';return status==='aceptada'?'acept':status==='rechazada'?'rech':'pend'}
 function quotePageCacheKey(status,page,search){return `${status}|${page}|${norm(search)}`}
 function quoteViewSnapKey(key){return QUOTE_VIEW_CACHE_PREFIX+key}
@@ -653,13 +674,13 @@ async function searchClientIds(search,cache){const q=norm(search);if(!q)return[]
 async function searchQuoteIds(search,cache){const q=norm(search);if(!q)return[];if(cache.has(q))return cache.get(q);const local=(ERP.store.quotes||[]).filter(x=>norm(x.numero).includes(q)).map(x=>String(x.id)).filter(Boolean);if(local.length){cache.set(q,local);return local}try{const j=await api('select',{table:'quotes',columns:['id','numero'],filters:[],orGroups:[[{column:'numero',op:'ilike',value:q}]],order:{column:'created_at',ascending:false},offset:0,limit:100,resolveOverflow:false},{timeout:15000,attempts:1});const ids=(j.data||[]).map(r=>String(r.id)).filter(Boolean);cache.set(q,ids);return ids}catch(e){return local}}
 async function loadVisibleClientRefs(rows){const ids=[...new Set((rows||[]).map(x=>String(x.clientId||x.client_id||'')).filter(Boolean))];const missing=ids.filter(id=>!clientFor(id));if(!missing.length)return;for(let i=0;i<missing.length;i+=40){const chunk=missing.slice(i,i+40);try{const j=await api('select',{table:'clients',columns:['id','name','rut'],filters:[{column:'id',op:'in',value:chunk}],orGroups:[],order:{column:'name',ascending:true},offset:0,limit:null,resolveOverflow:false},{timeout:25000,attempts:2});mergeClientRefs(j.data||[])}catch(e){}}}
 async function loadQuoteCounts(force=false){const r=ERP.remote.quotes;if(!force&&Object.values(r.counts).every(v=>Number.isFinite(v)))return r.counts;const defs=[['todas',''],['pendiente','pend'],['aceptada','acept'],['rechazada','rech']];await Promise.allSettled(defs.map(async([key,needle])=>{try{const j=await api('count',{table:'quotes',filters:needle?[{column:'estado',op:'ilike',value:needle}]:[],orGroups:[]});r.counts[key]=Number(j.count||0)}catch(e){}}));if(ERP.view==='quotes')renderQuotes();return r.counts}
-async function loadQuotePage(force=false,opts={}){const ui=ERP.ui.quotes,r=ERP.remote.quotes,status=ui.status||'pendiente',page=Math.max(1,ui.page||1),search=norm(ui.search),key=quotePageCacheKey(status,page,search);if(force&&!search)r.counts[status]=null;let cached=r.pages.get(key);if(!cached){cached=loadQuoteViewSnap(key);if(cached)r.pages.set(key,cached)}if(!force&&cached&&Date.now()-cached.ts<FRESH){r.currentRows=cached.rows;r.currentTotal=cached.total;r.currentKey=key;mergeQuotePageRows(cached.rows);return cached.rows}const clientIds=search?await searchClientIds(search,r.searchClients):[];if(opts.signal?.aborted)throw abortError();const statusNeedle=quoteStatusNeedle(status);const filters=statusNeedle?[{column:'estado',op:'ilike',value:statusNeedle}]:[];const or=[];if(search){or.push([{column:'numero',op:'ilike',value:search},{column:'descripcion',op:'ilike',value:search},{column:'obra',op:'ilike',value:search},{column:'created_by_name',op:'ilike',value:search},{column:'created_by_email',op:'ilike',value:search},...(clientIds.length?[{column:'client_id',op:'in',value:clientIds}]:[])])}const j=await api('select',{table:'quotes',columns:QUOTE_PAGE_COLUMNS,filters,orGroups:or,order:{column:'created_at',ascending:false},offset:(page-1)*PAGE_SIZE,limit:PAGE_SIZE,resolveOverflow:false},{timeout:opts.timeout||18000,attempts:opts.attempts??1,signal:opts.signal});const rows=(j.data||[]).map(normalizeQuote);r.currentRows=rows;r.currentTotal=Number(j.count||rows.length);r.currentKey=key;const pageData={rows,total:r.currentTotal,ts:Date.now()};r.pages.set(key,pageData);saveQuoteViewSnap(key,pageData);if(!search)r.counts[status]=r.currentTotal;mergeQuotePageRows(rows);try{saveSnap('quotes',(ERP.store.quotes||[]).map(q=>({...q,client_id:q.clientId,created_by_name:q.createdBy,created_at:q.createdAt,enviado_por_correo:q.enviadoCorreo,enviado_por_wsp:q.enviadoWsp,fecha_envio:q.fechaEnvio,ejecutor_envio:q.ejecutorEnvio,tipo_servicio:q.tipo,descuento_pct:q.descuentoPct})))}catch(e){}return rows}
+async function loadQuotePage(force=false,opts={}){const ui=ERP.ui.quotes,r=ERP.remote.quotes,status=ui.status||'pendiente',page=Math.max(1,ui.page||1),search=norm(ui.search),key=quotePageCacheKey(status,page,search);if(force&&!search)r.counts[status]=null;let cached=r.pages.get(key);if(!cached){cached=loadQuoteViewSnap(key);if(cached)r.pages.set(key,cached)}if(!force&&cached&&Date.now()-cached.ts<FRESH){r.currentRows=cached.rows;r.currentTotal=cached.total;r.currentKey=key;mergeQuotePageRows(cached.rows);return cached.rows}const directQuoteNumber=/^(?:cot(?:izacion)?\.?\s*)?\d+$/i.test(search);const clientIds=(search&&!directQuoteNumber)?await searchClientIds(search,r.searchClients):[];if(opts.signal?.aborted)throw abortError();const statusNeedle=quoteStatusNeedle(status);const filters=statusNeedle?[{column:'estado',op:'ilike',value:statusNeedle}]:[];const or=[];if(search){or.push([{column:'numero',op:'ilike',value:search},{column:'descripcion',op:'ilike',value:search},{column:'obra',op:'ilike',value:search},{column:'created_by_name',op:'ilike',value:search},{column:'created_by_email',op:'ilike',value:search},...(clientIds.length?[{column:'client_id',op:'in',value:clientIds}]:[])])}const j=await api('select',{table:'quotes',columns:QUOTE_PAGE_COLUMNS,filters,orGroups:or,order:{column:'created_at',ascending:false},offset:(page-1)*PAGE_SIZE,limit:PAGE_SIZE,resolveOverflow:false},{timeout:opts.timeout||18000,attempts:opts.attempts??1,signal:opts.signal});const rows=(j.data||[]).map(normalizeQuote);r.currentRows=rows;r.currentTotal=Number(j.count||rows.length);r.currentKey=key;const pageData={rows,total:r.currentTotal,ts:Date.now()};r.pages.set(key,pageData);saveQuoteViewSnap(key,pageData);if(!search)r.counts[status]=r.currentTotal;mergeQuotePageRows(rows);try{saveSnap('quotes',(ERP.store.quotes||[]).map(q=>({...q,client_id:q.clientId,created_by_name:q.createdBy,created_at:q.createdAt,enviado_por_correo:q.enviadoCorreo,enviado_por_wsp:q.enviadoWsp,fecha_envio:q.fechaEnvio,ejecutor_envio:q.ejecutorEnvio,tipo_servicio:q.tipo,descuento_pct:q.descuentoPct})))}catch(e){}return rows}
 function otScanKey(filter,search){return `${filter}|${norm(search)}`}
 function otViewSnapKey(key){return OT_VIEW_CACHE_PREFIX+key}
 function saveOTViewSnap(key,scan){try{localStorage.setItem(otViewSnapKey(key),JSON.stringify({ts:Date.now(),items:(scan.items||[]).slice(0,160),sourceOffset:scan.sourceOffset||0,sourceTotal:scan.sourceTotal??null,exhausted:!!scan.exhausted}))}catch(e){}}
 function loadOTViewSnap(key){try{const x=JSON.parse(localStorage.getItem(otViewSnapKey(key))||'null');if(!x||Date.now()-Number(x.ts||0)>OT_VIEW_SNAP_MAX)return null;const items=(x.items||[]).map(normalizeOT);return {items,seen:new Set(items.map(o=>String(o.id))),sourceOffset:Number(x.sourceOffset||items.length||0),sourceTotal:x.sourceTotal??null,exhausted:!!x.exhausted,ts:Number(x.ts||0)}}catch(e){return null}}
 function clearOTViewSnap(key){try{localStorage.removeItem(otViewSnapKey(key))}catch(e){}}
-function otCoarseQuery(filter){if(filter==='todas'||filter==='activas'||filter==='activas_base')return {filters:[],orGroups:[]};if(filter==='curso')return {filters:[{column:'estado',op:'ilike',value:'curso'}],orGroups:[]};if(filter==='canceladas')return {filters:[{column:'estado',op:'ilike',value:'cancel'}],orGroups:[]};if(filter==='facturar')return {filters:[{column:'pago_estado',op:'ilike',value:'pendiente'}],orGroups:[]};if(filter==='listas')return {filters:[],orGroups:[[{column:'estado',op:'ilike',value:'listo'},{column:'estado',op:'ilike',value:'realiz'},{column:'estado',op:'ilike',value:'termin'}]]};return {filters:[{column:'estado',op:'ilike',value:'pend'}],orGroups:[]}}
+function otCoarseQuery(filter){if(filter==='todas'||filter==='activas'||filter==='activas_base')return {filters:[],orGroups:[]};if(filter==='curso')return {filters:[{column:'estado',op:'ilike',value:'curso'}],orGroups:[]};if(filter==='canceladas')return {filters:[{column:'estado',op:'ilike',value:'cancel'}],orGroups:[]};if(filter==='facturar')return {filters:[],orGroups:[]};if(filter==='listas')return {filters:[],orGroups:[[{column:'estado',op:'ilike',value:'listo'},{column:'estado',op:'ilike',value:'realiz'},{column:'estado',op:'ilike',value:'termin'}]]};return {filters:[{column:'estado',op:'ilike',value:'pend'}],orGroups:[]}}
 
 async function hydrateVisibleOTData(rows){
   const ids=[...new Set((rows||[]).map(o=>String(o?.id||'')).filter(Boolean))];
@@ -712,8 +733,10 @@ async function hydrateVisibleOTReferences(rows,viewKey){
   let hydrated=rows||[];
   try{hydrated=await hydrateVisibleOTData(hydrated)}catch(e){}
 
-  // Primero ya podemos mostrar nombres históricos guardados dentro de data.
-  if(ERP.view==='ots'&&otCurrentUiKey()===viewKey)renderOTs();
+  if(ERP.view==='ots'&&otCurrentUiKey()===viewKey){
+    if(['facturar','listas'].includes(ERP.ui.ots.filter))verifyVisibleOTClassification(viewKey);
+    else renderOTs();
+  }
 
   try{
     await Promise.all([
@@ -722,15 +745,358 @@ async function hydrateVisibleOTReferences(rows,viewKey){
     ]);
   }catch(e){}
 
-  if(ERP.view==='ots'&&otCurrentUiKey()===viewKey)renderOTs();
+  if(ERP.view==='ots'&&otCurrentUiKey()===viewKey){
+    if(['facturar','listas'].includes(ERP.ui.ots.filter))verifyVisibleOTClassification(viewKey);
+    else renderOTs();
+  }
 }
 
-async function enrichOTChunk(rows,{billing=false,signal=null}={}){if(!rows.length)return rows;mergeOTPageRows(rows);const viewKey=otCurrentUiKey();loadVisibleClientRefs(rows).then(()=>{if(ERP.view==='ots'&&otCurrentUiKey()===viewKey)renderOTs()}).catch(()=>{});if(billing){const clientIds=[...new Set(rows.map(o=>o.clientId).filter(Boolean))];loadClientBillingData(clientIds,{timeout:18000,attempts:1,signal}).then(()=>{if(ERP.view==='ots'&&otCurrentUiKey()===viewKey)verifyVisibleOTClassification(viewKey)}).catch(()=>{})}return rows}
+
+async function hydrateOTChunkForClassification(rows,signal=null){
+  const ids=[...new Set((rows||[]).map(o=>String(o?.id||'')).filter(Boolean))];
+  if(!ids.length)return rows||[];
+
+  try{
+    const j=await api('select',{
+      table:'ots',
+      columns:OT_DETAIL_COLUMNS,
+      filters:[{column:'id',op:'in',value:ids}],
+      orGroups:[],
+      order:null,
+      offset:0,
+      limit:null,
+      resolveOverflow:true
+    },{timeout:30000,attempts:2,signal});
+
+    const byId=new Map();
+    for(const raw of (j.data||[])){
+      if(!raw?.id)continue;
+      const key=String(raw.id);
+      const normalized=normalizeOT(raw);
+      byId.set(key,normalized);
+      ERP.store.otDetails.set(key,raw);
+
+      const pos=ERP.store.ots.findIndex(o=>String(o.id)===key);
+      if(pos>=0){
+        ERP.store.ots[pos]=normalizeOT({
+          ...ERP.store.ots[pos],
+          ...raw,
+          data:raw.data||ERP.store.ots[pos].data
+        });
+      }
+    }
+
+    return (rows||[]).map(o=>{
+      const full=byId.get(String(o.id));
+      return full
+        ? normalizeOT({...o,...full,data:full.data||o.data})
+        : o;
+    });
+  }catch(e){
+    if(isAbortError(e))throw e;
+    return rows||[];
+  }
+}
+
+
+
+const OT_BILLING_REQ_CHECKED=new Set();
+const OT_BILLING_REQ_FAILED=new Set();
+
+async function ensureOTBillingRequirements(rows,signal=null){
+  const ids=[...new Set((rows||[]).map(o=>String(o?.clientId||'')).filter(Boolean))];
+
+  // Para facturación no basta con clientFor(): puede ser una copia liviana
+  // que tenga nombre/RUT pero no la configuración OC/HES.
+  const missing=ids.filter(id=>{
+    const raw=ERP.store.clientDetails.get(id);
+    if(!raw)return !OT_BILLING_REQ_CHECKED.has(id);
+    const hasResolvedData=!!(
+      raw.data &&
+      typeof raw.data==='object' &&
+      !raw.data.__drive_ref
+    );
+    return !hasResolvedData && !OT_BILLING_REQ_CHECKED.has(id);
+  });
+
+  if(!missing.length)return;
+
+  for(let i=0;i<missing.length;i+=25){
+    const chunk=missing.slice(i,i+25);
+    if(signal?.aborted)throw abortError();
+
+    let loadedRows=[];
+
+    // Intento 1: select por lote resolviendo data/overflow.
+    try{
+      const j=await api('select',{
+        table:'clients',
+        columns:['id','name','rut','data'],
+        filters:[{column:'id',op:'in',value:chunk}],
+        orGroups:[],
+        order:{column:'name',ascending:true},
+        offset:0,
+        limit:null,
+        resolveOverflow:true
+      },{timeout:30000,attempts:2,signal});
+
+      loadedRows=Array.isArray(j?.data)?j.data:[];
+    }catch(e){
+      if(isAbortError(e))throw e;
+    }
+
+    // Detectar registros que llegaron sin data completa.
+    const byId=new Map(
+      loadedRows
+        .filter(r=>r?.id)
+        .map(r=>[String(r.id),r])
+    );
+
+    const unresolved=chunk.filter(id=>{
+      const r=byId.get(String(id));
+      return !r ||
+        !r.data ||
+        typeof r.data!=='object' ||
+        !!r.data.__drive_ref;
+    });
+
+    // Intento 2: detalle individual/batch para cualquier registro incompleto.
+    if(unresolved.length){
+      try{
+        const fallback=await detailMany(
+          'clients',
+          unresolved,
+          ['id','name','rut','data'],
+          {timeout:30000,attempts:2,signal}
+        );
+
+        for(const r of (fallback||[])){
+          if(!r?.id)continue;
+          byId.set(String(r.id),r);
+        }
+
+        loadedRows=[...byId.values()];
+      }catch(e){
+        if(isAbortError(e))throw e;
+      }
+    }
+
+    const loadedIds=new Set();
+
+    for(const r of loadedRows){
+      if(!r?.id)continue;
+      const id=String(r.id);
+      const hasResolvedData=!!(
+        r.data &&
+        typeof r.data==='object' &&
+        !r.data.__drive_ref
+      );
+
+      if(hasResolvedData){
+        loadedIds.add(id);
+        OT_BILLING_REQ_CHECKED.add(id);
+        OT_BILLING_REQ_FAILED.delete(id);
+        ERP.store.clientDetails.set(id,r);
+      }
+    }
+
+    if(loadedRows.length){
+      mergeClientRefs(loadedRows);
+
+      const map=new Map((ERP.store.clients||[]).map(c=>[String(c.id),c]));
+      for(const r of loadedRows){
+        if(!r?.id)continue;
+        const id=String(r.id);
+        const current=map.get(id)||normalizeClient(r);
+
+        const hasResolvedData=!!(
+          r.data &&
+          typeof r.data==='object' &&
+          !r.data.__drive_ref
+        );
+
+        map.set(id,normalizeClient({
+          ...current,
+          name:text(r.name)||current.name,
+          rut:text(r.rut)||current.rut,
+          data:hasResolvedData?r.data:current.data
+        }));
+      }
+      ERP.store.clients=[...map.values()];
+      rebuildMaps();
+    }
+
+    // Solo después de ambos intentos marcamos los fallidos.
+    for(const id of chunk){
+      if(loadedIds.has(String(id)))continue;
+      OT_BILLING_REQ_CHECKED.add(String(id));
+      OT_BILLING_REQ_FAILED.add(String(id));
+    }
+  }
+}
+async function enrichOTChunk(rows,{billing=false,signal=null}={}){if(!rows.length)return rows;mergeOTPageRows(rows);const viewKey=otCurrentUiKey();loadVisibleClientRefs(rows).then(()=>{if(ERP.view==='ots'&&otCurrentUiKey()===viewKey)renderOTs()}).catch(()=>{});if(billing){await ensureOTBillingRequirements(rows,signal);if(ERP.view==='ots'&&otCurrentUiKey()===viewKey)verifyVisibleOTClassification(viewKey)}return rows}
 async function otSearchRefs(search){const q=norm(search),r=ERP.remote.ots;if(!q)return {clientIds:[],quoteIds:[]};const [clientIds,quoteIds]=await Promise.all([searchClientIds(q,r.searchClients),searchQuoteIds(q,r.searchQuotes)]);return {clientIds,quoteIds}}
-function otMatchesSearch(o,q){if(!q)return true;return norm([o.numero,o.descripcion,o.oc,o.hes,o.guia,o.factura,clientFor(o.clientId)?.name,clientFor(o.clientId)?.rut,quoteFor(o.quoteId)?.numero].join(' ')).includes(q)}
+function otMatchesSearch(o,q){if(!q)return true;return norm([o.numero,o.descripcion,o.oc,o.hes,o.guia,o.factura,o.data?.numeroCotizacion,o.data?.quoteNumber,clientFor(o.clientId)?.name,clientFor(o.clientId)?.rut,quoteFor(o.quoteId)?.numero].join(' ')).includes(q)}
 function otCurrentUiKey(){const ui=ERP.ui.ots;return `${ui.filter||'pendientes'}|${Math.max(1,ui.page||1)}|${norm(ui.search)}`}
 function applyOTScanToCurrent(){const ui=ERP.ui.ots,r=ERP.remote.ots,filter=ui.filter||'pendientes',page=Math.max(1,ui.page||1),search=norm(ui.search),key=otScanKey(filter,search);let scan=r.scans.get(key);if(!scan){scan=loadOTViewSnap(key);if(scan)r.scans.set(key,scan)}const start=(page-1)*PAGE_SIZE;if(!scan){r.currentRows=[];r.hasMore=false;r.currentKnownTotal=null;return false}r.currentRows=scan.items.slice(start,start+PAGE_SIZE);r.hasMore=scan.items.length>start+PAGE_SIZE||!scan.exhausted;r.currentKnownTotal=scan.exhausted?scan.items.length:null;mergeOTPageRows(r.currentRows);return true}
-async function ensureOTPage(force=false,opts={}){const ui=ERP.ui.ots,r=ERP.remote.ots,filter=ui.filter||'pendientes',page=Math.max(1,ui.page||1),search=norm(ui.search),requestKey=`${filter}|${page}|${search}`,key=otScanKey(filter,search),signal=opts.signal||null;if(force){r.scans.delete(key)}let scan=r.scans.get(key);if(!scan){scan=loadOTViewSnap(key);if(scan)r.scans.set(key,scan)}if(!scan){scan={items:[],seen:new Set(),sourceOffset:0,sourceTotal:null,exhausted:false,ts:0};r.scans.set(key,scan)}const needed=page*PAGE_SIZE;if(!force&&Date.now()-Number(scan.ts||0)<OT_VIEW_FRESH&&(scan.items.length>=needed||scan.exhausted)){const start=(page-1)*PAGE_SIZE,pageRows=scan.items.slice(start,start+PAGE_SIZE);if(otCurrentUiKey()===requestKey){r.currentRows=pageRows;r.hasMore=scan.items.length>start+PAGE_SIZE||!scan.exhausted;r.currentKnownTotal=scan.exhausted?scan.items.length:null}return pageRows}const refs=search?await otSearchRefs(search):{clientIds:[],quoteIds:[]};if(signal?.aborted)throw abortError();if(scan.items.length<needed&&!scan.exhausted){const coarse=otCoarseQuery(filter);const or=(coarse.orGroups||[]).slice();if(search){or.push([{column:'numero_ot',op:'ilike',value:search},{column:'descripcion',op:'ilike',value:search},{column:'oc',op:'ilike',value:search},{column:'hes',op:'ilike',value:search},{column:'guia_despacho',op:'ilike',value:search},...(refs.clientIds.length?[{column:'client_id',op:'in',value:refs.clientIds}]:[]),...(refs.quoteIds.length?[{column:'quote_id',op:'in',value:refs.quoteIds}]:[])])}const j=await api('select',{table:'ots',columns:OT_PAGE_COLUMNS,filters:coarse.filters||[],orGroups:or,order:{column:'fecha',ascending:false},offset:scan.sourceOffset,limit:OT_SCAN_CHUNK,resolveOverflow:false},{timeout:18000,attempts:1,signal});let chunk=(j.data||[]).map(normalizeOT);scan.sourceTotal=Number.isFinite(Number(j.count))?Number(j.count):null;scan.sourceOffset+=chunk.length;if(!chunk.length||(scan.sourceTotal!=null&&scan.sourceOffset>=scan.sourceTotal)||chunk.length<OT_SCAN_CHUNK)scan.exhausted=true;chunk=await enrichOTChunk(chunk,{billing:filter==='listas'||filter==='facturar'||filter==='activas'||filter==='activas_base',signal});for(const o of chunk){if(signal?.aborted)throw abortError();if(scan.seen.has(String(o.id)))continue;const group=otGroup(o);if(filter==='activas_base'){if(!['pendientes','curso'].includes(group))continue}else if(filter==='activas'){if(!['pendientes','curso','listas'].includes(group))continue}else if(filter!=='todas'&&group!==filter)continue;if(search&&!otMatchesSearch(o,search))continue;scan.seen.add(String(o.id));scan.items.push(o)}scan.ts=Date.now();saveOTViewSnap(key,scan)}const start=(page-1)*PAGE_SIZE,pageRows=scan.items.slice(start,start+PAGE_SIZE);mergeOTPageRows(pageRows);if(otCurrentUiKey()===requestKey){r.currentRows=pageRows;r.hasMore=scan.items.length>start+PAGE_SIZE||!scan.exhausted;r.currentKnownTotal=scan.exhausted?scan.items.length:null}return pageRows}
+async function ensureOTPage(force=false,opts={}){
+  const ui=ERP.ui.ots,
+        r=ERP.remote.ots,
+        filter=ui.filter||'pendientes',
+        page=Math.max(1,ui.page||1),
+        search=norm(ui.search),
+        requestKey=`${filter}|${page}|${search}`,
+        key=otScanKey(filter,search),
+        signal=opts.signal||null;
+
+  if(force)r.scans.delete(key);
+
+  let scan=r.scans.get(key);
+  if(!scan){
+    scan=loadOTViewSnap(key);
+    if(scan)r.scans.set(key,scan);
+  }
+  if(!scan){
+    scan={items:[],seen:new Set(),sourceOffset:0,sourceTotal:null,exhausted:false,ts:0};
+    r.scans.set(key,scan);
+  }
+
+  const needed=page*PAGE_SIZE;
+
+  if(
+    !force &&
+    Date.now()-Number(scan.ts||0)<OT_VIEW_FRESH &&
+    (scan.items.length>=needed||scan.exhausted) &&
+    !((filter==='facturar'||filter==='listas')&&scan.items.length===0)
+  ){
+    const start=(page-1)*PAGE_SIZE,
+          pageRows=scan.items.slice(start,start+PAGE_SIZE);
+
+    if(otCurrentUiKey()===requestKey){
+      r.currentRows=pageRows;
+      r.hasMore=scan.items.length>start+PAGE_SIZE||!scan.exhausted;
+      r.currentKnownTotal=scan.exhausted?scan.items.length:null;
+    }
+    return pageRows;
+  }
+
+  const refs=search?await otSearchRefs(search):{clientIds:[],quoteIds:[]};
+  if(signal?.aborted)throw abortError();
+
+  const coarse=otCoarseQuery(filter);
+  const or=(coarse.orGroups||[]).slice();
+
+  if(search){
+    or.push([
+      {column:'numero_ot',op:'ilike',value:search},
+      {column:'descripcion',op:'ilike',value:search},
+      {column:'oc',op:'ilike',value:search},
+      {column:'hes',op:'ilike',value:search},
+      {column:'guia_despacho',op:'ilike',value:search},
+      ...(refs.clientIds.length?[{column:'client_id',op:'in',value:refs.clientIds}]:[]),
+      ...(refs.quoteIds.length?[{column:'quote_id',op:'in',value:refs.quoteIds}]:[])
+    ]);
+  }
+
+  const billingSensitive=filter==='facturar'||filter==='listas';
+  const chunkLimit=billingSensitive?80:OT_SCAN_CHUNK;
+  const maxPasses=billingSensitive?30:3;
+
+  let passes=0;
+
+  while(scan.items.length<needed&&!scan.exhausted&&passes<maxPasses){
+    passes++;
+    if(signal?.aborted)throw abortError();
+
+    const j=await api('select',{
+      table:'ots',
+      columns:OT_PAGE_COLUMNS,
+      filters:coarse.filters||[],
+      orGroups:or,
+      order:{column:'fecha',ascending:false},
+      offset:scan.sourceOffset,
+      limit:chunkLimit,
+      resolveOverflow:false
+    },{
+      timeout:billingSensitive?30000:18000,
+      attempts:billingSensitive?2:1,
+      signal
+    });
+
+    let chunk=(j.data||[]).map(normalizeOT);
+
+    scan.sourceTotal=Number.isFinite(Number(j.count))?Number(j.count):null;
+    scan.sourceOffset+=chunk.length;
+
+    if(
+      !chunk.length ||
+      (scan.sourceTotal!=null&&scan.sourceOffset>=scan.sourceTotal) ||
+      chunk.length<chunkLimit
+    ){
+      scan.exhausted=true;
+    }
+
+    if(filter==='facturar'||filter==='listas'||filter==='activas'){
+      chunk=await hydrateOTChunkForClassification(chunk,signal);
+    }
+
+    chunk=await enrichOTChunk(chunk,{
+      billing:filter==='listas'||filter==='facturar'||filter==='activas'||filter==='activas_base',
+      signal
+    });
+
+    for(const o of chunk){
+      if(signal?.aborted)throw abortError();
+      if(scan.seen.has(String(o.id)))continue;
+
+      const group=otGroup(o);
+
+      if(filter==='activas_base'){
+        if(!['pendientes','curso'].includes(group))continue;
+      }else if(filter==='activas'){
+        if(!['pendientes','curso','listas'].includes(group))continue;
+      }else if(filter!=='todas'&&group!==filter){
+        continue;
+      }
+
+      const linkedRefMatch=search&&(
+        refs.clientIds.includes(String(o.clientId)) ||
+        refs.quoteIds.includes(String(o.quoteId))
+      );
+
+      if(search&&!linkedRefMatch&&!otMatchesSearch(o,search))continue;
+
+      scan.seen.add(String(o.id));
+      scan.items.push(o);
+    }
+
+    scan.ts=Date.now();
+    saveOTViewSnap(key,scan);
+
+    // Mostrar progresivamente las OT válidas ya encontradas.
+    if(otCurrentUiKey()===requestKey&&scan.items.length){
+      const previewStart=(page-1)*PAGE_SIZE;
+      r.currentRows=scan.items.slice(previewStart,previewStart+PAGE_SIZE);
+      r.hasMore=scan.items.length>previewStart+PAGE_SIZE||!scan.exhausted;
+      r.currentKnownTotal=scan.exhausted?scan.items.length:null;
+      mergeOTPageRows(r.currentRows);
+      if(ERP.view==='ots')renderOTs();
+    }
+  }
+
+  const start=(page-1)*PAGE_SIZE,
+        pageRows=scan.items.slice(start,start+PAGE_SIZE);
+
+  mergeOTPageRows(pageRows);
+
+  if(otCurrentUiKey()===requestKey){
+    r.currentRows=pageRows;
+    r.hasMore=scan.items.length>start+PAGE_SIZE||!scan.exhausted;
+    r.currentKnownTotal=scan.exhausted?scan.items.length:null;
+  }
+
+  return pageRows;
+}
 function lazyPagination(page,hasMore,on,knownTotal=null){const p=Math.max(1,page);let h='<div class="pager">';h+=`<button ${p<=1?'disabled':''} onclick="${on}(${p-1})">‹</button>`;if(p>1)h+=`<button onclick="${on}(${p-1})">${p-1}</button>`;h+=`<button class="active" onclick="${on}(${p})">${p}</button>`;if(hasMore)h+=`<button onclick="${on}(${p+1})">${p+1}</button>`;h+=`<button ${!hasMore?'disabled':''} onclick="${on}(${p+1})">›</button><span class="small">${knownTotal!=null?knownTotal+' registro(s)':'20 por página'}</span></div>`;return h}
 async function loadQuotes(force=false){const st=ERP.state.quotes;if(!force&&st.loaded&&Date.now()-st.last<FRESH)return ERP.store.quotes;if(st.promise)return st.promise;if(!ERP.store.quotes.length){const s=loadSnap('quotes');if(s){ERP.store.quotes=(s.data||[]).map(normalizeQuote);st.loaded=true;st.last=s.ts;rebuildMaps()}}
  st.promise=(async()=>{try{const j=await api('select',{table:'quotes',columns:['id','client_id','numero','monto','descripcion','obra','fecha','estado','tipo_servicio','enviado_por_correo','enviado_por_wsp','fecha_envio','ejecutor_envio','created_by_name','created_by_email','created_at','sucursal','direccion','bruto','descuento_pct','descuento_monto','neto','iva'],filters:[],orGroups:[],order:{column:'created_at',ascending:false},offset:0,limit:null,resolveOverflow:false});ERP.store.quotes=(j.data||[]).map(normalizeQuote);st.loaded=true;st.last=Date.now();st.error='';saveSnap('quotes',j.data||[]);rebuildMaps();return ERP.store.quotes}catch(e){st.error=e.message;if(ERP.store.quotes.length)return ERP.store.quotes;throw e}finally{st.promise=null}})();return st.promise}
@@ -741,6 +1107,52 @@ async function loadMaintenance(force=false){const st=ERP.state.maintenance;if(!f
  st.promise=(async()=>{try{const j=await api('select',{table:'maintenance_programs',columns:['id','client_id','client_name','site_name','service_type','frequency','start_month','program_year','responsible','notes','status','completed_months','completed_history','created_by_name','created_by_email','created_at','updated_at'],filters:[],orGroups:[],order:{column:'client_name',ascending:true},offset:0,limit:null,resolveOverflow:true});ERP.store.maintenance=(j.data||[]).map(normalizeMaint);st.loaded=true;st.last=Date.now();st.error='';saveSnap('maintenance',j.data||[]);return ERP.store.maintenance}catch(e){st.error=e.message;if(ERP.store.maintenance.length)return ERP.store.maintenance;throw e}finally{st.promise=null}})();return st.promise}
 async function loadQuoteRefs(ids){const missing=[...new Set(ids.map(String).filter(Boolean))].filter(id=>!ERP.maps.quotes.has(id)&&!ERP.store.quoteRefs.has(id));for(let i=0;i<missing.length;i+=60){const chunk=missing.slice(i,i+60);const j=await api('select',{table:'quotes',columns:['id','numero','client_id','monto'],filters:[{column:'id',op:'in',value:chunk}],orGroups:[],offset:0,limit:null,resolveOverflow:false});(j.data||[]).forEach(r=>ERP.store.quoteRefs.set(String(r.id),{id:r.id,numero:text(r.numero),clientId:text(r.client_id),monto:num(r.monto)}))}}
 function quoteFor(id){return ERP.maps.quotes.get(String(id))||ERP.store.quoteRefs.get(String(id))||null}
+
+async function loadLinkedOTRefsForQuotes(rows){
+  const quoteIds=[...new Set((rows||[]).map(q=>String(q?.id||'')).filter(Boolean))];
+  const missing=quoteIds.filter(id=>!ERP.store.quoteOTRefs.has(id));
+  if(!missing.length)return;
+
+  for(let i=0;i<missing.length;i+=40){
+    const chunk=missing.slice(i,i+40);
+    chunk.forEach(id=>ERP.store.quoteOTRefs.set(id,[]));
+    try{
+      const j=await api('select',{
+        table:'ots',
+        columns:['id','numero_ot','quote_id','estado','fecha'],
+        filters:[{column:'quote_id',op:'in',value:chunk}],
+        orGroups:[],
+        order:{column:'fecha',ascending:false},
+        offset:0,
+        limit:null,
+        resolveOverflow:false
+      },{timeout:22000,attempts:2});
+
+      const grouped=new Map(chunk.map(id=>[String(id),[]]));
+      for(const raw of (j.data||[])){
+        const qid=String(raw.quote_id||'');
+        if(!qid||!grouped.has(qid))continue;
+        grouped.get(qid).push({
+          id:String(raw.id||''),
+          numero:text(raw.numero_ot),
+          estado:text(raw.estado),
+          fecha:raw.fecha||''
+        });
+      }
+      for(const [qid,list] of grouped)ERP.store.quoteOTRefs.set(qid,list);
+    }catch(e){
+      // La cotización sigue visible aunque la consulta de OT se demore.
+    }
+  }
+}
+
+function quoteLinkedOTCell(q){
+  const refs=ERP.store.quoteOTRefs.get(String(q.id));
+  if(refs===undefined)return '<span class="small" style="color:#8aa0b3">—</span>';
+  if(!refs.length)return '<span class="small" style="color:#8aa0b3">Sin OT</span>';
+  return `<div class="quote-linked-ots">${refs.map(r=>`<button class="ot-linked-quote" title="Abrir OT vinculada" onclick="ERP.openOT('${esc(r.id)}')">OT ${esc(r.numero||'—')}</button>`).join('')}</div>`;
+}
+
 function clientFor(id){return ERP.maps.clients.get(String(id))||null}
 
 async function detail(table,id,columns,opts={}){const j=await api('select_details',{table,idColumn:'id',ids:[id],columns},opts);return j.data?.[0]||null}
@@ -810,6 +1222,7 @@ async function showQuotes(force=false){
  }
  const rows=ERP.remote.quotes.currentRows.slice(),viewStamp=`${ERP.ui.quotes.status}|${ERP.ui.quotes.page}|${norm(ERP.ui.quotes.search)}`;
  loadVisibleClientRefs(rows).then(()=>{if(ERP.view==='quotes'&&`${ERP.ui.quotes.status}|${ERP.ui.quotes.page}|${norm(ERP.ui.quotes.search)}`===viewStamp)renderQuotes()}).catch(()=>{});
+ loadLinkedOTRefsForQuotes(rows).then(()=>{if(ERP.view==='quotes'&&`${ERP.ui.quotes.status}|${ERP.ui.quotes.page}|${norm(ERP.ui.quotes.search)}`===viewStamp)renderQuotes()}).catch(()=>{});
  clearTimeout(ERP._quoteCountsTimer);ERP._quoteCountsTimer=setTimeout(()=>{if(ERP.view==='quotes'&&`${ERP.ui.quotes.status}|${ERP.ui.quotes.page}|${norm(ERP.ui.quotes.search)}`===viewStamp)loadQuoteCounts(force).catch(()=>{})},2500);
 }
 function quoteSvgIcon(name){
@@ -866,7 +1279,7 @@ function quoteActionButtons(q){
 function quoteSearchChanged(input){const ui=ERP.ui.quotes;ui.search=input?.value||'';ui.page=1;ERP._quoteSearchCaret=input?.selectionStart??ui.search.length;const local=localQuotePreview(ui.search,ui.status);ERP.remote.quotes.currentRows=local.slice(0,PAGE_SIZE);ERP.remote.quotes.currentTotal=local.length;ERP.remote.quotes.currentKey=quotePageCacheKey(ui.status,1,norm(ui.search));ERP._quoteSearchRestore=true;renderQuotes();clearTimeout(ERP._quoteSearchTimer);ERP._quoteSearchTimer=setTimeout(()=>{ERP._quoteSearchRestore=true;showQuotes(false)},450)}
 function renderQuotes(){
  const ui=ERP.ui.quotes,r=ERP.remote.quotes,active=document.activeElement,keepFocus=active?.id==='quoteSearch',selStart=keepFocus?active.selectionStart:null,selEnd=keepFocus?active.selectionEnd:null;if(!['todas','pendiente','aceptada','rechazada'].includes(ui.status))ui.status='pendiente';const rows=r.currentRows||[];const counts=r.counts||{};const n=v=>Number.isFinite(v)?` ${v}`:'';
- setContent(pageHeader('Cotizaciones','Seguimiento comercial desde el envío hasta la creación de la Orden de Trabajo.',`<button class="primary" onclick="ERP.quoteForm()">+ Nueva cotización</button><button class="secondary" onclick="ERP.openView('quotes',{force:true})">Actualizar</button>`)+`<div class="panel"><div class="panel-pad"><div class="toolbar"><input id="quoteSearch" class="input" autocomplete="off" placeholder="Buscar cotización, cliente, RUT o trabajo" value="${esc(ui.search)}"><div class="tabs"><button class="tab ${ui.status==='todas'?'active':''}" onclick="ERP.setQuoteStatus('todas')">Todas${n(counts.todas)}</button><button class="tab ${ui.status==='pendiente'?'active':''}" onclick="ERP.setQuoteStatus('pendiente')">Pendientes${n(counts.pendiente)}</button><button class="tab ${ui.status==='aceptada'?'active':''}" onclick="ERP.setQuoteStatus('aceptada')">Aceptadas${n(counts.aceptada)}</button><button class="tab ${ui.status==='rechazada'?'active':''}" onclick="ERP.setQuoteStatus('rechazada')">Rechazadas${n(counts.rechazada)}</button></div>${moduleError('quotes')}</div></div><div class="table-wrap"><table class="table quote-table"><thead><tr><th style="width:130px">N°<br>Cotización</th><th>Cliente</th><th style="width:130px">Monto</th><th style="width:120px">Creado<br>por</th><th style="width:110px">Fecha</th><th style="width:170px">Envío</th><th style="width:190px">Acciones</th></tr></thead><tbody>${rows.length?rows.map(x=>{const c=clientFor(x.clientId);const special=x.specialStatus?`<div class="quote-status-note"><span class="quote-soft-badge">${esc(x.specialStatus)}</span></div>`:'';return `<tr><td class="main-text">${esc(x.numero)}</td><td class="quote-main-cell"><div class="main-text">${esc(c?.name||x.data?.clientName||(x.clientId?'Cargando cliente…':'Cliente no identificado'))}</div><div class="small">${esc(x.descripcion||x.obra||'—')}</div>${special}</td><td class="quote-amount">${money(x.monto)}</td><td class="quote-creator">${esc((x.createdBy||'—').replace(/\s+/g,' ').trim()||'—')}</td><td>${dateCL(x.fecha)}</td><td>${quoteDeliveryCell(x,c)}</td><td>${quoteActionButtons(x)}</td></tr>`}).join(''):`<tr><td colspan="7" class="empty">No hay cotizaciones con los filtros actuales.</td></tr>`}</tbody></table></div>${pagination(r.currentTotal||0,ui.page,'ERP.quotePage')}</div>`);
+ setContent(pageHeader('Cotizaciones','Seguimiento comercial desde el envío hasta la creación de la Orden de Trabajo.',`<button class="primary" onclick="ERP.quoteForm()">+ Nueva cotización</button><button class="secondary" onclick="ERP.openView('quotes',{force:true})">Actualizar</button>`)+`<div class="panel"><div class="panel-pad"><div class="toolbar"><input id="quoteSearch" class="input" autocomplete="off" placeholder="Buscar cotización, cliente, RUT o trabajo" value="${esc(ui.search)}"><div class="tabs"><button class="tab ${ui.status==='todas'?'active':''}" onclick="ERP.setQuoteStatus('todas')">Todas${n(counts.todas)}</button><button class="tab ${ui.status==='pendiente'?'active':''}" onclick="ERP.setQuoteStatus('pendiente')">Pendientes${n(counts.pendiente)}</button><button class="tab ${ui.status==='aceptada'?'active':''}" onclick="ERP.setQuoteStatus('aceptada')">Aceptadas${n(counts.aceptada)}</button><button class="tab ${ui.status==='rechazada'?'active':''}" onclick="ERP.setQuoteStatus('rechazada')">Rechazadas${n(counts.rechazada)}</button></div>${moduleError('quotes')}</div></div><div class="table-wrap"><table class="table quote-table"><thead><tr><th style="width:130px">N°<br>Cotización</th><th>Cliente</th><th style="width:130px">Monto</th><th style="width:120px">Creado<br>por</th><th style="width:110px">Fecha</th><th style="width:170px">Envío</th><th style="width:170px">OT vinculada</th><th style="width:190px">Acciones</th></tr></thead><tbody>${rows.length?rows.map(x=>{const c=clientFor(x.clientId);const special=x.specialStatus?`<div class="quote-status-note"><span class="quote-soft-badge">${esc(x.specialStatus)}</span></div>`:'';return `<tr class="${quoteRowClass(x)}"><td class="main-text">${esc(x.numero)}</td><td class="quote-main-cell"><div class="main-text">${esc(c?.name||x.data?.clientName||(x.clientId?'Cargando cliente…':'Cliente no identificado'))}</div><div class="small">${esc(x.descripcion||x.obra||'—')}</div>${special}</td><td class="quote-amount">${money(x.monto)}</td><td class="quote-creator">${esc((x.createdBy||'—').replace(/\s+/g,' ').trim()||'—')}</td><td>${dateCL(x.fecha)}</td><td>${quoteDeliveryCell(x,c)}</td><td>${quoteLinkedOTCell(x)}</td><td>${quoteActionButtons(x)}</td></tr>`}).join(''):`<tr><td colspan="8" class="empty">No hay cotizaciones con los filtros actuales.</td></tr>`}</tbody></table></div>${pagination(r.currentTotal||0,ui.page,'ERP.quotePage')}</div>`);
  const input=$('quoteSearch');if(input){const restore=keepFocus||ERP._quoteSearchRestore;if(restore){try{input.focus({preventScroll:true})}catch(e){input.focus()}const a=Math.min((keepFocus?selStart:ERP._quoteSearchCaret)??input.value.length,input.value.length),b=Math.min((keepFocus?selEnd:a)??a,input.value.length);try{input.setSelectionRange(a,b)}catch(e){}ERP._quoteSearchRestore=false}input.addEventListener('input',e=>ERP.quoteSearchChanged(e.target));}
 }
 
@@ -914,6 +1327,10 @@ async function showFinalizedOTs(force=false){
 }
 
 async function showOTs(force=false){
+ if(force){
+   OT_BILLING_REQ_FAILED.clear();
+   OT_BILLING_REQ_CHECKED.clear();
+ }
  if((ERP.ui.ots.filter||'')==='finalizadas')return showFinalizedOTs(force);
  if(ERP._otViewCtl)ERP._otViewCtl.abort();const ctl=new AbortController();ERP._otViewCtl=ctl;const r=ERP.remote.ots,requestKey=otCurrentUiKey();ERP.state.ots.error='';r.loadingKey=requestKey;applyOTScanToCurrent();if(ERP.view==='ots')renderOTs();
  try{await ensureOTPage(force,{signal:ctl.signal})}catch(e){if(isAbortError(e)||ctl.signal.aborted)return;ERP.state.ots.error=e.message;if(ERP.view==='ots'&&otCurrentUiKey()===requestKey){r.loadingKey='';renderOTs()}return}
@@ -921,20 +1338,28 @@ async function showOTs(force=false){
  clearTimeout(ERP._otRefsTimer);ERP._otRefsTimer=setTimeout(()=>{if(ERP.view!=='ots'||otCurrentUiKey()!==requestKey)return;hydrateVisibleOTReferences(rows,requestKey).catch(()=>{})},40);
 }
 function otIsWorkCompleted(o){const s=statusNorm(o?.estado);return s.includes('trabajo listo')||s.includes('complet')||s.includes('realiz')||s.includes('terminad')||s.includes('pendiente factur')}
-function otClientRequirements(o){const id=String(o?.clientId||'');const c=clientFor(id);const loaded=!id||ERP.store.clientDetails.has(id)||!!c?.data;return {loaded,configured:!!c?.billingReqConfigured,requireOC:!!c?.requireOC,requireHES:!!c?.requireHES,noDocumentation:!!c?.noDocumentation}}
-function otBillingRequirementState(o){const req=otClientRequirements(o),missing=[];if(!req.loaded)return {loaded:false,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(!req.configured)return {loaded:true,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(req.requireOC&&!text(o?.oc))missing.push('OC');if(req.requireHES&&!text(o?.hes))missing.push('HES');return {loaded:true,configured:true,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation}}
-function otMissingBillingDocs(o){return otBillingRequirementState(o).missing}
-function otHasTaxDocuments(o){return docsFromOT(o).length>0||!!o?.factura}
-function otIsReadyToInvoiceStrict(o){const state=otBillingRequirementState(o);return state.loaded&&state.configured&&otIsWorkCompleted(o)&&!otHasTaxDocuments(o)&&state.missing.length===0}
-function otIsReadyToInvoice(o){const pay=statusNorm(o?.pagoEstado);if(pay.includes('pendiente factur'))return otIsWorkCompleted(o)&&!otHasTaxDocuments(o);return otIsReadyToInvoiceStrict(o)}
+function otClientRequirements(o){const id=String(o?.clientId||'');const raw=ERP.store.clientDetails.get(id);const detailClient=raw?normalizeClient(raw):null;const c=detailClient||clientFor(id);const loaded=!id||!!raw||!!c?.data||OT_BILLING_REQ_CHECKED.has(id);const failed=!!id&&OT_BILLING_REQ_FAILED.has(id)&&!raw&&!c?.data;return {loaded,failed,configured:!!c?.billingReqConfigured,requireOC:!!c?.requireOC,requireHES:!!c?.requireHES,noDocumentation:!!c?.noDocumentation}}
+
+function otBillingView(o){
+  if(!o?.id)return o;
+  const raw=ERP.store.otDetails.get(String(o.id));
+  if(!raw)return o;
+  return normalizeOT({...o,...raw,data:raw.data||o.data});
+}
+
+function otBillingRequirementState(o){const req=otClientRequirements(o),missing=[];if(!req.loaded)return {loaded:false,failed:false,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(req.failed)return {loaded:true,failed:true,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(!req.configured)return {loaded:true,failed:false,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(req.requireOC&&!text(o?.oc))missing.push('OC');if(req.requireHES&&!text(o?.hes))missing.push('HES');return {loaded:true,failed:false,configured:true,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation}}
+function otMissingBillingDocs(o){const view=otBillingView(o);return otBillingRequirementState(view).missing}
+function otHasTaxDocuments(o){const view=otBillingView(o);return docsFromOT(view).length>0||!!view?.factura}
+function otIsReadyToInvoiceStrict(o){const view=otBillingView(o),state=otBillingRequirementState(view);return state.loaded&&state.configured&&otIsWorkCompleted(view)&&!otHasTaxDocuments(view)&&state.missing.length===0}
+function otIsReadyToInvoice(o){return otIsReadyToInvoiceStrict(o)}
 function otIsPendingBilling(o){return otIsReadyToInvoice(o)}
 function otPaymentStatusLabel(v){const s=statusNorm(v);if(!s)return'';if(s.includes('pag'))return'Pagado';if(s.includes('factur')&&!s.includes('pend'))return'Facturado';if(s.includes('pendiente factur'))return'Pendiente de facturar';return''}
-function otDerivedBillingState(o,nextStatus=o?.estado){const current=statusNorm(o?.pagoEstado);if(current.includes('pag'))return o.pagoEstado||'pagado';if(otHasTaxDocuments(o)||current.includes('factur')&&!current.includes('pend'))return'facturado';const probe={...o,estado:nextStatus};return otIsReadyToInvoice(probe)?'pendiente_facturar':''}
-function otGroup(o){const main=statusNorm(o.estado);if(main.includes('cancel'))return'canceladas';if(main.includes('curso'))return'curso';if(main.includes('pend')&&!main.includes('factur'))return'pendientes';if(otIsReadyToInvoice(o))return'facturar';if(otIsWorkCompleted(o)||otHasTaxDocuments(o)||statusNorm(o.pagoEstado).includes('pag')||statusNorm(o.pagoEstado).includes('factur'))return'listas';return'pendientes'}
+function otDerivedBillingState(o,nextStatus=o?.estado){const view=otBillingView(o),current=statusNorm(view?.pagoEstado);if(current.includes('pag'))return view.pagoEstado||'pagado';if(otHasTaxDocuments(view)||current.includes('factur')&&!current.includes('pend'))return'facturado';const probe={...view,estado:nextStatus};return otIsReadyToInvoiceStrict(probe)?'pendiente_facturar':''}
+function otGroup(o){const view=otBillingView(o),main=statusNorm(view.estado),pay=statusNorm(view.pagoEstado);if(main.includes('cancel'))return'canceladas';if(otHasTaxDocuments(view)||pay.includes('pag')||(pay.includes('factur')&&!pay.includes('pend')))return'finalizadas';if(main.includes('curso'))return'curso';if(main.includes('pend')&&!main.includes('factur'))return'pendientes';if(otIsReadyToInvoiceStrict(view))return'facturar';if(otIsWorkCompleted(view))return'listas';return'pendientes'}
 function otStatusLabel(v){const s=statusNorm(v);if(s.includes('pendiente factur')||s.includes('trabajo listo')||s.includes('complet')||s.includes('realiz')||s.includes('terminad'))return'Trabajo listo';if(s.includes('curso'))return'En curso';if(s.includes('cancel'))return'Cancelada';if(s.includes('pend'))return'Pendiente';return text(v)||'Sin estado'}
 function renderOTOperationalMeta(o){const rows=[];if(o.oc)rows.push(`OC: ${esc(o.oc)}`);if(o.hes)rows.push(`HES: ${esc(o.hes)}`);if(o.guia)rows.push(`Guía: ${esc(o.guia)}`);return rows.length?`<div class="small" style="margin-top:5px;line-height:1.45;color:#536f82">${rows.map(x=>`<div>${x}</div>`).join('')}</div>`:''}
-function otDocumentsCell(o){const docs=docsFromOT(o);if(docs.length){const d=docs[docs.length-1];return `<button type="button" class="ot-doc-existing" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(o.id)}')">${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</button>`}if(!otIsWorkCompleted(o))return '<span class="small" style="color:#8aa0b3">—</span>';if(statusNorm(o?.pagoEstado).includes('pendiente factur'))return `<button type="button" class="ot-doc-action" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(o.id)}')">Listo para facturar</button>`;const state=otBillingRequirementState(o);if(!state.loaded)return '<span class="badge b-neutral">Verificando requisitos…</span>';if(!state.configured)return '<span class="badge b-neutral" title="Configura la documentación de facturación en la ficha del cliente">Definir documentación</span>';if(state.missing.length){const label=state.missing.length===2?'OC y HES pendientes':`${state.missing[0]} pendiente`;return `<div class="ot-doc-missing"><span class="badge b-pending">${label}</span></div>`}if(state.noDocumentation)return `<button type="button" class="ot-doc-action" title="Este cliente no requiere OC ni HES" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(o.id)}')">Sin documentación requerida</button>`;if(!text(o.oc)&&!state.requireOC)return `<button type="button" class="ot-doc-action" title="Este cliente está configurado sin OC obligatoria" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(o.id)}')">Sin OC (no requerida)</button>`;return `<button type="button" class="ot-doc-action" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(o.id)}')">Listo para facturar</button>`}
-function verifyVisibleOTClassification(viewKey){if(ERP.view!=='ots'||otCurrentUiKey()!==viewKey)return;const ui=ERP.ui.ots,r=ERP.remote.ots,filter=ui.filter||'pendientes',search=norm(ui.search);if(filter!=='facturar'&&filter!=='listas'){renderOTs();return}const key=otScanKey(filter,search),scan=r.scans.get(key);if(!scan){renderOTs();return}let changed=false;const kept=[];for(const o of scan.items){let keep=true;if(filter==='facturar'){const state=otBillingRequirementState(o);if(state.loaded&&(!state.configured||state.missing.length>0||!otIsWorkCompleted(o)||otHasTaxDocuments(o)))keep=false}else if(filter==='listas'){if(otIsReadyToInvoiceStrict(o))keep=false}if(keep)kept.push(o);else changed=true}if(changed){scan.items=kept;scan.seen=new Set(kept.map(o=>String(o.id)));scan.ts=Date.now();saveOTViewSnap(key,scan);applyOTScanToCurrent()}renderOTs()}
+function otDocumentsCell(o){const view=otBillingView(o),docs=docsFromOT(view);if(docs.length){const d=docs[docs.length-1];return `<button type="button" class="ot-doc-existing" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</button>`}if(!otIsWorkCompleted(view))return '<span class="small" style="color:#8aa0b3">—</span>';const state=otBillingRequirementState(view);if(!state.loaded)return '<span class="badge b-neutral">Verificando requisitos…</span>';if(state.failed)return '<span class="badge b-neutral" title="No se pudo consultar la configuración documental del cliente. Usa Actualizar para reintentar.">Requisitos no disponibles</span>';if(!state.configured)return '<span class="badge b-neutral" title="Configura la documentación de facturación en la ficha del cliente">Definir documentación</span>';if(state.missing.length){const label=state.missing.length===2?'OC y HES pendientes':`${state.missing[0]} pendiente`;return `<div class="ot-doc-missing"><span class="badge b-pending">${label}</span></div>`}if(state.noDocumentation)return `<button type="button" class="ot-doc-action" title="Este cliente no requiere OC ni HES" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin documentación requerida</button>`;if(!text(view.oc)&&!state.requireOC)return `<button type="button" class="ot-doc-action" title="Este cliente está configurado sin OC obligatoria" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin OC (no requerida)</button>`;return `<button type="button" class="ot-doc-action" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Listo para facturar</button>`}
+function verifyVisibleOTClassification(viewKey){if(ERP.view!=='ots'||otCurrentUiKey()!==viewKey)return;const ui=ERP.ui.ots,r=ERP.remote.ots,filter=ui.filter||'pendientes',search=norm(ui.search);if(filter!=='facturar'&&filter!=='listas'){renderOTs();return}const key=otScanKey(filter,search),scan=r.scans.get(key);if(!scan){renderOTs();return}let changed=false;const kept=[];for(const original of scan.items){const full=ERP.store.otDetails.get(String(original.id));const o=full?normalizeOT({...original,...full,data:full.data||original.data}):original;let keep=true;if(filter==='facturar'){keep=otGroup(o)==='facturar'}else if(filter==='listas'){keep=otGroup(o)==='listas'}if(keep)kept.push(o);else changed=true}scan.items=kept;scan.seen=new Set(kept.map(o=>String(o.id)));scan.ts=Date.now();saveOTViewSnap(key,scan);if(changed||filter==='facturar'||filter==='listas')applyOTScanToCurrent();renderOTs()}
 function otDateSortValue(o){const v=o?.fecha||o?.createdAt||'';if(!v)return 0;const s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s)){const t=Date.parse(s);return Number.isFinite(t)?t:0}const m=s.match(/^(\d{1,2})[-\/]([0-1]?\d)[-\/](\d{2}|\d{4})$/);if(m){let y=Number(m[3]);if(y<100)y+=2000;return new Date(y,Number(m[2])-1,Number(m[1])).getTime()}const t=new Date(s).getTime();return Number.isFinite(t)?t:0}
 function localOTPreview(search,filter){const q=norm(search),f=filter||'pendientes';return (ERP.store.ots||[]).filter(o=>{const g=otGroup(o),matchFilter=f==='todas'||(f==='activas'?['pendientes','curso','listas'].includes(g):f==='activas_base'?['pendientes','curso'].includes(g):g===f);return matchFilter&&(!q||otMatchesSearch(o,q))}).sort((a,b)=>otDateSortValue(b)-otDateSortValue(a))}
 function otSearchChanged(el){ERP.ui.ots.search=el?.value||'';ERP.ui.ots.page=1;ERP._otSearchCaret=el?.selectionStart??ERP.ui.ots.search.length;if((ERP.ui.ots.filter||'')==='finalizadas'){applyFinalizedOTRows();ERP._otSearchRestore=true;renderOTs();clearTimeout(ERP._otSearchTimer);ERP._otSearchTimer=setTimeout(()=>{ERP._otSearchRestore=true;showFinalizedOTs(false)},450);return}const local=localOTPreview(ERP.ui.ots.search,ERP.ui.ots.filter);ERP.remote.ots.currentRows=local.slice(0,PAGE_SIZE);ERP.remote.ots.hasMore=local.length>PAGE_SIZE;ERP.remote.ots.currentKnownTotal=local.length;ERP._otSearchRestore=true;renderOTs();clearTimeout(ERP._otSearchTimer);ERP._otSearchTimer=setTimeout(()=>{ERP._otSearchRestore=true;applyOTScanToCurrent();showOTs(false)},450)}
@@ -1570,7 +1995,27 @@ function billingGoPending(){ERP.ui.ots.filter='facturar';ERP.ui.ots.page=1;ERP.u
 
 function otTaxDocId(){try{return crypto.randomUUID()}catch(e){return 'doc_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)}}
 async function getOTTaxContext(id,{force=false}={}){let raw=!force?localOTRaw(id):null;if(!raw)raw=await getOTDetail(id,{force});if(!raw)throw new Error('No se encontró la OT.');const o=normalizeOT(raw),c=clientFor(o.clientId);return {raw,o,c,docs:docsFromOT(o)}}
-async function otTaxDocumentFlow(id){try{const ctx=await getOTTaxContext(id);if(!otIsWorkCompleted(ctx.o))throw new Error('El trabajo todavía no está marcado como listo.');const missing=otMissingBillingDocs(ctx.o);if(missing.length)throw new Error(`Antes de facturar falta registrar: ${missing.join(' y ')}.`);if(!ctx.docs.length){return otTaxDocumentForm(id,false,ctx)}const latest=ctx.docs.slice().sort((a,b)=>otDateSortValue({fecha:b.fecha})-otDateSortValue({fecha:a.fecha}))[0];modal('Documento ya registrado',`<div class="tax-doc-summary"><h3 style="margin:0 0 7px">Esta OT ya tiene documento tributario asociado</h3><div class="small">OT ${esc(ctx.o.numero||'—')} · ${esc(ctx.c?.name||ctx.o.data?.clientName||'Cliente')}</div><div class="tax-doc-list">${ctx.docs.map((d,i)=>`<div class="tax-doc-row"><div><strong>${esc(d.tipo==='boleta'?'Boleta':'Factura')} N° ${esc(d.numero)}</strong>${i===ctx.docs.length-1?'<span class="badge b-progress" style="margin-left:7px">Último</span>':''}</div><div class="small">${dateCL(d.fecha)}</div></div>`).join('')}</div></div><div class="notice">Si este mismo trabajo necesita otro documento tributario, puedes agregarlo sin reemplazar los anteriores.</div><div class="tax-doc-actions"><button class="primary" onclick="ERP.otTaxDocumentForm('${esc(id)}',true)">Agregar otra factura / boleta</button><button class="secondary" onclick="ERP.closeModal();ERP.openView('billing')">Ir a Facturación</button></div><div class="actions"><button class="secondary" onclick="ERP.closeModal()">Cancelar</button></div>`)}catch(e){alert('No se pudo abrir la facturación de la OT: '+e.message)}}
+async function otTaxDocumentFlow(id){try{const ctx=await getOTTaxContext(id);
+
+  // Si ya existe documento tributario, siempre debe poder consultarse.
+  // No volver a bloquearlo por requisitos documentales actuales.
+  if(ctx.docs.length){
+    modal('Documento ya registrado',`<div class="tax-doc-summary"><h3 style="margin:0 0 7px">Esta OT ya tiene documento tributario asociado</h3><div class="small">OT ${esc(ctx.o.numero||'—')} · ${esc(ctx.c?.name||ctx.o.data?.clientName||'Cliente')}</div><div class="tax-doc-list">${ctx.docs.map((d,i)=>`<div class="tax-doc-row"><div><strong>${esc(d.tipo==='boleta'?'Boleta':'Factura')} N° ${esc(d.numero)}</strong>${i===ctx.docs.length-1?'<span class="badge b-progress" style="margin-left:7px">Último</span>':''}</div><div class="small">${dateCL(d.fecha)}</div></div>`).join('')}</div></div><div class="notice">Si este mismo trabajo necesita otro documento tributario, puedes agregarlo sin reemplazar los anteriores.</div><div class="tax-doc-actions"><button class="primary" onclick="ERP.otTaxDocumentForm('${esc(id)}',true)">Agregar otra factura / boleta</button><button class="secondary" onclick="ERP.closeModal();ERP.openView('billing')">Ir a Facturación</button></div><div class="actions"><button class="secondary" onclick="ERP.closeModal()">Cancelar</button></div>`);
+    return;
+  }
+
+  if(!otIsWorkCompleted(ctx.o))throw new Error('El trabajo todavía no está marcado como listo.');
+
+  const state=otBillingRequirementState(ctx.o);
+  if(!state.loaded)throw new Error('Aún se están verificando los requisitos de facturación del cliente.');
+  if(!state.configured)throw new Error('Primero debes definir la documentación requerida por este cliente.');
+
+  if(state.missing.length){
+    throw new Error(`Antes de facturar falta registrar: ${state.missing.join(' y ')}.`);
+  }
+
+  return otTaxDocumentForm(id,false,ctx);
+}catch(e){alert('No se pudo abrir la facturación de la OT: '+e.message)}}
 async function otTaxDocumentForm(id,append=false,ctx=null){try{ctx=ctx||await getOTTaxContext(id);if(!append&&ctx.docs.length)return otTaxDocumentFlow(id);if(append&&!ctx.docs.length)append=false;const title=append?'Agregar otro documento tributario':'Registrar factura / boleta';modal(title,`<form id="otTaxDocForm"><div class="notice"><strong>OT ${esc(ctx.o.numero||'—')} · ${esc(ctx.c?.name||ctx.o.data?.clientName||'Cliente')}</strong><div class="small">${append?'El nuevo documento se agregará sin borrar los documentos anteriores.':'Registra el primer documento tributario de este trabajo.'}</div></div><div class="grid2" style="margin-top:14px"><div class="field"><label>Tipo de documento *</label><select id="otTaxType" class="input"><option value="factura">Factura</option><option value="boleta">Boleta</option></select></div><div class="field"><label>Número *</label><input id="otTaxNumber" class="input" autocomplete="off" required placeholder="N° documento"></div><div class="field"><label>Fecha de emisión / envío *</label><input id="otTaxDate" class="input" type="date" value="${isoToday()}" required></div><div class="field"><label>Monto asociado</label><input id="otTaxAmount" class="input" inputmode="numeric" value="${ctx.o.monto?ctx.o.monto.toLocaleString('es-CL'):''}" oninput="ERP.quoteMoneyInput(this)"></div></div><div id="otTaxDocError"></div><div class="actions"><button id="otTaxSaveBtn" class="primary" type="submit">${append?'Agregar documento':'Registrar documento'}</button><button class="secondary" type="button" onclick="ERP.closeModal()">Cancelar</button></div></form>`);$('otTaxDocForm').onsubmit=e=>ERP.saveOTTaxDocument(e,id,append)}catch(e){alert('No se pudo abrir el registro del documento: '+e.message)}}
 async function saveOTTaxDocument(event,id,append=false){event?.preventDefault();const err=$('otTaxDocError'),btn=$('otTaxSaveBtn');if(err)err.innerHTML='';try{if(btn){btn.disabled=true;btn.textContent='Guardando…'}const ctx=await getOTTaxContext(id);const tipo=text($('otTaxType')?.value)||'factura',numero=text($('otTaxNumber')?.value),fecha=text($('otTaxDate')?.value)||isoToday(),monto=parseQuoteMoney($('otTaxAmount')?.value)||otEffectiveAmount(ctx.o);if(!numero)throw new Error('Debes indicar el número del documento.');const base=(ctx.raw.data&&typeof ctx.raw.data==='object')?ctx.raw.data:{};const docs=docsFromOT({...ctx.o,data:base}).map(d=>({...d}));if(!append&&docs.length)throw new Error('Esta OT ya tiene un documento. Usa “Agregar otra factura / boleta”.');if(docs.some(d=>norm(d.tipo)===norm(tipo)&&text(d.numero)===numero))throw new Error('Ese documento ya está registrado en esta OT.');const doc={id:otTaxDocId(),tipo,numero,fechaRegistro:fecha,montoFacturado:monto,pagada:false,anulada:false,registradoPor:otCurrentUser(),createdAt:new Date().toISOString()};docs.push(doc);const hist=Array.isArray(base.otHistory)?base.otHistory.slice():[];hist.unshift(otHistoryEntry(`${append?'Documento agregado':'Documento tributario registrado'}: ${tipo==='boleta'?'Boleta':'Factura'} ${numero}`,{documento_tipo:tipo,documento_numero:numero,documento_fecha:fecha}));const data={...base,documentos:docs,documents:docs,documento_tipo:tipo,documento_numero:numero,documento_fecha:fecha,factura_num:numero,factura_numero:numero,montoFacturado:monto,pago_estado:'facturado',otHistory:hist};await api('update',{table:'ots',patch:{pago_estado:'facturado',data},filters:[{column:'id',op:'eq',value:id}]},{timeout:90000});const updated={...ctx.raw,pago_estado:'facturado',data};ERP.store.otDetails.set(String(id),updated);const idx=ERP.store.ots.findIndex(x=>String(x.id)===String(id));if(idx>=0)ERP.store.ots[idx]=normalizeOT({...ERP.store.ots[idx],...updated});invalidate('billing');closeModal();renderOTs()}catch(e){if(err)err.innerHTML=`<div class="error">${esc(e.message)}</div>`;else alert(e.message)}finally{if(btn){btn.disabled=false;btn.textContent=append?'Agregar documento':'Registrar documento'}}}
 
@@ -1781,7 +2226,7 @@ async function syncLinkedOTsFromQuote(quoteId,payload){
   return {updated:updatedCount,errors};
 }
 
-async function saveQuote(event,id=''){event?.preventDefault();const btn=$('qSaveBtn');const err=$('qFormError');if(err)err.innerHTML='';try{if(btn){btn.disabled=true;btn.textContent='Guardando…'}const clientId=text($('qClient')?.value);const client=clientFor(clientId);if(!client)throw new Error('Debes seleccionar un cliente registrado.');const obra=text($('qWork')?.value);if(!obra)throw new Error('Debes ingresar la descripción de obra.');const items=collectQuoteItems();if(!items.length)throw new Error('Debes ingresar al menos un ítem.');const totals=recalcQuoteForm();let numero=text($('qNumber')?.value);let existing=null;if(id){existing=await detail('quotes',id,['id','estado','data']);if(!existing)throw new Error('La cotización ya no existe.')}else if(await quoteNumberUsed(numero,'')){numero=await nextQuoteNumber();if($('qNumber'))$('qNumber').value=numero;if(await quoteNumberUsed(numero,''))throw new Error('No se pudo obtener un folio disponible. Actualiza e inténtalo nuevamente.')}const branchAlias=text($('qBranchAlias')?.value);let branchAddress=text($('qBranch')?.value);if(!branchAddress)branchAddress=client.direccion||'';const tipo=text($('qType')?.value)||'Mantención';const fecha=text($('qDate')?.value)||isoToday();const includeMaintenance=norm(tipo).includes('manten')&&!!$('qMaintenanceIncludes')?.checked;const maintenanceScopeItems=includeMaintenance?collectMaintenanceScope():[];const baseData=(existing?.data&&typeof existing.data==='object')?existing.data:{};const payload={numero,client_id:clientId,obra,descripcion:obra,monto:totals.total,bruto:totals.bruto,descuento_pct:totals.descuento_pct,descuento_monto:totals.descuento_monto,neto:totals.neto,iva:totals.iva,items,estado:text(existing?.estado||'pendiente').toLowerCase()||'pendiente',tipo_servicio:tipo,fecha,data:{...baseData,numeroCotizacion:numero,clientId,client_id:clientId,clientName:client.name,razonSocial:client.name,rut:client.rut,sucursal:branchAlias||branchAddress,direccion:branchAddress,branchAlias,siteAlias:branchAlias,obra,descripcion:obra,tipo_servicio:tipo,items,includeMaintenanceScope:includeMaintenance,mostrar_mantencion:includeMaintenance,maintenanceScopeItems,bruto:totals.bruto,descuento_pct:totals.descuento_pct,descuento_monto:totals.descuento_monto,neto:totals.neto,iva:totals.iva,monto:totals.total,fecha_documento:fecha}};let syncResult={updated:0,errors:[]};if(id){await api('update',{table:'quotes',patch:payload,filters:[{column:'id',op:'eq',value:id}]},{timeout:90000});const freshLocal=normalizeQuote({...payload,id});const qPos=ERP.store.quotes.findIndex(x=>String(x.id)===String(id));if(qPos>=0)ERP.store.quotes[qPos]=freshLocal;else ERP.store.quotes.push(freshLocal);ERP.store.quoteRefs.set(String(id),{id,numero:freshLocal.numero,clientId:freshLocal.clientId,monto:freshLocal.monto});rebuildMaps();ERP.store.quoteDetails.delete(String(id));if(btn)btn.textContent='Actualizando OT…';syncResult=await syncLinkedOTsFromQuote(id,payload)}else await api('insert',{table:'quotes',record:payload},{timeout:90000});invalidate('quotes');ERP.store.quoteRefs.clear();if(id)ERP.store.quoteDetails.delete(String(id));else ERP.store.quoteDetails.clear();closeModal();await showQuotes(true);if(id&&syncResult.errors.length){alert(`La cotización se guardó, pero ${syncResult.errors.length} OT vinculada(s) no pudieron sincronizarse automáticamente. Puedes volver a intentar guardando la cotización.`)}}catch(e){if(err)err.innerHTML=`<div class="error">${esc(e.message)}</div>`;else alert(e.message)}finally{if(btn){btn.disabled=false;btn.textContent=id?'Guardar cambios':'Guardar cotización'}}}
+async function saveQuote(event,id=''){event?.preventDefault();const btn=$('qSaveBtn');const err=$('qFormError');if(err)err.innerHTML='';try{if(btn){btn.disabled=true;btn.textContent='Guardando…'}const clientId=text($('qClient')?.value);const client=clientFor(clientId);if(!client)throw new Error('Debes seleccionar un cliente registrado.');const obra=text($('qWork')?.value);if(!obra)throw new Error('Debes ingresar la descripción de obra.');const items=collectQuoteItems();if(!items.length)throw new Error('Debes ingresar al menos un ítem.');const totals=recalcQuoteForm();let numero=text($('qNumber')?.value);let existing=null;if(id){existing=await detail('quotes',id,['id','estado','data']);if(!existing)throw new Error('La cotización ya no existe.')}else if(await quoteNumberUsed(numero,'')){numero=await nextQuoteNumber();if($('qNumber'))$('qNumber').value=numero;if(await quoteNumberUsed(numero,''))throw new Error('No se pudo obtener un folio disponible. Actualiza e inténtalo nuevamente.')}const branchAlias=text($('qBranchAlias')?.value);let branchAddress=text($('qBranch')?.value);if(!branchAddress)branchAddress=client.direccion||'';const tipo=text($('qType')?.value)||'Mantención';const fecha=text($('qDate')?.value)||isoToday();const includeMaintenance=norm(tipo).includes('manten')&&!!$('qMaintenanceIncludes')?.checked;const maintenanceScopeItems=includeMaintenance?collectMaintenanceScope():[];const baseData=(existing?.data&&typeof existing.data==='object')?existing.data:{};const payload={numero,client_id:clientId,obra,descripcion:obra,monto:totals.total,bruto:totals.bruto,descuento_pct:totals.descuento_pct,descuento_monto:totals.descuento_monto,neto:totals.neto,iva:totals.iva,items,estado:text(existing?.estado||'pendiente').toLowerCase()||'pendiente',tipo_servicio:tipo,fecha,data:{...baseData,numeroCotizacion:numero,clientId,client_id:clientId,clientName:client.name,razonSocial:client.name,rut:client.rut,sucursal:branchAlias||branchAddress,direccion:branchAddress,branchAlias,siteAlias:branchAlias,obra,descripcion:obra,tipo_servicio:tipo,items,includeMaintenanceScope:includeMaintenance,mostrar_mantencion:includeMaintenance,maintenanceScopeItems,bruto:totals.bruto,descuento_pct:totals.descuento_pct,descuento_monto:totals.descuento_monto,neto:totals.neto,iva:totals.iva,monto:totals.total,fecha_documento:fecha}};let syncResult={updated:0,errors:[]};if(id){await api('update',{table:'quotes',patch:payload,filters:[{column:'id',op:'eq',value:id}]},{timeout:90000});const freshLocal=normalizeQuote({...payload,id});const qPos=ERP.store.quotes.findIndex(x=>String(x.id)===String(id));if(qPos>=0)ERP.store.quotes[qPos]=freshLocal;else ERP.store.quotes.push(freshLocal);ERP.store.quoteRefs.set(String(id),{id,numero:freshLocal.numero,clientId:freshLocal.clientId,monto:freshLocal.monto});rebuildMaps();ERP.store.quoteDetails.delete(String(id));if(btn)btn.textContent='Actualizando OT…';syncResult=await syncLinkedOTsFromQuote(id,payload);ERP.store.quoteOTRefs.delete(String(id))}else await api('insert',{table:'quotes',record:payload},{timeout:90000});invalidate('quotes');ERP.store.quoteRefs.clear();if(id)ERP.store.quoteDetails.delete(String(id));else ERP.store.quoteDetails.clear();closeModal();await showQuotes(true);if(id&&syncResult.errors.length){alert(`La cotización se guardó, pero ${syncResult.errors.length} OT vinculada(s) no pudieron sincronizarse automáticamente. Puedes volver a intentar guardando la cotización.`)}}catch(e){if(err)err.innerHTML=`<div class="error">${esc(e.message)}</div>`;else alert(e.message)}finally{if(btn){btn.disabled=false;btn.textContent=id?'Guardar cambios':'Guardar cotización'}}}
 function buildQuoteHistoryEntry(action,extra={}){return {action,date:new Date().toISOString(),user:text(ERP.session?.name||ERP.session?.email||'Usuario'),...extra}}
 function historyForQuote(q){const data=(q?.data&&typeof q.data==='object')?q.data:{};const hist=Array.isArray(data.quoteHistory)?data.quoteHistory.slice():[];if(!hist.length){if(q?.createdAt)hist.push({action:'Cotización creada',date:q.createdAt,user:text(q.createdBy||'Sistema')});hist.push({action:`Estado actual: ${text(q?.estado||'pendiente')}`,date:q?.fecha||q?.createdAt||new Date().toISOString(),user:text(q?.createdBy||'Sistema')});if(q?.specialStatus)hist.push({action:`Marcada como ${q.specialStatus}`,date:new Date().toISOString(),user:'Sistema'});}return hist.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))}
 async function updateQuoteDataPatch(id,mutator){const full=await detail('quotes',id,['id','data','estado','created_at','created_by_name','created_by_email','fecha']);if(!full)throw new Error('La cotización ya no existe.');const base=(full.data&&typeof full.data==='object')?full.data:{};const next=await mutator({...base},full)||base;await api('update',{table:'quotes',patch:{data:next},filters:[{column:'id',op:'eq',value:id}]},{timeout:90000});return {full,data:next}}
@@ -1885,7 +2330,35 @@ async function openQuote(id,trigger=null){
 function otDocumentCards(o){const cards=[];cards.push(`<div class="ot-doc-card"><strong>Orden de compra</strong><div class="small">${esc(o.oc||'No registrada')}</div></div>`);cards.push(`<div class="ot-doc-card"><strong>HES</strong><div class="small">${esc(o.hes||'No registrada')}</div></div>`);cards.push(`<div class="ot-doc-card"><strong>Guía de despacho</strong><div class="small">${esc(o.guia||'No registrada')}</div></div>`);const docText=o.factura?`${esc(o.documentoTipo||'Factura')} ${esc(o.factura)}`:(otIsPendingBilling(o)?'Pendiente de facturar':(otIsWorkCompleted(o)?'Sin documento registrado':'Aún no corresponde'));cards.push(`<div class="ot-doc-card"><strong>Factura / documento</strong><div class="small">${docText}</div></div>`);return cards.join('')}
 function otQuickStatusButtons(o){const s=statusNorm(o.estado);const b=[];if(s.includes('pend')&&!s.includes('factur'))b.push(`<button class="secondary" onclick="ERP.setOTStatus('${esc(o.id)}','en curso')">Iniciar trabajo</button>`);if(s.includes('curso'))b.push(`<button class="primary" onclick="ERP.setOTStatus('${esc(o.id)}','trabajo listo')">Marcar trabajo listo</button>`);if(otIsWorkCompleted(o)&&otMissingBillingDocs(o).length)b.push(`<button class="secondary" onclick="ERP.otBillingDocsForm('${esc(o.id)}')">Registrar OC / HES</button>`);if(s.includes('cancel'))b.push(`<button class="secondary" onclick="ERP.setOTStatus('${esc(o.id)}','pendiente')">Volver a pendiente</button>`);else b.push(`<button class="danger" onclick="ERP.setOTStatus('${esc(o.id)}','cancelada')">Cancelar OT</button>`);return b.join('')}
 function otEffectiveAmount(o){const q=o?.quoteId?quoteFor(o.quoteId):null;return num(q?.monto)>0?num(q.monto):num(o?.monto)}
-function renderOTDetailModal(o){const c=clientFor(o.clientId),qr=quoteFor(o.quoteId),docs=docsFromOT(o),missing=otMissingBillingDocs(o);modal(`OT ${o.numero||'—'}`,`<div class="ot-view"><div class="ot-view-actions"><button class="primary" onclick="ERP.editOT('${esc(o.id)}')">Editar OT</button>${otQuickStatusButtons(o)}<button class="secondary" onclick="ERP.otActaMenu('${esc(o.id)}')">Actas</button><button class="secondary" onclick="ERP.showOTHistory('${esc(o.id)}')">Historial</button></div><div class="ot-view-hero"><div class="ot-view-card"><h3>Información del trabajo</h3><div class="ot-view-kvs"><div class="ot-view-kv"><b>Cliente</b><div>${esc(c?.name||o.data?.clientName||'—')}</div></div><div class="ot-view-kv"><b>RUT</b><div>${esc(c?.rut||o.data?.rut||'—')}</div></div><div class="ot-view-kv"><b>Cotización</b><div>${o.quoteId?`<button class="ot-linked-quote" onclick="ERP.openLinkedQuote('${esc(o.quoteId)}')">Cot. ${esc(qr?.numero||o.data?.numeroCotizacion||'Abrir')}</button>`:esc(qr?.numero||o.data?.numeroCotizacion||'—')}</div></div><div class="ot-view-kv"><b>Fecha</b><div>${dateCL(o.fecha)}</div></div><div class="ot-view-kv"><b>Estado del trabajo</b><div>${statusBadge(otStatusLabel(o.estado))}</div></div><div class="ot-view-kv"><b>Monto</b><div>${money(otEffectiveAmount(o))}</div></div><div class="ot-view-kv"><b>Tipo de servicio</b><div>${esc(o.tipo||'—')}</div></div><div class="ot-view-kv"><b>Sucursal</b><div>${esc([o.branchAlias,o.direccion].filter(Boolean).join(' · ')||'—')}</div></div><div class="ot-view-kv"><b>Técnico(s)</b><div>${esc(o.tecnico||'—')}</div></div></div></div><div class="ot-view-card"><h3>Documentación para facturar</h3><div class="ot-view-kvs"><div class="ot-view-kv"><b>Requisito del cliente</b><div>${esc(clientBillingRequirementText(c))}</div></div><div class="ot-view-kv"><b>OC</b><div>${esc(o.oc||'—')}</div></div><div class="ot-view-kv"><b>HES</b><div>${esc(o.hes||'—')}</div></div><div class="ot-view-kv"><b>Guía</b><div>${esc(o.guia||'—')}</div></div><div class="ot-view-kv"><b>Situación</b><div>${docs.length?`<button class="ot-doc-existing" onclick="ERP.otTaxDocumentFlow('${esc(o.id)}')">${esc(docs[docs.length-1].tipo==='boleta'?'Boleta':'Factura')} ${esc(docs[docs.length-1].numero)}</button>`:otIsWorkCompleted(o)?(missing.length?`${esc(missing.join(' y '))} pendiente${missing.length>1?'s':''}`:`<button class="ot-doc-action" onclick="ERP.otTaxDocumentFlow('${esc(o.id)}')">Listo para facturar</button>`):'Aún no corresponde'}</div></div><div class="ot-view-kv"><b>Creado por</b><div>${esc(o.createdBy||'—')}</div></div><div class="ot-view-kv" style="grid-column:1/-1"><b>Observaciones</b><div>${esc(o.observaciones||'—')}</div></div></div></div></div><div class="ot-view-card"><h3>Descripción</h3><div>${esc(o.descripcion||'—')}</div></div><div class="ot-view-card"><h3>Documentos y respaldos</h3><div class="ot-doc-grid">${otDocumentCards(o)}<div class="ot-doc-card"><strong>Acta formal cliente</strong><div class="small">${o.acta?`Generada ${dateCL(o.acta.generatedAt)} por ${esc(o.acta.generatedBy||'Usuario')}`:'No generada'}</div></div><div class="ot-doc-card"><strong>Hoja de terreno / acta interna</strong><div class="small">${o.actaInterna?`Generada ${dateCL(o.actaInterna.generatedAt)} por ${esc(o.actaInterna.generatedBy||'Usuario')}`:'No generada'}</div></div>${docs.length?docs.map(d=>`<div class="ot-doc-card"><strong>${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</strong><div class="small">${money(d.monto||o.monto)} · ${d.pagada?'Pagada':'Pendiente'}</div></div>`).join(''):''}</div></div></div>`)}
+
+function otBillingSituationHtml(o){
+  const view=otBillingView(o),docs=docsFromOT(view);
+
+  if(docs.length){
+    const d=docs[docs.length-1];
+    return `<button class="ot-doc-existing" onclick="ERP.otTaxDocumentFlow('${esc(view.id)}')">${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</button>`;
+  }
+
+  if(!otIsWorkCompleted(view))return 'Aún no corresponde';
+
+  const state=otBillingRequirementState(view);
+  if(!state.loaded)return '<span class="badge b-neutral">Verificando requisitos…</span>';
+  if(state.failed)return '<span class="badge b-neutral">Requisitos no disponibles</span>';
+  if(!state.configured)return '<span class="badge b-neutral">Documentación por definir</span>';
+
+  if(state.missing.length){
+    const label=state.missing.length===2?'OC y HES pendientes':`${state.missing[0]} pendiente`;
+    return `<span class="badge b-pending">${label}</span>`;
+  }
+
+  if(state.noDocumentation){
+    return `<button class="ot-doc-action" onclick="ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin documentación requerida</button>`;
+  }
+
+  return `<button class="ot-doc-action" onclick="ERP.otTaxDocumentFlow('${esc(view.id)}')">Listo para facturar</button>`;
+}
+
+function renderOTDetailModal(o){const c=clientFor(o.clientId),qr=quoteFor(o.quoteId),docs=docsFromOT(o),missing=otMissingBillingDocs(o);modal(`OT ${o.numero||'—'}`,`<div class="ot-view"><div class="ot-view-actions"><button class="primary" onclick="ERP.editOT('${esc(o.id)}')">Editar OT</button>${otQuickStatusButtons(o)}<button class="secondary" onclick="ERP.otActaMenu('${esc(o.id)}')">Actas</button><button class="secondary" onclick="ERP.showOTHistory('${esc(o.id)}')">Historial</button></div><div class="ot-view-hero"><div class="ot-view-card"><h3>Información del trabajo</h3><div class="ot-view-kvs"><div class="ot-view-kv"><b>Cliente</b><div>${esc(c?.name||o.data?.clientName||'—')}</div></div><div class="ot-view-kv"><b>RUT</b><div>${esc(c?.rut||o.data?.rut||'—')}</div></div><div class="ot-view-kv"><b>Cotización</b><div>${o.quoteId?`<button class="ot-linked-quote" onclick="ERP.openLinkedQuote('${esc(o.quoteId)}')">Cot. ${esc(qr?.numero||o.data?.numeroCotizacion||'Abrir')}</button>`:esc(qr?.numero||o.data?.numeroCotizacion||'—')}</div></div><div class="ot-view-kv"><b>Fecha</b><div>${dateCL(o.fecha)}</div></div><div class="ot-view-kv"><b>Estado del trabajo</b><div>${statusBadge(otStatusLabel(o.estado))}</div></div><div class="ot-view-kv"><b>Monto</b><div>${money(otEffectiveAmount(o))}</div></div><div class="ot-view-kv"><b>Tipo de servicio</b><div>${esc(o.tipo||'—')}</div></div><div class="ot-view-kv"><b>Sucursal</b><div>${esc([o.branchAlias,o.direccion].filter(Boolean).join(' · ')||'—')}</div></div><div class="ot-view-kv"><b>Técnico(s)</b><div>${esc(o.tecnico||'—')}</div></div></div></div><div class="ot-view-card"><h3>Documentación para facturar</h3><div class="ot-view-kvs"><div class="ot-view-kv"><b>Requisito del cliente</b><div>${esc(clientBillingRequirementText(c))}</div></div><div class="ot-view-kv"><b>OC</b><div>${esc(o.oc||'—')}</div></div><div class="ot-view-kv"><b>HES</b><div>${esc(o.hes||'—')}</div></div><div class="ot-view-kv"><b>Guía</b><div>${esc(o.guia||'—')}</div></div><div class="ot-view-kv"><b>Situación</b><div>${otBillingSituationHtml(o)}</div></div><div class="ot-view-kv"><b>Creado por</b><div>${esc(o.createdBy||'—')}</div></div><div class="ot-view-kv" style="grid-column:1/-1"><b>Observaciones</b><div>${esc(o.observaciones||'—')}</div></div></div></div></div><div class="ot-view-card"><h3>Descripción</h3><div>${esc(o.descripcion||'—')}</div></div><div class="ot-view-card"><h3>Documentos y respaldos</h3><div class="ot-doc-grid">${otDocumentCards(o)}<div class="ot-doc-card"><strong>Acta formal cliente</strong><div class="small">${o.acta?`Generada ${dateCL(o.acta.generatedAt)} por ${esc(o.acta.generatedBy||'Usuario')}`:'No generada'}</div></div><div class="ot-doc-card"><strong>Hoja de terreno / acta interna</strong><div class="small">${o.actaInterna?`Generada ${dateCL(o.actaInterna.generatedAt)} por ${esc(o.actaInterna.generatedBy||'Usuario')}`:'No generada'}</div></div>${docs.length?docs.map(d=>`<div class="ot-doc-card"><strong>${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</strong><div class="small">${money(d.monto||o.monto)} · ${d.pagada?'Pagada':'Pendiente'}</div></div>`).join(''):''}</div></div></div>`)}
 
 async function reconcileLinkedOTAmount(raw){
   if(!raw)return raw;
@@ -1977,7 +2450,7 @@ async function reconcileLinkedOTAmount(raw){
   return updated;
 }
 
-async function openOT(id){const key=String(id),local=(ERP.store.ots||[]).find(x=>String(x.id)===key);ERP._openOTId=key;ERP._modalKind='ot';if(local)renderOTDetailModal(local);else modal('Orden de Trabajo','<div class="loading"><span class="spinner"></span>Cargando detalle…</div>');try{let r=await getOTDetail(id);if(!r)return;r=await reconcileLinkedOTAmount(r);const o=normalizeOT(r);const idx=ERP.store.ots.findIndex(x=>String(x.id)===key);if(idx>=0)ERP.store.ots[idx]=normalizeOT({...ERP.store.ots[idx],...r});const clientId=o.clientId;if(clientId&&!ERP.store.clientDetails.has(String(clientId)))loadClientBillingData([clientId]).then(()=>{if(ERP._openOTId===key)renderOTDetailModal(normalizeOT(ERP.store.otDetails.get(key)||r))}).catch(()=>{});if(ERP._openOTId===key)renderOTDetailModal(o)}catch(e){if(!local&&ERP._openOTId===key)modal('Orden de Trabajo',`<div class="error">${esc(e.message)}</div>`)}}
+async function openOT(id){const key=String(id),local=(ERP.store.ots||[]).find(x=>String(x.id)===key);ERP._openOTId=key;ERP._modalKind='ot';if(local)renderOTDetailModal(local);else modal('Orden de Trabajo','<div class="loading"><span class="spinner"></span>Cargando detalle…</div>');try{let r=await getOTDetail(id);if(!r)return;r=await reconcileLinkedOTAmount(r);let o=normalizeOT(r);if(otHasTaxDocuments(o)&&!statusNorm(o.pagoEstado).includes('pag')){o={...o,pagoEstado:'facturado'};const localRaw=ERP.store.otDetails.get(key);if(localRaw){ERP.store.otDetails.set(key,{...localRaw,pago_estado:'facturado',data:{...((localRaw.data&&typeof localRaw.data==='object')?localRaw.data:{}),pago_estado:'facturado'}})}}const idx=ERP.store.ots.findIndex(x=>String(x.id)===key);if(idx>=0)ERP.store.ots[idx]=normalizeOT({...ERP.store.ots[idx],...r});const clientId=o.clientId;if(clientId&&!ERP.store.clientDetails.has(String(clientId)))loadClientBillingData([clientId]).then(()=>{if(ERP._openOTId===key)renderOTDetailModal(normalizeOT(ERP.store.otDetails.get(key)||r))}).catch(()=>{});if(ERP._openOTId===key)renderOTDetailModal(o)}catch(e){if(!local&&ERP._openOTId===key)modal('Orden de Trabajo',`<div class="error">${esc(e.message)}</div>`)}}
 async function deleteOT(id){const o=(ERP.store.ots||[]).find(x=>String(x.id)===String(id));if(!o){alert('No se encontró la OT.');return}const pay=statusNorm(o.pagoEstado);if(o.factura||pay.includes('factur')||pay.includes('pag')){alert('Esta OT ya tiene movimiento de facturación o pago y no se puede eliminar.');return}try{const raw=await detail('ots',id,['id','estado','pago_estado','data']);const d=(raw?.data&&typeof raw.data==='object')?raw.data:{};const abonos=Array.isArray(d.abonos)?d.abonos:[];const hasDoc=!!(d.factura_num||d.factura_numero||d.documento_numero||d.documento_tipo);if(abonos.length||hasDoc){alert('Esta OT tiene documentos o abonos asociados y no se puede eliminar.');return}}catch(e){}if(!confirm(`¿Eliminar definitivamente la OT ${o.numero||''}? Esta acción no se puede deshacer.`))return;try{await api('delete',{table:'ots',filters:[{column:'id',op:'eq',value:id}]},{timeout:90000});ERP.store.ots=ERP.store.ots.filter(x=>String(x.id)!==String(id));ERP.store.otDetails.delete(String(id));invalidate('ots');closeModal();renderOTs()}catch(e){alert('No se pudo eliminar la OT: '+e.message)}}
 function otOptions(id){const o=(ERP.store.ots||[]).find(x=>String(x.id)===String(id));if(!o){alert('No se encontró la OT.');return}const s=statusNorm(o.estado),req=otClientRequirements(o),docs=docsFromOT(o),statusActions=[];if(s.includes('pend')&&!s.includes('factur'))statusActions.push(`<button class="ot-option-btn" onclick="ERP.setOTStatus('${esc(id)}','en curso',this)"><span class="ico">▶</span>Marcar en curso</button>`);if(s.includes('curso'))statusActions.push(`<button class="ot-option-btn" onclick="ERP.markOTWorkDone('${esc(id)}',this)"><span class="ico">✓</span>Marcar trabajo realizado</button>`);if(!s.includes('cancel')&&(req.requireOC||req.requireHES||o.guia))statusActions.push(`<button class="ot-option-btn" onclick="ERP.otBillingDocsForm('${esc(id)}')"><span class="ico">▣</span>Registrar / editar OC, HES o guía</button>`);if(otIsReadyToInvoice(o))statusActions.push(`<button class="ot-option-btn" onclick="ERP.otTaxDocumentFlow('${esc(id)}')"><span class="ico">$</span>Registrar factura / boleta</button>`);if(docs.length)statusActions.push(`<button class="ot-option-btn" onclick="ERP.otTaxDocumentFlow('${esc(id)}')"><span class="ico">＋</span>Agregar otro documento</button>`);if(s.includes('cancel'))statusActions.push(`<button class="ot-option-btn" onclick="ERP.setOTStatus('${esc(id)}','pendiente',this)"><span class="ico">↺</span>Volver a pendiente</button>`);else statusActions.push(`<button class="ot-option-btn" onclick="ERP.setOTStatus('${esc(id)}','cancelada',this)"><span class="ico">×</span>Cancelar OT</button>`);modal('Opciones de OT',`<div class="ot-options-list"><button class="ot-option-btn" onclick="ERP.openOT('${esc(id)}')"><span class="ico">◉</span>Ver OT</button><button class="ot-option-btn" onclick="ERP.editOT('${esc(id)}')"><span class="ico">✎</span>Editar OT</button>${statusActions.join('')}<button class="ot-option-btn" onclick="ERP.otActaMenu('${esc(id)}')"><span class="ico">▤</span>Actas / hoja de terreno</button><button class="ot-option-btn" onclick="ERP.showOTHistory('${esc(id)}')"><span class="ico">↺</span>Ver historial</button><button class="ot-option-btn" style="color:#b42318" onclick="ERP.deleteOT('${esc(id)}')"><span class="ico">🗑</span>Eliminar OT</button></div>`)}
 async function showOTHistory(id){try{const raw=await getOTDetail(id);const o=normalizeOT(raw||{});const hist=otHistoryFor(o);modal(`Historial OT ${esc(o.numero||'')}`,`<div class="ot-history-list">${hist.length?hist.map(ev=>`<div class="ot-history-item"><strong>${esc(ev.action||'Movimiento')}</strong><div class="small">${dateCL(ev.date)} · ${esc(ev.user||'Sistema')}</div>${ev.fromStatus||ev.toStatus?`<div class="small">${ev.fromStatus?`Desde ${esc(ev.fromStatus)}`:''}${ev.fromStatus&&ev.toStatus?' · ':''}${ev.toStatus?`Hacia ${esc(ev.toStatus)}`:''}</div>`:''}</div>`).join(''):'<div class="notice">Sin movimientos adicionales.</div>'}</div>`)}catch(e){alert('No se pudo abrir el historial: '+e.message)}}
