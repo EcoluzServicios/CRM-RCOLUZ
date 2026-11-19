@@ -1272,7 +1272,7 @@ async function loadClients(force=false){
 async function loadClientBillingData(ids,opts={}){const clean=[...new Set((ids||[]).map(String).filter(Boolean))];const missing=clean.filter(id=>!ERP.store.clientDetails.has(id));if(missing.length){try{const rows=await detailMany('clients',missing,['id','name','rut','data'],opts);(rows||[]).forEach(r=>ERP.store.clientDetails.set(String(r.id),r));mergeClientRefs(rows||[])}catch(e){if(isAbortError(e))throw e;return}}const map=new Map((ERP.store.clients||[]).map(c=>[String(c.id),c]));let changed=false;for(const id of clean){const r=ERP.store.clientDetails.get(String(id));if(!r?.data)continue;const current=map.get(String(id))||normalizeClient({id:r.id,name:r.name||'Sin nombre',rut:r.rut||'',data:r.data});const next=normalizeClient({...current,name:text(r.name)||current.name,rut:text(r.rut)||current.rut,data:r.data});if(next.requireOC!==current.requireOC||next.requireHES!==current.requireHES||next.noDocumentation!==current.noDocumentation||next.billingReqConfigured!==current.billingReqConfigured||next.data!==current.data)changed=true;map.set(String(id),next)}if(changed||map.size!==ERP.store.clients.length){ERP.store.clients=[...map.values()];rebuildMaps()}}
 function clientBillingRequirementText(c){if(!c?.billingReqConfigured)return'Documentación por definir';if(c?.noDocumentation||(!c?.requireOC&&!c?.requireHES))return'No requiere documentación';const req=[];if(c?.requireOC)req.push('OC');if(c?.requireHES)req.push('HES');return req.join(' + ')}
 function clientBillingRequirementBadges(c){if(!c?.billingReqConfigured)return'<span class="client-doc-badge unknown">Por definir</span>';if(c?.noDocumentation||(!c?.requireOC&&!c?.requireHES))return'<span class="client-doc-badge none">No requiere documentación</span>';const out=[];if(c?.requireOC)out.push('<span class="client-doc-badge oc">OC</span>');if(c?.requireHES)out.push('<span class="client-doc-badge hes">HES</span>');return out.join('')}
-function mergeClientRefs(rows){if(!Array.isArray(rows)||!rows.length)return;const map=new Map(ERP.store.clients.map(c=>[String(c.id),c]));for(const r of rows){if(!r?.id)continue;const fresh=normalizeClient(r),old=map.get(String(r.id));if(!old){map.set(String(r.id),fresh);continue}const hasFullData=!!(r.data&&typeof r.data==='object'&&!r.data.__drive_ref);map.set(String(r.id),{...old,...fresh,name:fresh.name||old.name,rut:fresh.rut||old.rut,data:hasFullData?fresh.data:old.data,requireOC:hasFullData?fresh.requireOC:old.requireOC,requireHES:hasFullData?fresh.requireHES:old.requireHES,noDocumentation:hasFullData?fresh.noDocumentation:old.noDocumentation,billingReqConfigured:hasFullData?fresh.billingReqConfigured:old.billingReqConfigured})}ERP.store.clients=[...map.values()];rebuildMaps()}
+function mergeClientRefs(rows){if(!Array.isArray(rows)||!rows.length)return;const map=new Map(ERP.store.clients.map(c=>[String(c.id),c]));for(const r of rows){if(!r?.id)continue;const fresh=normalizeClient(r),old=map.get(String(r.id));if(!old){map.set(String(r.id),fresh);continue}const hasFullData=!!(r.data&&typeof r.data==='object'&&!r.data.__drive_ref);map.set(String(r.id),{...old,...fresh,name:fresh.name||old.name,rut:fresh.rut||old.rut,tipo:fresh.tipo||old.tipo,data:hasFullData?fresh.data:old.data,requireOC:hasFullData?fresh.requireOC:old.requireOC,requireHES:hasFullData?fresh.requireHES:old.requireHES,noDocumentation:hasFullData?fresh.noDocumentation:old.noDocumentation,billingReqConfigured:hasFullData?fresh.billingReqConfigured:old.billingReqConfigured})}ERP.store.clients=[...map.values()];rebuildMaps()}
 async function loadQuoteClientRefs(){const quotes=ERP.store.quotes||[];if(!quotes.length)return;const missingQuoteIds=quotes.filter(q=>!q.clientId).map(q=>String(q.id)).filter(Boolean);if(missingQuoteIds.length){try{const refs=await detailMany('quotes',missingQuoteIds,['id','client_id','data']);const byId=new Map((refs||[]).map(r=>[String(r.id),r]));ERP.store.quotes=quotes.map(q=>{const r=byId.get(String(q.id));if(!r)return q;const d=(r.data&&typeof r.data==='object')?r.data:{};return {...q,clientId:text(r.client_id||d.client_id||d.clientId||q.clientId),data:r.data||q.data}});rebuildMaps()}catch(e){}}
  const ids=[...new Set((ERP.store.quotes||[]).map(q=>String(q.clientId||'')).filter(Boolean))];const missing=ids.filter(id=>!clientFor(id));if(!missing.length)return;try{const rows=await detailMany('clients',missing,['id','name','rut']);mergeClientRefs(rows)}catch(e){}}
 
@@ -1529,6 +1529,7 @@ async function hydrateVisibleOTData(rows){
   if(need.length){
     for(let i=0;i<need.length;i+=30){
       const chunk=need.slice(i,i+30);
+      const before=new Map(chunk.map(id=>[String(id),ERP.store.otDetails.get(String(id))]));
       try{
         const j=await api('select',{
           table:'ots',
@@ -1544,6 +1545,9 @@ async function hydrateVisibleOTData(rows){
         for(const raw of (j.data||[])){
           if(!raw?.id)continue;
           const key=String(raw.id);
+          // No reemplazar un detalle que se guardó mientras esta consulta estaba en vuelo.
+          const current=ERP.store.otDetails.get(key);
+          if(current!==before.get(key)&&current?.data&&!current.data.__drive_ref)continue;
           const previous=ERP.store.otDetails.get(key)||localOTRaw(key)||{id:raw.id};
           const merged={...previous,...raw,data:raw.data||previous.data||null};
           ERP.store.otDetails.set(key,merged);
@@ -1558,32 +1562,28 @@ async function hydrateVisibleOTData(rows){
     }
   }
 
-  return (ERP.remote.ots.currentRows||rows||[]).map(o=>{
+  return (rows||[]).map(o=>{
     const full=ERP.store.otDetails.get(String(o.id));
     return full?normalizeOT({...o,...full,data:full.data||o.data}):o;
   });
 }
 
 async function hydrateVisibleOTReferences(rows,viewKey){
-  let hydrated=rows||[];
-  try{hydrated=await hydrateVisibleOTData(hydrated)}catch(e){}
-
-  if(ERP.view==='ots'&&otCurrentUiKey()===viewKey){
-    if(['facturar','listas'].includes(ERP.ui.ots.filter))verifyVisibleOTClassification(viewKey);
-    else renderOTs();
-  }
-
-  try{
-    await Promise.all([
-      loadVisibleClientRefs(hydrated),
-      loadQuoteRefs(hydrated.map(o=>o.quoteId))
-    ]);
-  }catch(e){}
-
-  if(ERP.view==='ots'&&otCurrentUiKey()===viewKey){
-    if(['facturar','listas'].includes(ERP.ui.ots.filter))verifyVisibleOTClassification(viewKey);
-    else renderOTs();
-  }
+  const visible=rows||[];
+  const refresh=()=>{if(ERP.view==='ots'&&otCurrentUiKey()===viewKey){if(['facturar','listas'].includes(ERP.ui.ots.filter))verifyVisibleOTClassification(viewKey);else renderOTs();}};
+  // Las páginas recuperadas desde caché no pasan por enrichOTChunk: verificar
+  // también sus requisitos reales, en paralelo con las referencias livianas.
+  const reqRows=visible.filter(o=>otIsWorkCompleted(otBillingView(o)));
+  await Promise.allSettled([
+    hydrateVisibleOTData(visible).then(refresh),
+    ensureOTBillingRequirements(reqRows).then(refresh),
+    loadVisibleClientRefs(visible).then(refresh),
+    loadQuoteRefs(visible.map(o=>o.quoteId)).then(refresh)
+  ]);
+  // Si el detalle cambió el cliente asociado, comprobar también ese ID.
+  const resolved=visible.map(otBillingView).filter(otIsWorkCompleted);
+  await ensureOTBillingRequirements(resolved).catch(()=>{});
+  refresh();
 }
 
 
@@ -1591,6 +1591,7 @@ async function hydrateOTChunkForClassification(rows,signal=null){
   const ids=[...new Set((rows||[]).map(o=>String(o?.id||'')).filter(Boolean))];
   if(!ids.length)return rows||[];
 
+  const before=new Map(ids.map(id=>[id,ERP.store.otDetails.get(id)]));
   try{
     const j=await api('select',{
       table:'ots',
@@ -1603,10 +1604,13 @@ async function hydrateOTChunkForClassification(rows,signal=null){
       resolveOverflow:true
     },{timeout:30000,attempts:2,signal});
 
+    if(signal?.aborted)throw abortError();
     const byId=new Map();
     for(const raw of (j.data||[])){
       if(!raw?.id)continue;
       const key=String(raw.id);
+      const current=ERP.store.otDetails.get(key);
+      if(current!==before.get(key)&&current?.data&&!current.data.__drive_ref){byId.set(key,normalizeOT(current));continue;}
       const normalized=normalizeOT(raw);
       byId.set(key,normalized);
       ERP.store.otDetails.set(key,raw);
@@ -1637,21 +1641,17 @@ async function hydrateOTChunkForClassification(rows,signal=null){
 
 const OT_BILLING_REQ_CHECKED=new Set();
 const OT_BILLING_REQ_FAILED=new Set();
+function hasResolvedClientBillingData(data){return !!(data&&typeof data==='object'&&!data.__drive_ref);}
 
-async function ensureOTBillingRequirements(rows,signal=null){
+async function ensureOTBillingRequirements(rows,signal=null,{force=false}={}){
   const ids=[...new Set((rows||[]).map(o=>String(o?.clientId||'')).filter(Boolean))];
 
   // Para facturación no basta con clientFor(): puede ser una copia liviana
   // que tenga nombre/RUT pero no la configuración OC/HES.
   const missing=ids.filter(id=>{
     const raw=ERP.store.clientDetails.get(id);
-    if(!raw)return !OT_BILLING_REQ_CHECKED.has(id);
-    const hasResolvedData=!!(
-      raw.data &&
-      typeof raw.data==='object' &&
-      !raw.data.__drive_ref
-    );
-    return !hasResolvedData && !OT_BILLING_REQ_CHECKED.has(id);
+    if(force){OT_BILLING_REQ_FAILED.delete(id);OT_BILLING_REQ_CHECKED.delete(id);return true;}
+    return !hasResolvedClientBillingData(raw?.data)&&!hasResolvedClientBillingData(clientFor(id)?.data)&&!OT_BILLING_REQ_FAILED.has(id);
   });
 
   if(!missing.length)return;
@@ -1666,7 +1666,7 @@ async function ensureOTBillingRequirements(rows,signal=null){
     try{
       const j=await api('select',{
         table:'clients',
-        columns:['id','name','rut','data'],
+        columns:['id','name','rut','tipo','data'],
         filters:[{column:'id',op:'in',value:chunk}],
         orGroups:[],
         order:{column:'name',ascending:true},
@@ -1701,7 +1701,7 @@ async function ensureOTBillingRequirements(rows,signal=null){
         const fallback=await detailMany(
           'clients',
           unresolved,
-          ['id','name','rut','data'],
+          ['id','name','rut','tipo','data'],
           {timeout:30000,attempts:2,signal}
         );
 
@@ -1736,8 +1736,6 @@ async function ensureOTBillingRequirements(rows,signal=null){
     }
 
     if(loadedRows.length){
-      mergeClientRefs(loadedRows);
-
       const map=new Map((ERP.store.clients||[]).map(c=>[String(c.id),c]));
       for(const r of loadedRows){
         if(!r?.id)continue;
@@ -1750,12 +1748,8 @@ async function ensureOTBillingRequirements(rows,signal=null){
           !r.data.__drive_ref
         );
 
-        map.set(id,normalizeClient({
-          ...current,
-          name:text(r.name)||current.name,
-          rut:text(r.rut)||current.rut,
-          data:hasResolvedData?r.data:current.data
-        }));
+        const fresh=normalizeClient(r);
+        map.set(id,{...current,name:text(r.name)||current.name,rut:text(r.rut)||current.rut,tipo:text(r.tipo)||current.tipo,...(hasResolvedData?{data:r.data,requireOC:fresh.requireOC,requireHES:fresh.requireHES,noDocumentation:fresh.noDocumentation,billingReqConfigured:fresh.billingReqConfigured}:{})});
       }
       ERP.store.clients=[...map.values()];
       rebuildMaps();
@@ -2281,18 +2275,22 @@ function quoteActionButtons(q){
 function quoteSearchChanged(input){const ui=ERP.ui.quotes;ui.search=input?.value||'';ui.page=1;ERP._quoteSearchCaret=input?.selectionStart??ui.search.length;const local=localQuotePreview(ui.search,ui.status);ERP.remote.quotes.currentRows=local.slice(0,PAGE_SIZE);ERP.remote.quotes.currentTotal=local.length;ERP.remote.quotes.currentKey=quotePageCacheKey(ui.status,1,norm(ui.search));ERP._quoteSearchRestore=true;renderQuotes();clearTimeout(ERP._quoteSearchTimer);ERP._quoteSearchTimer=setTimeout(()=>{ERP._quoteSearchRestore=true;showQuotes(false)},450)}
 function renderQuotes(){
  const ui=ERP.ui.quotes,r=ERP.remote.quotes,active=document.activeElement,keepFocus=active?.id==='quoteSearch',selStart=keepFocus?active.selectionStart:null,selEnd=keepFocus?active.selectionEnd:null;if(!['todas','pendiente','aceptada','rechazada'].includes(ui.status))ui.status='pendiente';const rows=r.currentRows||[];const counts=r.counts||{};const n=v=>Number.isFinite(v)?` ${v}`:'';
- setContent(pageHeader('Cotizaciones','Seguimiento comercial desde el envío hasta la creación de la Orden de Trabajo.',`<button class="primary" onclick="ERP.quoteForm()">+ Nueva cotización</button><button class="secondary" onclick="ERP.openTrash('quote')">Papelera</button><button class="secondary" onclick="ERP.openView('quotes',{force:true})">Actualizar</button>`)+`<div class="panel"><div class="panel-pad"><div class="toolbar"><input id="quoteSearch" class="input" autocomplete="off" placeholder="Buscar cotización, cliente, RUT o trabajo" value="${esc(ui.search)}"><div class="tabs"><button class="tab ${ui.status==='todas'?'active':''}" onclick="ERP.setQuoteStatus('todas')">Todas${n(counts.todas)}</button><button class="tab ${ui.status==='pendiente'?'active':''}" onclick="ERP.setQuoteStatus('pendiente')">Pendientes${n(counts.pendiente)}</button><button class="tab ${ui.status==='aceptada'?'active':''}" onclick="ERP.setQuoteStatus('aceptada')">Aceptadas${n(counts.aceptada)}</button><button class="tab ${ui.status==='rechazada'?'active':''}" onclick="ERP.setQuoteStatus('rechazada')">Rechazadas${n(counts.rechazada)}</button></div>${moduleError('quotes')}</div></div><div class="table-wrap case-table-shell"><table class="table quote-table"><thead><tr><th style="width:130px">N°<br>Cotización</th><th>Cliente</th><th style="width:130px">Monto</th><th style="width:120px">Creado<br>por</th><th style="width:110px">Fecha</th><th style="width:170px">Envío</th><th style="width:170px">OT vinculada</th><th style="width:190px">Acciones</th></tr></thead><tbody>${rows.length?rows.map(x=>{const c=clientFor(x.clientId);const special=x.specialStatus?`<div class="quote-status-note"><span class="quote-soft-badge">${esc(x.specialStatus)}</span></div>`:'';return `<tr class="${quoteRowClass(x)}"><td class="main-text">${esc(x.numero)}</td><td class="quote-main-cell"><div class="main-text">${esc(clientBranchDisplay(c?.name||x.data?.clientName||(x.clientId?'Cargando cliente…':'Cliente no identificado'),x))}</div><div class="small">${esc(x.descripcion||x.obra||'—')}</div>${special}</td><td class="quote-amount">${money(x.monto)}</td><td class="quote-creator">${esc((x.createdBy||'—').replace(/\s+/g,' ').trim()||'—')}</td><td>${dateCL(x.fecha)}</td><td>${quoteDeliveryCell(x,c)}</td><td>${quoteLinkedOTCell(x)}</td><td>${quoteActionButtons(x)}</td></tr>`}).join(''):`<tr><td colspan="8" class="empty">No hay cotizaciones con los filtros actuales.</td></tr>`}</tbody></table></div>${pagination(r.currentTotal||0,ui.page,'ERP.quotePage')}</div>`);
+ setContent(pageHeader('Cotizaciones','Seguimiento comercial desde el envío hasta la creación de la Orden de Trabajo.',`<button class="primary" onclick="ERP.quoteForm()">+ Nueva cotización</button><button class="secondary" onclick="ERP.openTrash('quote')">Papelera</button><button class="secondary" onclick="ERP.openView('quotes',{force:true})">Actualizar</button>`)+`<div class="panel"><div class="panel-pad"><div class="toolbar"><input id="quoteSearch" class="input" autocomplete="off" placeholder="Buscar cotización, cliente, RUT o trabajo" value="${esc(ui.search)}"><div class="tabs"><button class="tab ${ui.status==='todas'?'active':''}" onclick="ERP.setQuoteStatus('todas')">Todas${n(counts.todas)}</button><button class="tab ${ui.status==='pendiente'?'active':''}" onclick="ERP.setQuoteStatus('pendiente')">Pendientes${n(counts.pendiente)}</button><button class="tab ${ui.status==='aceptada'?'active':''}" onclick="ERP.setQuoteStatus('aceptada')">Aceptadas${n(counts.aceptada)}</button><button class="tab ${ui.status==='rechazada'?'active':''}" onclick="ERP.setQuoteStatus('rechazada')">Rechazadas${n(counts.rechazada)}</button></div>${moduleError('quotes')}</div></div><div class="table-wrap case-table-shell"><table class="table quote-table"><thead><tr><th style="width:130px">N°<br>Cotización</th><th>Cliente</th><th style="width:130px">Monto</th><th style="width:120px">Creado<br>por</th><th style="width:110px">Fecha</th><th style="width:170px">Envío</th><th style="width:170px">OT vinculada</th><th style="width:190px">Acciones</th></tr></thead><tbody>${rows.length?rows.map(x=>{const c=clientFor(x.clientId);const special=x.specialStatus?`<div class="quote-status-note"><span class="quote-soft-badge">${esc(x.specialStatus)}</span></div>`:'';return `<tr class="${quoteRowClass(x)}"><td class="main-text">${esc(x.numero)}</td><td class="quote-main-cell"><div class="main-text">${esc(clientBranchDisplay(c?.name||x.data?.clientName||(x.clientId?'Cargando cliente…':'Cliente no identificado'),x))}</div><div class="small">${esc(x.descripcion||x.obra||'—')}</div>${special}</td><td class="quote-amount">${money(x.monto)}${advanceListBadge('quote',x)}</td><td class="quote-creator">${esc((x.createdBy||'—').replace(/\s+/g,' ').trim()||'—')}</td><td>${dateCL(x.fecha)}</td><td>${quoteDeliveryCell(x,c)}</td><td>${quoteLinkedOTCell(x)}</td><td>${quoteActionButtons(x)}</td></tr>`}).join(''):`<tr><td colspan="8" class="empty">No hay cotizaciones con los filtros actuales.</td></tr>`}</tbody></table></div>${pagination(r.currentTotal||0,ui.page,'ERP.quotePage')}</div>`);
  const input=$('quoteSearch');if(input){const restore=keepFocus||ERP._quoteSearchRestore;if(restore){try{input.focus({preventScroll:true})}catch(e){input.focus()}const a=Math.min((keepFocus?selStart:ERP._quoteSearchCaret)??input.value.length,input.value.length),b=Math.min((keepFocus?selEnd:a)??a,input.value.length);try{input.setSelectionRange(a,b)}catch(e){}ERP._quoteSearchRestore=false}input.addEventListener('input',e=>ERP.quoteSearchChanged(e.target));}
 }
 
 
 function finalizedOTSource(){
   const q=norm(ERP.ui.ots.search);
-  const base=(billingRowSource()||[]).filter(Boolean);
+  const map=new Map((billingRowSource()||[]).filter(Boolean).map(o=>[String(o.id),o]));
+  for(const o of [...(ERP.store.particularRows||[]),...(ERP.store.ots||[])]){
+    const view=otBillingView(o);if(otClosedWithoutDoc(view))map.set(String(view.id),view);
+  }
+  const base=[...map.values()];
   return base
     .filter(o=>{
       const paidState=statusNorm(o?.pagoEstado||o?.pago_estado||o?.cobro_estado||'');
-      const isFinal=docsFromOT(o).length>0 || paidState.includes('factur') || paidState.includes('pag') || paidState.includes('parcial');
+      const isFinal=otClosedWithoutDoc(o)||docsFromOT(o).length>0 || paidState.includes('factur') || paidState.includes('pag') || paidState.includes('parcial');
       return isFinal && (!q || otMatchesSearch(o,q));
     })
     .sort((a,b)=>otDateSortValue(b)-otDateSortValue(a));
@@ -2335,12 +2333,12 @@ async function showOTs(force=false){
  }
  if((ERP.ui.ots.filter||'')==='finalizadas')return showFinalizedOTs(force);
  if(ERP._otViewCtl)ERP._otViewCtl.abort();const ctl=new AbortController();ERP._otViewCtl=ctl;const r=ERP.remote.ots,requestKey=otCurrentUiKey();ERP.state.ots.error='';r.loadingKey=requestKey;applyOTScanToCurrent();if(ERP.view==='ots')renderOTs();
- try{await ensureOTPage(force,{signal:ctl.signal})}catch(e){if(isAbortError(e)||ctl.signal.aborted)return;ERP.state.ots.error=e.message;if(ERP.view==='ots'&&otCurrentUiKey()===requestKey){r.loadingKey='';renderOTs()}return}
+ try{await ensureOTPage(force,{signal:ctl.signal})}catch(e){if(isAbortError(e)||ctl.signal.aborted)return;ERP.state.ots.error=e.message;if(ERP.view==='ots'&&otCurrentUiKey()===requestKey){r.loadingKey='';renderOTs();hydrateVisibleOTReferences(r.currentRows.slice(),requestKey).catch(()=>{})}return}
  if(ctl.signal.aborted||otCurrentUiKey()!==requestKey)return;r.loadingKey='';if(ERP.view==='ots')renderOTs();const rows=r.currentRows.slice();
  clearTimeout(ERP._otRefsTimer);ERP._otRefsTimer=setTimeout(()=>{if(ERP.view!=='ots'||otCurrentUiKey()!==requestKey)return;hydrateVisibleOTReferences(rows,requestKey).catch(()=>{})},40);
 }
 function otIsWorkCompleted(o){const s=statusNorm(o?.estado);return s.includes('trabajo listo')||s.includes('complet')||s.includes('realiz')||s.includes('terminad')||s.includes('pendiente factur')}
-function otClientRequirements(o){const id=String(o?.clientId||'');const raw=ERP.store.clientDetails.get(id);const detailClient=raw?normalizeClient(raw):null;const c=detailClient||clientFor(id);const loaded=!id||!!raw||!!c?.data||OT_BILLING_REQ_CHECKED.has(id);const failed=!!id&&OT_BILLING_REQ_FAILED.has(id)&&!raw&&!c?.data;return {loaded,failed,configured:!!c?.billingReqConfigured,requireOC:!!c?.requireOC,requireHES:!!c?.requireHES,noDocumentation:!!c?.noDocumentation}}
+function otClientRequirements(o){const id=String(o?.clientId||''),raw=ERP.store.clientDetails.get(id),resolvedRaw=hasResolvedClientBillingData(raw?.data),client=clientFor(id),resolvedClient=hasResolvedClientBillingData(client?.data),c=resolvedRaw?normalizeClient(raw):client,resolved=resolvedRaw||resolvedClient,failed=!!id&&!resolved&&OT_BILLING_REQ_FAILED.has(id),loaded=!id||resolved||failed;return {loaded,failed,configured:resolved&&!!c?.billingReqConfigured,requireOC:resolved&&!!c?.requireOC,requireHES:resolved&&!!c?.requireHES,noDocumentation:resolved&&!!c?.noDocumentation}}
 
 function otBillingView(o){
   if(!o?.id)return o;
@@ -2351,17 +2349,26 @@ function otBillingView(o){
 
 function otBillingRequirementState(o){const req=otClientRequirements(o),missing=[];if(!req.loaded)return {loaded:false,failed:false,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(req.failed)return {loaded:true,failed:true,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(!req.configured)return {loaded:true,failed:false,configured:false,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation};if(req.requireOC&&!text(o?.oc))missing.push('OC');if(req.requireHES&&!text(o?.hes))missing.push('HES');return {loaded:true,failed:false,configured:true,missing,requireOC:req.requireOC,requireHES:req.requireHES,noDocumentation:req.noDocumentation}}
 function otMissingBillingDocs(o){const view=otBillingView(o);return otBillingRequirementState(view).missing}
+function otRequirementsRetryButton(o,state){return `<button type="button" class="ot-doc-action" title="Consultar la configuración OC/HES del cliente" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(o.id)}')">${state.failed?'Reintentar requisitos':'Consultar requisitos'}</button>`;}
 function otHasTaxDocuments(o){const view=otBillingView(o);return docsFromOT(view).length>0||!!view?.factura}
-function otIsReadyToInvoiceStrict(o){const view=otBillingView(o),state=otBillingRequirementState(view);return state.loaded&&state.configured&&otIsWorkCompleted(view)&&!otHasTaxDocuments(view)&&state.missing.length===0}
+function otClosedWithoutDoc(o){
+  if(!o||!otIsWorkCompleted(o)||docsFromOT(o).length||o.factura)return false;
+  const data=o.data,cfg=data?.particularCobro;
+  if(!data||data.__drive_ref)return statusNorm(o.pagoEstado)==='cerrado sin documento';
+  if(!cfg?.cierreSinDocumento?.activo)return false;
+  const prices=advancePrices(o,quoteFor(o.quoteId)),total=Math.round(num(cfg.monto))||advanceBasisAmount(prices,advanceBasis(cfg,prices),cfg);
+  return total>0&&advancePaid(cfg.pagos)>=total;
+}
+function otIsReadyToInvoiceStrict(o){const view=otBillingView(o),state=otBillingRequirementState(view);return state.loaded&&state.configured&&otIsWorkCompleted(view)&&!otHasTaxDocuments(view)&&!otClosedWithoutDoc(view)&&state.missing.length===0}
 function otIsReadyToInvoice(o){return otIsReadyToInvoiceStrict(o)}
 function otIsPendingBilling(o){return otIsReadyToInvoice(o)}
-function otPaymentStatusLabel(v){const s=statusNorm(v);if(!s)return'';if(s.includes('pag'))return'Pagado';if(s.includes('factur')&&!s.includes('pend'))return'Facturado';if(s.includes('pendiente factur'))return'Pendiente de facturar';return''}
-function otDerivedBillingState(o,nextStatus=o?.estado){const view=otBillingView(o),current=statusNorm(view?.pagoEstado);if(current.includes('pag'))return view.pagoEstado||'pagado';if(otHasTaxDocuments(view)||current.includes('factur')&&!current.includes('pend'))return'facturado';const probe={...view,estado:nextStatus};return otIsReadyToInvoiceStrict(probe)?'pendiente_facturar':''}
-function otGroup(o){const view=otBillingView(o),main=statusNorm(view.estado),pay=statusNorm(view.pagoEstado);if(main.includes('cancel'))return'canceladas';if(otHasTaxDocuments(view)||pay.includes('pag')||(pay.includes('factur')&&!pay.includes('pend')))return'finalizadas';if(main.includes('curso'))return'curso';if(main.includes('pend')&&!main.includes('factur'))return'pendientes';if(otIsReadyToInvoiceStrict(view))return'facturar';if(otIsWorkCompleted(view))return'listas';return'pendientes'}
+function otPaymentStatusLabel(v){const s=statusNorm(v);if(!s)return'';if(s==='cerrado sin documento')return'Pagado · Sin documento';if(s.includes('pag'))return'Pagado';if(s.includes('factur')&&!s.includes('pend'))return'Facturado';if(s.includes('pendiente factur'))return'Pendiente de facturar';return''}
+function otDerivedBillingState(o,nextStatus=o?.estado){const view=otBillingView(o),current=statusNorm(view?.pagoEstado);if(current.includes('pag'))return view.pagoEstado||'pagado';if(otHasTaxDocuments(view)||current.includes('factur')&&!current.includes('pend'))return'facturado';const probe={...view,estado:nextStatus};if(otClosedWithoutDoc(probe))return'cerrado_sin_documento';return otIsReadyToInvoiceStrict(probe)?'pendiente_facturar':''}
+function otGroup(o){const view=otBillingView(o),main=statusNorm(view.estado),pay=statusNorm(view.pagoEstado);if(main.includes('cancel'))return'canceladas';if(otClosedWithoutDoc(view)||otHasTaxDocuments(view)||pay.includes('pag')||(pay.includes('factur')&&!pay.includes('pend')))return'finalizadas';if(main.includes('curso'))return'curso';if(main.includes('pend')&&!main.includes('factur'))return'pendientes';if(otIsReadyToInvoiceStrict(view))return'facturar';if(otIsWorkCompleted(view))return'listas';return'pendientes'}
 function otStatusLabel(v){const s=statusNorm(v);if(s.includes('pendiente factur')||s.includes('trabajo listo')||s.includes('complet')||s.includes('realiz')||s.includes('terminad'))return'Trabajo listo';if(s.includes('curso'))return'En curso';if(s.includes('cancel'))return'Cancelada';if(s.includes('pend'))return'Pendiente';return text(v)||'Sin estado'}
 function renderOTOperationalMeta(o){const rows=[];if(o.oc)rows.push(`OC: ${esc(o.oc)}`);if(o.hes)rows.push(`HES: ${esc(o.hes)}`);if(o.guia)rows.push(`Guía: ${esc(o.guia)}`);return rows.length?`<div class="small" style="margin-top:5px;line-height:1.45;color:#536f82">${rows.map(x=>`<div>${x}</div>`).join('')}</div>`:''}
-function otDocumentsCell(o){const view=otBillingView(o),docs=docsFromOT(view);if(docs.length){const d=docs[docs.length-1];return `<button type="button" class="ot-doc-existing" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</button>`}if(!otIsWorkCompleted(view))return '<span class="small" style="color:#8aa0b3">—</span>';const state=otBillingRequirementState(view);if(!state.loaded)return '<span class="badge b-neutral">Verificando requisitos…</span>';if(state.failed)return '<span class="badge b-neutral" title="No se pudo consultar la configuración documental del cliente. Usa Actualizar para reintentar.">Requisitos no disponibles</span>';if(!state.configured)return '<span class="badge b-neutral" title="Configura la documentación de facturación en la ficha del cliente">Definir documentación</span>';if(state.missing.length){const label=state.missing.length===2?'OC y HES pendientes':`${state.missing[0]} pendiente`;return `<div class="ot-doc-missing"><span class="badge b-pending">${label}</span></div>`}if(state.noDocumentation)return `<button type="button" class="ot-doc-action" title="Este cliente no requiere OC ni HES" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin documentación requerida</button>`;if(!text(view.oc)&&!state.requireOC)return `<button type="button" class="ot-doc-action" title="Este cliente está configurado sin OC obligatoria" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin OC (no requerida)</button>`;return `<button type="button" class="ot-doc-action" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Listo para facturar</button>`}
-function verifyVisibleOTClassification(viewKey){if(ERP.view!=='ots'||otCurrentUiKey()!==viewKey)return;const ui=ERP.ui.ots,r=ERP.remote.ots,filter=ui.filter||'pendientes',search=norm(ui.search);if(filter!=='facturar'&&filter!=='listas'){renderOTs();return}const key=otScanKey(filter,search),scan=r.scans.get(key);if(!scan){renderOTs();return}let changed=false;const kept=[];for(const original of scan.items){const full=ERP.store.otDetails.get(String(original.id));const o=full?normalizeOT({...original,...full,data:full.data||original.data}):original;let keep=true;if(filter==='facturar'){keep=otGroup(o)==='facturar'}else if(filter==='listas'){keep=otGroup(o)==='listas'}if(keep)kept.push(o);else changed=true}scan.items=kept;scan.seen=new Set(kept.map(o=>String(o.id)));scan.ts=Date.now();saveOTViewSnap(key,scan);if(changed||filter==='facturar'||filter==='listas')applyOTScanToCurrent();renderOTs()}
+function otDocumentsCell(o){const view=otBillingView(o),docs=docsFromOT(view);if(docs.length){const d=docs[docs.length-1];return `<button type="button" class="ot-doc-existing" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</button>`}if(otClosedWithoutDoc(view))return `<span class="badge b-paid">Pagado · Sin documento</span>`;if(!otIsWorkCompleted(view))return '<span class="small" style="color:#8aa0b3">—</span>';const state=otBillingRequirementState(view);if(!state.loaded||state.failed)return otRequirementsRetryButton(view,state);if(!state.configured)return '<span class="badge b-neutral" title="Configura la documentación de facturación en la ficha del cliente">Definir documentación</span>';if(state.missing.length){const label=state.missing.length===2?'OC y HES pendientes':`${state.missing[0]} pendiente`;return `<div class="ot-doc-missing"><span class="badge b-pending">${label}</span></div>`}if(state.noDocumentation)return `<button type="button" class="ot-doc-action" title="Este cliente no requiere OC ni HES" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin documentación requerida</button>`;if(!text(view.oc)&&!state.requireOC)return `<button type="button" class="ot-doc-action" title="Este cliente está configurado sin OC obligatoria" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Sin OC (no requerida)</button>`;return `<button type="button" class="ot-doc-action" onclick="event.stopPropagation();ERP.otTaxDocumentFlow('${esc(view.id)}')">Listo para facturar</button>`}
+function verifyVisibleOTClassification(viewKey){if(ERP.view!=='ots'||otCurrentUiKey()!==viewKey)return;const ui=ERP.ui.ots,r=ERP.remote.ots,filter=ui.filter||'pendientes',search=norm(ui.search);if(filter!=='facturar'&&filter!=='listas'){renderOTs();return}const key=otScanKey(filter,search),scan=r.scans.get(key);if(!scan){renderOTs();return}let changed=false;const kept=[];for(const original of scan.items){const full=ERP.store.otDetails.get(String(original.id));const o=full?normalizeOT({...original,...full,data:full.data||original.data}):original;const req=otBillingRequirementState(o),pending=otIsWorkCompleted(o)&&!otHasTaxDocuments(o)&&!otClosedWithoutDoc(o)&&(!req.loaded||req.failed);let keep=true;if(pending)keep=true;else if(filter==='facturar'){keep=otGroup(o)==='facturar'}else if(filter==='listas'){keep=otGroup(o)==='listas'}if(keep)kept.push(o);else changed=true}scan.items=kept;scan.seen=new Set(kept.map(o=>String(o.id)));scan.ts=Date.now();saveOTViewSnap(key,scan);if(changed||filter==='facturar'||filter==='listas')applyOTScanToCurrent();renderOTs()}
 function otDateSortValue(o){
   const v=o?.fecha||o?.createdAt||'';
   if(!v)return 0;
@@ -2408,7 +2415,7 @@ function localOTPreview(search,filter){
     .sort(otNewestSort)
 }
 function otSearchChanged(el){ERP.ui.ots.search=el?.value||'';ERP.ui.ots.page=1;ERP._otSearchCaret=el?.selectionStart??ERP.ui.ots.search.length;if((ERP.ui.ots.filter||'')==='finalizadas'){applyFinalizedOTRows();ERP._otSearchRestore=true;renderOTs();clearTimeout(ERP._otSearchTimer);ERP._otSearchTimer=setTimeout(()=>{ERP._otSearchRestore=true;showFinalizedOTs(false)},450);return}const local=localOTPreview(ERP.ui.ots.search,ERP.ui.ots.filter);ERP.remote.ots.currentRows=local.slice(0,PAGE_SIZE);ERP.remote.ots.hasMore=local.length>PAGE_SIZE;ERP.remote.ots.currentKnownTotal=local.length;ERP._otSearchRestore=true;renderOTs();clearTimeout(ERP._otSearchTimer);ERP._otSearchTimer=setTimeout(()=>{ERP._otSearchRestore=true;applyOTScanToCurrent();showOTs(false)},450)}
-function renderOTs(){const ui=ERP.ui.ots,r=ERP.remote.ots,active=document.activeElement,keepFocus=active?.id==='otSearch',selStart=keepFocus?active.selectionStart:null,selEnd=keepFocus?active.selectionEnd:null,rows=r.currentRows||[],loading=r.loadingKey===otCurrentUiKey(),loadingNote=loading?'<span class="small" style="display:inline-flex;align-items:center;margin-left:4px"><span class="spinner" style="width:14px;height:14px;margin-right:6px"></span>Actualizando…</span>':'';const body=rows.length?rows.map(o=>{const c=clientFor(o.clientId),qr=quoteFor(o.quoteId);return `<tr><td>${dateCL(o.fecha)}</td><td class="main-text">${esc(o.numero||'—')}</td><td>${(qr?.numero||o.data?.numeroCotizacion)?(o.quoteId?`<button class="ot-linked-quote" title="Abrir cotización vinculada" onclick="ERP.openLinkedQuote('${esc(o.quoteId)}')">Cot. ${esc(qr?.numero||o.data?.numeroCotizacion)}</button>`:`<span class="badge b-progress">Cot. ${esc(qr?.numero||o.data?.numeroCotizacion)}</span>`):'—'}</td><td class="ot-client"><strong>${esc(clientBranchDisplay(c?.name||o.data?.clientName||o.data?.razonSocial||(o.clientId?'Cargando cliente…':'—'),o))}</strong><div class="small">${esc(c?.rut||o.data?.rut||'')}</div></td><td class="ot-work"><strong>${esc(o.descripcion||'—')}</strong>${renderOTOperationalMeta(o)}</td><td>${statusBadge(ui.filter==='finalizadas'?'Trabajo finalizado':otStatusLabel(o.estado))}</td><td>${otDocumentsCell(o)}</td><td><div class="ot-row-actions"><button class="icon-circle-btn eye" title="Ver OT" onclick="ERP.openOT('${esc(o.id)}')">${quoteSvgIcon('eye')}</button><button class="icon-circle-btn more" title="Más opciones" onclick="ERP.otOptions('${esc(o.id)}')">${quoteSvgIcon('more')}</button></div></td></tr>`}).join(''):(loading?'<tr><td colspan="8" class="loading"><span class="spinner"></span>Cargando esta sección…</td></tr>':'<tr><td colspan="8" class="empty">No hay OT con los filtros actuales.</td></tr>');setContent(pageHeader('Órdenes de Trabajo','Seguimiento de trabajos, documentos y estado de cobro.',`<button class="primary" onclick="ERP.otForm()">+ Nueva OT</button><button class="secondary" onclick="ERP.openTrash('ot')">Papelera</button><button class="secondary" onclick="ERP.openView('ots',{force:true})">Actualizar</button>`)+`<div class="panel"><div class="panel-pad"><div class="toolbar ot-filter-toolbar"><input id="otSearch" class="input" autocomplete="off" placeholder="Buscar OT, cotización, cliente, sucursal, OC, HES, factura o trabajo" value="${esc(ui.search)}"><div class="tabs ot-main-tabs"><button class="tab ${['activas_base','activas','pendientes','curso','listas'].includes(ui.filter)?'active':''}" onclick="ERP.setOTFilter('activas_base')">Activas</button><button class="tab ${ui.filter==='facturar'?'active':''}" onclick="ERP.setOTFilter('facturar')">Pendientes de facturar</button><button class="tab ${ui.filter==='finalizadas'?'active':''}" onclick="ERP.setOTFilter('finalizadas')">Finalizadas</button><button class="tab ${ui.filter==='canceladas'?'active':''}" onclick="ERP.setOTFilter('canceladas')">Canceladas</button></div>${['todas','activas_base','activas','pendientes','curso','listas'].includes(ui.filter)?`<div class="ot-active-filter"><span>Estado</span><select class="input" onchange="ERP.setOTActiveFilter(this.value)"><option value="todas" ${ui.filter==='todas'?'selected':''}>Todas las OT</option><option value="activas_base" ${ui.filter==='activas_base'?'selected':''}>Pendientes + En curso</option><option value="pendientes" ${ui.filter==='pendientes'?'selected':''}>Pendientes</option><option value="curso" ${ui.filter==='curso'?'selected':''}>En curso</option><option value="listas" ${ui.filter==='listas'?'selected':''}>Trabajo listo</option></select></div>`:''}${loadingNote}${moduleError('ots')}</div></div><div class="table-wrap"><table class="table ot-table"><thead><tr><th>Fecha</th><th>N° OT</th><th>Cotización</th><th>Cliente</th><th>Trabajo</th><th>Estado</th><th>Documentos</th><th>Acciones</th></tr></thead><tbody>${body}</tbody></table></div>${lazyPagination(ui.page,r.hasMore,'ERP.otPage',r.currentKnownTotal)}</div>`);const input=$('otSearch');if(input){const restore=keepFocus||ERP._otSearchRestore;if(restore){try{input.focus({preventScroll:true})}catch(e){input.focus()}const a=Math.min((keepFocus?selStart:ERP._otSearchCaret)??input.value.length,input.value.length),b=Math.min((keepFocus?selEnd:a)??a,input.value.length);try{input.setSelectionRange(a,b)}catch(e){}ERP._otSearchRestore=false}input.addEventListener('input',e=>ERP.otSearchChanged(e.target));}}
+function renderOTs(){const ui=ERP.ui.ots,r=ERP.remote.ots,active=document.activeElement,keepFocus=active?.id==='otSearch',selStart=keepFocus?active.selectionStart:null,selEnd=keepFocus?active.selectionEnd:null,rows=r.currentRows||[],loading=r.loadingKey===otCurrentUiKey(),loadingNote=loading?'<span class="small" style="display:inline-flex;align-items:center;margin-left:4px"><span class="spinner" style="width:14px;height:14px;margin-right:6px"></span>Actualizando…</span>':'';const body=rows.length?rows.map(o=>{const c=clientFor(o.clientId),qr=quoteFor(o.quoteId);return `<tr><td>${dateCL(o.fecha)}</td><td class="main-text">${esc(o.numero||'—')}</td><td>${(qr?.numero||o.data?.numeroCotizacion)?(o.quoteId?`<button class="ot-linked-quote" title="Abrir cotización vinculada" onclick="ERP.openLinkedQuote('${esc(o.quoteId)}')">Cot. ${esc(qr?.numero||o.data?.numeroCotizacion)}</button>`:`<span class="badge b-progress">Cot. ${esc(qr?.numero||o.data?.numeroCotizacion)}</span>`):'—'}</td><td class="ot-client"><strong>${esc(clientBranchDisplay(c?.name||o.data?.clientName||o.data?.razonSocial||(o.clientId?'Cargando cliente…':'—'),o))}</strong><div class="small">${esc(c?.rut||o.data?.rut||'')}</div></td><td class="ot-work"><strong>${esc(o.descripcion||'—')}</strong>${renderOTOperationalMeta(o)}</td><td>${statusBadge(ui.filter==='finalizadas'?'Trabajo finalizado':otStatusLabel(o.estado))}${advanceListBadge('ot',o)}</td><td>${otDocumentsCell(o)}</td><td><div class="ot-row-actions"><button class="icon-circle-btn eye" title="Ver OT" onclick="ERP.openOT('${esc(o.id)}')">${quoteSvgIcon('eye')}</button><button class="icon-circle-btn more" title="Más opciones" onclick="ERP.otOptions('${esc(o.id)}')">${quoteSvgIcon('more')}</button></div></td></tr>`}).join(''):(loading?'<tr><td colspan="8" class="loading"><span class="spinner"></span>Cargando esta sección…</td></tr>':'<tr><td colspan="8" class="empty">No hay OT con los filtros actuales.</td></tr>');setContent(pageHeader('Órdenes de Trabajo','Seguimiento de trabajos, documentos y estado de cobro.',`<button class="primary" onclick="ERP.otForm()">+ Nueva OT</button><button class="secondary" onclick="ERP.openTrash('ot')">Papelera</button><button class="secondary" onclick="ERP.openView('ots',{force:true})">Actualizar</button>`)+`<div class="panel"><div class="panel-pad"><div class="toolbar ot-filter-toolbar"><input id="otSearch" class="input" autocomplete="off" placeholder="Buscar OT, cotización, cliente, sucursal, OC, HES, factura o trabajo" value="${esc(ui.search)}"><div class="tabs ot-main-tabs"><button class="tab ${['activas_base','activas','pendientes','curso','listas'].includes(ui.filter)?'active':''}" onclick="ERP.setOTFilter('activas_base')">Activas</button><button class="tab ${ui.filter==='facturar'?'active':''}" onclick="ERP.setOTFilter('facturar')">Pendientes de facturar</button><button class="tab ${ui.filter==='finalizadas'?'active':''}" onclick="ERP.setOTFilter('finalizadas')">Finalizadas</button><button class="tab ${ui.filter==='canceladas'?'active':''}" onclick="ERP.setOTFilter('canceladas')">Canceladas</button></div>${['todas','activas_base','activas','pendientes','curso','listas'].includes(ui.filter)?`<div class="ot-active-filter"><span>Estado</span><select class="input" onchange="ERP.setOTActiveFilter(this.value)"><option value="todas" ${ui.filter==='todas'?'selected':''}>Todas las OT</option><option value="activas_base" ${ui.filter==='activas_base'?'selected':''}>Pendientes + En curso</option><option value="pendientes" ${ui.filter==='pendientes'?'selected':''}>Pendientes</option><option value="curso" ${ui.filter==='curso'?'selected':''}>En curso</option><option value="listas" ${ui.filter==='listas'?'selected':''}>Trabajo listo</option></select></div>`:''}${loadingNote}${moduleError('ots')}</div></div><div class="table-wrap"><table class="table ot-table"><thead><tr><th>Fecha</th><th>N° OT</th><th>Cotización</th><th>Cliente</th><th>Trabajo</th><th>Estado</th><th>Documentos</th><th>Acciones</th></tr></thead><tbody>${body}</tbody></table></div>${lazyPagination(ui.page,r.hasMore,'ERP.otPage',r.currentKnownTotal)}</div>`);const input=$('otSearch');if(input){const restore=keepFocus||ERP._otSearchRestore;if(restore){try{input.focus({preventScroll:true})}catch(e){input.focus()}const a=Math.min((keepFocus?selStart:ERP._otSearchCaret)??input.value.length,input.value.length),b=Math.min((keepFocus?selEnd:a)??a,input.value.length);try{input.setSelectionRange(a,b)}catch(e){}ERP._otSearchRestore=false}input.addEventListener('input',e=>ERP.otSearchChanged(e.target));}}
 function linkedOTForQuote(quoteId){
   const qid=String(quoteId||'');
 
@@ -2675,6 +2682,7 @@ async function saveOT(event,quoteId='',editId=''){
   let baseData={},history=[];
   if(editId){
     previousRaw=erpClone(ERP.store.otDetails.get(String(editId))||localOTRaw(editId));
+    if(otClosedWithoutDoc(normalizeOT(previousRaw||{})))throw new Error('Reabre el cierre sin documento desde Control de abonos antes de editar la OT.');
     baseData=(previousRaw?.data&&typeof previousRaw.data==='object')?previousRaw.data:{};
     history=Array.isArray(baseData.otHistory)?baseData.otHistory.slice():[];
     history.unshift(otHistoryEntry('OT editada',{estado,oc,hes,guia_despacho:guia}));
@@ -2711,6 +2719,24 @@ async function saveOT(event,quoteId='',editId=''){
     otHistory:history,
     createdBy:baseData.createdBy||otCurrentUser(),maintenanceProgramId:maintenanceProgramId||baseData.maintenanceProgramId||'',maintenanceMonth:maintenanceMonth||baseData.maintenanceMonth||0,maintenanceYear:maintenanceYear||baseData.maintenanceYear||0
   };
+
+  if(!editId&&quoteId&&!fromMaintenance){
+    // Leer el detalle vigente antes de crear la OT; trasladar el historial inicial una sola vez.
+    const sourceQuote=await detail('quotes',quoteId,['id','data','monto','neto','iva','estado']);
+    if(!sourceQuote)throw new Error('No se pudo comprobar el abono de la cotización. Intenta nuevamente.');
+    const sourceData=sourceQuote.data||{},advance=sourceData.particularCobro;
+    data.quotePaymentMode=sourceData.quotePaymentMode||'';
+    if(advance&&typeof advance==='object'){
+      const paid=advancePaid(advance.pagos),basis=advanceBasis(advance,advancePrices(normalizeQuote(sourceQuote))),cfg=advanceConfigForPrices({...advance,baseCalculo:basis},{total:monto,neto:calc.neto});
+      if(paid>cfg.monto)throw new Error('El monto a cobrar de la OT es menor que los abonos recibidos en la cotización.');
+      data.particularCobro={...cfg,pagos:particularPayments(advance.pagos),activado:paid>0||!!advance.activado};
+    }
+  }
+  if(editId&&baseData.particularCobro){
+    const oldCfg=baseData.particularCobro,basis=advanceBasis(oldCfg,advancePrices(normalizeOT(previousRaw||{}))),cfg=advanceConfigForPrices({...oldCfg,baseCalculo:basis},{total:monto,neto:calc.neto});
+    if(advancePaid(cfg.pagos)>cfg.monto)throw new Error('El monto a cobrar de la OT no puede ser menor a los abonos registrados.');
+    data.particularCobro=cfg;
+  }
 
   const patch={
     numero_ot:numero,
@@ -3102,6 +3128,8 @@ async function markOTWorkDone(id,trigger=null){
 async function setOTStatus(id,status,trigger=null){
   const key=String(id||'');
   if(!key||OT_STATUS_SAVE_LOCKS.has(key))return;
+  const closedRaw=ERP.store.otDetails.get(key)||localOTRaw(key);
+  if(closedRaw&&otClosedWithoutDoc(normalizeOT(closedRaw))){alert('Reabre el cierre sin documento desde Control de abonos antes de cambiar el estado de la OT.');return;}
 
   if(statusNorm(status).includes('pendiente factur'))status='trabajo listo';
   if(statusNorm(status).includes('trabajo listo')){
@@ -3574,7 +3602,7 @@ async function loadBillingExact(force=false){
 
       try{
         await Promise.all([
-          loadVisibleClientRefs(exact),
+          loadVisibleClientRefs([...exact,...ERP.store.particularRows.filter(otClosedWithoutDoc)]),
           loadQuoteRefs(rawRows.map(o=>o.quote_id||o.quoteId).filter(Boolean))
         ]);
       }catch(e){}
@@ -3626,7 +3654,7 @@ function particularRows(){const rows=[];
     const o=otBillingView(o0),c=clientFor(o.clientId),cfg=o?.data?.particularCobro||{};
     if(!particularIsPerson(c)||docsFromOT(o).length||norm(o.estado).includes('cancel'))continue;
     if(!otIsWorkCompleted(o)&&!cfg.activado)continue;
-    const quotation=quoteFor(o.quoteId),quoted=num(quotation?.monto),monto=Number(cfg.monto)>0?num(cfg.monto):(num(o.monto)||quoted),pagos=particularPayments(cfg.pagos),pagadoRegistrado=pagos.filter(p=>!p.anulado).reduce((a,p)=>a+num(p.monto),0),marcadoPagadoEnOT=!pagos.length&&!cfg.ignorarPagoEstadoOT&&/pagad/.test(norm(o.pagoEstado)),pagado=marcadoPagadoEnOT?monto:pagadoRegistrado,saldo=Math.max(0,monto-pagado);
+    const quotation=quoteFor(o.quoteId),prices=advancePrices(o,quotation),monto=advanceBasisAmount(prices,advanceBasis(cfg,prices),cfg),pagos=particularPayments(cfg.pagos),pagadoRegistrado=pagos.filter(p=>!p.anulado).reduce((a,p)=>a+num(p.monto),0),marcadoPagadoEnOT=!pagos.length&&!cfg.ignorarPagoEstadoOT&&/pagad/.test(norm(o.pagoEstado)),pagado=marcadoPagadoEnOT?monto:pagadoRegistrado,saldo=Math.max(0,monto-pagado);
     const fecha=cfg.fechaServicio||adminCompletion(o)||'',mode=text(quotation?.data?.quotePaymentMode||o.data?.quotePaymentMode),vence=cfg.fechaVencimiento||(mode==='advance_50_7'&&fecha?billingAddDays(fecha,7):'');
     rows.push({kind:'ot',id:`ot:${o.id}`,otId:String(o.id),otNumero:o.numero||'',clientId:String(c.id),clientName:c.name||'',rut:c.rut||'',descripcion:o.descripcion||'Servicio',fecha,vence,monto,pagos,pagado,saldo,marcadoPagadoEnOT,numeroCotizacion:quotation?.numero||o.data?.numeroCotizacion||'',documentoTipo:'',documentoNumero:'',gestiones:Array.isArray(cfg.cobranzaGestiones)?cfg.cobranzaGestiones:[]});
   }
@@ -3724,10 +3752,10 @@ function particularStoreOT(id,raw){const normalized=normalizeOT(raw);ERP.store.o
 async function saveParticularManual(e){e.preventDefault();const err=$('pcError'),btn=$('pcSave');try{if(btn)btn.disabled=true;if(err)err.textContent='';const id=text($('pcClient')?.value),description=text($('pcDescription')?.value),amount=parseQuoteMoney($('pcTotal')?.value);if(!id||!description||amount<=0)throw new Error('Debes seleccionar un particular, describir el trabajo e ingresar un monto mayor a cero.');const raw=await particularFetchClient(id),data=raw.data&&typeof raw.data==='object'?raw.data:{},newEntry={id:`PC_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,descripcion:description,monto:amount,fechaServicio:text($('pcServiceDate')?.value),fechaVencimiento:text($('pcDue')?.value),pagos:[],createdAt:new Date().toISOString(),registradoPor:otCurrentUser()};const next={...data,particularCobros:[...(Array.isArray(data.particularCobros)?data.particularCobros:[]),newEntry]};await api('update',{table:'clients',patch:{data:next},filters:[{column:'id',op:'eq',value:id}]},{timeout:90000,attempts:2});particularStoreClient(id,next);closeModal();renderParticularBilling();erpQuickToast('Cobro particular registrado')}catch(error){if(err)err.innerHTML=`<div class="error">${esc(error.message||error)}</div>`;else alert(error.message)}finally{if(btn)btn.disabled=false}}
 function particularEditForm(token){const r=particularByToken(token);if(!r)return;const t=encodeURIComponent(r.id);modal('Editar cobro particular',`<form id="particularEditForm"><div class="notice"><b>${esc(r.clientName)}</b> · ${esc(particularReference(r))}</div><div class="particular-form-grid"><div class="field" style="grid-column:1/-1"><label>Descripción</label><input class="input" id="peDescription" value="${esc(r.descripcion)}" ${r.kind==='ot'?'readonly':''}></div><div class="field"><label>Monto total *</label><input class="input" id="peAmount" value="${r.monto?Math.round(r.monto).toLocaleString('es-CL'):''}" inputmode="numeric" oninput="ERP.quoteMoneyInput(this)" required></div><div class="field"><label>Fecha de servicio</label><input class="input" id="peServiceDate" type="date" value="${esc(r.fecha||'')}"></div><div class="field"><label>Fecha límite de pago</label><input class="input" id="peDue" type="date" value="${esc(r.vence||'')}"></div>${r.kind==='manual'?`<div class="field"><label>Documento tributario emitido (opcional)</label><select class="input" id="peDocType"><option value="">Sin registrar</option><option value="boleta" ${r.documentoTipo==='boleta'?'selected':''}>Boleta</option><option value="factura" ${r.documentoTipo==='factura'?'selected':''}>Factura</option></select></div><div class="field"><label>Número documento</label><input class="input" id="peDocNumber" value="${esc(r.documentoNumero||'')}"></div>`:''}</div><div class="particular-alert">La edición del monto no modifica el total de la cotización ni emite un documento tributario. Los abonos existentes se conservan.</div><div id="peError"></div><div class="actions"><button type="submit" id="peSave" class="primary">Guardar</button><button type="button" class="secondary" onclick="ERP.particularOpen('${t}')">Cancelar</button></div></form>`);$('particularEditForm').onsubmit=e=>ERP.particularEditSave(e,t)}
 async function particularUpdateEntry(r,mutator){
-  if(r.kind==='ot'){const raw=await particularFetchOT(r.otId);if(docsFromOT(normalizeOT(raw)).length)throw new Error('Esta OT ya tiene un documento tributario. Revísala en Facturas y boletas.');const data=raw.data&&typeof raw.data==='object'?raw.data:{},cfg=data.particularCobro&&typeof data.particularCobro==='object'?data.particularCobro:{},nextCfg=mutator({...cfg,pagos:particularPayments(cfg.pagos)}),next={...data,particularCobro:{...nextCfg,activado:true}};await api('update',{table:'ots',patch:{data:next},filters:[{column:'id',op:'eq',value:r.otId}]},{timeout:90000,attempts:2});particularStoreOT(r.otId,{...raw,data:next});return}
+  if(r.kind==='ot'){const raw=await particularFetchOT(r.otId);if(otClosedWithoutDoc(normalizeOT(raw)))throw new Error('La OT está cerrada sin documento. Reábrela desde Control de abonos antes de modificar el cobro.');if(docsFromOT(normalizeOT(raw)).length)throw new Error('Esta OT ya tiene un documento tributario. Revísala en Facturas y boletas.');const data=raw.data&&typeof raw.data==='object'?raw.data:{},cfg=data.particularCobro&&typeof data.particularCobro==='object'?data.particularCobro:{},prices=advancePrices(normalizeOT(raw),quoteFor(r.quoteId||raw.quote_id)),currentCfg=advanceConfigForPrices(cfg,prices),nextCfg=mutator({...currentCfg,pagos:particularPayments(cfg.pagos)}),next={...data,particularCobro:{...nextCfg,activado:true}};await api('update',{table:'ots',patch:{data:next},filters:[{column:'id',op:'eq',value:r.otId}]},{timeout:90000,attempts:2});particularStoreOT(r.otId,{...raw,data:next});return}
   const raw=await particularFetchClient(r.clientId),data=raw.data&&typeof raw.data==='object'?raw.data:{},entries=Array.isArray(data.particularCobros)?data.particularCobros:[],idx=entries.findIndex(x=>String(x.id)===r.manualId);if(idx<0)throw new Error('El cobro no está disponible en la ficha del cliente.');const updated=entries.slice();updated[idx]=mutator({...entries[idx],pagos:particularPayments(entries[idx].pagos)});const next={...data,particularCobros:updated};await api('update',{table:'clients',patch:{data:next},filters:[{column:'id',op:'eq',value:r.clientId}]},{timeout:90000,attempts:2});particularStoreClient(r.clientId,next)
 }
-async function particularEditSave(e,token){e.preventDefault();const r=particularByToken(token),err=$('peError'),btn=$('peSave');try{if(btn)btn.disabled=true;if(!r)throw new Error('Cobro no disponible.');const amount=parseQuoteMoney($('peAmount')?.value),description=text($('peDescription')?.value),due=text($('peDue')?.value),serviceDate=text($('peServiceDate')?.value);if(amount<=0||amount<r.pagado)throw new Error(`El total debe ser mayor que $0 y no inferior a lo ya abonado: ${money(r.pagado)}.`);await particularUpdateEntry(r,x=>({...x,monto:amount,descripcion:description,fechaServicio:serviceDate,fechaVencimiento:due,documentoTipo:r.kind==='manual'?text($('peDocType')?.value):x.documentoTipo,documentoNumero:r.kind==='manual'?text($('peDocNumber')?.value):x.documentoNumero,updatedAt:new Date().toISOString()}));closeModal();renderParticularBilling();erpQuickToast('Cobro actualizado')}catch(error){if(err)err.innerHTML=`<div class="error">${esc(error.message||error)}</div>`;else alert(error.message)}finally{if(btn)btn.disabled=false}}
+async function particularEditSave(e,token){e.preventDefault();const r=particularByToken(token),err=$('peError'),btn=$('peSave');try{if(btn)btn.disabled=true;if(!r)throw new Error('Cobro no disponible.');const amount=parseQuoteMoney($('peAmount')?.value),description=text($('peDescription')?.value),due=text($('peDue')?.value),serviceDate=text($('peServiceDate')?.value);if(amount<=0||amount<r.pagado)throw new Error(`El total debe ser mayor que $0 y no inferior a lo ya abonado: ${money(r.pagado)}.`);await particularUpdateEntry(r,x=>({...x,...(r.kind==='ot'&&amount!==r.monto?{baseCalculo:'personalizado'}:{}),monto:amount,descripcion:description,fechaServicio:serviceDate,fechaVencimiento:due,documentoTipo:r.kind==='manual'?text($('peDocType')?.value):x.documentoTipo,documentoNumero:r.kind==='manual'?text($('peDocNumber')?.value):x.documentoNumero,updatedAt:new Date().toISOString()}));closeModal();renderParticularBilling();erpQuickToast('Cobro actualizado')}catch(error){if(err)err.innerHTML=`<div class="error">${esc(error.message||error)}</div>`;else alert(error.message)}finally{if(btn)btn.disabled=false}}
 function particularPaymentForm(token,full=false){const r=particularByToken(token);if(!r||r.monto<=0||r.saldo<=0)return;const t=encodeURIComponent(r.id);modal('Registrar pago particular',`<form id="particularPaymentForm"><div class="notice"><b>${esc(r.clientName)}</b> · ${esc(r.descripcion)}<div class="small">Total: ${money(r.monto)} · Abonado: ${money(r.pagado)} · Saldo: ${money(r.saldo)}</div></div><div class="particular-form-grid"><div class="field"><label>Monto *</label><input id="ppAmount" class="input" inputmode="numeric" oninput="ERP.quoteMoneyInput(this)" value="${full?Math.round(r.saldo).toLocaleString('es-CL'):''}" required></div><div class="field"><label>Fecha *</label><input id="ppDate" class="input" type="date" value="${isoToday()}" required></div><div class="field"><label>Medio de pago</label><select class="input" id="ppMethod"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Depósito</option><option>Otro</option></select></div><div class="field"><label>Comprobante / referencia</label><input class="input" id="ppRef" placeholder="Opcional"></div><div class="field" style="grid-column:1/-1"><label>Observación</label><textarea id="ppNote" class="input" rows="2"></textarea></div></div><div id="ppError"></div><div class="actions"><button type="submit" id="ppSave" class="primary">${full?'Confirmar pago total':'Guardar abono'}</button><button type="button" class="secondary" onclick="ERP.particularOpen('${t}')">Cancelar</button></div></form>`);$('particularPaymentForm').onsubmit=e=>ERP.particularPaymentSave(e,t)}
 async function particularPaymentSave(e,token){e.preventDefault();const r=particularByToken(token),err=$('ppError'),btn=$('ppSave');try{if(btn)btn.disabled=true;if(!r)throw new Error('Cobro no encontrado.');const amount=parseQuoteMoney($('ppAmount')?.value),date=text($('ppDate')?.value),method=text($('ppMethod')?.value),reference=text($('ppRef')?.value),note=text($('ppNote')?.value);if(!amount||amount<=0||amount>r.saldo)throw new Error(`El abono debe ser mayor que $0 y no puede superar ${money(r.saldo)}.`);const payment={id:`PP_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,monto:amount,fecha:date,metodo:method,referencia:reference,nota:note,registradoPor:otCurrentUser(),createdAt:new Date().toISOString()};await particularUpdateEntry(r,x=>{const pagos=particularPayments(x.pagos),actual=pagos.filter(p=>!p.anulado).reduce((a,p)=>a+num(p.monto),0),total=num(x.monto)||(r.kind==='ot'?r.monto:0);if(actual+amount>total+.5)throw new Error('Otra persona registró un pago mientras trabajabas. Actualiza el cobro antes de continuar.');return {...x,pagos:[...pagos,payment]}});closeModal();renderParticularBilling();erpQuickToast('Pago particular registrado');if(typeof ecNotify!=='undefined'){ecNotify.items=ecAlertGather();ecAlertCountUpdate();ecAlertRenderPanel()}}catch(error){if(err)err.innerHTML=`<div class="error">${esc(error.message||error)}</div>`;else alert(error.message)}finally{if(btn)btn.disabled=false}}
 function particularPaymentEditForm(token,paymentToken){
@@ -4190,7 +4218,7 @@ async function openExistingOTBillingAction(id,tipo,numero,action='edit'){
   }
 }
 
-async function otTaxDocumentFlow(id){try{const ctx=await getOTTaxContext(id);
+async function otTaxDocumentFlow(id,preferredType=''){try{const ctx=await getOTTaxContext(id,{force:true});
 
   // Si ya existe documento tributario, siempre debe poder consultarse.
   // No volver a bloquearlo por requisitos documentales actuales.
@@ -4200,23 +4228,70 @@ async function otTaxDocumentFlow(id){try{const ctx=await getOTTaxContext(id);
   }
 
   if(!otIsWorkCompleted(ctx.o))throw new Error('El trabajo todavía no está marcado como listo.');
+  if(otClosedWithoutDoc(ctx.o))throw new Error('Reabre el cierre sin documento desde Control de abonos antes de registrar una factura o boleta.');
 
-  const state=otBillingRequirementState(ctx.o);
-  if(!state.loaded)throw new Error('Aún se están verificando los requisitos de facturación del cliente.');
+  let state=otBillingRequirementState(ctx.o);
+  if(!state.loaded||state.failed){
+    await ensureOTBillingRequirements([ctx.o],null,{force:state.failed});
+    state=otBillingRequirementState(ctx.o);
+    if(ERP.view==='ots')verifyVisibleOTClassification(otCurrentUiKey());
+  }
+  if(!state.loaded||state.failed)throw new Error('No se pudo consultar la configuración documental del cliente. Vuelve a seleccionar Reintentar requisitos.');
   if(!state.configured)throw new Error('Primero debes definir la documentación requerida por este cliente.');
 
   if(state.missing.length){
     throw new Error(`Antes de facturar falta registrar: ${state.missing.join(' y ')}.`);
   }
 
-  return otTaxDocumentForm(id,false,ctx);
+  return otTaxDocumentForm(id,false,ctx,preferredType);
 }catch(e){alert('No se pudo abrir la facturación de la OT: '+e.message)}}
-async function otTaxDocumentForm(id,append=false,ctx=null){try{ctx=ctx||await getOTTaxContext(id);if(!append&&ctx.docs.length)return otTaxDocumentFlow(id);if(append&&!ctx.docs.length)append=false;const title=append?'Agregar otro documento tributario':'Registrar factura / boleta';modal(title,`<form id="otTaxDocForm"><div class="notice"><strong>OT ${esc(ctx.o.numero||'—')} · ${esc(ctx.c?.name||ctx.o.data?.clientName||'Cliente')}</strong><div class="small">${append?'El nuevo documento se agregará sin borrar los documentos anteriores.':'Registra el primer documento tributario de este trabajo.'}</div></div><div class="grid2" style="margin-top:14px"><div class="field"><label>Tipo de documento *</label><select id="otTaxType" class="input"><option value="factura">Factura</option><option value="boleta">Boleta</option></select></div><div class="field"><label>Número *</label><input id="otTaxNumber" class="input" autocomplete="off" required placeholder="N° documento"></div><div class="field"><label>Fecha de emisión / envío *</label><input id="otTaxDate" class="input" type="date" value="${isoToday()}" required></div><div class="field"><label>Monto asociado</label><input id="otTaxAmount" class="input" inputmode="numeric" value="${ctx.o.monto?ctx.o.monto.toLocaleString('es-CL'):''}" oninput="ERP.quoteMoneyInput(this)"></div></div><div id="otTaxDocError"></div><div class="actions"><button id="otTaxSaveBtn" class="primary" type="submit">${append?'Agregar documento':'Registrar documento'}</button><button class="secondary" type="button" onclick="ERP.closeModal()">Cancelar</button></div></form>`);$('otTaxDocForm').onsubmit=e=>ERP.saveOTTaxDocument(e,id,append)}catch(e){alert('No se pudo abrir el registro del documento: '+e.message)}}
+async function otTaxDocumentForm(id,append=false,ctx=null,preferredType=''){
+  try{
+    ctx=ctx||await getOTTaxContext(id,{force:true});
+    if(!append&&ctx.docs.length)return otTaxDocumentFlow(id);
+    if(append&&!ctx.docs.length)append=false;
+    const title=append?'Agregar otro documento tributario':'Registrar factura / boleta';
+    modal(title,`<form id="otTaxDocForm"><div class="notice"><strong>OT ${esc(ctx.o.numero||'—')} · ${esc(ctx.c?.name||ctx.o.data?.clientName||'Cliente')}</strong><div class="small">${append?'El nuevo documento se agregará sin borrar los documentos anteriores.':'Registra el documento del trabajo o su cierre administrativo si corresponde.'}</div></div>
+      <div class="grid2" style="margin-top:14px">
+        <div class="field"><label>Tipo de documento *</label><select id="otTaxType" class="input"><option value="factura">Factura</option><option value="boleta">Boleta</option>${append?'':'<option value="sin_documento">Sin documento</option>'}</select></div>
+        <div id="otTaxNumberField" class="field"><label>Número *</label><input id="otTaxNumber" class="input" autocomplete="off" required placeholder="N° documento"></div>
+        <div id="otTaxDateField" class="field"><label>Fecha de emisión / envío *</label><input id="otTaxDate" class="input" type="date" value="${isoToday()}" required></div>
+        <div id="otTaxAmountField" class="field"><label>Monto asociado</label><input id="otTaxAmount" class="input" inputmode="numeric" value="${ctx.o.monto?ctx.o.monto.toLocaleString('es-CL'):''}" oninput="ERP.quoteMoneyInput(this)"></div>
+      </div>
+      <div id="otTaxNoDocFields" class="hidden"><div class="notice"><strong>Cierre administrativo sin documento registrado.</strong> Solo disponible si el trabajo está listo y el pago está completo. La OT quedará en Finalizadas, sin crear una factura o boleta. Este registro interno no sustituye la documentación tributaria que corresponda.</div><div class="field"><label>Motivo del cierre *</label><textarea id="otTaxNoDocReason" class="input" rows="2" disabled placeholder="Indica el motivo"></textarea></div></div>
+      <div id="otTaxDocError"></div><div class="actions"><button id="otTaxSaveBtn" class="primary" type="submit">${append?'Agregar documento':'Registrar documento'}</button><button class="secondary" type="button" onclick="ERP.closeModal()">Cancelar</button></div></form>`);
+    if(['factura','boleta'].includes(preferredType))$('otTaxType').value=preferredType;
+    const changeType=()=>{
+      const noDoc=$('otTaxType').value==='sin_documento';
+      for(const key of ['Number','Date','Amount']){$('otTax'+key+'Field').classList.toggle('hidden',noDoc);$('otTax'+key).disabled=noDoc;}
+      $('otTaxNumber').required=!noDoc;$('otTaxDate').required=!noDoc;
+      $('otTaxNoDocFields').classList.toggle('hidden',!noDoc);$('otTaxNoDocReason').disabled=!noDoc;$('otTaxNoDocReason').required=noDoc;
+      $('otTaxSaveBtn').textContent=noDoc?'Finalizar OT':append?'Agregar documento':'Registrar documento';
+      $('otTaxDocError').innerHTML='';
+    };
+    $('otTaxType').addEventListener('change',changeType);changeType();
+    $('otTaxDocForm').onsubmit=e=>ERP.saveOTTaxDocument(e,id,append);
+  }catch(e){alert('No se pudo abrir el registro del documento: '+e.message)}
+}
 async function saveOTTaxDocument(event,id,append=false){
   event?.preventDefault();
   const err=$('otTaxDocError'),btn=$('otTaxSaveBtn');if(err)err.innerHTML='';
+  if(btn?.disabled)return;
+  if(btn)btn.disabled=true;
+  let release=null;
   try{
-    const ctx=await getOTTaxContext(id),tipo=text($('otTaxType')?.value)||'factura',numero=text($('otTaxNumber')?.value),fecha=text($('otTaxDate')?.value)||isoToday(),monto=parseQuoteMoney($('otTaxAmount')?.value)||otEffectiveAmount(ctx.o);
+    const tipo=text($('otTaxType')?.value)||'factura';
+    if(tipo==='sin_documento'){
+      if(append)throw new Error('Esta OT ya tiene un documento registrado.');
+      const reason=text($('otTaxNoDocReason')?.value);
+      release=advanceBusy(btn,'Finalizando…');
+      const known=localOTRaw(id),number=known?normalizeOT(known).numero:'';
+      if(await advanceCloseWithoutDoc(id,reason,number)){closeModal();erpQuickToast('OT finalizada · Pagado sin documento registrado');}
+      return;
+    }
+    if(!['factura','boleta'].includes(tipo))throw new Error('Selecciona un tipo de documento válido.');
+    const ctx=await getOTTaxContext(id,{force:true}),numero=text($('otTaxNumber')?.value),fecha=text($('otTaxDate')?.value)||isoToday(),monto=parseQuoteMoney($('otTaxAmount')?.value)||otEffectiveAmount(ctx.o);
+    if(otClosedWithoutDoc(ctx.o))throw new Error('Primero reabre el cierre sin documento desde Control de abonos.');
     if(!numero)throw new Error('Debes indicar el número del documento.');
     const base=(ctx.raw.data&&typeof ctx.raw.data==='object')?ctx.raw.data:{},docs=docsFromOT({...ctx.o,data:base}).map(d=>({...d}));
     if(!append&&docs.length)throw new Error('Esta OT ya tiene un documento. Usa “Agregar otra factura / boleta”.');
@@ -4226,11 +4301,12 @@ async function saveOTTaxDocument(event,id,append=false){
     const hist=Array.isArray(base.otHistory)?base.otHistory.slice():[];
     hist.unshift(otHistoryEntry(`${append?'Documento agregado':'Documento tributario registrado'}: ${tipo==='boleta'?'Boleta':'Factura'} ${numero}`,{documento_tipo:tipo,documento_numero:numero,documento_fecha:fecha}));
     const data={...base,documentos:docs,documents:docs,documento_tipo:tipo,documento_numero:numero,documento_fecha:fecha,factura_num:numero,factura_numero:numero,montoFacturado:monto,pago_estado:'facturado',otHistory:hist},updated={...ctx.raw,pago_estado:'facturado',data};
+    if(base.particularCobro?.cierreSinDocumento?.activo)data.particularCobro={...base.particularCobro,cierreSinDocumento:{...base.particularCobro.cierreSinDocumento,activo:false,documentoRegistradoEn:new Date().toISOString()}};
     billingCommitRawLocal(updated);invalidate('billing');closeModal();if(ERP.view==='ots')renderOTs();erpQuickToast(`${tipo==='boleta'?'Boleta':'Factura'} ${numero} registrada`);
-    try{await api('update',{table:'ots',patch:{pago_estado:'facturado',data},filters:[{column:'id',op:'eq',value:id}]},{timeout:90000,attempts:2})}
+    try{await api('update',{table:'ots',patch:{pago_estado:'facturado',data},filters:[{column:'id',op:'eq',value:id}]},{timeout:90000,attempts:2});otClearStatusGuard(id);otDropStatusViewCaches();if(ERP.view==='ots'){otRefreshCurrentViewLocal();showOTs(true).catch(()=>{});}}
     catch(syncError){billingCommitRawLocal(previous);invalidate('billing');if(ERP.view==='ots')renderOTs();erpQuickToast('No se pudo registrar; se restauró la OT','bad');alert('No se pudo registrar el documento: '+(syncError?.message||syncError))}
   }catch(e){if(err)err.innerHTML=`<div class="error">${esc(e.message)}</div>`;else alert(e.message)}
-  finally{if(btn){btn.disabled=false;btn.textContent=append?'Agregar documento':'Registrar documento'}}
+  finally{if(release)release();if(btn){btn.disabled=false;btn.textContent=$('otTaxType')?.value==='sin_documento'?'Finalizar OT':append?'Agregar documento':'Registrar documento'}}
 }
 function freqStep(f){return ({mensual:1,bimestral:2,trimestral:3,cuatrimestral:4,semestral:6,anual:12})[norm(f)]||12}
 function maintHistoryType(h){return norm(h?.type||h?.action||h?.tipo||'')}
@@ -6659,6 +6735,8 @@ async function saveQuote(event,id=''){
   const baseData=(cached?.data&&typeof cached.data==='object')
     ?cached.data
     :((current?.data&&typeof current.data==='object')?current.data:{});
+  const oldAdvance=baseData.particularCobro,editedAdvance=id&&oldAdvance?advanceConfigForPrices({...oldAdvance,baseCalculo:advanceBasis(oldAdvance,advancePrices(normalizeQuote(cached||current||{})))},{total:totals.total,neto:totals.neto}):null;
+  if(editedAdvance&&advancePaid(editedAdvance.pagos)>editedAdvance.monto)throw new Error('El monto a cobrar de la cotización no puede ser menor a los abonos registrados.');
 
   const payload={
     numero,
@@ -6677,6 +6755,7 @@ async function saveQuote(event,id=''){
     fecha,
     data:{
       ...baseData,
+      ...(editedAdvance?{particularCobro:editedAdvance}:{}),
       numeroCotizacion:numero,
       clientId,
       client_id:clientId,
@@ -7540,6 +7619,8 @@ async function deleteQuoteRecord(id){
       return;
     }
 
+    const advanceRaw=await advanceQuoteRaw(key);
+    if(advancePaid(advanceRaw.data?.particularCobro?.pagos)>0){alert('La cotización tiene abonos activos; debes corregirlos antes de eliminarla.');return;}
     if(!confirm(`¿Enviar la cotización ${q.numero||''} a la papelera? Podrás recuperarla después.`))return;
 
     // Recuperar el registro más completo posible para la papelera.
@@ -7657,6 +7738,276 @@ async function markQuoteSpecialStatus(id,status){
  try{await updateQuoteDataPatch(id,(data)=>{const hist=Array.isArray(data.quoteHistory)?data.quoteHistory.slice():[];hist.unshift(buildQuoteHistoryEntry(`Marcada como ${label}`));data.quoteHistory=hist;data.specialStatus=label;data.special_status=label;return data});try{localStorage.removeItem(SNAP_PREFIX+'quotes')}catch(e){}}catch(e){q.specialStatus=previous;renderQuotes();alert('No se pudo marcar la cotización: '+e.message)}
 }
 function showQuoteHistory(id){const q=(ERP.store.quotes||[]).find(x=>String(x.id)===String(id));if(!q){alert('No se encontró la cotización.');return}const c=clientFor(q.clientId);const hist=historyForQuote(q);modal('Historial de cotización',`<div class="quote-options-head"><div><h2 style="margin:0">Cotización ${esc(q.numero)} · ${esc(c?.name||q.data?.clientName||'Cliente')}</h2><div class="quote-options-sub">Resumen de movimientos registrados y estado actual.</div></div><button class="secondary" onclick="ERP.closeModal()">Cerrar</button></div><div class="quote-history-list">${hist.length?hist.map(ev=>`<div class="quote-history-item"><strong>${esc(ev.action||'Movimiento')}</strong><div class="quote-history-meta">${dateCL(ev.date)} · ${esc(ev.user||'Sistema')}</div>${ev.fromStatus||ev.toStatus?`<div class="quote-options-sub">${ev.fromStatus?`Desde: ${esc(ev.fromStatus)}`:''}${ev.fromStatus&&ev.toStatus?' · ':''}${ev.toStatus?`Hacia: ${esc(ev.toStatus)}`:''}</div>`:''}</div>`).join(''):`<div class="quote-history-item"><strong>Sin historial adicional</strong><div class="quote-history-meta">La cotización aún no registra movimientos extras.</div></div>`}</div>`)}
+// ===== Control de abonos previos al inicio del trabajo =====
+// Sin OT: el historial vive en la cotización. Con OT: se administra únicamente en la OT.
+function advancePaid(payments){return particularPayments(payments).filter(p=>!p.anulado).reduce((sum,p)=>sum+num(p.monto),0)}
+function advanceRequired(cfg,data,client){
+  if(typeof cfg?.requiere50==='boolean')return cfg.requiere50;
+  const mode=quotePaymentTermsForData(data||{});
+  return mode===QUOTE_PAY_ADVANCE||(mode===QUOTE_PAY_LEGACY&&particularIsPerson(client));
+}
+function advanceAmounts(total,payments,required=true){
+  total=Math.max(0,Math.round(num(total)));const paid=advancePaid(payments),target=required?Math.round(total/2):0;
+  return {total,paid,target,remaining:Math.max(0,total-paid),missing:Math.max(0,target-paid),ready:required&&total>0&&paid>=target};
+}
+// Base comercial del cobro, independiente de los valores tributarios de la cotización.
+function advancePrices(record,quote=null){
+  const d=record?.data||{},qd=quote?.data||{};
+  const total=Math.max(0,Math.round(num(record?.monto)||num(d.total)||num(quote?.monto)||num(qd.total)));
+  let neto=num(record?.neto)||num(d.neto);
+  if(!(neto>0)&&total===Math.round(num(quote?.monto)||num(qd.total)))neto=num(quote?.neto)||num(qd.neto);
+  if(!(neto>0)&&total>0)neto=otMoneyBreakdown(total).neto;
+  return {total,neto:Math.max(0,Math.min(total,Math.round(neto)))};
+}
+function advanceBasis(cfg,prices){
+  if(['neto','total','personalizado'].includes(cfg?.baseCalculo))return cfg.baseCalculo;
+  const saved=Math.round(num(cfg?.monto));
+  if(saved>0&&saved!==prices.total)return saved===prices.neto?'neto':'personalizado';
+  return 'total';
+}
+function advanceBasisAmount(prices,basis,cfg={}){
+  if(basis==='neto')return prices.neto;
+  if(basis==='personalizado')return Math.max(0,Math.round(num(cfg.monto)));
+  return prices.total;
+}
+function advanceBasisLabel(basis){return basis==='neto'?'Monto neto':basis==='personalizado'?'Monto acordado previamente':'Total con IVA'}
+function advanceConfigForPrices(cfg,prices){
+  if(!cfg||typeof cfg!=='object')return cfg;
+  const basis=advanceBasis(cfg,prices),amount=advanceBasisAmount(prices,basis,cfg);
+  return {...cfg,baseCalculo:basis,monto:amount};
+}
+async function advanceQuoteRaw(id){
+  const raw=await detail('quotes',String(id),[...QUOTE_PAGE_COLUMNS,'items']);
+  if(!raw)throw new Error('No se encontró la cotización.');return raw;
+}
+async function advanceContext(kind,id){
+  let raw,qraw=null,record,table=kind==='quote'?'quotes':'ots';
+  if(kind==='quote'){
+    // Las dos consultas son independientes; no esperar una para iniciar la otra.
+    const [quote,response]=await Promise.all([advanceQuoteRaw(id),api('select',{table:'ots',columns:['id'],filters:[{column:'quote_id',op:'eq',value:String(id)}],orGroups:[],offset:0,limit:3,resolveOverflow:false})]);
+    qraw=quote;
+    if(!norm(qraw.estado).includes('acept'))throw new Error('El control de abonos está disponible para cotizaciones aceptadas.');
+    // No usar una búsqueda que silencie errores: podría crear dos historiales si la red falla.
+    const linked=response.data||[];
+    if(linked.length>1)throw new Error('Esta cotización tiene varias OT. Registra el abono en la OT correspondiente.');
+    if(linked.length){table='ots';id=linked[0].id;}
+    else raw=qraw;
+  }
+  if(table==='ots'){
+    if(String(id).startsWith('TMP_'))throw new Error('Espera a que termine de guardarse la OT y vuelve a abrir el abono.');
+    raw=await getOTDetail(id,{force:true});if(!raw)throw new Error('No se encontró la OT.');
+    record=normalizeOT(raw);
+    const d=record.data||{},cfg=d.particularCobro||{};
+    // La OT contiene sus propios importes y condiciones. Solo consultar la
+    // cotización si falta información, sin descargar sus partidas completas.
+    if(!qraw&&record.quoteId&&(!record.monto||!num(d.neto)||(typeof cfg.requiere50!=='boolean'&&!text(d.quotePaymentMode)))){
+      qraw=await detail('quotes',record.quoteId,['id','monto','neto','data']);
+      if(!qraw)throw new Error('No se pudo comprobar la cotización vinculada.');
+    }
+  }else record=normalizeQuote(raw);
+  return advanceContextFromRaw(table,raw,qraw);
+}
+function advanceContextFromRaw(table,raw,qraw=null){
+  if(raw?.data?.__drive_ref)throw new Error('No se pudo cargar el detalle completo. Intenta nuevamente.');
+  const record=table==='ots'?normalizeOT(raw):normalizeQuote(raw);
+  const data=record.data||{},cfg=data.particularCobro||{},client=clientFor(record.clientId);
+  const terms={...(qraw?.data||{}),...data};
+  const prices=advancePrices(record,qraw),basis=advanceBasis(cfg,prices),total=advanceBasisAmount(prices,basis,cfg);
+  const payments=particularPayments(cfg.pagos),required=advanceRequired(cfg,terms,client),amounts=advanceAmounts(total,payments,required);
+  const docs=table==='ots'?docsFromOT(record):[],legacyPaid=table==='ots'&&!payments.length&&/pagad/.test(norm(record.pagoEstado)),closed=table==='ots'&&otClosedWithoutDoc(record);
+  return {kind:table==='ots'?'ot':'quote',table,raw,qraw,record,cfg,data,client,payments,required,amounts,prices,basis,docs,legacyPaid,closed,locked:docs.length>0||legacyPaid||closed||norm(record.estado).includes('cancel')};
+}
+function advanceBadge(a,required){
+  if(a.total>0&&a.remaining===0)return '<span class="badge b-paid">Pago completo</span>';
+  if(!required)return '<span class="badge b-neutral">Sin anticipo exigido</span>';
+  if(a.ready)return '<span class="badge b-paid">Abono 50% cubierto</span>';
+  return `<span class="badge b-pending">${a.paid>0?'Abono parcial':'Abono pendiente'}</span>`;
+}
+function advanceDocumentSection(ctx){
+  const {record,docs,closed,amounts:a}=ctx;
+  if(docs.length)return `<div class="notice" style="margin-top:14px"><strong>Documento registrado:</strong> ${docs.map(d=>`${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}`).join(' · ')}</div>`;
+  if(closed){const info=ctx.cfg.cierreSinDocumento||{};return `<div class="notice" style="margin-top:14px"><span class="badge b-paid">Pagado · Sin documento</span><div class="small">Cierre administrativo: ${dateCL(info.fecha)} · ${esc(info.usuario||'')} · ${esc(info.motivo||'')}</div><button class="secondary" type="button" data-advance-document="reabrir" style="margin-top:9px">Reabrir para registrar documento o corregir pago</button></div>`;}
+  if(ctx.locked)return '';
+  if(ctx.kind!=='ot'||!otIsWorkCompleted(record)||a.total<=0||a.remaining>0)return `<div class="notice" style="margin-top:14px"><strong>Documento del trabajo</strong><div class="small">Cuando se complete el pago y la OT esté marcada como trabajo listo, podrás registrar factura, boleta o un cierre administrativo sin documento registrado.</div></div>`;
+  return `<div class="notice" style="margin-top:14px"><strong>Pago completo · Documento del trabajo</strong><div class="small" style="margin:5px 0 10px">Indica el documento registrado o cierra administrativamente el trabajo si corresponde. Guarda cualquier cambio en el abono antes de continuar.</div><div class="actions"><button class="secondary" type="button" data-advance-document="factura">Factura</button><button class="secondary" type="button" data-advance-document="boleta">Boleta</button><button class="secondary" type="button" data-advance-document="sin_documento">Sin documento</button></div></div>`;
+}
+async function advanceCloseWithoutDoc(id,reason,number=''){
+  reason=text(reason);if(!reason)throw new Error('Indica el motivo del cierre administrativo.');
+  if(!confirm(`¿Cerrar administrativamente la OT${number?' '+number:''} sin documento registrado? Saldrá de Pendientes de facturar y quedará visible en Finalizadas. Podrás reabrirla.`))return false;
+  // Una sola lectura vigente, inmediatamente antes de escribir.
+  const check=await advanceContext('ot',id);
+  if(check.locked)throw new Error('Esta OT ya no admite el cierre sin documento.');
+  if(!otIsWorkCompleted(check.record)||check.amounts.total<=0||check.amounts.remaining>0)throw new Error('Para finalizar sin documento, la OT debe estar con trabajo listo y pago completo.');
+  const cfg={...check.cfg,baseCalculo:check.basis,monto:check.amounts.total,activado:true,cierreSinDocumento:{activo:true,fecha:isoToday(),registradoEn:new Date().toISOString(),usuario:otCurrentUser(),motivo:reason}};
+  return advancePersist(check,cfg,`Cierre administrativo sin documento registrado · ${reason}`,'cerrado_sin_documento');
+}
+async function advanceDocumentAction(original,choice){
+  if(original.kind!=='ot')return;
+  if(!['factura','boleta','sin_documento','reabrir'].includes(choice))return;
+  const currentBasis=$('advanceBasis')?.value||original.basis;
+  if(currentBasis!==original.basis||text($('advanceAmount')?.value)){alert('Guarda primero los cambios en la base de cobro o monto recibido.');return;}
+  if(ERP._advanceDocSaving)return;ERP._advanceDocSaving=true;
+  const release=advanceBusy(document.querySelector(`[data-advance-document="${choice}"]`),choice==='sin_documento'?'Finalizando…':'Procesando…');
+  try{
+    if(choice==='sin_documento'){
+      const reason=text(prompt('Motivo del cierre administrativo sin documento registrado (solo cuando corresponda; no sustituye la documentación tributaria):')||'');if(!reason)return;
+      const saved=await advanceCloseWithoutDoc(original.record.id,reason,original.record.numero);
+      if(saved){erpQuickToast('OT finalizada sin documento registrado');await advanceOpen('ot',saved.record.id,'',saved);}
+      return;
+    }
+    const fresh=await advanceContext('ot',original.record.id);
+    if(fresh.docs.length)throw new Error('Ya hay un documento registrado en esta OT.');
+    if(choice==='reabrir'){
+      if(!fresh.closed)throw new Error('El cierre cambió. Actualiza el registro.');
+      const reason=text(prompt('Motivo para reabrir el cierre administrativo:')||'');if(!reason)return;
+      const cfg={...fresh.cfg,cierreSinDocumento:{...fresh.cfg.cierreSinDocumento,activo:false,reabiertoEn:new Date().toISOString(),reabiertoPor:otCurrentUser(),motivoReapertura:reason}};
+      const req=otBillingRequirementState(fresh.record),payState=req.loaded&&req.configured&&req.missing.length===0?'pendiente_facturar':'';
+      const saved=await advancePersist(fresh,cfg,`Cierre sin documento reabierto: ${reason}`,payState);
+      erpQuickToast('OT reabierta para documentación');await advanceOpen('ot',fresh.record.id,'',saved);return;
+    }
+    if(fresh.closed||fresh.locked)throw new Error('Esta OT ya no admite esta operación.');
+    if(!otIsWorkCompleted(fresh.record)||fresh.amounts.total<=0||fresh.amounts.remaining>0)throw new Error('La OT debe estar con trabajo listo y pago completo.');
+    if(choice==='factura'||choice==='boleta'){await otTaxDocumentFlow(fresh.record.id,choice);return;}
+  }catch(e){alert(e.message||e)}finally{ERP._advanceDocSaving=false;release()}
+}
+function advanceListBadge(kind,item){
+  if(kind==='quote'){
+    if(!norm(item.estado).includes('acept')||!item.data||item.data.__drive_ref)return '';
+    const linked=linkedOTForQuote(item.id);if(linked){const raw=ERP.store.otDetails.get(String(linked.id));if(!raw)return '';return advanceListBadge('ot',normalizeOT(raw));}
+  }else{
+    const raw=ERP.store.otDetails.get(String(item.id));if(raw)item=normalizeOT(raw);
+    if(!item.data||item.data.__drive_ref||docsFromOT(item).length||norm(item.estado).includes('cancel'))return '';
+  }
+  const data=item.data||{},cfg=data.particularCobro||{},q=kind==='ot'?quoteFor(item.quoteId):null;
+  const terms={...(q?.data||{}),...data};
+  if(!cfg.pagos?.length&&typeof cfg.requiere50!=='boolean'&&!terms.quotePaymentMode)return '';
+  const required=advanceRequired(cfg,terms,clientFor(item.clientId));if(!required&&!cfg.pagos?.length)return '';
+  const prices=advancePrices(item,q),basis=advanceBasis(cfg,prices),a=advanceAmounts(advanceBasisAmount(prices,basis,cfg),cfg.pagos,required);
+  return `<div class="small" style="margin-top:6px">${advanceBadge(a,required)}${basis==='neto'?'<div>Base: neto</div>':''}${required&&!a.ready&&a.total?`<div>Falta: ${money(a.missing)}</div>`:''}</div>`;
+}
+async function advanceOpen(kind,id,editId='',savedContext=null){
+  if(!savedContext)modal('Control de abonos','<div class="loading"><span class="spinner"></span>Consultando abonos registrados…</div>');
+  try{
+    const ctx=savedContext||await advanceContext(kind,id);if(!document.querySelector('#modalRoot .modal'))return;
+    const {record,amounts:a,payments,required,locked,docs,legacyPaid}=ctx;
+    const edit=editId?payments.find(p=>String(p.id)===String(editId)&&!p.anulado):null;
+    const title=ctx.kind==='ot'?`OT ${record.numero}`:`Cotización ${record.numero}`;
+    const target=ctx.kind==='ot'?'OT':'cotización';
+    const rows=payments.slice().sort((x,y)=>String(y.fecha||'').localeCompare(String(x.fecha||''))).map((p,i)=>`<tr><td>${dateCL(p.fecha)}</td><td>${money(p.monto)}</td><td>${esc(p.metodo||'—')}<div class="small">${esc(p.referencia||'')}</div></td><td>${p.anulado?'Anulado':'Registrado'}<div class="small">${esc(p.motivoAnulacion||p.registradoPor||'')}</div></td><td>${!locked&&!p.anulado?`<button class="link-btn" type="button" data-advance-edit="${esc(p.id)}">Editar</button> <button class="danger" type="button" data-advance-void="${esc(p.id)}">Anular</button>`:''}</td></tr>`).join('');
+    modal(`Control de abonos · ${title}`,`<div class="notice"><strong>${esc(ctx.client?.name||ctx.data.clientName||'Cliente')}</strong> · ${esc(record.descripcion||record.obra||'Trabajo')}<div class="small">${ctx.kind==='ot'?'La OT concentra el historial de cobros; puedes abrirlo también desde su cotización.':'El historial se trasladará automáticamente cuando se cree la OT.'}</div></div>
+      <div class="field"><label>Base del monto a cobrar</label><select id="advanceBasis" class="input" ${locked?'disabled':''}><option value="total" ${ctx.basis==='total'?'selected':''}>Total con IVA · ${money(ctx.prices.total)}</option><option value="neto" ${ctx.basis==='neto'?'selected':''}>Monto neto · ${money(ctx.prices.neto)}</option>${ctx.basis==='personalizado'?`<option value="personalizado" selected>Monto acordado previamente · ${money(ctx.cfg.monto)}</option>`:''}</select><div class="small">Esta selección ajusta el control de cobro, no modifica los valores de la cotización ni los documentos tributarios.</div></div>
+      <div id="advanceSummary" class="billing-detail-grid"></div>
+      ${advanceDocumentSection(ctx)}
+      ${locked?`<div class="notice">${docs.length?'Ya existe factura o boleta. Los abonos previos constan aquí; registra los nuevos pagos y consulta el saldo actualizado en Facturación y Abonos.':legacyPaid?'La OT tiene una marca histórica de pago completo. Revisa la cobranza antes de registrar nuevos pagos.':ctx.closed?'Cierre administrativo registrado. Reabre la OT si necesitas corregir los pagos o registrar un documento posteriormente.':'La OT está cancelada.'}</div>`:`<form id="advanceForm"><label style="display:flex;align-items:center;gap:9px;padding:12px 0;font-weight:800"><input type="checkbox" id="advanceRequired" ${required?'checked':''}> Requiere abono del 50% para iniciar el trabajo</label><div class="notice">Puedes guardar solo la condición o registrar uno o varios pagos. El saldo se calcula automáticamente.</div><h3>${edit?'Editar abono':'Registrar nuevo abono'}</h3><div class="grid2"><div class="field"><label>Monto recibido ($)</label><input id="advanceAmount" class="input" inputmode="numeric" value="${edit?formatQuoteMoneyInputValue(edit.monto):''}" placeholder="${a.missing?formatQuoteMoneyInputValue(a.missing):'0'}" oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.')"></div><div class="field"><label>Fecha del abono</label><input id="advanceDate" type="date" class="input" value="${esc(edit?.fecha||isoToday())}"></div><div class="field"><label>Medio de pago</label><select id="advanceMethod" class="input">${['Transferencia','Efectivo','Tarjeta','Otro'].map(m=>`<option ${m===(edit?.metodo||'Transferencia')?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Referencia / comprobante (opcional)</label><input id="advanceReference" class="input" value="${esc(edit?.referencia||'')}"></div></div><div class="field"><label>Observación (opcional)</label><textarea id="advanceNote" class="input" rows="2">${esc(edit?.nota||'')}</textarea></div><div id="advanceError"></div><div class="actions"><button id="advanceSaveBtn" class="primary" type="submit">${edit?'Guardar corrección':'Guardar condición / abono'}</button><button id="advanceFill" class="secondary" type="button">Completar 50%</button><button id="advanceFillFull" class="secondary" type="button">Pago completo</button>${edit?'<button class="secondary" id="advanceCancelEdit" type="button">Cancelar edición</button>':''}</div></form>`}
+      <h3 style="margin-top:24px">Historial de abonos</h3><div class="table-wrap"><table class="items-table"><thead><tr><th>Fecha</th><th>Monto</th><th>Medio / referencia</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="empty">No hay abonos registrados.</td></tr>'}</tbody></table></div><div class="actions" style="margin-top:18px"><button class="secondary" id="advanceBack" type="button">Volver a opciones de ${target}</button></div>`);
+    const selectedAmount=()=>advanceBasisAmount(ctx.prices,$('advanceBasis')?.value||ctx.basis,ctx.cfg);
+    const refreshSummary=()=>{
+      const req=locked?required:!!$('advanceRequired')?.checked,summary=advanceAmounts(selectedAmount(),payments,req);
+      const cards=[['Monto a cobrar',money(summary.total)],['50% requerido',req?money(summary.target):'No aplica'],['Abonado',money(summary.paid)],['Falta para iniciar',req?money(summary.missing):'No aplica'],[docs.length?'Saldo tras abonos previos':'Saldo total pendiente',money(summary.remaining)]];
+      $('advanceSummary').innerHTML=cards.map(([label,value])=>`<div class="billing-detail-card"><b>${esc(label)}</b><strong>${esc(value)}</strong></div>`).join('')+`<div class="billing-detail-card"><b>Estado del pago</b><strong>${advanceBadge(summary,req)}</strong></div>`;
+      if($('advanceAmount'))$('advanceAmount').placeholder=summary.missing?formatQuoteMoneyInputValue(summary.missing):'0';
+      if($('advanceFill'))$('advanceFill').disabled=!req;
+      if($('advanceFillFull'))$('advanceFillFull').disabled=summary.remaining===0&&!edit;
+    };
+    refreshSummary();
+    $('advanceBasis')?.addEventListener('change',refreshSummary);
+    $('advanceRequired')?.addEventListener('change',refreshSummary);
+    $('advanceFill')?.addEventListener('click',()=>{const paidWithoutEdit=a.paid-(edit?num(edit.monto):0),needed=Math.max(0,Math.round(selectedAmount()/2)-paidWithoutEdit);$('advanceAmount').value=needed?formatQuoteMoneyInputValue(needed):'';});
+    $('advanceFillFull')?.addEventListener('click',()=>{const paidWithoutEdit=a.paid-(edit?num(edit.monto):0),needed=Math.max(0,selectedAmount()-paidWithoutEdit);$('advanceAmount').value=needed?formatQuoteMoneyInputValue(needed):'';});
+    document.querySelectorAll('[data-advance-document]').forEach(el=>el.onclick=()=>advanceDocumentAction(ctx,el.dataset.advanceDocument));
+    $('advanceForm')?.addEventListener('submit',e=>advanceSave(e,ctx,edit));
+    $('advanceCancelEdit')?.addEventListener('click',()=>advanceOpen(kind,id));
+    $('advanceBack')?.addEventListener('click',()=>kind==='quote'?quoteOptions(id):ERP.otOptions(id));
+    document.querySelectorAll('[data-advance-edit]').forEach(el=>el.onclick=()=>advanceOpen(kind,id,el.dataset.advanceEdit));
+    document.querySelectorAll('[data-advance-void]').forEach(el=>el.onclick=()=>advanceVoid(ctx,el.dataset.advanceVoid));
+  }catch(e){modal('Control de abonos',`<div class="error">${esc(e.message||e)}</div>`);}
+}
+// Bloquea acciones del mismo formulario mientras se confirma el guardado.
+function advanceBusy(button,label='Guardando…'){
+  const root=document.querySelector('#modalRoot .modal'),controls=[...(root?.querySelectorAll('button,input,select,textarea')||[])];
+  const states=controls.map(el=>[el,el.disabled]),caption=button?.textContent;
+  controls.forEach(el=>el.disabled=true);if(button)button.textContent=label;
+  return ()=>{for(const [el,disabled] of states)el.disabled=disabled;if(button)button.textContent=caption;};
+}
+async function advancePersist(ctx,cfg,action,payState=null){
+  const data={...ctx.data,particularCobro:cfg};
+  if(payState!==null)data.pago_estado=payState;
+  if(ctx.kind==='ot')data.otHistory=[otHistoryEntry(action),...(Array.isArray(data.otHistory)?data.otHistory:[])];
+  else data.quoteHistory=[buildQuoteHistoryEntry(action),...(Array.isArray(data.quoteHistory)?data.quoteHistory:[])];
+  const id=ctx.record.id;
+  await api('update',{table:ctx.table,patch:{data,...(payState!==null?{pago_estado:payState}:{})},filters:[{column:'id',op:'eq',value:id}]},{timeout:90000,attempts:2});
+  const raw={...ctx.raw,data,...(payState!==null?{pago_estado:payState,pagoEstado:payState}:{})};
+  if(ctx.kind==='ot'){
+    particularStoreOT(id,raw);billingCommitRawLocal(raw);
+    const r=ERP.remote.ots,n=normalizeOT(raw),key=String(id),ui=ERP.ui.ots;
+    const filter=ui.filter||'pendientes',scan=r.scans.get(otScanKey(filter,ui.search)),wasVisible=(r.currentRows||[]).some(row=>String(row.id)===key);
+    // Actualiza únicamente el registro guardado y conserva el resto de la página.
+    r.currentRows=(r.currentRows||[]).map(row=>String(row.id)===key?n:row);
+    for(const [cacheKey,s] of r.scans){if(s.items.some(row=>String(row.id)===key)){s.items=s.items.map(row=>String(row.id)===key?n:row);clearOTViewSnap(cacheKey);}}
+    ERP._billingExactLoadedAt=0;ERP._billingHistoryComplete=false;invalidate('billing');invalidate('ots');
+    if(payState!==null){
+      otSetStatusGuard(id,ctx.record.estado,payState);
+      if(ERP._otViewCtl)ERP._otViewCtl.abort();clearTimeout(ERP._otRefsTimer);r.loadingKey='';
+      const group=otGroup(n),keep=filter==='todas'||filter===group||(filter==='activas'&&['pendientes','curso','listas'].includes(group))||(filter==='activas_base'&&['pendientes','curso'].includes(group));
+      if(filter==='finalizadas')applyFinalizedOTRows();
+      else if(wasVisible&&!keep){
+        r.currentRows=r.currentRows.filter(row=>String(row.id)!==key);
+        if(scan?.items.some(row=>String(row.id)===key)){scan.items=scan.items.filter(row=>String(row.id)!==key);applyOTScanToCurrent();}
+        else if(Number.isFinite(r.currentKnownTotal))r.currentKnownTotal=Math.max(0,r.currentKnownTotal-1);
+      }
+      // La próxima visita podrá consultar los datos actualizados; no volver a
+      // escanear todas las OT mientras el usuario está registrando un pago.
+      otDropStatusViewCaches();
+    }
+    if(ERP.view==='ots')renderOTs();if(ERP.view==='quotes')renderQuotes();
+  }else{
+    ERP.store.quoteDetails.delete(String(id));quoteUpsertLocal(raw);
+    quoteDropViewCaches();invalidate('quotes');
+    const session=ERP.session;setTimeout(()=>{if(ERP.session===session)quoteSaveLocalSnapshot()},0);
+  }
+  return advanceContextFromRaw(ctx.table,raw,ctx.qraw);
+}
+async function advanceSave(e,original,edit){
+  e.preventDefault();const btn=$('advanceSaveBtn'),err=$('advanceError');if(btn?.disabled)return;const release=advanceBusy(btn);if(err)err.innerHTML='';
+  try{
+    const amount=parseQuoteMoney($('advanceAmount')?.value),date=text($('advanceDate')?.value),required=!!$('advanceRequired')?.checked,method=text($('advanceMethod')?.value),reference=text($('advanceReference')?.value),note=text($('advanceNote')?.value);
+    const basis=text($('advanceBasis')?.value)||original.basis;
+    if(edit&&amount<=0)throw new Error('El monto corregido debe ser mayor a cero.');
+    if(amount<0)throw new Error('El monto no puede ser negativo.');
+    if(amount>0&&(!date||date>isoToday()))throw new Error('Indica una fecha de pago válida, no posterior a hoy.');
+    const fresh=await advanceContext(original.kind,original.record.id);
+    if(fresh.kind!==original.kind||String(fresh.record.id)!==String(original.record.id))throw new Error('La OT cambió mientras registrabas el abono. Vuelve a abrir el control.');
+    if(fresh.locked)throw new Error('Este registro ya no admite abonos desde este menú.');
+    const list=fresh.payments.slice(),idx=edit?list.findIndex(p=>String(p.id)===String(edit.id)&&!p.anulado):-1;
+    if(edit&&idx<0)throw new Error('El abono fue modificado o anulado. Actualiza el control.');
+    const other=advancePaid(list)-(idx>=0?num(list[idx].monto):0);
+    if(!['total','neto','personalizado'].includes(basis)||(basis==='personalizado'&&fresh.basis!=='personalizado'))throw new Error('Selecciona una base de cobro válida.');
+    const chargeAmount=advanceBasisAmount(fresh.prices,basis,fresh.cfg);
+    if(chargeAmount<=0||other+amount>chargeAmount)throw new Error(`El monto seleccionado no cubre los abonos registrados o el nuevo pago excede el saldo disponible (${money(Math.max(0,chargeAmount-other))}).`);
+    if(amount>0){const payment={...(idx>=0?list[idx]:{}),id:idx>=0?list[idx].id:`ADV_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,monto:amount,fecha:date,metodo:method,referencia:reference,nota:note,registradoPor:otCurrentUser(),createdAt:idx>=0?list[idx].createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};if(idx>=0)list[idx]=payment;else list.push(payment);}
+    const action=(amount>0?`${edit?'Abono corregido':'Abono registrado'}: ${money(amount)}`:'Condición de abono actualizada')+` · ${advanceBasisLabel(basis)}: ${money(chargeAmount)}`;
+    const saved=await advancePersist(fresh,{...fresh.cfg,baseCalculo:basis,monto:chargeAmount,requiere50:required,pagos:list,activado:!!fresh.cfg.activado||advancePaid(list)>0},action);
+    erpQuickToast('Control de abono actualizado');await advanceOpen(saved.kind,saved.record.id,'',saved);
+  }catch(error){if(err)err.innerHTML=`<div class="error">${esc(error.message||error)}</div>`;else alert(error.message||error)}finally{release()}
+}
+async function advanceVoid(original,paymentId){
+  const reason=text(prompt('Indica el motivo de anulación del abono:')||'');if(!reason)return;
+  const release=advanceBusy(null);
+  try{
+    const fresh=await advanceContext(original.kind,original.record.id);
+    if(fresh.kind!==original.kind||fresh.locked)throw new Error('Este historial cambió o ya no admite modificaciones.');
+    const idx=fresh.payments.findIndex(p=>String(p.id)===String(paymentId)&&!p.anulado);if(idx<0)throw new Error('El abono ya no está disponible.');
+    const list=fresh.payments.slice();list[idx]={...list[idx],anulado:true,motivoAnulacion:reason,anuladoPor:otCurrentUser(),anuladoAt:new Date().toISOString()};
+    const saved=await advancePersist(fresh,{...fresh.cfg,pagos:list},`Abono anulado: ${money(list[idx].monto)} · ${reason}`);
+    erpQuickToast('Abono anulado');await advanceOpen(saved.kind,saved.record.id,'',saved);
+  }catch(e){alert(e.message||e)}finally{release()}
+}
+function appendAdvanceOption(kind,id){
+  const list=document.querySelector(kind==='quote'?'#modalRoot .quote-options-list':'#modalRoot .ot-options-list');if(!list)return;
+  const item=kind==='quote'?(ERP.store.quotes||[]).find(x=>String(x.id)===String(id)):(ERP.store.ots||[]).find(x=>String(x.id)===String(id));
+  if(!item||(kind==='quote'&&!norm(item.estado).includes('acept')))return;
+  const btn=document.createElement('button');btn.type='button';btn.className=kind==='quote'?'quote-option-btn':'ot-option-btn';btn.innerHTML='<span class="ico">$</span><span>Control de abonos / saldo pendiente</span>';btn.onclick=()=>advanceOpen(kind,id);list.prepend(btn);
+}
 function quoteOptions(id){
  const q=(ERP.store.quotes||[]).find(x=>String(x.id)===String(id));if(!q){alert('No se encontró la cotización.');return}
  if(!ERP.store.quoteDetails.has(String(id)))getQuoteDocumentData(id).catch(()=>{});
@@ -7670,13 +8021,14 @@ function quoteOptions(id){
 
  modal('Opciones de cotización',`<div class="quote-options-head"><div><h2 style="margin:0">Opciones de cotización</h2><div class="quote-options-sub">Cotización ${esc(q.numero)} · ${esc(c?.name||q.data?.clientName||'Cliente')}</div></div><button class="secondary" onclick="ERP.closeModal()">Cerrar</button></div><div class="quote-options-list"><button class="quote-option-btn" onclick="ERP.openQuote('${esc(id)}',this)"><span class="ico">${quoteSvgIcon('eye')}</span><span>Ver cotización</span></button>${otAction}<button class="quote-option-btn" onclick="ERP.quoteForm('${esc(id)}')"><span class="ico">${quoteSvgIcon('edit')}</span><span>Editar cotización</span></button>${backToPending}<button class="quote-option-btn" onclick="ERP.printQuote('${esc(id)}',this)"><span class="ico">${quoteSvgIcon('print')}</span><span>Imprimir cotización</span></button><button class="quote-option-btn" onclick="ERP.downloadQuotePDF('${esc(id)}',this)"><span class="ico">${quoteSvgIcon('download')}</span><span>Descargar PDF</span></button><button class="quote-option-btn danger-soft" onclick="ERP.deleteQuoteRecord('${esc(id)}')"><span class="ico">${quoteSvgIcon('trash')}</span><span>Eliminar cotización</span></button><button class="quote-option-btn" onclick="ERP.markQuoteSpecialStatus('${esc(id)}','vencida')"><span class="ico">${quoteSvgIcon('clock')}</span><span>Marcar como vencida</span></button><button class="quote-option-btn" onclick="ERP.markQuoteSpecialStatus('${esc(id)}','reemplazada')"><span class="ico">${quoteSvgIcon('replace')}</span><span>Marcar como reemplazada</span></button><button class="quote-option-btn" onclick="ERP.showQuoteHistory('${esc(id)}')"><span class="ico">${quoteSvgIcon('history')}</span><span>Ver historial</span></button></div>`);
 
+ appendAdvanceOption('quote',id);
  // Si todavía no se habían consultado las OT de esta cotización,
  // se comprueba en segundo plano y se actualiza la opción sin obligar
  // al usuario a refrescar la página.
  if(s.includes('acept')&&!linked&&!ERP.store.quoteOTRefs.has(String(id))){
    loadLinkedOTRefsForQuotes([q]).then(()=>{
      const nowLinked=linkedOTForQuote(id);
-     if(nowLinked&&document.querySelector('#modalRoot .modal'))quoteOptions(id);
+     if(nowLinked&&document.querySelector('#modalRoot .modal-head h2')?.textContent==='Opciones de cotización')quoteOptions(id);
    }).catch(()=>{});
  }
 }
@@ -7757,7 +8109,7 @@ async function openQuote(id,trigger=null){
  try{const {r,q,c,items}=await getQuoteDocumentData(id);const st=norm(q.estado);modal(`Cotización ${q.numero}`,`<div class="quote-document-shell">${quoteDocumentHtml(q,r,c,items)}</div><div class="quote-doc-actions"><button class="print-btn" onclick="ERP.printQuote('${esc(q.id)}',this)">Imprimir cotización</button><button class="pdf-btn" onclick="ERP.downloadQuotePDF('${esc(q.id)}',this)">Descargar PDF</button><button class="secondary" onclick="ERP.quoteForm('${esc(q.id)}')">Editar</button>${st.includes('pend')?`<button class="success-btn" onclick="ERP.setQuoteRecordStatus('${esc(q.id)}','aceptada')">Aceptar</button><button class="warning-btn" onclick="ERP.setQuoteRecordStatus('${esc(q.id)}','rechazada')">Rechazar</button>`:`${st.includes('acept')?`<button class="primary" onclick="ERP.otForm('${esc(q.id)}')">Crear OT</button>`:''}<button class="muted-btn" onclick="ERP.setQuoteRecordStatus('${esc(q.id)}','pendiente')">Volver a pendiente</button>`}<button class="danger" onclick="ERP.deleteQuoteRecord('${esc(q.id)}')">Eliminar</button></div>`)}catch(e){modal('Cotización',`<div class="error">${esc(e.message)}</div>`)}finally{if(btn){btn.classList.remove('quote-action-busy');btn.disabled=false}}
 }
 
-function otDocumentCards(o){const cards=[];cards.push(`<div class="ot-doc-card"><strong>Orden de compra</strong><div class="small">${esc(o.oc||'No registrada')}</div></div>`);cards.push(`<div class="ot-doc-card"><strong>HES</strong><div class="small">${esc(o.hes||'No registrada')}</div></div>`);cards.push(`<div class="ot-doc-card"><strong>Guía de despacho</strong><div class="small">${esc(o.guia||'No registrada')}</div></div>`);const docText=o.factura?`${esc(o.documentoTipo||'Factura')} ${esc(o.factura)}`:(otIsPendingBilling(o)?'Pendiente de facturar':(otIsWorkCompleted(o)?'Sin documento registrado':'Aún no corresponde'));cards.push(`<div class="ot-doc-card"><strong>Factura / documento</strong><div class="small">${docText}</div></div>`);return cards.join('')}
+function otDocumentCards(o){const cards=[];cards.push(`<div class="ot-doc-card"><strong>Orden de compra</strong><div class="small">${esc(o.oc||'No registrada')}</div></div>`);cards.push(`<div class="ot-doc-card"><strong>HES</strong><div class="small">${esc(o.hes||'No registrada')}</div></div>`);cards.push(`<div class="ot-doc-card"><strong>Guía de despacho</strong><div class="small">${esc(o.guia||'No registrada')}</div></div>`);const docText=o.factura?`${esc(o.documentoTipo||'Factura')} ${esc(o.factura)}`:(otClosedWithoutDoc(otBillingView(o))?'Pagado · Sin documento':otIsPendingBilling(o)?'Pendiente de facturar':(otIsWorkCompleted(o)?'Sin documento registrado':'Aún no corresponde'));cards.push(`<div class="ot-doc-card"><strong>Factura / documento</strong><div class="small">${docText}</div></div>`);return cards.join('')}
 function otQuickStatusButtons(o){const s=statusNorm(o.estado);const b=[];if(s.includes('pend')&&!s.includes('factur'))b.push(`<button class="secondary" onclick="ERP.setOTStatus('${esc(o.id)}','en curso')">Iniciar trabajo</button>`);if(s.includes('curso'))b.push(`<button class="primary" onclick="ERP.markOTWorkDone('${esc(o.id)}',this)">Marcar trabajo listo</button>`);if(otIsWorkCompleted(o)&&otMissingBillingDocs(o).length)b.push(`<button class="secondary" onclick="ERP.otBillingDocsForm('${esc(o.id)}')">Registrar OC / HES</button>`);if(s.includes('cancel'))b.push(`<button class="secondary" onclick="ERP.setOTStatus('${esc(o.id)}','pendiente')">Volver a pendiente</button>`);else b.push(`<button class="danger" onclick="ERP.setOTStatus('${esc(o.id)}','cancelada')">Cancelar OT</button>`);return b.join('')}
 function otEffectiveAmount(o){const q=o?.quoteId?quoteFor(o.quoteId):null;return num(q?.monto)>0?num(q.monto):num(o?.monto)}
 
@@ -7769,11 +8121,11 @@ function otBillingSituationHtml(o){
     return `<button class="ot-doc-existing" onclick="ERP.otTaxDocumentFlow('${esc(view.id)}')">${esc(d.tipo==='boleta'?'Boleta':'Factura')} ${esc(d.numero)}</button>`;
   }
 
+  if(otClosedWithoutDoc(view))return '<span class="badge b-paid">Pagado · Sin documento</span>';
   if(!otIsWorkCompleted(view))return 'Aún no corresponde';
 
   const state=otBillingRequirementState(view);
-  if(!state.loaded)return '<span class="badge b-neutral">Verificando requisitos…</span>';
-  if(state.failed)return '<span class="badge b-neutral">Requisitos no disponibles</span>';
+  if(!state.loaded||state.failed)return otRequirementsRetryButton(view,state);
   if(!state.configured)return '<span class="badge b-neutral">Documentación por definir</span>';
 
   if(state.missing.length){
@@ -7793,6 +8145,7 @@ function renderOTDetailModal(o){const c=clientFor(o.clientId),qr=quoteFor(o.quot
 async function reconcileLinkedOTAmount(raw){
   if(!raw)return raw;
   const o=normalizeOT(raw);
+  if(otClosedWithoutDoc(o))return raw;
   if(!o.quoteId)return raw;
 
   let q=null;
@@ -7845,6 +8198,13 @@ async function reconcileLinkedOTAmount(raw){
     items:Array.isArray(q.items)&&q.items.length?q.items:base.items,
     cotizacionSincronizadaEn:new Date().toISOString()
   };
+  // La sincronización comercial conserva la base elegida y los abonos reales.
+  if(base.particularCobro&&!docsFromOT(o).length){
+    const oldCfg=base.particularCobro,basis=advanceBasis(oldCfg,advancePrices(o));
+    const cfg=advanceConfigForPrices({...oldCfg,baseCalculo:basis},advancePrices({monto:targetAmount,data:nextData},q));
+    if(advancePaid(cfg.pagos)>cfg.monto)return raw;
+    nextData.particularCobro=cfg;
+  }
 
   // Si ya coincide, igual devolvemos la versión reconciliada para la vista.
   if(Math.abs(targetAmount-num(o.monto))<0.5 && Math.abs(targetAmount-num(base.monto||base.total))<0.5){
@@ -7917,7 +8277,8 @@ async function deleteOT(id){
     (Array.isArray(d.documentos_tributarios)&&d.documentos_tributarios.length)
   );
 
-  if(abonos.length||hasDoc){
+  if(!raw){alert('No fue posible comprobar los abonos de la OT. Actualiza e intenta nuevamente.');return;}
+  if(abonos.length||hasDoc||particularPayments(d.particularCobro?.pagos).length){
     alert('Esta OT tiene documentos o abonos asociados y no se puede eliminar.');
     return;
   }
@@ -9958,7 +10319,7 @@ function adminIsOpen(o){return !otIsWorkCompleted(o)&&!/anulad|cancelad|rechazad
 function adminOTs(){return [...(ERP.store.ots||[])].filter(o=>o&&o.id&&String(o.id).indexOf('TMP_OT_')!==0)}
 function adminClient(o){const c=clientFor(o.clientId);return c?.name||o.data?.clientName||adminOTRaw(o)?.data?.clientName||'Cliente sin identificar'}
 function adminWarnings(o){
-  const a=[],created=adminDateOnly(o.createdAt)||adminDateOnly(o.fecha),days=adminDays(created),plan=adminPlan(o),finish=adminCompletion(o),finished=otIsWorkCompleted(o),billed=adminBilled(o);
+  const a=[],created=adminDateOnly(o.createdAt)||adminDateOnly(o.fecha),days=adminDays(created),plan=adminPlan(o),finish=adminCompletion(o),finished=otIsWorkCompleted(o),billed=adminBilled(o)||otClosedWithoutDoc(otBillingView(o));
   if(!finished&&adminIsOpen(o)){
     if(!plan.scheduled&&days!==null&&days>=2)a.push({type:'programacion',level:days>=4?'urgent':'warn',text:`${days} días sin programar`,age:days});
     if(days!==null&&days>=5)a.push({type:'ejecucion',level:days>=7?'urgent':'warn',text:`${days} días desde la creación sin trabajo listo`,age:days});
@@ -9974,7 +10335,7 @@ function adminWarnings(o){
   }
   return a;
 }
-function adminSummary(){const rows=adminOTs();return {rows,unplanned:rows.filter(o=>adminIsOpen(o)&&!adminPlan(o).scheduled).length,urgent:rows.filter(o=>adminWarnings(o).some(w=>w.level==='urgent')).length,missing:rows.filter(o=>otIsWorkCompleted(o)&&!adminBilled(o)&&otBillingRequirementState(otBillingView(o)).missing.length>0).length,unbilled:rows.filter(o=>otIsWorkCompleted(o)&&!adminBilled(o)).length}}
+function adminSummary(){const rows=adminOTs();return {rows,unplanned:rows.filter(o=>adminIsOpen(o)&&!adminPlan(o).scheduled).length,urgent:rows.filter(o=>adminWarnings(o).some(w=>w.level==='urgent')).length,missing:rows.filter(o=>otIsWorkCompleted(o)&&!adminBilled(o)&&!otClosedWithoutDoc(otBillingView(o))&&otBillingRequirementState(otBillingView(o)).missing.length>0).length,unbilled:rows.filter(o=>otIsWorkCompleted(o)&&!adminBilled(o)&&!otClosedWithoutDoc(otBillingView(o))).length}}
 async function showAdminCenter(force=false){
   const ui=adminUi();
   setContent(pageHeader('Control Administrativo','Seguimiento de órdenes de trabajo, programación y alertas desde el ERP.')+'<div class="panel"><div class="loading"><span class="spinner"></span>Cargando órdenes de trabajo y clientes…</div></div>');
@@ -9994,7 +10355,7 @@ function adminControlButton(o,label='Programar'){return `<button type="button" o
 function adminItem(o,warning=null){
   const plan=adminPlan(o),completed=otIsWorkCompleted(o),billed=adminBilled(o);
   const all=warning?[warning]:adminWarnings(o),worst=all.some(w=>w.level==='urgent')?'urgent':all.length?'warn':'normal';
-  const meta=`Ingreso: ${esc(dateCL(adminDateOnly(o.createdAt)||adminDateOnly(o.fecha)))} · ${plan.scheduled?'Programada '+dateCL(plan.scheduled):'Sin fecha programada'} · ${esc(plan.owner||o.tecnico||'Sin responsable')} · ${completed?(billed?'Facturada / documentada':'Trabajo listo'):'Pendiente de ejecución'}`;
+  const meta=`Ingreso: ${esc(dateCL(adminDateOnly(o.createdAt)||adminDateOnly(o.fecha)))} · ${plan.scheduled?'Programada '+dateCL(plan.scheduled):'Sin fecha programada'} · ${esc(plan.owner||o.tecnico||'Sin responsable')} · ${completed?(billed?'Facturada / documentada':otClosedWithoutDoc(otBillingView(o))?'Pagado · Sin documento':'Trabajo listo'):'Pendiente de ejecución'}`;
   return `<div class="adm-item ${worst}"><div><b>OT ${esc(o.numero||'S/N')} · ${esc(adminClient(o))}</b><div class="subline">${esc(o.descripcion||'Sin descripción')}</div><div class="details">${meta}</div>${all.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">${all.map(w=>`<span class="adm-tag ${w.level}">${esc(w.text)}</span>`).join('')}</div>`:''}</div><div class="adm-controls"><button onclick="ERP.openOT('${esc(o.id)}')">Ver OT</button>${adminControlButton(o,plan.scheduled?'Reprogramar':'Programar')}</div></div>`;
 }
 // Tareas libres: independientes de las OT. Persistencia local hasta conectar una tabla de gestiones en la API.
@@ -10634,6 +10995,7 @@ Object.assign(ERP,{collectionChangeFilter,collectionForm,collectionResultChanged
  setOTFilter(v){if(ERP.ui.ots.filter===v&&ERP.ui.ots.page===1)return;ERP.ui.ots.filter=v;ERP.ui.ots.page=1;showOTs(false)},setOTActiveFilter(v){const allowed=['todas','activas_base','pendientes','curso','listas'];const next=allowed.includes(v)?v:'activas_base';if(ERP.ui.ots.filter===next&&ERP.ui.ots.page===1)return;ERP.ui.ots.filter=next;ERP.ui.ots.page=1;showOTs(false)},otPage(p){const next=Math.max(1,p);if(next===ERP.ui.ots.page)return;ERP.ui.ots.page=next;showOTs(false)},
  clientPage(p){ERP.ui.clients.page=Math.max(1,p);renderClients();hydrateVisibleClientDocumentation().catch(()=>{})},billingPage(p){ERP.ui.billing.page=Math.max(1,p);renderBilling()},setBillingStatus(v){ERP.ui.billing.status=v;ERP.ui.billing.page=1;renderBilling()},maintYear(y){ERP.ui.maintenance.year=Number(y);renderMaintenance()},maintenanceSearchChanged(input){ERP.ui.maintenance.search=input.value;ERP._maintSearchCaret=input.selectionStart??input.value.length;ERP._maintSearchRestore=true;renderMaintenance()}
 });window.ERP=ERP;
+ERP.otOptions=function(id){otOptions(id);appendAdvanceOption('ot',id)};
 
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{if(b.dataset.toolsToggle)return toggleMoreTools();if(b.dataset.external)return openExternalApp(b.dataset.external);if(b.dataset.view)return openView(b.dataset.view)});$('refreshBtn').onclick=()=>openView(ERP.view,{force:true});$('changePasswordBtn').onclick=()=>changePasswordForm(false);$('logoutBtn').onclick=logout;initMoreTools();initSidebarBehavior();
 $('loginForm').onsubmit=async e=>{e.preventDefault();const btn=$('loginBtn');btn.disabled=true;btn.textContent='Ingresando…';$('loginError').classList.add('hidden');try{await login($('loginEmail').value,$('loginPassword').value);showApp()}catch(err){$('loginError').textContent=err.message||'No se pudo iniciar sesión';$('loginError').classList.remove('hidden')}finally{btn.disabled=false;btn.textContent='Ingresar'}};
